@@ -1,12 +1,2 @@
-[package]
-name = "bitcoin-wallet-generator"
-version = "0.1.0"
-authors = ["Ali Mousa <amousa11@gmail.com>"]
-
-[dependencies]
-base58 = "0.1"
-rand = "0.5"
-ripemd160 = "0.7"
-secp256k1 = "0.10.0"
-sha2 = "0.7"
-hex = "0.3.2"
+[workspace]
+members = ["bitcoin", "cli"]

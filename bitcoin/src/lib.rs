@@ -1,4 +1,4 @@
-//! # Bitcoin-Wallet-Generator
+//! # Bitcoin
 //!
 //! A library for generating Bitcoin Wallets.
 use address::Address;
