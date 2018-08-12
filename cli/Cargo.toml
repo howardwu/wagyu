@@ -5,3 +5,4 @@ authors = ["Ali Mousa <amousa11@gmail.com>"]
 
 [dependencies]
 bitcoin = { path = "../bitcoin" }
+clap = "~2.27.0"
