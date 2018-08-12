@@ -10,7 +10,6 @@ pub mod address;
 pub mod network;
 pub mod privatekey;
 
-
 /// A BitcoinWallet is represented by a PrivateKey and Address pair
 pub struct BitcoinWallet {
     pub private_key: PrivateKey,
@@ -35,18 +34,25 @@ impl BitcoinWallet {
             PrivateKey::new(network)
         };
         let address = Address::from_private_key(&private_key);
-        BitcoinWallet { private_key, address }
+        BitcoinWallet {
+            private_key,
+            address,
+        }
     }
 
     /// Recovers a BitcoinWallet from a PrivateKey object
     pub fn from_private_key(private_key: PrivateKey) -> BitcoinWallet {
         let address = Address::from_private_key(&private_key);
-        BitcoinWallet { private_key, address }
+        BitcoinWallet {
+            private_key,
+            address,
+        }
     }
 
     /// Recovers a BitcoinWallet from a Wallet Import Format string (a private key string)
     pub fn from_wif(private_key_wif: &str) -> BitcoinWallet {
-        let private_key = PrivateKey::from_wif(private_key_wif).expect("Error creating Bitcoin Wallet from WIF");
+        let private_key =
+            PrivateKey::from_wif(private_key_wif).expect("Error creating Bitcoin Wallet from WIF");
         BitcoinWallet::from_private_key(private_key)
     }
 
@@ -61,12 +67,19 @@ impl BitcoinWallet {
 
 impl fmt::Display for BitcoinWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "
+        write!(
+            f,
+            "
         Private Key:    {}
         Address:        {}
         Network:        {}
         Compressed:     {}
-        ", self.private_key().wif(), self.address().wif(), self.private_key().network(), self.private_key().compressed())
+        ",
+            self.private_key().wif(),
+            self.address().wif(),
+            self.private_key().network(),
+            self.private_key().compressed()
+        )
     }
 }
 
@@ -84,7 +97,7 @@ mod tests {
     fn test_from_wif_mainnet_uncompressed() {
         test_from_wif(
             "5K6YcjP9R6R1dSbLskZsgcYnFd9Re2GG9HnTQFgU5Nqo9E4fbbQ",
-        "1KQNWxEYh7pMv5rPxGQGc3mRbHqZjr8a8Q"
+            "1KQNWxEYh7pMv5rPxGQGc3mRbHqZjr8a8Q",
         );
     }
 
@@ -92,7 +105,7 @@ mod tests {
     fn test_from_wif_mainnet_compressed() {
         test_from_wif(
             "L2sUYi4k9Ltymqxaj1J6hquGjYYBkQaMqb5dXdoCWKQNer7LYHBp",
-            "1D19u6K2Ad2dpBuG7BquxgJrcQRSzgSbgw"
+            "1D19u6K2Ad2dpBuG7BquxgJrcQRSzgSbgw",
         );
     }
 
@@ -100,7 +113,7 @@ mod tests {
     fn test_from_wif_testnet_uncompressed() {
         test_from_wif(
             "934pVYUzZ7Sm4ZSP7MtXaQXAcMhZHpFHFBvzfW3epFgk5cWeYih",
-            "my55YLK4BmM8AyUW5px2HSSKL4yzUE5Pho"
+            "my55YLK4BmM8AyUW5px2HSSKL4yzUE5Pho",
         );
     }
 
@@ -108,7 +121,7 @@ mod tests {
     fn test_from_wif_testnet_compressed() {
         test_from_wif(
             "cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
-            "mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w"
+            "mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w",
         );
     }
 }

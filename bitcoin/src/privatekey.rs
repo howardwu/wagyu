@@ -3,14 +3,14 @@ extern crate rand;
 extern crate secp256k1;
 extern crate sha2;
 
-use Network;
 use self::base58::{FromBase58, ToBase58};
-use self::rand::RngCore;
 use self::rand::thread_rng;
-use self::secp256k1::{PublicKey, SecretKey};
+use self::rand::RngCore;
 use self::secp256k1::Secp256k1;
+use self::secp256k1::{PublicKey, SecretKey};
 use self::sha2::{Digest, Sha256};
 use std::fmt;
+use Network;
 
 /// Represents a Bitcoin Private Key
 #[derive(Debug, Eq, PartialEq)]
@@ -43,16 +43,19 @@ impl PrivateKey {
         let secp = Secp256k1::new();
         let mut rand_bytes = [0u8; 32];
         let mut rng = thread_rng();
-        rng
-            .try_fill_bytes(&mut rand_bytes)
+        rng.try_fill_bytes(&mut rand_bytes)
             .expect("Error generating random bytes for private key");
 
-        let secret_key =
-            SecretKey::from_slice(&secp, &rand_bytes)
-                .expect("Error creating secret key from byte slice");
+        let secret_key = SecretKey::from_slice(&secp, &rand_bytes)
+            .expect("Error creating secret key from byte slice");
         let wif = PrivateKey::secret_key_to_wif(&secret_key, &network, compressed);
 
-        PrivateKey { secret_key, wif, network, compressed }
+        PrivateKey {
+            secret_key,
+            wif,
+            network,
+            compressed,
+        }
     }
 
     /// Returns the Secp256k1 PublicKey generated from this PrivateKey
@@ -66,12 +69,18 @@ impl PrivateKey {
         let compressed = secret_key.len() == 65;
         let wif = PrivateKey::secret_key_to_wif(&secret_key, &network, compressed);
 
-        PrivateKey { secret_key, wif, network, compressed }
+        PrivateKey {
+            secret_key,
+            wif,
+            network,
+            compressed,
+        }
     }
 
     fn secret_key_to_wif(secret_key: &SecretKey, network: &Network, compressed: bool) -> String {
         let mut wif = [0u8; 38];
-        wif[0] = match network { // Prepend network byte
+        wif[0] = match network {
+            // Prepend network byte
             Network::Testnet => 0xef,
             _ => 0x80,
         };
@@ -102,7 +111,7 @@ impl PrivateKey {
         let network = match wif_bytes[0] {
             0x80 => Network::Mainnet,
             0xef => Network::Testnet,
-            _ => Network::Error
+            _ => Network::Error,
         };
 
         let wif_bytes_to_hash = &wif_bytes[0..length - 4];
@@ -115,11 +124,15 @@ impl PrivateKey {
             Err("Invalid wif")
         } else {
             let secp = Secp256k1::without_caps();
-            let secret_key =
-                SecretKey::from_slice(&secp, &wif_bytes[1..33])
-                    .expect("Error creating secret key from slice");
+            let secret_key = SecretKey::from_slice(&secp, &wif_bytes[1..33])
+                .expect("Error creating secret key from slice");
 
-            Ok(PrivateKey { network, wif: wif.to_string(), secret_key, compressed })
+            Ok(PrivateKey {
+                network,
+                wif: wif.to_string(),
+                secret_key,
+                compressed,
+            })
         }
     }
 
@@ -156,29 +169,22 @@ mod tests {
     extern crate hex;
 
     fn test_from_wif(wif: &str, secret_key_string: &str) {
-        let private_key =
-            PrivateKey::from_wif(wif)
-                .expect("Error deriving private key from wif");
+        let private_key = PrivateKey::from_wif(wif).expect("Error deriving private key from wif");
         let secp = Secp256k1::without_caps();
         let secret_key_as_bytes =
-            hex::decode(secret_key_string)
-                .expect("Error decoding secret key from hex string");
-        let secret_key =
-            SecretKey::from_slice(&secp, &secret_key_as_bytes)
-                .expect("Error deriving secret key from hex string");
+            hex::decode(secret_key_string).expect("Error decoding secret key from hex string");
+        let secret_key = SecretKey::from_slice(&secp, &secret_key_as_bytes)
+            .expect("Error deriving secret key from hex string");
         assert_eq!(private_key.secret_key, secret_key);
     }
 
     fn test_to_wif(secret_key_string: &str, wif: &str, network: Network) {
         let secp = Secp256k1::without_caps();
         let secret_key_as_bytes =
-            hex::decode(secret_key_string)
-                .expect("Error decoding secret key from hex string");
-        let secret_key =
-            SecretKey::from_slice(&secp, &secret_key_as_bytes)
-                .expect("Error deriving secret key from hex string");
-        let private_key =
-            PrivateKey::from_secret_key(secret_key, network);
+            hex::decode(secret_key_string).expect("Error decoding secret key from hex string");
+        let secret_key = SecretKey::from_slice(&secp, &secret_key_as_bytes)
+            .expect("Error deriving secret key from hex string");
+        let private_key = PrivateKey::from_secret_key(secret_key, network);
         assert_eq!(private_key.secret_key, secret_key);
         assert_eq!(private_key.wif(), wif);
     }
@@ -186,7 +192,7 @@ mod tests {
     fn test_new(private_key: PrivateKey) {
         let first_character = match private_key.wif().chars().next() {
             Some(c) => c,
-            None => panic!("Error unwrapping first character of WIF")
+            None => panic!("Error unwrapping first character of WIF"),
         };
         // Reference: https://en.bitcoin.it/wiki/Address#Address_map
         let is_valid_first_character = match (private_key.network(), private_key.compressed()) {
@@ -194,10 +200,11 @@ mod tests {
             (Network::Testnet, false) => first_character == '9',
             (Network::Mainnet, true) => first_character == 'L' || first_character == 'K',
             (Network::Testnet, true) => first_character == 'c',
-            _ => false
+            _ => false,
         };
         assert!(is_valid_first_character);
-        let from_wif = PrivateKey::from_wif(private_key.wif()).expect("Error unwrapping private key from WIF");
+        let from_wif =
+            PrivateKey::from_wif(private_key.wif()).expect("Error unwrapping private key from WIF");
         assert_eq!(from_wif.wif(), private_key.wif());
     }
 
@@ -246,7 +253,7 @@ mod tests {
         test_to_wif(
             "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
             "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
-            Network::Mainnet
+            Network::Mainnet,
         )
     }
 
@@ -255,7 +262,7 @@ mod tests {
         test_to_wif(
             "37EE08B51CB5932276DB785C8E23CC0FDC99A2923C7ECA43A6D3FD26D94EBD44",
             "921YpFFoB1UN7tud1vne5hTrijX423MexQxYn6dmeHB25xT8c2s",
-            Network::Testnet
+            Network::Testnet,
         )
     }
 }

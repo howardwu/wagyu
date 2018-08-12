@@ -5,7 +5,7 @@ use std::fmt;
 pub enum Network {
     Mainnet,
     Testnet,
-    Error
+    Error,
 }
 
 impl fmt::Display for Network {

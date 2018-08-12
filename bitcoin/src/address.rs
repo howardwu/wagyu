@@ -2,11 +2,11 @@ extern crate base58;
 extern crate ripemd160;
 extern crate sha2;
 
-use network::Network;
-use privatekey::PrivateKey;
 use self::base58::ToBase58;
 use self::ripemd160::Ripemd160;
 use self::sha2::{Digest, Sha256};
+use network::Network;
+use privatekey::PrivateKey;
 use std::fmt;
 
 /// Represents a Bitcoin Address
@@ -20,15 +20,19 @@ impl Address {
     pub fn from_private_key(private_key: &PrivateKey) -> Address {
         let public_key = match private_key.compressed() {
             true => private_key.to_public_key().serialize().to_vec(),
-            false => private_key.to_public_key().serialize_uncompressed().to_vec()
+            false => private_key
+                .to_public_key()
+                .serialize_uncompressed()
+                .to_vec(),
         };
         let sha256_hash = Sha256::digest(&public_key); // Sha256 Hash
         let ripemd160_hash = Ripemd160::digest(&sha256_hash); // Ripemd160 Hash
         let mut address_bytes = [0u8; 25];
 
-        let network_bytes = match private_key.network() { // Prepend Network Bytes
+        let network_bytes = match private_key.network() {
+            // Prepend Network Bytes
             Network::Testnet => 0x6f,
-            _ => 0x00
+            _ => 0x00,
         };
 
         address_bytes[0] = network_bytes;
@@ -39,7 +43,10 @@ impl Address {
 
         address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
 
-        Address { wif: address_bytes.to_base58(), network: Network::Mainnet }
+        Address {
+            wif: address_bytes.to_base58(),
+            network: Network::Mainnet,
+        }
     }
 
     /// Returns an Address given a private key in Wallet Import Format
@@ -78,14 +85,14 @@ mod tests {
             "91dTfyLPPneZA6RsAXqNuT6qTQdAuuGVCUjmBtzgd1Tnd4RQT5K",
             "92GweXA6j4RCF3zHXGGy2ShJq6T7u9rrjmuYd9ktLHgNrWznzUC",
             "92QAQdzrEDkMExM9hHV5faWqKTdXcTgXguRBcyAyYqFCjVzhDLE",
-            "92H9Kf4ikaqNAJLc5tbwvbmiBWJzNDGtYmnvrigZeDVD3aqJ85Q"
+            "92H9Kf4ikaqNAJLc5tbwvbmiBWJzNDGtYmnvrigZeDVD3aqJ85Q",
         ];
         let addresses = [
             "my55YLK4BmM8AyUW5px2HSSKL4yzUE5Pho",
             "mw4afqNgGjn34okVmv9qH2WkvhfyTyNbde",
             "moYi3FQZKtcc66edT3uMwVQCcswenpNscU",
             "mpRYQJ64ofurTCA3KKkaCjjUNqjYkUvB4w",
-            "mvqRXtgQKqumMosPY3dLvhdYsQJV2AswkA"
+            "mvqRXtgQKqumMosPY3dLvhdYsQJV2AswkA",
         ];
 
         test_private_key_address_pairs(private_keys, addresses);
@@ -105,7 +112,7 @@ mod tests {
             "192JSK8wNP867JGxHNHay3obNSXqEyyhtx",
             "1NoZQSmjYHUZMbqLerwmT4xfe8A6mAo8TT",
             "1NyGFd49x4nqoau8RJvjf9tGZkoUNjwd5a",
-            "17nsg1F155BR6ie2miiLrSnMhF8GWcGq6V"
+            "17nsg1F155BR6ie2miiLrSnMhF8GWcGq6V",
         ];
 
         test_private_key_address_pairs(private_keys, addresses);
@@ -118,14 +125,14 @@ mod tests {
             "KzjKw25tuQoiDyQjUG38ZRNBdnfr5eMBnTsU4JahrVDwFCpRZP1J",
             "L2N8YRtxNMAVFAtxBt9PFSADtdvbmzFFHLSU61CtLdhYhrCGPfWh",
             "KwXH1Mu4FBtGN9nRn2VkBpienaVGZKvCAkZAdE96kK71dHR1oDRs",
-            "KwN7qiBnU4GNhboBhuPaPaFingTDKU4r27pGggwQYz865TvBT74V"
+            "KwN7qiBnU4GNhboBhuPaPaFingTDKU4r27pGggwQYz865TvBT74V",
         ];
         let addresses = [
             "1GUwicFwsZbdE3XyJYjmPryiiuTiK7mZgS",
             "1J2shZV5b53GRVmTqmr3tJhkVbBML29C1z",
             "13TdfCiGPagApSJZu1o1Y3mpfqpp6oK2GB",
             "1HaeDGHf3A2Uxeh3sKjVLYTn1hnEyuzLjF",
-            "12WMrNLRosydPNNYM96dwk9jDv8rDRom3J"
+            "12WMrNLRosydPNNYM96dwk9jDv8rDRom3J",
         ];
 
         test_private_key_address_pairs(private_keys, addresses);
@@ -138,14 +145,14 @@ mod tests {
             "cNp5uMWdh68Nk3pwShjxsSwhGPoCYgFvE1ANuPsk6qhcT4Jvp57n",
             "cN9aUHNMMLT9yqBJ3S5qnEPtP11nhT7ivkFK1FqNYQMozZPgMTjJ",
             "cSRpda6Bhog5SUyot96HSwSzn7FZNWzudKzoCzkgZrf9hUaL3Ass",
-            "cTqLNf3iCaW61ofgmyf4ZxChUL8DZoCEPmNTCKRsexLSdNuGWQT1"
+            "cTqLNf3iCaW61ofgmyf4ZxChUL8DZoCEPmNTCKRsexLSdNuGWQT1",
         ];
         let addresses = [
             "mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w",
             "myH91eNrQKuuM7TeQYYddzL4URn6HiYbxW",
             "mho8tsQtF7fx2bPKudMcXvGpUVYRHHiH4m",
             "n3DgWHuAkg7eiPGH5gP8jeg3SbHBhuPJWS",
-            "mjhMXrTdq4X1dcqTaNDjwGdVaJEGBKpCRj"
+            "mjhMXrTdq4X1dcqTaNDjwGdVaJEGBKpCRj",
         ];
 
         test_private_key_address_pairs(private_keys, addresses);
