@@ -1,15 +1,14 @@
 extern crate base58;
 extern crate rand;
 extern crate secp256k1;
-extern crate sha2;
 
 use self::base58::{FromBase58, ToBase58};
 use self::rand::thread_rng;
 use self::rand::RngCore;
 use self::secp256k1::Secp256k1;
 use self::secp256k1::{PublicKey, SecretKey};
-use self::sha2::{Digest, Sha256};
-use network::Network;
+use utils::checksum;
+use network::{Network,MAINNET_BYTE,TESTNET_BYTE};
 use std::fmt;
 
 /// Represents a Bitcoin Private Key
@@ -40,14 +39,7 @@ impl PrivateKey {
     }
 
     fn build(network: Network, compressed: bool) -> PrivateKey {
-        let secp = Secp256k1::new();
-        let mut rand_bytes = [0u8; 32];
-        let mut rng = thread_rng();
-        rng.try_fill_bytes(&mut rand_bytes)
-            .expect("Error generating random bytes for private key");
-
-        let secret_key = SecretKey::from_slice(&secp, &rand_bytes)
-            .expect("Error creating secret key from byte slice");
+        let secret_key = PrivateKey::generate_secret_key();
         let wif = PrivateKey::secret_key_to_wif(&secret_key, &network, compressed);
 
         PrivateKey {
@@ -56,6 +48,19 @@ impl PrivateKey {
             network,
             compressed,
         }
+    }
+
+    fn generate_secret_key() -> SecretKey {
+        let secp = Secp256k1::new();
+        let mut rand_bytes = [0u8; 32];
+        let mut rng = thread_rng();
+        rng.try_fill_bytes(&mut rand_bytes)
+            .expect("Error generating random bytes for private key");
+
+        let secret_key = SecretKey::from_slice(&secp, &rand_bytes)
+            .expect("Error creating secret key from byte slice");
+
+        secret_key
     }
 
     /// Returns the Secp256k1 PublicKey generated from this PrivateKey
@@ -81,23 +86,22 @@ impl PrivateKey {
         let mut wif = [0u8; 38];
         wif[0] = match network {
             // Prepend network byte
-            Network::Testnet => 0xef,
-            _ => 0x80,
+            Network::Testnet => TESTNET_BYTE,
+            _ => MAINNET_BYTE,
         };
         wif[1..33].copy_from_slice(&secret_key[..]);
-        let hash_once = if compressed {
+        let checksum_bytes = if compressed {
             wif[33] = 0x01;
-            Sha256::digest(&wif[0..34])
+            checksum(&wif[0..34])
         } else {
-            Sha256::digest(&wif[0..33])
+            checksum(&wif[0..33])
         };
-        let hash_twice = Sha256::digest(&hash_once);
 
         if compressed {
-            wif[34..].copy_from_slice(&hash_twice[0..4]); // Append Checksum Bytes
+            wif[34..].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
             wif.to_base58()
         } else {
-            wif[33..37].copy_from_slice(&hash_twice[0..4]); // Append Checksum Bytes
+            wif[33..37].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
             wif[..37].to_base58()
         }
     }
@@ -107,19 +111,18 @@ impl PrivateKey {
         let wif_bytes = wif.from_base58().expect("Error decoding base58 wif");
         let length = wif_bytes.len();
         let compressed = length == 38;
-        let checksum = &wif_bytes[length - 4..];
+        let expected_checksum = &wif_bytes[length - 4..];
         let network = match wif_bytes[0] {
-            0x80 => Network::Mainnet,
-            0xef => Network::Testnet,
+            MAINNET_BYTE => Network::Mainnet,
+            TESTNET_BYTE => Network::Testnet,
             _ => Network::Error,
         };
 
         let wif_bytes_to_hash = &wif_bytes[0..length - 4];
 
-        let hash_once = Sha256::digest(wif_bytes_to_hash);
-        let hash_twice = Sha256::digest(&hash_once);
+        let actual_checksum = checksum(wif_bytes_to_hash);
 
-        let is_valid_checksum = hash_twice[0..4] == checksum[0..4];
+        let is_valid_checksum = actual_checksum[0..4] == expected_checksum[0..4];
         if !is_valid_checksum || network == Network::Error {
             Err("Invalid wif")
         } else {
