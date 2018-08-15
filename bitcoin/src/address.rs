@@ -5,9 +5,10 @@ extern crate sha2;
 use self::base58::ToBase58;
 use self::ripemd160::Ripemd160;
 use self::sha2::{Digest, Sha256};
-use network::Network;
+use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
 use privatekey::PrivateKey;
 use std::fmt;
+use utils::checksum;
 
 /// Represents a Bitcoin Address
 pub struct Address {
@@ -29,23 +30,21 @@ impl Address {
         let ripemd160_hash = Ripemd160::digest(&sha256_hash); // Ripemd160 Hash
         let mut address_bytes = [0u8; 25];
 
-        let network_bytes = match private_key.network() {
+        let network_byte = match private_key.network() {
             // Prepend Network Bytes
-            Network::Testnet => 0x6f,
-            _ => 0x00,
+            Network::Testnet => TESTNET_ADDRESS_BYTE,
+            _ => MAINNET_ADDRESS_BYTE,
         };
 
-        address_bytes[0] = network_bytes;
+        address_bytes[0] = network_byte;
         address_bytes[1..21].copy_from_slice(&ripemd160_hash);
 
-        let mut checksum_bytes = Sha256::digest(&address_bytes[0..21]); // Calculate Checksum
-        checksum_bytes = Sha256::digest(&checksum_bytes);
-
+        let checksum_bytes = checksum(&address_bytes[0..21]); // Calculate Checksum
         address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
 
         Address {
             wif: address_bytes.to_base58(),
-            network: Network::Mainnet,
+            network: private_key.network().clone(),
         }
     }
 
