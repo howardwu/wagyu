@@ -56,6 +56,14 @@ impl BitcoinWallet {
     pub fn address(&self) -> &Address {
         &self.address
     }
+
+    pub fn network(&self) -> &Network {
+        self.private_key().network()
+    }
+
+    pub fn compressed(&self) -> &bool {
+        self.private_key().compressed()
+    }
 }
 
 impl fmt::Display for BitcoinWallet {
