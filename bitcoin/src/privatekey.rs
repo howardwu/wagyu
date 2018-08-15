@@ -9,8 +9,8 @@ use self::rand::RngCore;
 use self::secp256k1::Secp256k1;
 use self::secp256k1::{PublicKey, SecretKey};
 use self::sha2::{Digest, Sha256};
+use network::Network;
 use std::fmt;
-use Network;
 
 /// Represents a Bitcoin Private Key
 #[derive(Debug, Eq, PartialEq)]

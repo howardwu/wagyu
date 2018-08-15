@@ -2,7 +2,7 @@
 extern crate clap;
 extern crate bitcoin;
 
-use bitcoin::{network::Network, BitcoinWallet};
+use bitcoin::{network::Network, wallet::BitcoinWallet};
 use clap::{App, Arg};
 
 fn main() {
