@@ -2,7 +2,7 @@
 extern crate clap;
 extern crate bitcoin;
 
-use bitcoin::{network::Network, wallet::BitcoinWallet};
+use bitcoin::{builder::WalletBuilder};
 use clap::{App, Arg};
 
 fn main() {
@@ -51,15 +51,7 @@ Supported Currencies: Bitcoin")
 
 fn print_bitcoin_wallet(count: u32, testnet: bool, compressed: bool) {
     for _ in 0..count {
-        let network = if testnet {
-            Network::Testnet
-        } else {
-            Network::Mainnet
-        };
-        if compressed {
-            println!("{}", BitcoinWallet::new_compressed(network));
-        } else {
-            println!("{}", BitcoinWallet::new(network));
-        }
+        let wallet = WalletBuilder::build_from_options(compressed, testnet);
+        println!("{}", wallet);
     }
 }
