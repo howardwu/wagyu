@@ -7,9 +7,9 @@ use self::rand::thread_rng;
 use self::rand::RngCore;
 use self::secp256k1::Secp256k1;
 use self::secp256k1::{PublicKey, SecretKey};
-use utils::checksum;
-use network::{Network,MAINNET_BYTE,TESTNET_BYTE};
+use network::{Network, MAINNET_BYTE, TESTNET_BYTE};
 use std::fmt;
+use utils::checksum;
 
 /// Represents a Bitcoin Private Key
 #[derive(Debug, Eq, PartialEq)]
@@ -58,10 +58,8 @@ impl PrivateKey {
         rng.try_fill_bytes(&mut rand_bytes)
             .expect("Error generating random bytes for private key");
 
-        let secret_key = SecretKey::from_slice(&secp, &rand_bytes)
-            .expect("Error creating secret key from byte slice");
-
-        secret_key
+        SecretKey::from_slice(&secp, &rand_bytes)
+            .expect("Error creating secret key from byte slice")
     }
 
     /// Returns the Secp256k1 PublicKey generated from this PrivateKey
