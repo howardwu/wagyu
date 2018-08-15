@@ -2,6 +2,7 @@ use network::Network;
 use wallet::BitcoinWallet;
 
 /// A WalletBuilder helps to construct a BitcoinWallet
+#[derive(Default)]
 pub struct WalletBuilder {
     compressed: bool,
     testnet: bool,
