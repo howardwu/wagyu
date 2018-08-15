@@ -50,6 +50,7 @@ impl PrivateKey {
         }
     }
 
+    /// Randomly generate a Secp256k1 SecretKey
     fn generate_secret_key() -> SecretKey {
         let secp = Secp256k1::new();
         let mut rand_bytes = [0u8; 32];
@@ -82,6 +83,7 @@ impl PrivateKey {
         }
     }
 
+    /// Convert Secp256k1 SecretKey to PrivateKey WIF String
     fn secret_key_to_wif(secret_key: &SecretKey, network: &Network, compressed: bool) -> String {
         let mut wif = [0u8; 38];
         wif[0] = match network {
@@ -90,17 +92,14 @@ impl PrivateKey {
             _ => MAINNET_BYTE,
         };
         wif[1..33].copy_from_slice(&secret_key[..]);
-        let checksum_bytes = if compressed {
-            wif[33] = 0x01;
-            checksum(&wif[0..34])
-        } else {
-            checksum(&wif[0..33])
-        };
 
         if compressed {
+            wif[33] = 0x01;
+            let checksum_bytes = checksum(&wif[0..34]);
             wif[34..].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
             wif.to_base58()
         } else {
+            let checksum_bytes = checksum(&wif[0..33]);
             wif[33..37].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
             wif[..37].to_base58()
         }
