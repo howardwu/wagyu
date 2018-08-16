@@ -13,6 +13,10 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 
 ![alt text](examples/simple.png "simple")
 
+#### Generate wallets as JSON object
+
+![alt text](examples/json.png "network")
+
 #### Generate testnet and mainnet wallets
 
 ![alt text](examples/network.png "network")
@@ -31,18 +35,19 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 The cli contains useful help text, displayed below.
 
 ```
-wagu v0.1.0
+wagu v0.2.0
 Argus Observer <ali@argus.observer>
 Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin
 
 USAGE:
-    cli [FLAGS] [OPTIONS] <currency>
+    wagu [FLAGS] [OPTIONS] <currency>
 
 FLAGS:
     -c, --compressed    Enabling this flag generates a wallet which corresponds to a compressed public key
     -h, --help          Prints help information
+    -j, --json          Enabling this flag prints the wallet in JSON format
     -V, --version       Prints version information
 
 OPTIONS:
