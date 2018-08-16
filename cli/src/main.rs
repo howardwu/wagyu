@@ -2,8 +2,10 @@
 extern crate clap;
 extern crate bitcoin;
 extern crate serde_json;
+extern crate zcash;
 
-use bitcoin::builder::WalletBuilder;
+use bitcoin::builder::{WalletBuilder as BitcoinWalletBuilder};
+use zcash::builder::{WalletBuilder as ZcashWalletBuilder};
 use clap::{App, Arg};
 
 fn main() {
@@ -11,7 +13,7 @@ fn main() {
        .version("v0.1.0")
        .about("Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin")
+Supported Currencies: Bitcoin, Zcash (t-address)")
        .author("Argus Observer <ali@argus.observer>")
        .arg(Arg::with_name("currency")
             .required(true)
@@ -51,12 +53,22 @@ Supported Currencies: Bitcoin")
 
     match currency {
         "bitcoin" => print_bitcoin_wallet(count, testnet, compressed, json),
+        "zcash" => print_zcash_wallet(count, testnet, compressed, json),
         _ => panic!("Unsupported currency"),
     };
 }
 
 fn print_bitcoin_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
-    let wallets = WalletBuilder::build_many_from_options(compressed, testnet, count);
+    let wallets = BitcoinWalletBuilder::build_many_from_options(compressed, testnet, count);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
+    } else {
+        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    }
+}
+
+fn print_zcash_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
+    let wallets = ZcashWalletBuilder::build_many_from_options(compressed, testnet, count);
     if json {
         println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
     } else {
