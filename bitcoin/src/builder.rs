@@ -62,6 +62,15 @@ impl WalletBuilder {
             BitcoinWallet::new(network)
         }
     }
+
+    pub fn build_many_from_options(compressed: bool, testnet: bool, count: usize) -> Vec<BitcoinWallet> {
+        let mut wallets = Vec::with_capacity(count);
+        for _ in 0..count {
+            wallets.push(WalletBuilder::build_from_options(compressed, testnet));
+        }
+
+        wallets
+    }
 }
 
 #[cfg(test)]

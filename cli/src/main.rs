@@ -1,6 +1,7 @@
 #[macro_use(value_t)]
 extern crate clap;
 extern crate bitcoin;
+extern crate serde_json;
 
 use bitcoin::builder::WalletBuilder;
 use clap::{App, Arg};
@@ -29,11 +30,16 @@ Supported Currencies: Bitcoin")
             .short("c")
             .long("compressed")
             .help("Enabling this flag generates a wallet which corresponds to a compressed public key"))
+        .arg(Arg::with_name("json")
+            .short("j")
+            .long("json")
+            .help("Enabling this flag prints the wallet in JSON format"))
        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
     let compressed = matches.is_present("compressed");
-    let count = value_t!(matches.value_of("count"), u32).unwrap_or_else(|_e| 1);
+    let json = matches.is_present("json");
+    let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
     let testnet = match matches.value_of("network") {
         Some("mainnet") => false,
         Some("Mainnet") => false,
@@ -44,14 +50,16 @@ Supported Currencies: Bitcoin")
     };
 
     match currency {
-        "bitcoin" => print_bitcoin_wallet(count, testnet, compressed),
+        "bitcoin" => print_bitcoin_wallet(count, testnet, compressed, json),
         _ => panic!("Unsupported currency"),
     };
 }
 
-fn print_bitcoin_wallet(count: u32, testnet: bool, compressed: bool) {
-    for _ in 0..count {
-        let wallet = WalletBuilder::build_from_options(compressed, testnet);
-        println!("{}", wallet);
+fn print_bitcoin_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
+    let wallets = WalletBuilder::build_many_from_options(compressed, testnet, count);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
+    } else {
+        wallets.iter().for_each(|wallet| println!("{}", wallet));
     }
 }

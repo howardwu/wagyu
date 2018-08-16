@@ -4,7 +4,7 @@ use address::Address;
 use network::Network;
 use privatekey::PrivateKey;
 use std::fmt;
-use self::serde_json::to_string;
+use self::serde_json::to_string_pretty;
 
 /// A BitcoinWallet is represented by a PrivateKey and Address pair
 #[derive(Serialize, Debug)]
@@ -71,7 +71,7 @@ impl BitcoinWallet {
     }
 
     pub fn to_json(&self) -> String {
-        to_string(&self).unwrap()
+        to_string_pretty(&self).unwrap()
     }
 }
 
