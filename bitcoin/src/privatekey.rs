@@ -15,7 +15,7 @@ use utils::checksum;
 #[derive(Serialize, Debug, Eq, PartialEq)]
 pub struct PrivateKey {
     /// The Secp256k1 SecretKey Object
-    #[serde(skip_serializing,skip_deserializing)]
+    #[serde(skip_serializing)]
     secret_key: SecretKey,
 
     /// The PrivateKey in Wallet Import Format

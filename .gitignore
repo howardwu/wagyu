@@ -4,5 +4,5 @@
 Cargo.lock
 .DS_Store
 **/*.rs.fmt
-bitcoin/Cargo.toml.fmt
-cli/Cargo.toml.fmt
+*.rs.fmt
+**/*.toml.fmt
