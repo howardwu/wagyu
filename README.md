@@ -5,6 +5,7 @@ Pronounced like [wagyu](https://en.wikipedia.org/wiki/Wagyu). Wagu is the **wa**
 Wagu allows users to generate wallets for the following cryptocurrencies:
 
 - Bitcoin
+- Zcash (Transparent Addresses)
 
 ## Table of Contents
 
