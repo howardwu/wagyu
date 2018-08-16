@@ -1,36 +1,52 @@
 # wagu
+
 Pronounced like [wagyu](https://en.wikipedia.org/wiki/Wagyu). Wagu is the **wa**llet **g**eneration **u**tility.
 
 Wagu allows users to generate wallets for the following cryptocurrencies:
 
 - Bitcoin
 
-<!--toc-->
+## Table of Contents
 
-## Features
+<!-- vscode-markdown-toc -->
+1. [Features](#Features)
+    * 1.1. [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
+    * 1.2. [Generate wallets as JSON object](#GeneratewalletsasJSONobject)
+    * 1.3. [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
+    * 1.4. [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
+    * 1.5. [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
+2. [Help](#Help)
 
-#### Generate a wallet with default options
+<!-- vscode-markdown-toc-config
+	numbering=true
+	autoSave=true
+	/vscode-markdown-toc-config -->
+<!-- /vscode-markdown-toc -->
+
+##  1. <a name='Features'></a>Features
+
+####  1.1. <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
 
 ![alt text](examples/simple.png "simple")
 
-#### Generate wallets as JSON object
+####  1.2. <a name='GeneratewalletsasJSONobject'></a>Generate wallets as JSON object
 
 ![alt text](examples/json.png "network")
 
-#### Generate testnet and mainnet wallets
+####  1.3. <a name='Generatetestnetandmainnetwallets'></a>Generate testnet and mainnet wallets
 
 ![alt text](examples/network.png "network")
 
-#### Generate compressed and uncompressed (default) wallets 
+####  1.4. <a name='Generatecompressedanduncompresseddefaultwallets'></a>Generate compressed and uncompressed (default) wallets 
 
 ![alt text](examples/compressed.png "compressed")
 
-#### Generate multiple wallets of the same kind
+####  1.5. <a name='Generatemultiplewalletsofthesamekind'></a>Generate multiple wallets of the same kind
 
 ![alt text](examples/multiple.png "multiple")
 
 
-## Help
+##  2. <a name='Help'></a>Help
 
 The cli contains useful help text, displayed below.
 
