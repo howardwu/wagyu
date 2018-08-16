@@ -11,6 +11,7 @@ use std::fmt;
 use utils::checksum;
 
 /// Represents a Bitcoin Address
+#[derive(Serialize, Debug)]
 pub struct Address {
     pub wif: String,
     pub network: self::Network,

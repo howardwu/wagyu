@@ -12,9 +12,10 @@ use std::fmt;
 use utils::checksum;
 
 /// Represents a Bitcoin Private Key
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Serialize, Debug, Eq, PartialEq)]
 pub struct PrivateKey {
     /// The Secp256k1 SecretKey Object
+    #[serde(skip_serializing,skip_deserializing)]
     secret_key: SecretKey,
 
     /// The PrivateKey in Wallet Import Format

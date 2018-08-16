@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// The Network enum represents the different types of Networks we can create BitcoinWallets for
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 pub enum Network {
     Mainnet,
     Testnet,

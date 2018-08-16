@@ -1,9 +1,14 @@
+extern crate serde_json;
+
 use address::Address;
 use network::Network;
 use privatekey::PrivateKey;
 use std::fmt;
+use self::serde_json::to_string;
 
 /// A BitcoinWallet is represented by a PrivateKey and Address pair
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct BitcoinWallet {
     pub private_key: PrivateKey,
     pub address: Address,
@@ -63,6 +68,10 @@ impl BitcoinWallet {
 
     pub fn compressed(&self) -> &bool {
         self.private_key().compressed()
+    }
+
+    pub fn to_json(&self) -> String {
+        to_string(&self).unwrap()
     }
 }
 
