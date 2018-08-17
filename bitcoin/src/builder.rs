@@ -1,11 +1,12 @@
+use address::Type;
 use network::Network;
 use wallet::BitcoinWallet;
 
 /// A WalletBuilder helps to construct a BitcoinWallet
-#[derive(Default)]
 pub struct WalletBuilder {
     compressed: bool,
     testnet: bool,
+    address_type: Type,
 }
 
 impl WalletBuilder {
@@ -13,6 +14,7 @@ impl WalletBuilder {
         WalletBuilder {
             compressed: false,
             testnet: false,
+            address_type: Type::P2PKH,
         }
     }
 
@@ -34,6 +36,16 @@ impl WalletBuilder {
         self
     }
 
+    pub fn p2pkh(&mut self) -> &mut WalletBuilder {
+        self.address_type = Type::P2PKH;
+        self
+    }
+
+    pub fn p2wpkh(&mut self) -> &mut WalletBuilder {
+        self.address_type = Type::P2WPKH;
+        self
+    }
+
     /// Finally, construct a BitcoinWallet from the selected options
     pub fn build(&self) -> BitcoinWallet {
         let network = if self.testnet {
@@ -42,31 +54,36 @@ impl WalletBuilder {
             Network::Mainnet
         };
 
-        if self.compressed {
-            BitcoinWallet::new_compressed(network)
-        } else {
-            BitcoinWallet::new(network)
-        }
+        BitcoinWallet::new(network, self.compressed, &self.address_type)
     }
 
-    pub fn build_from_options(compressed: bool, testnet: bool) -> BitcoinWallet {
+    pub fn build_from_options(
+        compressed: bool,
+        testnet: bool,
+        address_type: &Type,
+    ) -> BitcoinWallet {
         let network = if testnet {
             Network::Testnet
         } else {
             Network::Mainnet
         };
 
-        if compressed {
-            BitcoinWallet::new_compressed(network)
-        } else {
-            BitcoinWallet::new(network)
-        }
+        BitcoinWallet::new(network, compressed, &address_type)
     }
 
-    pub fn build_many_from_options(compressed: bool, testnet: bool, count: usize) -> Vec<BitcoinWallet> {
+    pub fn build_many_from_options(
+        compressed: bool,
+        testnet: bool,
+        address_type: &Type,
+        count: usize,
+    ) -> Vec<BitcoinWallet> {
         let mut wallets = Vec::with_capacity(count);
         for _ in 0..count {
-            wallets.push(WalletBuilder::build_from_options(compressed, testnet));
+            wallets.push(WalletBuilder::build_from_options(
+                compressed,
+                testnet,
+                &address_type,
+            ));
         }
 
         wallets

@@ -1,10 +1,10 @@
 extern crate serde_json;
 
-use address::Address;
+use self::serde_json::to_string_pretty;
+use address::{Address, Type};
 use network::Network;
 use privatekey::PrivateKey;
 use std::fmt;
-use self::serde_json::to_string_pretty;
 
 /// A BitcoinWallet is represented by a PrivateKey and Address pair
 #[derive(Serialize, Debug)]
@@ -16,22 +16,13 @@ pub struct BitcoinWallet {
 
 impl BitcoinWallet {
     /// Generates a new uncompressed BitcoinWallet for a given `network`
-    pub fn new(network: Network) -> BitcoinWallet {
-        BitcoinWallet::build(network, false)
-    }
-
-    /// Generates a new compressed BitcoinWallet for a given `network`
-    pub fn new_compressed(network: Network) -> BitcoinWallet {
-        BitcoinWallet::build(network, true)
-    }
-
-    fn build(network: Network, compressed: bool) -> BitcoinWallet {
+    pub fn new(network: Network, compressed: bool, address_type: &Type) -> BitcoinWallet {
         let private_key = if compressed {
             PrivateKey::new_compressed(network)
         } else {
             PrivateKey::new(network)
         };
-        let address = Address::from_private_key(&private_key);
+        let address = Address::from_private_key(&private_key, &address_type);
         BitcoinWallet {
             private_key,
             address,
@@ -39,8 +30,8 @@ impl BitcoinWallet {
     }
 
     /// Recovers a BitcoinWallet from a PrivateKey object
-    pub fn from_private_key(private_key: PrivateKey) -> BitcoinWallet {
-        let address = Address::from_private_key(&private_key);
+    pub fn from_private_key(private_key: PrivateKey, address_type: &Type) -> BitcoinWallet {
+        let address = Address::from_private_key(&private_key, &address_type);
         BitcoinWallet {
             private_key,
             address,
@@ -48,10 +39,10 @@ impl BitcoinWallet {
     }
 
     /// Recovers a BitcoinWallet from a Wallet Import Format string (a private key string)
-    pub fn from_wif(private_key_wif: &str) -> BitcoinWallet {
+    pub fn from_wif(private_key_wif: &str, address_type: &Type) -> BitcoinWallet {
         let private_key =
             PrivateKey::from_wif(private_key_wif).expect("Error creating Bitcoin Wallet from WIF");
-        BitcoinWallet::from_private_key(private_key)
+        BitcoinWallet::from_private_key(private_key, address_type)
     }
 
     pub fn private_key(&self) -> &PrivateKey {
@@ -98,7 +89,7 @@ mod tests {
     use super::*;
 
     fn test_from_wif(private_key_wif: &str, address_wif: &str) {
-        let wallet = BitcoinWallet::from_wif(private_key_wif);
+        let wallet = BitcoinWallet::from_wif(private_key_wif, &Type::P2PKH);
         assert_eq!(wallet.private_key().wif(), private_key_wif);
         assert_eq!(wallet.address().wif(), address_wif);
     }
