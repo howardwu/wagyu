@@ -3,10 +3,12 @@ extern crate clap;
 extern crate bitcoin;
 extern crate serde_json;
 
+use bitcoin::address::Type as AddressType;
 use bitcoin::builder::WalletBuilder;
 use clap::{App, Arg};
 
 fn main() {
+    let network_vals = ["mainnet", "testnet"];
     let matches = App::new("wagen")
        .version("v0.1.0")
        .about("Generate a wallet for any cryptocurrency
@@ -20,6 +22,7 @@ Supported Currencies: Bitcoin")
             .short("N")
             .long("network")
             .takes_value(true)
+            .possible_values(&network_vals)
             .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"))
        .arg(Arg::with_name("count") 
             .short("n")
@@ -34,29 +37,42 @@ Supported Currencies: Bitcoin")
             .short("j")
             .long("json")
             .help("Enabling this flag prints the wallet in JSON format"))
+        .arg(Arg::with_name("segwit")
+            .long("segwit")
+            .conflicts_with("network")
+            .help("Enabling this flag generates a wallet with a SegWit address"))
        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
-    let compressed = matches.is_present("compressed");
+    let mut compressed = matches.is_present("compressed");
     let json = matches.is_present("json");
     let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
+    let address_type = if matches.is_present("segwit") {
+        compressed = true;
+        AddressType::P2WPKH
+    } else {
+        AddressType::P2PKH
+    };
     let testnet = match matches.value_of("network") {
         Some("mainnet") => false,
-        Some("Mainnet") => false,
-        Some("livenet") => false,
         Some("testnet") => true,
-        Some("Testnet") => true,
         _ => false,
     };
 
     match currency {
-        "bitcoin" => print_bitcoin_wallet(count, testnet, compressed, json),
+        "bitcoin" => print_bitcoin_wallet(count, testnet, compressed, &address_type, json),
         _ => panic!("Unsupported currency"),
     };
 }
 
-fn print_bitcoin_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
-    let wallets = WalletBuilder::build_many_from_options(compressed, testnet, count);
+fn print_bitcoin_wallet(
+    count: usize,
+    testnet: bool,
+    compressed: bool,
+    address_type: &AddressType,
+    json: bool,
+) {
+    let wallets = WalletBuilder::build_many_from_options(compressed, testnet, &address_type, count);
     if json {
         println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
     } else {
