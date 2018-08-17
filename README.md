@@ -57,24 +57,25 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 The cli contains useful help text, displayed below.
 
 ```
-wagu v0.2.0
+wagen v0.2.1
 Argus Observer <ali@argus.observer>
 Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin
 
 USAGE:
-    wagu [FLAGS] [OPTIONS] <currency>
+    cli [FLAGS] [OPTIONS] <currency>
 
 FLAGS:
     -c, --compressed    Enabling this flag generates a wallet which corresponds to a compressed public key
     -h, --help          Prints help information
     -j, --json          Enabling this flag prints the wallet in JSON format
+        --segwit        Enabling this flag generates a wallet with a SegWit address
     -V, --version       Prints version information
 
 OPTIONS:
     -n, --count <count>        Number of wallets to generate
-    -N, --network <network>    Network of wallet(s) to generate (e.g. mainnet, testnet)
+    -N, --network <network>    Network of wallet(s) to generate (e.g. mainnet, testnet) [values: mainnet, testnet]
 
 ARGS:
     <currency>    Name of the currency to generate a wallet for (e.g. bitcoin)
