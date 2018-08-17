@@ -6,53 +6,53 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 
 - Bitcoin
 
-## <a name='TableofContents'></a>Table of Contents
+##  1. <a name='TableofContents'></a>Table of Contents
 
 <!-- vscode-markdown-toc -->
-* [Table of Contents](#TableofContents)
-* [Features](#Features)
-		* [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
-		* [Generate wallets as JSON object](#GeneratewalletsasJSONobject)
-		* [Generate a P2WPKH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
-		* [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
-		* [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
-		* [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
-* [Help](#Help)
+* 1. [Table of Contents](#TableofContents)
+* 2. [Features](#Features)
+		* 2.1. [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
+		* 2.2. [Generate wallets as JSON object](#GeneratewalletsasJSONobject)
+		* 2.3. [Generate a P2WPKH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
+		* 2.4. [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
+		* 2.5. [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
+		* 2.6. [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
+* 3. [Help](#Help)
 
 <!-- vscode-markdown-toc-config
-	numbering=false
+	numbering=true
 	autoSave=true
 	/vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
 
-## <a name='Features'></a>Features
+##  2. <a name='Features'></a>Features
 
-#### <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
+####  2.1. <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
 
 ![alt text](examples/simple.png "simple")
 
-#### <a name='GeneratewalletsasJSONobject'></a>Generate wallets as JSON object
+####  2.2. <a name='GeneratewalletsasJSONobject'></a>Generate wallets as JSON object
 
 ![alt text](examples/json.png "network")
 
-#### <a name='GenerateaP2WPKHSegWitWallet'></a>Generate a P2WPKH (SegWit) Wallet
+####  2.3. <a name='GenerateaP2WPKHSegWitWallet'></a>Generate a P2WPKH (SegWit) Wallet
 
 ![alt text](examples/segwit.png "segwit")
 
-#### <a name='Generatetestnetandmainnetwallets'></a>Generate testnet and mainnet wallets
+####  2.4. <a name='Generatetestnetandmainnetwallets'></a>Generate testnet and mainnet wallets
 
 ![alt text](examples/network.png "network")
 
-#### <a name='Generatecompressedanduncompresseddefaultwallets'></a>Generate compressed and uncompressed (default) wallets 
+####  2.5. <a name='Generatecompressedanduncompresseddefaultwallets'></a>Generate compressed and uncompressed (default) wallets 
 
 ![alt text](examples/compressed.png "compressed")
 
-#### <a name='Generatemultiplewalletsofthesamekind'></a>Generate multiple wallets of the same kind
+####  2.6. <a name='Generatemultiplewalletsofthesamekind'></a>Generate multiple wallets of the same kind
 
 ![alt text](examples/multiple.png "multiple")
 
 
-## <a name='Help'></a>Help
+##  3. <a name='Help'></a>Help
 
 The cli contains useful help text, displayed below.
 
