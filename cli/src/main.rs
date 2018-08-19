@@ -49,7 +49,7 @@ Supported Currencies: Bitcoin")
     let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
     let address_type = if matches.is_present("segwit") {
         compressed = true;
-        AddressType::P2WPKH
+        AddressType::P2WPKH_P2SH
     } else {
         AddressType::P2PKH
     };

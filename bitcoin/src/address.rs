@@ -18,7 +18,7 @@ pub struct Address {
 #[derive(Serialize, Debug, Clone)]
 pub enum Type {
     P2PKH,
-    P2WPKH,
+    P2WPKH_P2SH,
 }
 
 impl Address {
@@ -26,11 +26,11 @@ impl Address {
     pub fn from_private_key(private_key: &PrivateKey, address_type: &Type) -> Address {
         match address_type {
             Type::P2PKH => Address::p2pkh(private_key),
-            Type::P2WPKH => Address::p2wpkh(private_key),
+            Type::P2WPKH_P2SH => Address::p2wpkh(private_key),
         }
     }
-    
-    /// Returns P2WPKH address from PrivateKey
+
+    /// Returns P2WPKH_P2SH address from PrivateKey
     fn p2wpkh(private_key: &PrivateKey) -> Address {
         let public_key = private_key.to_public_key().serialize();
         let mut address_bytes = [0u8; 25];
@@ -53,7 +53,7 @@ impl Address {
         Address {
             wif: address_bytes.to_base58(),
             network: private_key.network().clone(),
-            address_type: Type::P2WPKH,
+            address_type: Type::P2WPKH_P2SH,
         }
     }
 
@@ -119,7 +119,7 @@ mod tests {
     }
 
     fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
-        let address = Address::from_wif(&private_key, &Type::P2WPKH);
+        let address = Address::from_wif(&private_key, &Type::P2WPKH_P2SH);
         println!("{}, {}", address, expected_address);
         assert_eq!(expected_address, address.wif);
     }

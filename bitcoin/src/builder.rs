@@ -42,7 +42,7 @@ impl WalletBuilder {
     }
 
     pub fn p2wpkh(&mut self) -> &mut WalletBuilder {
-        self.address_type = Type::P2WPKH;
+        self.address_type = Type::P2WPKH_P2SH;
         self
     }
 

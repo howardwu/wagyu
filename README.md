@@ -13,7 +13,7 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 * 2. [Features](#Features)
 		* 2.1. [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
 		* 2.2. [Generate wallets as JSON object](#GeneratewalletsasJSONobject)
-		* 2.3. [Generate a P2WPKH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
+		* 2.3. [Generate a P2WPKH_P2SH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
 		* 2.4. [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
 		* 2.5. [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
 		* 2.6. [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
@@ -35,7 +35,7 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 
 ![alt text](examples/json.png "network")
 
-####  2.3. <a name='GenerateaP2WPKHSegWitWallet'></a>Generate a P2WPKH (SegWit) Wallet
+####  2.3. <a name='GenerateaP2WPKHSegWitWallet'></a>Generate a P2WPKH_P2SH (SegWit) Wallet
 
 ![alt text](examples/segwit.png "segwit")
 
