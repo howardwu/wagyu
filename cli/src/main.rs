@@ -11,8 +11,8 @@ use clap::{App, Arg};
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
-    let matches = App::new("wagen")
-       .version("v0.1.0")
+    let matches = App::new("wagu")
+       .version("v0.3.0")
        .about("Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin, Zcash (t-address)")
