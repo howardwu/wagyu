@@ -18,7 +18,7 @@ pub struct Address {
 #[derive(Serialize, Debug, Clone)]
 pub enum Type {
     P2PKH,
-    P2WPKH_P2SH
+    P2WPKH_P2SH,
 }
 
 impl Address {

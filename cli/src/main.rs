@@ -4,10 +4,10 @@ extern crate bitcoin;
 extern crate serde_json;
 extern crate zcash;
 
-use bitcoin::builder::{WalletBuilder as BitcoinWalletBuilder};
-use zcash::builder::{WalletBuilder as ZcashWalletBuilder};
 use bitcoin::address::Type as AddressType;
+use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;
 use clap::{App, Arg};
+use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
@@ -68,8 +68,15 @@ Supported Currencies: Bitcoin, Zcash (t-address)")
     };
 }
 
-fn print_bitcoin_wallet(count: usize, testnet: bool, address_type: &AddressType, compressed: bool, json: bool) {
-    let wallets = BitcoinWalletBuilder::build_many_from_options(compressed, testnet, address_type, count);
+fn print_bitcoin_wallet(
+    count: usize,
+    testnet: bool,
+    address_type: &AddressType,
+    compressed: bool,
+    json: bool,
+) {
+    let wallets =
+        BitcoinWalletBuilder::build_many_from_options(compressed, testnet, address_type, count);
     if json {
         println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
     } else {
