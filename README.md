@@ -58,11 +58,11 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 The cli contains useful help text, displayed below.
 
 ```
-wagen v0.2.1
+wagen v0.3.0
 Argus Observer <ali@argus.observer>
 Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin
+Supported Currencies: Bitcoin, Zcash (t-address)
 
 USAGE:
     cli [FLAGS] [OPTIONS] <currency>
@@ -79,5 +79,5 @@ OPTIONS:
     -N, --network <network>    Network of wallet(s) to generate (e.g. mainnet, testnet) [values: mainnet, testnet]
 
 ARGS:
-    <currency>    Name of the currency to generate a wallet for (e.g. bitcoin)
+    <currency>    Name of the currency to generate a wallet for (e.g. bitcoin, zcash)
 ```
