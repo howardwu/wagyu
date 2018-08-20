@@ -1,34 +1,73 @@
 extern crate base58;
-extern crate ripemd160;
-extern crate sha2;
 
 use self::base58::ToBase58;
-use self::ripemd160::Ripemd160;
-use self::sha2::{Digest, Sha256};
 use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
 use privatekey::PrivateKey;
 use std::fmt;
-use utils::checksum;
+use utils::{checksum, hash160};
 
 /// Represents a Bitcoin Address
 #[derive(Serialize, Debug)]
 pub struct Address {
     pub wif: String,
-    pub network: self::Network,
+    pub network: Network,
+    pub address_type: Type,
+}
+
+/// Represents type of Bitcoin Address
+#[derive(Serialize, Debug, Clone)]
+pub enum Type {
+    P2PKH,
+    P2WPKH_P2SH
 }
 
 impl Address {
     /// Returns an Address given a PrivateKey object
-    pub fn from_private_key(private_key: &PrivateKey) -> Address {
-        let public_key = match private_key.compressed() {
-            true => private_key.to_public_key().serialize().to_vec(),
-            false => private_key
+    pub fn from_private_key(private_key: &PrivateKey, address_type: &Type) -> Address {
+        match address_type {
+            Type::P2PKH => Address::p2pkh(private_key),
+            Type::P2WPKH_P2SH => Address::p2wpkh_p2sh(private_key),
+        }
+    }
+
+    /// Returns P2WPKH_P2SH address from PrivateKey
+    fn p2wpkh_p2sh(private_key: &PrivateKey) -> Address {
+        let public_key = private_key.to_public_key().serialize();
+        let mut address_bytes = [0u8; 25];
+        let version_byte = 0x05;
+
+        let witness_program = hash160(&public_key);
+        let mut redeem_script = [0u8; 22];
+        redeem_script[0] = 0x00;
+        redeem_script[1] = 0x14;
+        redeem_script[2..].copy_from_slice(&witness_program);
+
+        let script_hash = hash160(&redeem_script);
+
+        address_bytes[0] = version_byte;
+        address_bytes[1..21].copy_from_slice(&script_hash);
+
+        let checksum_bytes = checksum(&address_bytes[0..21]); // Calculate Checksum
+        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
+
+        Address {
+            wif: address_bytes.to_base58(),
+            network: private_key.network().clone(),
+            address_type: Type::P2WPKH_P2SH,
+        }
+    }
+
+    /// Returns P2PKH address from PrivateKey
+    fn p2pkh(private_key: &PrivateKey) -> Address {
+        let public_key = if *private_key.compressed() {
+            private_key.to_public_key().serialize().to_vec()
+        } else {
+            private_key
                 .to_public_key()
                 .serialize_uncompressed()
-                .to_vec(),
+                .to_vec()
         };
-        let sha256_hash = Sha256::digest(&public_key); // Sha256 Hash
-        let ripemd160_hash = Ripemd160::digest(&sha256_hash); // Ripemd160 Hash
+        let pub_key_hash = hash160(&public_key);
         let mut address_bytes = [0u8; 25];
 
         let network_byte = match private_key.network() {
@@ -38,7 +77,7 @@ impl Address {
         };
 
         address_bytes[0] = network_byte;
-        address_bytes[1..21].copy_from_slice(&ripemd160_hash);
+        address_bytes[1..21].copy_from_slice(&pub_key_hash);
 
         let checksum_bytes = checksum(&address_bytes[0..21]); // Calculate Checksum
         address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
@@ -46,13 +85,14 @@ impl Address {
         Address {
             wif: address_bytes.to_base58(),
             network: private_key.network().clone(),
+            address_type: Type::P2PKH,
         }
     }
 
     /// Returns an Address given a private key in Wallet Import Format
-    pub fn from_wif(wif: &str) -> Address {
+    pub fn from_wif(wif: &str, address_type: &Type) -> Address {
         let private_key = PrivateKey::from_wif(wif).expect("Error deriving PrivateKey from WIF");
-        Address::from_private_key(&private_key)
+        Address::from_private_key(&private_key, address_type)
     }
 
     pub fn wif(&self) -> &str {
@@ -70,16 +110,30 @@ impl fmt::Display for Address {
 mod tests {
     use super::*;
 
-    fn test_private_key_address_pairs(private_keys: [&str; 5], addresses: [&str; 5]) {
+    fn test_p2pkh_pairs(private_keys: [&str; 5], addresses: [&str; 5]) {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key_wif, &expected_address)| {
-            let address = Address::from_wif(&private_key_wif);
+            let address = Address::from_wif(&private_key_wif, &Type::P2PKH);
             assert_eq!(expected_address, address.wif);
         });
     }
 
+    fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
+        let address = Address::from_wif(&private_key, &Type::P2WPKH_P2SH);
+        println!("{}, {}", address, expected_address);
+        assert_eq!(expected_address, address.wif);
+    }
+
     #[test]
-    fn test_testnet_uncompressed_private_key_to_address() {
+    fn test_p2wpkh() {
+        test_p2wpkh_pair(
+            "Kxr9tQED9H44gCmp6HAdmemAzU3n84H3dGkuWTKvE23JgHMW8gct",
+            "34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53",
+        );
+    }
+
+    #[test]
+    fn test_testnet_uncompressed_p2pkh() {
         let private_keys = [
             "934pVYUzZ7Sm4ZSP7MtXaQXAcMhZHpFHFBvzfW3epFgk5cWeYih",
             "91dTfyLPPneZA6RsAXqNuT6qTQdAuuGVCUjmBtzgd1Tnd4RQT5K",
@@ -95,11 +149,11 @@ mod tests {
             "mvqRXtgQKqumMosPY3dLvhdYsQJV2AswkA",
         ];
 
-        test_private_key_address_pairs(private_keys, addresses);
+        test_p2pkh_pairs(private_keys, addresses);
     }
 
     #[test]
-    fn test_mainnet_uncompressed_private_key_to_address() {
+    fn test_mainnet_uncompressed_p2pkh() {
         let private_keys = [
             "5K9VY2kaJ264Pj4ygobGLk7JJMgZ2i6wQ9FFKEBxoFtKeAXPHYm",
             "5KiudZRwr9wH5auJaW66WK3CGR1UzL7ZXiicvZEEaFScbbEt9Qs",
@@ -115,11 +169,11 @@ mod tests {
             "17nsg1F155BR6ie2miiLrSnMhF8GWcGq6V",
         ];
 
-        test_private_key_address_pairs(private_keys, addresses);
+        test_p2pkh_pairs(private_keys, addresses);
     }
 
     #[test]
-    fn test_mainnet_compressed_private_key_to_address() {
+    fn test_mainnet_compressed_p2pkh() {
         let private_keys = [
             "L2o7RUmise9WoxNzmnVZeK83Mmt5Nn1NBpeftbthG5nsLWCzSKVg",
             "KzjKw25tuQoiDyQjUG38ZRNBdnfr5eMBnTsU4JahrVDwFCpRZP1J",
@@ -135,11 +189,11 @@ mod tests {
             "12WMrNLRosydPNNYM96dwk9jDv8rDRom3J",
         ];
 
-        test_private_key_address_pairs(private_keys, addresses);
+        test_p2pkh_pairs(private_keys, addresses);
     }
 
     #[test]
-    fn test_testnet_compressed_private_key_to_address() {
+    fn test_testnet_compressed_p2pkh() {
         let private_keys = [
             "cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
             "cNp5uMWdh68Nk3pwShjxsSwhGPoCYgFvE1ANuPsk6qhcT4Jvp57n",
@@ -155,6 +209,6 @@ mod tests {
             "mjhMXrTdq4X1dcqTaNDjwGdVaJEGBKpCRj",
         ];
 
-        test_private_key_address_pairs(private_keys, addresses);
+        test_p2pkh_pairs(private_keys, addresses);
     }
 }
