@@ -18,7 +18,7 @@ pub struct Address {
 #[derive(Serialize, Debug, Clone)]
 pub enum Type {
     P2PKH,
-    P2WPKH_P2SH,
+    P2WPKH_P2SH
 }
 
 impl Address {
@@ -26,12 +26,12 @@ impl Address {
     pub fn from_private_key(private_key: &PrivateKey, address_type: &Type) -> Address {
         match address_type {
             Type::P2PKH => Address::p2pkh(private_key),
-            Type::P2WPKH_P2SH => Address::p2wpkh(private_key),
+            Type::P2WPKH_P2SH => Address::p2wpkh_p2sh(private_key),
         }
     }
 
     /// Returns P2WPKH_P2SH address from PrivateKey
-    fn p2wpkh(private_key: &PrivateKey) -> Address {
+    fn p2wpkh_p2sh(private_key: &PrivateKey) -> Address {
         let public_key = private_key.to_public_key().serialize();
         let mut address_bytes = [0u8; 25];
         let version_byte = 0x05;
