@@ -3,11 +3,13 @@ extern crate clap;
 extern crate bitcoin;
 extern crate serde_json;
 extern crate zcash;
+extern crate monero;
 
 use bitcoin::address::Type as AddressType;
 use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;
 use clap::{App, Arg};
 use zcash::builder::WalletBuilder as ZcashWalletBuilder;
+use monero::builder::WalletBuilder as MoneroWalletBuilder;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
@@ -15,11 +17,11 @@ fn main() {
        .version("v0.3.0")
        .about("Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin, Zcash (t-address)")
+Supported Currencies: Bitcoin, Zcash, Monero (t-address)")
        .author("Argus Observer <ali@argus.observer>")
        .arg(Arg::with_name("currency")
             .required(true)
-            .help("Name of the currency to generate a wallet for (e.g. bitcoin, zcash)"))
+            .help("Name of the currency to generate a wallet for (e.g. bitcoin, zcash, monero)"))
         .arg(Arg::with_name("network")
             .short("N")
             .long("network")
@@ -64,6 +66,7 @@ Supported Currencies: Bitcoin, Zcash (t-address)")
     match currency {
         "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, compressed, json),
         "zcash" => print_zcash_wallet(count, testnet, compressed, json),
+        "monero" => print_monero_wallet(count, testnet, json),
         _ => panic!("Unsupported currency"),
     };
 }
@@ -86,6 +89,15 @@ fn print_bitcoin_wallet(
 
 fn print_zcash_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
     let wallets = ZcashWalletBuilder::build_many_from_options(compressed, testnet, count);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
+    } else {
+        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    }
+}
+
+fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
+    let wallets = MoneroWalletBuilder::build_many_from_options(testnet, count);
     if json {
         println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
     } else {
