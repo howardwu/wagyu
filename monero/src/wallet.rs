@@ -20,10 +20,10 @@ pub struct MoneroWallet {
     pub address: String,
     /// private spend key
     pub private_spend_key: String,
-    /// public spend key
-    pub public_spend_key: String,
     /// private view key
     pub private_view_key: String,
+    /// public spend key
+    pub public_spend_key: String,
     /// public view key
     pub public_view_key: String,
 }
@@ -35,6 +35,8 @@ impl MoneroWallet {
         rand_bytes(&mut seed[..])?;
 
         let mut ctx = BigNumContext::new()?;
+
+        println!("seed {:?}", format!("{:x}", 68));
 
         let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
         let view_keypair = {
@@ -48,8 +50,8 @@ impl MoneroWallet {
         Ok(MoneroWallet {
             address: address,
             private_spend_key: HexSlice::new(spend_keypair.private.as_ref()).format(),
-            public_spend_key: HexSlice::new(spend_keypair.public.as_ref()).format(),
             private_view_key: HexSlice::new(view_keypair.private.as_ref()).format(),
+            public_spend_key: HexSlice::new(spend_keypair.public.as_ref()).format(),
             public_view_key: HexSlice::new(view_keypair.public.as_ref()).format(),
         })
     }
@@ -70,8 +72,8 @@ impl MoneroWallet {
         Ok(MoneroWallet {
             address: address,
             private_spend_key: HexSlice::new(spend_keypair.private.as_ref()).format(),
-            public_spend_key: HexSlice::new(spend_keypair.public.as_ref()).format(),
             private_view_key: HexSlice::new(view_keypair.private.as_ref()).format(),
+            public_spend_key: HexSlice::new(spend_keypair.public.as_ref()).format(),
             public_view_key: HexSlice::new(view_keypair.public.as_ref()).format(),
         })
     }
@@ -129,14 +131,13 @@ impl MoneroWallet {
         &self.private_spend_key
     }
 
-    /// returns spend public key
-    pub fn public_spend_key(&self) -> &String {
-        &self.public_spend_key
-    }
-
     /// returns view private key
     pub fn private_view_key(&self) -> &String {
         &self.private_view_key
+    }
+    /// returns spend public key
+    pub fn public_spend_key(&self) -> &String {
+        &self.public_spend_key
     }
 
     /// returns view public key
@@ -180,37 +181,33 @@ mod tests {
         println!("Monero {:?}", MoneroWallet::new(Network::Mainnet).unwrap())
     }
 
-    // #[test]
-    // fn test_from_seed() {
+    #[test]
+    fn test_from_seed() {
+        let seed = [
+            68, 49, 179, 87, 16, 197, 157, 230, 143, 50, 126, 44, 68, 63, 140, 252, 55, 165, 0, 21,
+            89, 117, 205, 207, 77, 189, 251, 141, 193, 131, 96, 54,
+        ];
 
-    //     let seed = [
-    //         0xbd, 0xb2, 0x5d, 0x9d, 0x7b, 0xdb, 0xda, 0x38, 0x97, 0xf6, 0xc9, 0x42, 0x7a, 0xd6, 0x57,
-    //         0xd1, 0x56, 0x75, 0xa9, 0x4a, 0x06, 0xf0, 0xdb, 0x66, 0xb9, 0xb0, 0x53, 0xb0, 0xb2, 0x78,
-    //         0xa8, 0x00,
-    //     ];
+        let wallet = MoneroWallet::from_seed(Network::Mainnet, seed).unwrap();
 
-    // // bdb25d9d7bdbda3897f6c9427ad657d15675a94a06f0db66b9b053b0b278a800
-
-    //     let wallet = MoneroWallet::from_seed(Network::Mainnet, seed).unwrap();
-
-    //     assert_eq!(
-    //         &wallet.address,
-    //         "4B5hMDhQyxb3aCpo7aQjrN8WCVfW3fRZwYGwDiMYBuHdPSfxSxxk5PG7arpdLpLi91N8ozt129c4w2vxhfQURRP8JQHmbvi");
-    //     assert_eq!(
-    //         &wallet.public_spend_key,
-    //         "f99782b370c9100f613e341bf2577f2cdc28d6a3795e86bafabcc0cd3fb05486",
-    //     );
-    //     assert_eq!(
-    //         &wallet.private_spend_key,
-    //         "bdb25d9d7bdbda3897f6c9427ad657d15675a94a06f0db66b9b053b0b278a800",
-    //     );
-    //     assert_eq!(
-    //         &wallet.public_view_key,
-    //         "2cf5e093e437e3275ca066fdf27fdc7e5b1ae7c6fe98600b8a72dc213294b39a",
-    //     );
-    //     assert_eq!(
-    //         &wallet.private_view_key,
-    //         "afc9d176516ecbe8cc6b4bc0efea956b1f0c3ffede0ddd919a8486b143a09d0d",
-    //     );
-    // }
+        assert_eq!(
+            &wallet.address,
+            "444SttAXhqVUeqCpPiTTwHcYTGpApapxjgsBzqSxWANvfmxGHJTLTTE6JgYM6yYNjmGBrGLhsVu8ZJh6RnFP8yqM6F8Lmb1");
+        assert_eq!(
+            &wallet.private_spend_key,
+            "7db5d140c19b66de0c5c9743a851efbd37a500155975cdcf4dbdfb8dc1836006",
+        );
+        assert_eq!(
+            &wallet.private_view_key,
+            "2d4f19ff6f2a2b2e918996e7ebbbabba791c29120ceb66518a4f232f3a88e30a",
+        );
+        assert_eq!(
+            &wallet.public_spend_key,
+            "404e19168faffca55272b37aff9494d47e54fa7fd6ed34ee56db492a057953e7",
+        );
+        assert_eq!(
+            &wallet.public_view_key,
+            "d22475de8a58511fb7362dc18fc79c5acc2848cbd73cc669c4e93811465e4c2e",
+        );
+    }
 }
