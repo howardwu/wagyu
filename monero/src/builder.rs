@@ -39,6 +39,7 @@ impl WalletBuilder {
         MoneroWallet::new(network).unwrap()
     }
 
+    /// build a monero wallet from a testnet option flag
     pub fn build_from_options(
         testnet: bool,
     ) -> MoneroWallet {
@@ -51,6 +52,7 @@ impl WalletBuilder {
         MoneroWallet::new(network).unwrap()
     }
 
+    /// build a monero wallet from a testnet option and count flag
     pub fn build_many_from_options(
         testnet: bool,
         count: usize,
@@ -66,14 +68,15 @@ impl WalletBuilder {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test_build() {
-//         let mut builder = WalletBuilder::new();
-//         let wallet = builder.build();
+    #[test]
+    fn test_build_testnet() {
+        let mut builder = WalletBuilder::new();
+        let wallet = builder.testnet().build();
+        assert_eq!(*wallet.network(), Network::Testnet)
 
-//     }
-// }
+    }
+}
