@@ -17,11 +17,11 @@ fn main() {
        .version("v0.3.0")
        .about("Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin, Zcash, Monero (t-address)")
+Supported Currencies: Bitcoin, Monero, Zcash (t-address)")
        .author("Argus Observer <ali@argus.observer>")
        .arg(Arg::with_name("currency")
             .required(true)
-            .help("Name of the currency to generate a wallet for (e.g. bitcoin, zcash, monero)"))
+            .help("Name of the currency to generate a wallet for (e.g. bitcoin, monero, zcash)"))
         .arg(Arg::with_name("network")
             .short("N")
             .long("network")
@@ -65,8 +65,8 @@ Supported Currencies: Bitcoin, Zcash, Monero (t-address)")
 
     match currency {
         "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, compressed, json),
-        "zcash" => print_zcash_wallet(count, testnet, compressed, json),
         "monero" => print_monero_wallet(count, testnet, json),
+        "zcash" => print_zcash_wallet(count, testnet, compressed, json),
         _ => panic!("Unsupported currency"),
     };
 }
