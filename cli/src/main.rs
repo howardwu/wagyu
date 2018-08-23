@@ -1,15 +1,15 @@
 #[macro_use(value_t)]
 extern crate clap;
 extern crate bitcoin;
+extern crate monero;
 extern crate serde_json;
 extern crate zcash;
-extern crate monero;
 
 use bitcoin::address::Type as AddressType;
 use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;
 use clap::{App, Arg};
-use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 use monero::builder::WalletBuilder as MoneroWalletBuilder;
+use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];

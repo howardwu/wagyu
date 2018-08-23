@@ -1,8 +1,7 @@
 //! Monero Wallet generator
-use network::{Network, get_prefix};
+use network::{get_prefix, Network};
 
 use std::fmt;
-
 
 use super::prelude::*;
 use arrayvec::ArrayVec;
@@ -13,13 +12,12 @@ use openssl::bn::BigNumContext;
 use openssl::rand::rand_bytes;
 use tiny_keccak::keccak256;
 
-
 /// Represents Monero keypairs
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MoneroWallet {
     /// public monero address
-    pub address: String, 
+    pub address: String,
     /// private spend key
     pub private_spend_key: String,
     /// public spend key
@@ -44,7 +42,8 @@ impl MoneroWallet {
             keypair_from_bytes(buffer, &mut ctx)?
         };
 
-        let address = MoneroWallet::generate_address(network, &spend_keypair.public, &view_keypair.public)?;
+        let address =
+            MoneroWallet::generate_address(network, &spend_keypair.public, &view_keypair.public)?;
 
         Ok(MoneroWallet {
             address: address,
@@ -57,7 +56,6 @@ impl MoneroWallet {
 
     /// Generates a MoneroWallet for a given `network` from a seed.
     pub fn from_seed(network: Network, seed: [u8; 32]) -> Result<MoneroWallet> {
-
         let mut ctx = BigNumContext::new()?;
 
         let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
@@ -66,7 +64,8 @@ impl MoneroWallet {
             keypair_from_bytes(buffer, &mut ctx)?
         };
 
-        let address = MoneroWallet::generate_address(network, &spend_keypair.public, &view_keypair.public)?;
+        let address =
+            MoneroWallet::generate_address(network, &spend_keypair.public, &view_keypair.public)?;
 
         Ok(MoneroWallet {
             address: address,
@@ -77,10 +76,13 @@ impl MoneroWallet {
         })
     }
 
-
     /// Generate the Cryptonote wallet address from the two public keys
     /// reference: https://gitlab.com/standard-mining/wallet-gen/blob/master/src/cryptonote.rs
-    pub fn generate_address(network: Network, spend_key: &PublicKey, view_key: &PublicKey) -> Result<String> {
+    pub fn generate_address(
+        network: Network,
+        spend_key: &PublicKey,
+        view_key: &PublicKey,
+    ) -> Result<String> {
         let mut bytes = ArrayVec::<[u8; 72]>::new();
 
         // Add coin prefix
@@ -88,7 +90,6 @@ impl MoneroWallet {
             Some(prefix) => bytes.extend(prefix.iter().cloned()),
             None => panic!("Invalid prefix"), // make more descriptive
         };
-
 
         // Add public keys
         bytes.extend(spend_key.iter().cloned());

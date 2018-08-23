@@ -11,9 +11,7 @@ pub struct WalletBuilder {
 impl WalletBuilder {
     /// generates a new walletbuilder
     pub fn new() -> WalletBuilder {
-        WalletBuilder {
-            testnet: false, 
-        }
+        WalletBuilder { testnet: false }
     }
 
     /// Use Network::Testnet when build is called
@@ -40,9 +38,7 @@ impl WalletBuilder {
     }
 
     /// build a monero wallet from a testnet option flag
-    pub fn build_from_options(
-        testnet: bool,
-    ) -> MoneroWallet {
+    pub fn build_from_options(testnet: bool) -> MoneroWallet {
         let network = if testnet {
             Network::Testnet
         } else {
@@ -53,15 +49,10 @@ impl WalletBuilder {
     }
 
     /// build a monero wallet from a testnet option and count flag
-    pub fn build_many_from_options(
-        testnet: bool,
-        count: usize,
-    ) -> Vec<MoneroWallet> {
+    pub fn build_many_from_options(testnet: bool, count: usize) -> Vec<MoneroWallet> {
         let mut wallets = Vec::with_capacity(count);
         for _ in 0..count {
-            wallets.push(WalletBuilder::build_from_options(
-                testnet,
-            ));
+            wallets.push(WalletBuilder::build_from_options(testnet));
         }
 
         wallets

@@ -5,12 +5,11 @@ use std::fmt;
 #[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 pub enum Network {
     /// Monero Mainnet
-    Mainnet, 
+    Mainnet,
     /// Monero Testnet
     Testnet,
     /// Error
     Error,
-
 }
 
 /// Returns the prefix for a given network

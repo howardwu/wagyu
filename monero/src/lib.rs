@@ -24,11 +24,10 @@ extern crate tiny_keccak;
 #[macro_use]
 extern crate serde;
 
-
 pub mod builder;
 pub mod ed25519;
 pub mod error;
+pub mod hex_slice;
 pub mod network;
 pub mod prelude;
 pub mod wallet;
-pub mod hex_slice;

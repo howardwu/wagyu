@@ -59,21 +59,31 @@ impl fmt::Display for Error {
 
 // Auto-conversion
 impl From<String> for Error {
-    fn from(error: String) -> Self { Error::Msg(error) }
+    fn from(error: String) -> Self {
+        Error::Msg(error)
+    }
 }
 
 impl From<&'static str> for Error {
-    fn from(error: &'static str) -> Self { Error::StaticMsg(error) }
+    fn from(error: &'static str) -> Self {
+        Error::StaticMsg(error)
+    }
 }
 
 impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self { Error::Io(error) }
+    fn from(error: io::Error) -> Self {
+        Error::Io(error)
+    }
 }
 
 impl From<openssl::Error> for Error {
-    fn from(error: openssl::Error) -> Self { Error::OpenSsl(Either::Left(error)) }
+    fn from(error: openssl::Error) -> Self {
+        Error::OpenSsl(Either::Left(error))
+    }
 }
 
 impl From<openssl::ErrorStack> for Error {
-    fn from(error: openssl::ErrorStack) -> Self { Error::OpenSsl(Either::Right(error)) }
+    fn from(error: openssl::ErrorStack) -> Self {
+        Error::OpenSsl(Either::Right(error))
+    }
 }
