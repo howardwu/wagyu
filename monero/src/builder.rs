@@ -68,15 +68,15 @@ impl WalletBuilder {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn test_build_testnet() {
-        let mut builder = WalletBuilder::new();
-        let wallet = builder.testnet().build();
-        assert_eq!(*wallet.network(), Network::Testnet)
+//     #[test]
+//     fn test_build_testnet() {
+//         let mut builder = WalletBuilder::new();
+//         let wallet = builder.testnet().build();
+//         assert_eq!(*wallet.network(), Network::Testnet)
 
-    }
-}
+//     }
+// }
