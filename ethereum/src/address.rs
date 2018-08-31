@@ -1,6 +1,6 @@
 use keypair::KeyPair;
 use std::fmt;
-use utils::to_hex_string;
+use utils:: {to_hex_string, to_checksum_address};
 use tiny_keccak::keccak256;
 
 /// Represents an Ethereum Address
@@ -19,8 +19,11 @@ impl Address {
         let mut address_bytes = [0u8; 20];
         address_bytes.copy_from_slice(&hash[12..]);
 
+        let address = to_hex_string(&address_bytes).to_lowercase();
+        let checksum_address = to_checksum_address(&address);
+        
         Address {
-            address: to_hex_string(&address_bytes).to_lowercase(),
+            address: checksum_address,
         }
     }
     
