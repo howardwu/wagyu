@@ -1,4 +1,4 @@
-use wallet::EthereumWallet;
+use ethereum::wallet::EthereumWallet;
 
 /// A WalletBuilder helps to construct a EthereumWallet
 #[derive(Default)]

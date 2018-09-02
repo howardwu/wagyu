@@ -1,5 +1,5 @@
-use network::Network;
-use wallet::ZcashWallet;
+use zcash::network::Network;
+use zcash::wallet::ZcashWallet;
 
 /// A WalletBuilder helps to construct a ZcashWallet
 #[derive(Default)]

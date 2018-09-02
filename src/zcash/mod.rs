@@ -1,8 +1,7 @@
-//! # Bitcoin
+//! # Zcash
 //!
-//! A library for generating Bitcoin Wallets.
-#[macro_use]
-extern crate serde_derive;
+//! A library for generating Zcash Wallets.
+
 pub mod address;
 pub mod builder;
 pub mod network;

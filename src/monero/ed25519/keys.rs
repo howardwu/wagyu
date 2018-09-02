@@ -14,7 +14,7 @@
  */
 
 use super::prelude::*;
-use ed25519::crypto::{bn_to_vec32, derive_pubkey, sc_reduce32};
+use monero::ed25519::crypto::{bn_to_vec32, derive_pubkey, sc_reduce32};
 use openssl::bn::BigNumContextRef;
 use std::ops::Deref;
 

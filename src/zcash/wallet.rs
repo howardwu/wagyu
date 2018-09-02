@@ -1,9 +1,9 @@
 extern crate serde_json;
 
 use self::serde_json::to_string_pretty;
-use address::Address;
-use network::Network;
-use privatekey::PrivateKey;
+use zcash::address::Address;
+use zcash::network::Network;
+use zcash::privatekey::PrivateKey;
 use std::fmt;
 
 /// A ZcashWallet is represented by a PrivateKey and Address pair

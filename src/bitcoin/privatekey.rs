@@ -7,9 +7,9 @@ use self::rand::thread_rng;
 use self::rand::RngCore;
 use self::secp256k1::Secp256k1;
 use self::secp256k1::{PublicKey, SecretKey};
-use network::{Network, MAINNET_BYTE, TESTNET_BYTE};
+use bitcoin::network::{Network, MAINNET_BYTE, TESTNET_BYTE};
 use std::fmt;
-use utils::checksum;
+use bitcoin::utils::checksum;
 
 /// Represents a Bitcoin Private Key
 #[derive(Serialize, Debug, Eq, PartialEq)]
@@ -143,7 +143,7 @@ impl PrivateKey {
     }
 
     /// Returns an immutable reference to this PrivateKey's wif
-    pub fn wif(&self) -> &str {
+    pub fn wif(&self) -> &String {
         &self.wif
     }
 

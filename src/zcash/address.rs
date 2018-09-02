@@ -5,10 +5,10 @@ extern crate sha2;
 use self::base58::ToBase58;
 use self::ripemd160::Ripemd160;
 use self::sha2::{Digest, Sha256};
-use network::{Network, MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
-use privatekey::PrivateKey;
+use zcash::network::{Network, MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
+use zcash::privatekey::PrivateKey;
 use std::fmt;
-use utils::checksum;
+use zcash::utils::checksum;
 
 /// Represents a Zcash t-address
 #[derive(Serialize, Debug)]

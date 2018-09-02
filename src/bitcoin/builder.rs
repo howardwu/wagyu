@@ -1,6 +1,6 @@
-use address::Type;
-use network::Network;
-use wallet::BitcoinWallet;
+use bitcoin::address::Type;
+use bitcoin::network::Network;
+use bitcoin::wallet::BitcoinWallet;
 
 /// A WalletBuilder helps to construct a BitcoinWallet
 pub struct WalletBuilder {

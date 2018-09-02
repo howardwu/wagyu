@@ -1,13 +1,13 @@
 //! Monero Wallet generator
-use network::{get_prefix, Network};
 
 use std::fmt;
 
 use super::prelude::*;
 use arrayvec::ArrayVec;
 use base58::ToBase58;
-use ed25519::{keypair_from_bytes, PublicKey};
-use hex_slice::HexSlice;
+use monero::ed25519::{keypair_from_bytes, PublicKey};
+use monero::hex_slice::HexSlice;
+use monero::network::{get_prefix, Network};
 use openssl::bn::BigNumContext;
 use openssl::rand::rand_bytes;
 use tiny_keccak::keccak256;

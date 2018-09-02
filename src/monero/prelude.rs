@@ -18,7 +18,7 @@
 
 use std::result;
 
-pub use error::Error;
+pub use monero::error::Error;
 
 /// Alias for [`std::result::Result`].
 ///

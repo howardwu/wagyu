@@ -1,10 +1,26 @@
 #[macro_use(value_t)]
 extern crate clap;
-extern crate bitcoin;
-extern crate ethereum;
-extern crate monero;
+#[macro_use]
+extern crate lazy_static;
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+
+extern crate arrayvec;
+extern crate base58;
+extern crate digest;
+extern crate either;
+extern crate openssl;
+extern crate safemem;
 extern crate serde_json;
-extern crate zcash;
+extern crate tiny_keccak;
+
+mod bitcoin;
+mod ethereum;
+mod monero;
+mod zcash;
 
 use bitcoin::address::Type as AddressType;
 use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;

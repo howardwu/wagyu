@@ -1,8 +1,24 @@
-[workspace]
-members = [
-  "bitcoin",
-  "cli",
-  "zcash",
-  "ethereum",
-  "monero"
-]
+[package]
+name = "wagu"
+version = "0.5.0"
+authors = ["Ali Mousa <amousa11@gmail.com>", "Collin Chin <collin@argus.observer>", "Raymond Chu <ray@argus.observer>"]
+
+[dependencies]
+arrayvec = "0.4.7"
+base58 = "0.1"
+clap = "~2.27.0"
+digest = "0.7.5"
+either = "1.5.0"
+hex = "0.3.2"
+hex-slice = "0.1.4"
+lazy_static = "1.1.0"
+openssl = "0.10.11"
+rand = "0.5"
+ripemd160 = "0.7"
+safemem = "0.3.0"
+secp256k1 = "0.11.1"
+sha2 = "0.7"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+tiny-keccak = "1.4"

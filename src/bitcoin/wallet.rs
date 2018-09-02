@@ -1,9 +1,9 @@
 extern crate serde_json;
 
 use self::serde_json::to_string_pretty;
-use address::{Address, Type};
-use network::Network;
-use privatekey::PrivateKey;
+use bitcoin::address::{Address, Type};
+use bitcoin::network::Network;
+use bitcoin::privatekey::PrivateKey;
 use std::fmt;
 
 /// A BitcoinWallet is represented by a PrivateKey and Address pair
