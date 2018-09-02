@@ -10,6 +10,14 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 - Monero
 - Zcash (Transparent Addresses)
 
+## <a name='QuickUsage'></a>Quick Usage
+
+Create a wallet for any currency like so:
+
+`wagu <currency>`
+
+The supported currencies are listed above. Specific examples are found below and in the `docs` folder.
+
 ## <a name='TableofContents'></a>Table of Contents
 
 * [Table of Contents](#TableofContents)
