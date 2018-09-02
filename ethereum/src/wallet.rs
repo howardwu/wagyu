@@ -25,7 +25,7 @@ impl EthereumWallet {
     }
 
     /// Recovers a EthereumWallet from a KeyPair object
-    pub fn from_private_key(keypair: KeyPair) -> EthereumWallet {
+    pub fn from_key_pair(keypair: KeyPair) -> EthereumWallet {
         let address = Address::from_key_pair(&keypair);
         EthereumWallet {
             keypair,

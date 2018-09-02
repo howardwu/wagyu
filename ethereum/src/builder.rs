@@ -3,13 +3,11 @@ use wallet::EthereumWallet;
 /// A WalletBuilder helps to construct a EthereumWallet
 #[derive(Default)]
 pub struct WalletBuilder {
-    testnet: bool,
 }
 
 impl WalletBuilder {
     pub fn new() -> WalletBuilder {
         WalletBuilder {
-            testnet: false,
         }
     }
 
