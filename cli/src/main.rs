@@ -14,7 +14,7 @@ use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 fn main() {
     let network_vals = ["mainnet", "testnet"];
     let matches = App::new("wagu")
-       .version("v0.3.0")
+       .version("v0.5.0")
        .about("Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin, Monero, Zcash (t-address)")
