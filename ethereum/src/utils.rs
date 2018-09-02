@@ -10,7 +10,7 @@ pub fn to_checksum_address(addr: &str) -> String {
     let mut new_address_bytes = [0u8; 32];
     new_address_bytes.copy_from_slice(&hash2[..]);
     let new_address = to_hex_string(&new_address_bytes);
-    let mut final_address = String::from("");
+    let mut final_address = String::from("0x");
     for x in 0..40 {
         let temp_char = &new_address[x..(x + 1)];
         match temp_char {

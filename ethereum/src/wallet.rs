@@ -9,7 +9,9 @@ use std::fmt;
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EthereumWallet {
+    #[serde(flatten)]
     pub keypair: KeyPair,
+    #[serde(flatten)]
     pub address: Address,
 }
 

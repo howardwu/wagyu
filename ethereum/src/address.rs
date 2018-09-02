@@ -41,6 +41,6 @@ impl Address {
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", self.address)
+        write!(f, "{}", self.address)
     }
 }
