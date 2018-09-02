@@ -1,10 +1,11 @@
 [package]
 name = "cli"
 version = "0.5.0"
-authors = ["Ali Mousa <amousa11@gmail.com>", "Collin Chin <collin@argus.observer>"]
+authors = ["Ali Mousa <amousa11@gmail.com>", "Collin Chin <collin@argus.observer>", "Raymond Chu <ray@argus.observer>"]
 
 [dependencies]
 bitcoin = { path = "../bitcoin" }
+ethereum = { path = "../ethereum" }
 zcash = { path = "../zcash" }
 monero = { path = "../monero" }
 clap = "~2.27.0"

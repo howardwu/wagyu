@@ -143,7 +143,7 @@ impl PrivateKey {
     }
 
     /// Returns an immutable reference to this PrivateKey's wif
-    pub fn wif(&self) -> &String {
+    pub fn wif(&self) -> &str {
         &self.wif
     }
 
