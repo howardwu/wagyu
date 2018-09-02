@@ -75,12 +75,12 @@ mod tests {
     fn test_import() {
         test_from_private_key_string(
             "bca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698",
-            "1694D72a05a6038d3b195DAcb450e40B7ec8d50c",
+            "0x1694D72a05a6038d3b195DAcb450e40B7ec8d50c",
         );
 
         test_from_private_key_string(
             "17cad55df5fa77d0de1806cebbc77eb2f5609ff94310dad89844ce0806bdcd0d",
-            "585a1281c2ad7Cf3F4c01d6f05EF9c4F7E1c9aDc",
+            "0x585a1281c2ad7Cf3F4c01d6f05EF9c4F7E1c9aDc",
         );
     }
 }
