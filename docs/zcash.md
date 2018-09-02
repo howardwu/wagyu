@@ -9,7 +9,7 @@
 	* [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
 	* [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
 
-##  2. <a name='Features'></a>Features
+##  <a name='Features'></a>Features
 
 #### <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
 

@@ -10,7 +10,7 @@
 	* [Generate a P2WPKH_P2SH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
 	* [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
 
-##  2. <a name='Features'></a>Features
+##  <a name='Features'></a>Features
 
 #### <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
 

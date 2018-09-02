@@ -8,7 +8,7 @@
 	* [Generate wallets as JSON object](#GeneratewalletsasJSONobject)
 	* [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
 
-##  2. <a name='Features'></a>Features
+##  <a name='Features'></a>Features
 
 #### <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
 
