@@ -1,5 +1,6 @@
 extern crate rand;
 extern crate secp256k1;
+extern crate hex;
 
 use self::rand::thread_rng;
 use self::rand::RngCore;
@@ -67,6 +68,17 @@ impl KeyPair {
             private_key,
             public_key,
         }
+    }
+
+    pub fn from_secret_key_string(secret_key_string: &String) -> SecretKey {
+        let secp = Secp256k1::new();
+        let secret_key_bytes = hex::decode(secret_key_string).expect("Error decoding string");
+        
+        let mut secret_key = [0u8; 32];
+        secret_key.copy_from_slice(&secret_key_bytes[0..32]);
+        
+        SecretKey::from_slice(&secp, &secret_key)
+            .expect("Error creating secret key from byte slice")
     }
 
     /// Generates the Ethereum private key from the Secp256k1 SecretKey

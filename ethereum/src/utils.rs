@@ -14,7 +14,7 @@ pub fn to_checksum_address(addr: &String) -> String {
             for x in 0..40 {
                 let temp_char = &new_address[x..(x+1)];
                 match temp_char {
-                    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" 
+                    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" 
                         => final_address.push_str(&addr[x..(x+1)].to_lowercase()),
                     _ => final_address.push_str(&addr[x..(x+1)].to_uppercase()),
                 }

@@ -59,3 +59,32 @@ impl fmt::Display for EthereumWallet {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_from_private_key_string(private_key_string: &String, address_string: &String) {
+        let secret_key = KeyPair::from_secret_key_string(private_key_string);
+        let private_key = KeyPair::private_key_from_secret_key(secret_key);
+        
+        let key_pair = KeyPair::from_secret_key(secret_key);
+        let wallet = EthereumWallet::from_key_pair(key_pair);
+        
+        assert_eq!(&private_key, private_key_string);
+        assert_eq!(wallet.address().address(), address_string);
+    }
+
+    #[test]
+    fn test_import() {
+        test_from_private_key_string(
+            &"bca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698".to_string(),
+            &"1694D72a05a6038d3b195DAcb450e40B7ec8d50c".to_string(),
+        );
+
+        test_from_private_key_string(
+            &"17cad55df5fa77d0de1806cebbc77eb2f5609ff94310dad89844ce0806bdcd0d".to_string(),
+            &"585a1281c2ad7Cf3F4c01d6f05EF9c4F7E1c9aDc".to_string(),
+        );
+    }
+}
