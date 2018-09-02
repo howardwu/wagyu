@@ -34,7 +34,7 @@ impl WalletBuilder {
             Network::Mainnet
         };
 
-        MoneroWallet::new(network).unwrap()
+        MoneroWallet::new(&network).unwrap()
     }
 
     /// build a monero wallet from a testnet option flag
@@ -45,7 +45,7 @@ impl WalletBuilder {
             Network::Mainnet
         };
 
-        MoneroWallet::new(network).unwrap()
+        MoneroWallet::new(&network).unwrap()
     }
 
     /// build a monero wallet from a testnet option and count flag
