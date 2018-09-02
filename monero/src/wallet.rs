@@ -158,10 +158,6 @@ impl fmt::Display for MoneroWallet {
         Address:              {}
         Private Spend Key:    {}
         Private View Key:     {}
-        -- OPTIONAL --
-        Public Spend Key:     {}
-        Public View Key:      {}
-        -- OPTIONAL --
         ",
             self.address(),
             self.private_spend_key(),
