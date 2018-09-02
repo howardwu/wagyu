@@ -19,12 +19,16 @@ pub struct MoneroWallet {
     /// public monero address
     pub address: String,
     /// private spend key
+    #[serde(rename = "spend_key")]
     pub private_spend_key: String,
     /// private view key
+    #[serde(rename = "view_key")]
     pub private_view_key: String,
     /// public spend key
+    #[serde(skip_serializing)]
     pub public_spend_key: String,
     /// public view key
+    #[serde(skip_serializing)]
     pub public_view_key: String,
 }
 
@@ -35,8 +39,6 @@ impl MoneroWallet {
         rand_bytes(&mut seed[..])?;
 
         let mut ctx = BigNumContext::new()?;
-
-        println!("seed {:?}", format!("{:x}", 68));
 
         let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
         let view_keypair = {
