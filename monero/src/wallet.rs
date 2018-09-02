@@ -161,9 +161,7 @@ impl fmt::Display for MoneroWallet {
         ",
             self.address(),
             self.private_spend_key(),
-            self.private_view_key(),
-            self.public_spend_key(),
-            self.public_view_key()
+            self.private_view_key()
         )
     }
 }
