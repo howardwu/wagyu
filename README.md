@@ -13,7 +13,7 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 ## <a name='TableofContents'></a>Table of Contents
 
 * [Table of Contents](#TableofContents)
-* [Documentation](#Documentation)
+* [Documentation](#documentation)
 * [Features](#Features)
 	* [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
 	* [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
