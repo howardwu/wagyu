@@ -1,6 +1,6 @@
+extern crate hex;
 extern crate rand;
 extern crate secp256k1;
-extern crate hex;
 
 use self::rand::thread_rng;
 use self::rand::RngCore;
@@ -21,7 +21,6 @@ pub struct KeyPair {
     /// The Secp256k1 PublicKey Object
     #[serde(skip_serializing)]
     public_key: PublicKey,
-
 }
 
 impl KeyPair {
@@ -73,10 +72,10 @@ impl KeyPair {
     pub fn from_secret_key_string(secret_key_string: &str) -> SecretKey {
         let secp = Secp256k1::new();
         let secret_key_bytes = hex::decode(secret_key_string).expect("Error decoding string");
-        
+
         let mut secret_key = [0u8; 32];
         secret_key.copy_from_slice(&secret_key_bytes[0..32]);
-        
+
         SecretKey::from_slice(&secp, &secret_key)
             .expect("Error creating secret key from byte slice")
     }
@@ -85,7 +84,7 @@ impl KeyPair {
     pub fn private_key_from_secret_key(secret_key: SecretKey) -> String {
         let mut private_key_bytes = [0u8; 32];
         private_key_bytes.copy_from_slice(&secret_key[..]);
-        
+
         to_hex_string(&private_key_bytes).to_lowercase()
     }
 
@@ -93,7 +92,7 @@ impl KeyPair {
     pub fn secret_key(&self) -> &SecretKey {
         &self.secret_key
     }
-    
+
     /// Returns an immutable reference to this KeyPair's Ethereum private key
     pub fn private_key(&self) -> &str {
         &self.private_key
@@ -107,7 +106,6 @@ impl KeyPair {
 
 impl fmt::Display for KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        
         write!(f, "{}", self.private_key)
     }
 }

@@ -18,19 +18,13 @@ impl EthereumWallet {
     pub fn new() -> EthereumWallet {
         let keypair = KeyPair::new();
         let address = Address::from_key_pair(&keypair);
-        EthereumWallet {
-            keypair,
-            address,
-        }
+        EthereumWallet { keypair, address }
     }
 
     /// Recovers a EthereumWallet from a KeyPair object
     pub fn from_key_pair(keypair: KeyPair) -> EthereumWallet {
         let address = Address::from_key_pair(&keypair);
-        EthereumWallet {
-            keypair,
-            address,
-        }
+        EthereumWallet { keypair, address }
     }
 
     pub fn keypair(&self) -> &KeyPair {
@@ -67,10 +61,10 @@ mod tests {
     fn test_from_private_key_string(private_key_string: &str, address_string: &str) {
         let secret_key = KeyPair::from_secret_key_string(private_key_string);
         let private_key = KeyPair::private_key_from_secret_key(secret_key);
-        
+
         let key_pair = KeyPair::from_secret_key(secret_key);
         let wallet = EthereumWallet::from_key_pair(key_pair);
-        
+
         assert_eq!(&private_key, private_key_string);
         assert_eq!(wallet.address().address(), address_string);
     }

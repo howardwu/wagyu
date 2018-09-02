@@ -2,13 +2,11 @@ use wallet::EthereumWallet;
 
 /// A WalletBuilder helps to construct a EthereumWallet
 #[derive(Default)]
-pub struct WalletBuilder {
-}
+pub struct WalletBuilder {}
 
 impl WalletBuilder {
     pub fn new() -> WalletBuilder {
-        WalletBuilder {
-        }
+        WalletBuilder {}
     }
 
     /// Construct an EthereumWallet
@@ -16,9 +14,7 @@ impl WalletBuilder {
         EthereumWallet::new()
     }
 
-    pub fn build_many_from_options(
-        count: usize,
-    ) -> Vec<EthereumWallet> {
+    pub fn build_many_from_options(count: usize) -> Vec<EthereumWallet> {
         let mut wallets = Vec::with_capacity(count);
         for _ in 0..count {
             wallets.push(WalletBuilder::build());
