@@ -158,14 +158,14 @@ Generate a compressed mainnet private key and address with the following command
 The cli contains useful help text, displayed below.
 
 ```
-wagu v0.3.0
+wagu v0.5.0
 Argus Observer <ali@argus.observer>
 Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin, Zcash (t-address)
+Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)
 
 USAGE:
-    cli [FLAGS] [OPTIONS] <currency>
+    wagu [FLAGS] [OPTIONS] <currency>
 
 FLAGS:
     -c, --compressed    Enabling this flag generates a wallet which corresponds to a compressed public key
@@ -179,5 +179,5 @@ OPTIONS:
     -N, --network <network>    Network of wallet(s) to generate (e.g. mainnet, testnet) [values: mainnet, testnet]
 
 ARGS:
-    <currency>    Name of the currency to generate a wallet for (e.g. bitcoin, zcash)
+    <currency>    Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)
 ```
