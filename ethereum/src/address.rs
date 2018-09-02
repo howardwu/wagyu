@@ -1,6 +1,6 @@
 extern crate secp256k1;
 
-use self::secp256k1::{PublicKey, SecretKey};
+use self::secp256k1::{PublicKey};
 use keypair::KeyPair;
 use std::fmt;
 use tiny_keccak::keccak256;
