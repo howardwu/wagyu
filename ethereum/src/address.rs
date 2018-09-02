@@ -1,6 +1,6 @@
 extern crate secp256k1;
 
-use self::secp256k1::{PublicKey};
+use self::secp256k1::PublicKey;
 use keypair::KeyPair;
 use std::fmt;
 use tiny_keccak::keccak256;
@@ -30,9 +30,8 @@ impl Address {
         address_bytes.copy_from_slice(&hash[12..]);
 
         let address = to_hex_string(&address_bytes).to_lowercase();
-        let checksum_address = to_checksum_address(&address);
 
-        checksum_address
+        to_checksum_address(&address)
     }
 
     pub fn address(&self) -> &str {
