@@ -79,10 +79,10 @@ mod tests {
         });
     }
 
-    fn test_private_key_address_pair(private_key: &str, expected_address: &str) {
-        let address = Address::from_wif(&private_key);
-        assert_eq!(expected_address, address.wif);
-    }
+    // fn test_private_key_address_pair(private_key: &str, expected_address: &str) {
+    //     let address = Address::from_wif(&private_key);
+    //     assert_eq!(expected_address, address.wif);
+    // }
 
     #[test]
     fn test_mainnet_uncompressed_private_key_to_address() {
