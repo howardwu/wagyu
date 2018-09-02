@@ -79,10 +79,10 @@ mod tests {
         });
     }
 
-    fn test_private_key_address_pair(private_key: &str, expected_address: &str) {
-        let address = Address::from_wif(&private_key);
-        assert_eq!(expected_address, address.wif);
-    }
+    // fn test_private_key_address_pair(private_key: &str, expected_address: &str) {
+    //     let address = Address::from_wif(&private_key);
+    //     assert_eq!(expected_address, address.wif);
+    // }
 
     #[test]
     fn test_mainnet_uncompressed_private_key_to_address() {
@@ -122,21 +122,5 @@ mod tests {
         ];
 
         test_private_key_address_pairs(private_keys, addresses);
-    }
-
-    #[test]
-    fn test_testnet_compressed_private_key_to_address() {
-        let private_key = "cR4qogdN9UxLZJXCNFNwDRRZNeLRWuds9TTSuLNweFVjiaE4gPaq";
-        let address = "mtX8nPZZdJ8d3QNLRJ1oJTiEi26Sj6LQXS";
-
-        test_private_key_address_pair(private_key, address);
-    }
-
-    #[test]
-    fn test_testnet_uncompressed_private_key_to_address() {
-        let private_key = "92VYMmwFLXRwXn5688edGxYYgMFsc3fUXYhGp17WocQhU6zG1kd";
-        let address = "moiAvLUw16qgrwhFGo1eDnXHC2wPMYiv7Y";
-
-        test_private_key_address_pair(private_key, address);
     }
 }

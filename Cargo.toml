@@ -3,5 +3,6 @@ members = [
   "bitcoin",
   "cli",
   "zcash",
-  "ethereum"
+  "ethereum",
+  "monero"
 ]

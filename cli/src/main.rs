@@ -2,6 +2,7 @@
 extern crate clap;
 extern crate bitcoin;
 extern crate ethereum;
+extern crate monero;
 extern crate serde_json;
 extern crate zcash;
 
@@ -9,19 +10,20 @@ use bitcoin::address::Type as AddressType;
 use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;
 use clap::{App, Arg};
 use ethereum::builder::WalletBuilder as EthereumWalletBuilder;
+use monero::builder::WalletBuilder as MoneroWalletBuilder;
 use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
     let matches = App::new("wagu")
-       .version("v0.3.0")
+       .version("v0.5.0")
        .about("Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin, Ethereum, Zcash (t-address)")
+Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
        .author("Argus Observer <ali@argus.observer>")
        .arg(Arg::with_name("currency")
             .required(true)
-            .help("Name of the currency to generate a wallet for (e.g. bitcoin, zcash)"))
+            .help("Name of the currency to generate a wallet for (e.g. bitcoin, monero, zcash)"))
         .arg(Arg::with_name("network")
             .short("N")
             .long("network")
@@ -65,6 +67,7 @@ Supported Currencies: Bitcoin, Ethereum, Zcash (t-address)")
 
     match currency {
         "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, compressed, json),
+        "monero" => print_monero_wallet(count, testnet, json),
         "zcash" => print_zcash_wallet(count, testnet, compressed, json),
         "ethereum" => print_ethereum_wallet(count, json),
         _ => panic!("Unsupported currency"),
@@ -98,6 +101,15 @@ fn print_zcash_wallet(count: usize, testnet: bool, compressed: bool, json: bool)
 
 fn print_ethereum_wallet(count: usize, json: bool) {
     let wallets = EthereumWalletBuilder::build_many_from_options(count);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
+    } else {
+        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    }
+}
+
+fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
+    let wallets = MoneroWalletBuilder::build_many_from_options(testnet, count);
     if json {
         println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
     } else {

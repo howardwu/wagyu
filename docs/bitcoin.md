@@ -1,27 +1,7 @@
-# wagu
-[![Build Status](https://travis-ci.com/ArgusObserver/wagu.svg?token=vLs9yE9nZjZuPeG7pEBi&branch=master)](https://travis-ci.com/ArgusObserver/wagu)
-
-Pronounced like [wagyu](https://en.wikipedia.org/wiki/Wagyu). Wagu is the **wa**llet **g**eneration **u**tility.
-
-Wagu allows users to generate wallets for the following cryptocurrencies:
-
-- Bitcoin
-- Ethereum
-- Monero
-- Zcash (Transparent Addresses)
-
-## <a name='QuickUsage'></a>Quick Usage
-
-Create a wallet for any currency like so:
-
-`wagu <currency>`
-
-The supported currencies are listed above. Specific examples are found below and in the `docs` folder.
+# `wagu bitcoin`
 
 ## <a name='TableofContents'></a>Table of Contents
 
-* [Table of Contents](#TableofContents)
-* [Documentation](#documentation)
 * [Features](#Features)
 	* [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
 	* [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
@@ -29,18 +9,8 @@ The supported currencies are listed above. Specific examples are found below and
 	* [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
 	* [Generate a P2WPKH_P2SH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
 	* [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
-* [Help](#Help)
-
-## Documentation
-
-* [Bitcoin](./docs/bitcoin.md)
-* [Ethereum](./docs/ethereum.md)
-* [Monero](./docs/monero.md)
-* [Zcash](./docs/zcash.md)
 
 ##  <a name='Features'></a>Features
-
-The following demonstrates the functionality of `wagu`. All examples are for the Bitcoin blockchain and more specific exampls can be found in the `/docs` folder.
 
 #### <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
 
@@ -151,33 +121,4 @@ Generate a compressed mainnet private key and address with the following command
         Address:        1G75ZLkSbTr6wBzr4pthM7eV9NzenMyZPC
         Network:        Mainnet
         Compressed:     true
-```
-
-## <a name='Help'></a>Help
-
-The cli contains useful help text, displayed below.
-
-```
-wagu v0.3.0
-Argus Observer <ali@argus.observer>
-Generate a wallet for any cryptocurrency
-
-Supported Currencies: Bitcoin, Zcash (t-address)
-
-USAGE:
-    cli [FLAGS] [OPTIONS] <currency>
-
-FLAGS:
-    -c, --compressed    Enabling this flag generates a wallet which corresponds to a compressed public key
-    -h, --help          Prints help information
-    -j, --json          Enabling this flag prints the wallet in JSON format
-        --segwit        Enabling this flag generates a wallet with a SegWit address
-    -V, --version       Prints version information
-
-OPTIONS:
-    -n, --count <count>        Number of wallets to generate
-    -N, --network <network>    Network of wallet(s) to generate (e.g. mainnet, testnet) [values: mainnet, testnet]
-
-ARGS:
-    <currency>    Name of the currency to generate a wallet for (e.g. bitcoin, zcash)
 ```
