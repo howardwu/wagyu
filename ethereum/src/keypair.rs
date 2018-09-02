@@ -70,7 +70,7 @@ impl KeyPair {
         }
     }
 
-    pub fn from_secret_key_string(secret_key_string: &String) -> SecretKey {
+    pub fn from_secret_key_string(secret_key_string: &str) -> SecretKey {
         let secp = Secp256k1::new();
         let secret_key_bytes = hex::decode(secret_key_string).expect("Error decoding string");
         
@@ -95,7 +95,7 @@ impl KeyPair {
     }
     
     /// Returns an immutable reference to this KeyPair's Ethereum private key
-    pub fn private_key(&self) -> &String {
+    pub fn private_key(&self) -> &str {
         &self.private_key
     }
 

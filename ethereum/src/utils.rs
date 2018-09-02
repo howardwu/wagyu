@@ -5,7 +5,7 @@ pub fn to_hex_string(bytes: &[u8]) -> String {
     strs.join("")
 }
 
-pub fn to_checksum_address(addr: &String) -> String {
+pub fn to_checksum_address(addr: &str) -> String {
         let hash2 = keccak256(addr.as_bytes());
             let mut new_address_bytes = [0u8; 32];
             new_address_bytes.copy_from_slice(&hash2[..]);
