@@ -159,7 +159,7 @@ The cli contains useful help text, displayed below.
 
 ```
 wagu v0.5.0
-Argus Observer <ali@argus.observer>
+Argus Observer <team@argus.observer>
 Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)
