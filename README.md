@@ -20,9 +20,9 @@ To install `wagu`, please first install [Rust](https://www.rust-lang.org/en-US/)
 
 Create a wallet for any currency like so:
 
-`wagu <currency>`
+[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
 
-The supported currencies are listed above. Specific examples are found below and in the `docs` folder.
+The supported currencies are listed above. Detailed examples are found below and in the `docs` folder.
 
 ## <a name='TableofContents'></a>Table of Contents
 
