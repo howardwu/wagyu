@@ -10,6 +10,12 @@ Wagu allows users to generate wallets for the following cryptocurrencies:
 - Monero
 - Zcash (Transparent Addresses)
 
+## <a name='Install'></a>Install
+
+To install `wagu`, please first install [Rust](https://www.rust-lang.org/en-US/). Then run the following command in your terminal of choice:
+
+```cargo install wagu```
+
 ## <a name='QuickUsage'></a>Quick Usage
 
 Create a wallet for any currency like so:
