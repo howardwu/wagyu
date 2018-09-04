@@ -7,7 +7,7 @@ description = "Generate a wallet for any cryptocurrency. Pronounced like wagyu. 
 homepage = "https://github.com/ArgusObserver/wagu"
 repository = "https://github.com/ArgusObserver/wagu"
 
-readme = "REAMDE.md"
+readme = "README.md"
 categories = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 
