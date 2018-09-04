@@ -9,7 +9,7 @@ repository = "https://github.com/ArgusObserver/wagu"
 
 readme = "README.md"
 license = "GPL-3.0"
-categories = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 
 [dependencies]
