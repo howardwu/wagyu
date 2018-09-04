@@ -8,6 +8,7 @@ homepage = "https://github.com/ArgusObserver/wagu"
 repository = "https://github.com/ArgusObserver/wagu"
 
 readme = "README.md"
+license = "LICENSE.md"
 categories = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 
