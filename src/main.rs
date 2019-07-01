@@ -97,6 +97,7 @@ fn build_config(matches: &ArgMatches) -> Config {
 
     if matches.is_present("segwit") {
         config.p2wpkh_p2sh = true;
+        config.compressed = true;
     } else {
         config.p2pkh = true;
     }
