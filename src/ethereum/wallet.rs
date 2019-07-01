@@ -1,9 +1,13 @@
 extern crate serde_json;
 
-use self::serde_json::to_string_pretty;
+use std::fmt;
+
 use ethereum::address::Address;
 use ethereum::keypair::KeyPair;
-use std::fmt;
+
+use self::serde_json::to_string_pretty;
+use traits::Config;
+use traits::Wallet;
 
 /// An EthereumWallet is represented by a PrivateKey and Address pair
 #[derive(Serialize, Debug)]
@@ -13,6 +17,20 @@ pub struct EthereumWallet {
     pub keypair: KeyPair,
     #[serde(flatten)]
     pub address: Address,
+}
+
+impl Wallet for EthereumWallet {
+    /// Generates a new uncompressed ZcashWallet for a given `network`
+    fn new(_: &Config) -> EthereumWallet {
+        EthereumWallet::new()
+    }
+
+    /// Recovers a ZcashWallet from a Wallet Import Format string (a private key string)
+    fn from_wif(private_key_wif: &str) -> EthereumWallet {
+        let secret_key = KeyPair::from_secret_key_string(private_key_wif);
+        let keypair = KeyPair::from_secret_key(secret_key);
+        EthereumWallet::from_key_pair(keypair)
+    }
 }
 
 impl EthereumWallet {

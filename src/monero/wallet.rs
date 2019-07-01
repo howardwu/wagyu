@@ -2,15 +2,22 @@
 
 use std::fmt;
 
-use super::prelude::*;
 use arrayvec::ArrayVec;
 use base58::ToBase58;
-use monero::ed25519::{keypair_from_bytes, PublicKey};
-use monero::hex_slice::HexSlice;
-use monero::network::{get_prefix, Network};
 use openssl::bn::BigNumContext;
 use openssl::rand::rand_bytes;
 use tiny_keccak::keccak256;
+
+use monero::ed25519::{keypair_from_bytes, PublicKey};
+use monero::hex_slice::HexSlice;
+use monero::network::get_prefix;
+
+use crate::traits::Network;
+
+use super::prelude::*;
+use serde_json::to_string_pretty;
+use traits::Config;
+use traits::Wallet;
 
 /// Represents Monero keypairs
 #[derive(Serialize, Debug)]
@@ -32,6 +39,18 @@ pub struct MoneroWallet {
     pub public_view_key: String,
 }
 
+impl Wallet for MoneroWallet {
+    /// Generates a new uncompressed MoneroWallet for a given `network`
+    fn new(config: &Config) -> MoneroWallet {
+        MoneroWallet::new(&config.network).unwrap()
+    }
+
+    /// Recovers a MoneroWallet from a Wallet Import Format string (a private key string)
+    fn from_wif(_: &str) -> MoneroWallet {
+        panic!("Cannot recover monero wallet from private_key_wif");
+    }
+}
+
 impl MoneroWallet {
     /// Generates a new MoneroWallet for a given `network`
     pub fn new(network: &Network) -> Result<MoneroWallet> {
@@ -42,7 +61,7 @@ impl MoneroWallet {
 
         let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
         let view_keypair = {
-            let mut buffer = keccak256(spend_keypair.private.as_ref());
+            let buffer = keccak256(spend_keypair.private.as_ref());
             keypair_from_bytes(buffer, &mut ctx)?
         };
 
@@ -64,7 +83,7 @@ impl MoneroWallet {
 
         let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
         let view_keypair = {
-            let mut buffer = keccak256(spend_keypair.private.as_ref());
+            let buffer = keccak256(spend_keypair.private.as_ref());
             keypair_from_bytes(buffer, &mut ctx)?
         };
 
@@ -147,9 +166,9 @@ impl MoneroWallet {
         &self.public_view_key
     }
 
-    // pub fn to_json(&self) -> String {
-    //     to_string_pretty(&self).unwrap()
-    // }
+    pub fn to_json(&self) -> String {
+        to_string_pretty(&self).unwrap()
+    }
 }
 
 impl fmt::Display for MoneroWallet {

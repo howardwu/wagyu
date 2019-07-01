@@ -2,13 +2,16 @@ extern crate base58;
 extern crate ripemd160;
 extern crate sha2;
 
+use std::fmt;
+
+use traits::Network;
+use zcash::network::{MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
+use zcash::privatekey::PrivateKey;
+use zcash::utils::checksum;
+
 use self::base58::ToBase58;
 use self::ripemd160::Ripemd160;
 use self::sha2::{Digest, Sha256};
-use zcash::network::{Network, MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
-use zcash::privatekey::PrivateKey;
-use std::fmt;
-use zcash::utils::checksum;
 
 /// Represents a Zcash t-address
 #[derive(Serialize, Debug)]
@@ -78,11 +81,6 @@ mod tests {
             assert_eq!(expected_address, address.wif);
         });
     }
-
-    // fn test_private_key_address_pair(private_key: &str, expected_address: &str) {
-    //     let address = Address::from_wif(&private_key);
-    //     assert_eq!(expected_address, address.wif);
-    // }
 
     #[test]
     fn test_mainnet_uncompressed_private_key_to_address() {

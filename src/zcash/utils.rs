@@ -1,4 +1,5 @@
 extern crate sha2;
+
 use self::sha2::{Digest, Sha256};
 
 pub fn to_hex_string(bytes: &[u8]) -> String {

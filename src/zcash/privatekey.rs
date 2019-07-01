@@ -2,14 +2,18 @@ extern crate base58;
 extern crate rand;
 extern crate secp256k1;
 
+use std::fmt;
+
+use zcash::network::{MAINNET_BYTE, TESTNET_BYTE};
+use zcash::utils::checksum;
+
+use crate::traits::Network;
+
 use self::base58::{FromBase58, ToBase58};
 use self::rand::thread_rng;
 use self::rand::RngCore;
 use self::secp256k1::Secp256k1;
 use self::secp256k1::{PublicKey, SecretKey};
-use zcash::network::{Network, MAINNET_BYTE, TESTNET_BYTE};
-use std::fmt;
-use zcash::utils::checksum;
 
 /// Represents a Bitcoin Private Key
 #[derive(Serialize, Debug, Eq, PartialEq)]
@@ -113,7 +117,7 @@ impl PrivateKey {
         let network = match wif_bytes[0] {
             MAINNET_BYTE => Network::Mainnet,
             TESTNET_BYTE => Network::Testnet,
-            _ => Network::Error,
+            _ => return Err("Invalid Network Byte"),
         };
 
         let wif_bytes_to_hash = &wif_bytes[0..length - 4];
@@ -121,7 +125,7 @@ impl PrivateKey {
         let actual_checksum = checksum(wif_bytes_to_hash);
 
         let is_valid_checksum = actual_checksum[0..4] == expected_checksum[0..4];
-        if !is_valid_checksum || network == Network::Error {
+        if !is_valid_checksum {
             Err("Invalid wif")
         } else {
             let secp = Secp256k1::without_caps();
@@ -167,6 +171,7 @@ impl fmt::Display for PrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     extern crate hex;
 
     fn test_from_wif(wif: &str, secret_key_string: &str) {
@@ -201,7 +206,6 @@ mod tests {
             (Network::Testnet, false) => first_character == '9',
             (Network::Mainnet, true) => first_character == 'L' || first_character == 'K',
             (Network::Testnet, true) => first_character == 'c',
-            _ => false,
         };
         assert!(is_valid_first_character);
         let from_wif =

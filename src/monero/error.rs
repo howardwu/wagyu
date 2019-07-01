@@ -15,10 +15,12 @@
 
 //! Error type for the crate.
 
-use self::Error::*;
+use std::{error, fmt, io};
+
 use either::Either;
 use openssl::error as openssl;
-use std::{error, fmt, io};
+
+use self::Error::*;
 
 /// Enum that stores various possible error types when generating wallets.
 #[allow(missing_docs)]

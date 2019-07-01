@@ -1,10 +1,13 @@
 extern crate base58;
 
-use self::base58::ToBase58;
-use bitcoin::network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
-use bitcoin::privatekey::PrivateKey;
 use std::fmt;
+
+use bitcoin::network::{MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
+use bitcoin::privatekey::PrivateKey;
 use bitcoin::utils::{checksum, hash160};
+use traits::Network;
+
+use self::base58::ToBase58;
 
 /// Represents a Bitcoin Address
 #[derive(Serialize, Debug)]
@@ -23,7 +26,7 @@ pub enum Type {
 
 impl Address {
     /// Returns an Address given a PrivateKey object
-    pub fn from_private_key(private_key: &PrivateKey, address_type: &Type) -> Address {
+    pub fn from_private_key(private_key: &PrivateKey, address_type: Type) -> Address {
         match address_type {
             Type::P2PKH => Address::p2pkh(private_key),
             Type::P2WPKH_P2SH => Address::p2wpkh_p2sh(private_key),
@@ -90,7 +93,7 @@ impl Address {
     }
 
     /// Returns an Address given a private key in Wallet Import Format
-    pub fn from_wif(wif: &str, address_type: &Type) -> Address {
+    pub fn from_wif(wif: &str, address_type: Type) -> Address {
         let private_key = PrivateKey::from_wif(wif).expect("Error deriving PrivateKey from WIF");
         Address::from_private_key(&private_key, address_type)
     }
@@ -113,13 +116,13 @@ mod tests {
     fn test_p2pkh_pairs(private_keys: [&str; 5], addresses: [&str; 5]) {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key_wif, &expected_address)| {
-            let address = Address::from_wif(&private_key_wif, &Type::P2PKH);
+            let address = Address::from_wif(&private_key_wif, Type::P2PKH);
             assert_eq!(expected_address, address.wif);
         });
     }
 
     fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
-        let address = Address::from_wif(&private_key, &Type::P2WPKH_P2SH);
+        let address = Address::from_wif(&private_key, Type::P2WPKH_P2SH);
         println!("{}, {}", address, expected_address);
         assert_eq!(expected_address, address.wif);
     }

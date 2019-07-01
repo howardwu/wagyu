@@ -1,5 +1,6 @@
 extern crate ripemd160;
 extern crate sha2;
+
 use self::ripemd160::Ripemd160;
 use self::sha2::{Digest, Sha256};
 

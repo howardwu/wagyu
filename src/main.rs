@@ -1,33 +1,37 @@
+extern crate arrayvec;
+extern crate base58;
 #[macro_use(value_t)]
 extern crate clap;
+extern crate digest;
+extern crate either;
 #[macro_use]
 extern crate lazy_static;
-#[cfg(feature = "serde")]
-#[macro_use]
+extern crate openssl;
+extern crate safemem;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-
-extern crate arrayvec;
-extern crate base58;
-extern crate digest;
-extern crate either;
-extern crate openssl;
-extern crate safemem;
 extern crate serde_json;
 extern crate tiny_keccak;
 
+use clap::{App, Arg};
+
+use bitcoin::wallet::BitcoinWallet;
+use builder::WalletBuilder;
+use clap::ArgMatches;
+use ethereum::wallet::EthereumWallet;
+use monero::wallet::MoneroWallet;
+use traits::Config;
+use traits::Network;
+use traits::Wallet;
+use zcash::wallet::ZcashWallet;
+
 mod bitcoin;
+mod builder;
 mod ethereum;
 mod monero;
+mod traits;
 mod zcash;
-
-use bitcoin::address::Type as AddressType;
-use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;
-use clap::{App, Arg};
-use ethereum::builder::WalletBuilder as EthereumWalletBuilder;
-use monero::builder::WalletBuilder as MoneroWalletBuilder;
-use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
@@ -40,7 +44,7 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
        .arg(Arg::with_name("currency")
             .required(true)
             .help("Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)"))
-        .arg(Arg::with_name("network")
+       .arg(Arg::with_name("network")
             .short("N")
             .long("network")
             .takes_value(true)
@@ -51,81 +55,66 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
             .long("count")
             .takes_value(true)
             .help("Number of wallets to generate"))
-        .arg(Arg::with_name("compressed")
+       .arg(Arg::with_name("compressed")
             .short("c")
             .long("compressed")
             .help("Enabling this flag generates a wallet which corresponds to a compressed public key"))
-        .arg(Arg::with_name("json")
+       .arg(Arg::with_name("json")
             .short("j")
             .long("json")
             .help("Enabling this flag prints the wallet in JSON format"))
-        .arg(Arg::with_name("segwit")
+       .arg(Arg::with_name("segwit")
             .long("segwit")
             .conflicts_with("network")
             .help("Enabling this flag generates a wallet with a SegWit address"))
        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
-    let mut compressed = matches.is_present("compressed");
     let json = matches.is_present("json");
     let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
-    let address_type = if matches.is_present("segwit") {
-        compressed = true;
-        AddressType::P2WPKH_P2SH
-    } else {
-        AddressType::P2PKH
-    };
-    let testnet = match matches.value_of("network") {
-        Some("mainnet") => false,
-        Some("testnet") => true,
-        _ => false,
-    };
+    let config: Config = build_config(&matches);
 
     match currency {
-        "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, compressed, json),
-        "monero" => print_monero_wallet(count, testnet, json),
-        "zcash" => print_zcash_wallet(count, testnet, compressed, json),
-        "ethereum" => print_ethereum_wallet(count, json),
+        "bitcoin" => {
+            print_wallet::<BitcoinWallet>(count, config, json);
+        }
+        "monero" => {
+            print_wallet::<MoneroWallet>(count, config, json);
+        }
+        "zcash" => {
+            print_wallet::<ZcashWallet>(count, config, json);
+        }
+        "ethereum" => {
+            print_wallet::<EthereumWallet>(count, config, json);
+        }
         _ => panic!("Unsupported currency"),
     };
 }
 
-fn print_bitcoin_wallet(
-    count: usize,
-    testnet: bool,
-    address_type: &AddressType,
-    compressed: bool,
-    json: bool,
-) {
-    let wallets =
-        BitcoinWalletBuilder::build_many_from_options(compressed, testnet, address_type, count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
+fn build_config(matches: &ArgMatches) -> Config {
+    let mut config: Config = Default::default();
+    config.compressed = matches.is_present("compressed");
+
+    if matches.is_present("segwit") {
+        config.p2wpkh_p2sh = true;
     } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
+        config.p2pkh = true;
     }
+
+    match matches.value_of("network") {
+        Some("testnet") => {
+            config.network = Network::Testnet;
+        }
+        _ => {
+            config.network = Network::Mainnet;
+        }
+    };
+
+    config
 }
 
-fn print_zcash_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
-    let wallets = ZcashWalletBuilder::build_many_from_options(compressed, testnet, count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
-    }
-}
-
-fn print_ethereum_wallet(count: usize, json: bool) {
-    let wallets = EthereumWalletBuilder::build_many_from_options(count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
-    }
-}
-
-fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
-    let wallets = MoneroWalletBuilder::build_many_from_options(testnet, count);
+fn print_wallet<T: Wallet>(count: usize, config: Config, json: bool) {
+    let wallets = WalletBuilder::build_many_from_options::<T>(config, count);
     if json {
         println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
     } else {

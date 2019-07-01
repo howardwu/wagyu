@@ -13,10 +13,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-use super::prelude::*;
-use monero::ed25519::crypto::{bn_to_vec32, derive_pubkey, sc_reduce32};
-use openssl::bn::BigNumContextRef;
 use std::ops::Deref;
+
+use openssl::bn::BigNumContextRef;
+
+use monero::ed25519::crypto::{bn_to_vec32, derive_pubkey, sc_reduce32};
+
+use super::prelude::*;
 
 /// An ed25519 private key.
 #[derive(Debug, Clone)]

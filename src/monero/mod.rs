@@ -7,7 +7,6 @@
 #![warn(missing_docs)]
 #![allow(unknown_lints)]
 
-pub mod builder;
 pub mod ed25519;
 pub mod error;
 pub mod hex_slice;

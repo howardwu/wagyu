@@ -17,14 +17,15 @@
 //! Specifically, public-key calculation is performed using scalar multiplication
 //! without using SHA512 at all.
 
-mod crypto;
-mod keys;
-
-pub use self::keys::{Keypair, PrivateKey, PublicKey};
+use openssl::bn::BigNumContextRef;
 
 use super::prelude;
 use super::prelude::*;
-use openssl::bn::BigNumContextRef;
+
+pub use self::keys::{Keypair, PrivateKey, PublicKey};
+
+mod crypto;
+mod keys;
 
 /// Creates an ed25519 [`Keypair`] from the given random seed.
 ///

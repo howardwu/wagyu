@@ -13,10 +13,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-use super::prelude::*;
 use arrayvec::ArrayVec;
+#[cfg(test)]
+use openssl::bn::BigNumContext;
 use openssl::bn::{BigNum, BigNumContextRef, BigNumRef};
 use safemem::prepend;
+
+use super::prelude::*;
 
 lazy_static! {
     /* ed25519 constants: */
@@ -253,9 +256,6 @@ pub fn bn_to_vec32(number: &BigNumRef) -> Vec<u8> {
     result
 }
 
-#[cfg(test)]
-use openssl::bn::BigNumContext;
-
 #[test]
 fn test_derive_pubkey() {
     let mut ctx = BigNumContext::new().unwrap();
@@ -311,13 +311,15 @@ fn test_edwards() {
         &x,
         &BigNum::from_dec_str(
             "19145305399556633246416803965847122123950043313116994625199152792839726592320",
-        ).unwrap(),
+        )
+        .unwrap(),
     );
     assert_eq!(
         &y,
         &BigNum::from_dec_str(
             "1311926177560311914111494945666819815903779764478329976178982182484658429924",
-        ).unwrap(),
+        )
+        .unwrap(),
     );
 }
 
@@ -335,12 +337,14 @@ fn test_scalar_mult() {
         &x,
         &BigNum::from_dec_str(
             "52693087480432376829905685868955052399509450169404031178816965074041171202152",
-        ).unwrap(),
+        )
+        .unwrap(),
     );
     assert_eq!(
         &y,
         &BigNum::from_dec_str(
             "37289752567154786074414612316137518169923258170068403397141657798034183258505",
-        ).unwrap(),
+        )
+        .unwrap(),
     );
 }
