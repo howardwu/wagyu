@@ -4,7 +4,7 @@ use network::{get_prefix, Network};
 
 use arrayvec::ArrayVec;
 use base58::ToBase58;
-use curve25519_dalek::{constants, scalar::Scalar};
+use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use hex_slice::HexSlice;
 use rand::Rng;
 use rand::rngs::OsRng;
@@ -43,7 +43,7 @@ impl MoneroWallet {
     pub fn from_seed(network: &Network, seed: [u8; 32]) -> MoneroWallet {
 
         fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
-            let point = &Scalar::from_bits(*bits) * &constants::ED25519_BASEPOINT_TABLE;
+            let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
             let compressed = *point.compress().as_bytes();
             compressed
         }
