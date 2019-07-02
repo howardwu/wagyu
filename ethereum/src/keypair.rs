@@ -1,13 +1,11 @@
-extern crate hex;
-extern crate rand;
-extern crate secp256k1;
+use utils::to_hex_string;
 
-use self::rand::thread_rng;
-use self::rand::RngCore;
-use self::secp256k1::Secp256k1;
-use self::secp256k1::{PublicKey, SecretKey};
+use rand::thread_rng;
+use rand::RngCore;
+use secp256k1::Secp256k1;
+use secp256k1::{PublicKey, SecretKey};
+use serde::Serialize;
 use std::fmt;
-use ethereum::utils::to_hex_string;
 
 /// Represents an Ethereum Key
 #[derive(Serialize, Debug, Eq, PartialEq)]

@@ -1,10 +1,10 @@
-extern crate base58;
+use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
+use privatekey::PrivateKey;
+use utils::{checksum, hash160};
 
-use self::base58::ToBase58;
-use bitcoin::network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
-use bitcoin::privatekey::PrivateKey;
+use base58::ToBase58;
+use serde::Serialize;
 use std::fmt;
-use bitcoin::utils::{checksum, hash160};
 
 /// Represents a Bitcoin Address
 #[derive(Serialize, Debug)]

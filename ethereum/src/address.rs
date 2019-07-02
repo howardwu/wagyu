@@ -1,10 +1,10 @@
-extern crate secp256k1;
+use keypair::KeyPair;
+use utils::{to_checksum_address, to_hex_string};
 
-use self::secp256k1::PublicKey;
-use ethereum::keypair::KeyPair;
+use secp256k1::PublicKey;
+use serde::Serialize;
 use std::fmt;
 use tiny_keccak::keccak256;
-use ethereum::utils::{to_checksum_address, to_hex_string};
 
 /// Represents an Ethereum Address
 #[derive(Serialize, Debug)]

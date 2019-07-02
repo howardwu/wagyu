@@ -1,8 +1,7 @@
-extern crate serde_json;
+use address::Address;
+use keypair::KeyPair;
 
-use self::serde_json::to_string_pretty;
-use ethereum::address::Address;
-use ethereum::keypair::KeyPair;
+use serde_json::to_string_pretty;
 use std::fmt;
 
 /// An EthereumWallet is represented by a PrivateKey and Address pair

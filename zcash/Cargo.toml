@@ -1,0 +1,31 @@
+[package]
+name = "zcash"
+version = "0.6.0"
+authors = [
+    "Collin Chin",
+    "Raymond Chu",
+    "Ali Mousa",
+    "Howard Wu"
+]
+description = "Generate a wallet for any cryptocurrency. Pronounced like wagyu. Wagu is the wallet generation utility. Wagu allows users to generate wallets for the following cryptocurrencies: Bitcoin, Ethereum, Monero, Zcash (Transparent Addresses)"
+homepage = "https://github.com/ArgusObserver/wagu"
+repository = "https://github.com/ArgusObserver/wagu"
+categories = ["command-line-utilities"]
+keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+readme = "README.md"
+license = "GPL-3.0"
+
+[dependencies]
+base58 = "0.1"
+rand = "0.5"
+ripemd160 = "0.7"
+secp256k1 = "0.11.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.7"
+
+[dev-dependencies]
+hex = "0.3.2"
+
+[badges]
+travis-ci = { repository = "ArgusObserver/wagu", branch = "master" }

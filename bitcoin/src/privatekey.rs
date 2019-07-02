@@ -1,15 +1,13 @@
-extern crate base58;
-extern crate rand;
-extern crate secp256k1;
+use network::{Network, MAINNET_BYTE, TESTNET_BYTE};
+use utils::checksum;
 
-use self::base58::{FromBase58, ToBase58};
-use self::rand::thread_rng;
-use self::rand::RngCore;
-use self::secp256k1::Secp256k1;
-use self::secp256k1::{PublicKey, SecretKey};
-use bitcoin::network::{Network, MAINNET_BYTE, TESTNET_BYTE};
+use base58::{FromBase58, ToBase58};
+use rand::thread_rng;
+use rand::RngCore;
+use secp256k1::Secp256k1;
+use secp256k1::{PublicKey, SecretKey};
+use serde::Serialize;
 use std::fmt;
-use bitcoin::utils::checksum;
 
 /// Represents a Bitcoin Private Key
 #[derive(Serialize, Debug, Eq, PartialEq)]
