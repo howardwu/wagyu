@@ -1,13 +1,14 @@
 //! Monero Wallet generator
-use serde::Serialize;
-use std::fmt;
+
+use network::{get_prefix, Network};
 
 use arrayvec::ArrayVec;
 use base58::ToBase58;
-use rand::rngs::OsRng;
 use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use hex_slice::HexSlice;
-use network::{get_prefix, Network};
+use rand::rngs::OsRng;
+use serde::Serialize;
+use std::fmt;
 use tiny_keccak::keccak256;
 
 /// Represents Monero keypairs

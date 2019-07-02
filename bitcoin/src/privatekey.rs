@@ -2,8 +2,8 @@ use network::{Network, MAINNET_BYTE, TESTNET_BYTE};
 use utils::checksum;
 
 use base58::{FromBase58, ToBase58};
-use rand::thread_rng;
-use rand::RngCore;
+use rand::Rng;
+use rand::rngs::OsRng;
 use secp256k1::Secp256k1;
 use secp256k1::{PublicKey, SecretKey};
 use serde::Serialize;

@@ -1,6 +1,6 @@
 //! A WalletBuilder helps construct a MoneroWallet
-use crate::monero::network::Network;
-use crate::monero::wallet::MoneroWallet;
+use network::Network;
+use wallet::MoneroWallet;
 
 #[derive(Debug)]
 /// Builds a Monero mainnet or testnet wallet

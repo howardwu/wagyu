@@ -1,7 +1,7 @@
 use utils::to_hex_string;
 
-use rand::thread_rng;
-use rand::RngCore;
+use rand::Rng;
+use rand::rngs::OsRng;
 use secp256k1::Secp256k1;
 use secp256k1::{PublicKey, SecretKey};
 use serde::Serialize;
