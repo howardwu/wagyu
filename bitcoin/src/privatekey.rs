@@ -53,8 +53,7 @@ impl PrivateKey {
     fn generate_secret_key() -> SecretKey {
         let secp = Secp256k1::new();
         let mut rand_bytes = [0u8; 32];
-        let mut rng = thread_rng();
-        rng.try_fill_bytes(&mut rand_bytes)
+        OsRng.try_fill(&mut rand_bytes)
             .expect("Error generating random bytes for private key");
 
         SecretKey::from_slice(&secp, &rand_bytes)

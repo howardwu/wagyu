@@ -7,10 +7,20 @@
 #![warn(missing_docs)]
 #![allow(unknown_lints)]
 
+extern crate arrayvec;
+extern crate base58;
+extern crate ed25519_dalek;
+extern crate rand;
+extern crate serde;
+extern crate tiny_keccak;
+
 pub mod builder;
-pub mod ed25519;
-pub mod error;
+
 pub mod hex_slice;
+pub use self::hex_slice::*;
+
 pub mod network;
-pub mod prelude;
+pub use self::network::*;
+
 pub mod wallet;
+pub use self::wallet::*;

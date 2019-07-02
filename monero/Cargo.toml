@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "monero"
 version = "0.6.0"
 authors = [
     "Collin Chin",
@@ -16,18 +16,12 @@ readme = "README.md"
 license = "GPL-3.0"
 
 [dependencies]
-bitcoin = { path = "../bitcoin" }
-ethereum = { path = "../ethereum" }
-monero = { path = "../monero" }
-zcash = { path = "../zcash" }
-
 arrayvec = "0.4.7"
 base58 = "0.1"
-clap = "~2.27.0"
-digest = "0.7.5"
-either = "1.5.0"
-lazy_static = "1.1.0"
-safemem = "0.3.0"
+ed25519-dalek = "1.0.0-pre.1"
+hex = "0.3.2"
+rand = "0.5"
+secp256k1 = "0.11.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tiny-keccak = "1.4"
