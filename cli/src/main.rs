@@ -5,7 +5,6 @@ extern crate clap;
 extern crate digest;
 extern crate either;
 extern crate lazy_static;
-// extern crate openssl;
 extern crate safemem;
 extern crate serde;
 extern crate serde_json;
