@@ -3,8 +3,8 @@ extern crate rand;
 extern crate secp256k1;
 
 use self::base58::{FromBase58, ToBase58};
-use self::rand::thread_rng;
-use self::rand::RngCore;
+use self::rand::Rng;
+use self::rand::rngs::OsRng;
 use self::secp256k1::Secp256k1;
 use self::secp256k1::{PublicKey, SecretKey};
 use zcash::network::{Network, MAINNET_BYTE, TESTNET_BYTE};
@@ -55,8 +55,7 @@ impl PrivateKey {
     fn generate_secret_key() -> SecretKey {
         let secp = Secp256k1::new();
         let mut rand_bytes = [0u8; 32];
-        let mut rng = thread_rng();
-        rng.try_fill_bytes(&mut rand_bytes)
+        OsRng.try_fill(&mut rand_bytes)
             .expect("Error generating random bytes for private key");
 
         SecretKey::from_slice(&secp, &rand_bytes)
