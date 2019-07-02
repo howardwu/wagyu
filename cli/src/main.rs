@@ -31,7 +31,7 @@ fn main() {
        .about("Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
-       .author("Argus Observer <team@argus.observer>")
+       .author("Argus Developer <team@argus.dev>")
        .arg(Arg::with_name("currency")
             .required(true)
             .help("Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)"))

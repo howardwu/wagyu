@@ -164,8 +164,8 @@ Generate a compressed mainnet private key and address with the following command
 The cli contains useful help text, displayed below.
 
 ```
-wagu v0.5.0
-Argus Observer <team@argus.observer>
+wagu v0.6.0
+Argus Developer <team@argus.dev>
 Generate a wallet for any cryptocurrency
 
 Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)
