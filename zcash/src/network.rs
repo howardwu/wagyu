@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::fmt;
 
-/// The Network enum represents the different types of Networks we can create BitcoinWallets for
+/// The Network enum represents the different types of Networks we can create ZcashWallets for.
 #[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 pub enum Network {
     Mainnet,
