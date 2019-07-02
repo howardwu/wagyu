@@ -40,18 +40,11 @@ impl MoneroWallet {
 
     /// Generates a MoneroWallet for a given `network` from a seed.
     pub fn from_seed(network: &Network, seed: [u8; 32]) -> MoneroWallet {
-
-        fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
-            let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
-            let compressed = *point.compress().as_bytes();
-            compressed
-        }
-
         let private_spend_key = Scalar::from_bytes_mod_order(seed).to_bytes();
         let hash = keccak256(&private_spend_key);
         let private_view_key = Scalar::from_bytes_mod_order(hash).to_bytes();
-        let public_spend_key = scalar_mul_by_b_compressed(&private_spend_key);
-        let public_view_key = scalar_mul_by_b_compressed(&hash);
+        let public_spend_key = MoneroWallet::scalar_mul_by_b_compressed(&private_spend_key);
+        let public_view_key = MoneroWallet::scalar_mul_by_b_compressed(&hash);
         let address =
             MoneroWallet::generate_address(&network, &public_spend_key, &public_view_key);
 
@@ -63,6 +56,13 @@ impl MoneroWallet {
             public_view_key: HexSlice::new(&public_view_key).format(),
         }
     }
+        
+    pub fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
+        let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
+        let compressed = *point.compress().as_bytes();
+        compressed
+    }
+
 
     /// Generate the Cryptonote wallet address from the two public keys
     /// reference: https://gitlab.com/standard-mining/wallet-gen/blob/master/src/cryptonote.rs
@@ -158,7 +158,21 @@ mod tests {
 
     #[test]
     fn generate_new_wallet() {
-        println!("Monero {:?}", MoneroWallet::new(&Network::Mainnet))
+        let network = Network::Mainnet;
+        let wallet = MoneroWallet::new(&network);
+
+        let private_spend_key: &[u8; 32] = wallet.private_spend_key().as_bytes();
+        let hash = keccak256(&private_spend_key);
+        let expected_private_view_key = Scalar::from_bytes_mod_order(hash).to_bytes();
+        let expected_public_spend_key = MoneroWallet::scalar_mul_by_b_compressed(&private_spend_key);
+        let expected_public_view_key = MoneroWallet::scalar_mul_by_b_compressed(&hash);
+        let expected_address =
+            MoneroWallet::generate_address(&network, &expected_public_spend_key, &expected_public_view_key);
+        
+        assert_eq!(wallet.private_view_key().as_bytes(), expected_private_view_key);
+        assert_eq!(wallet.public_spend_key().as_bytes(), expected_public_spend_key);
+        assert_eq!(wallet.public_view_key().as_bytes(), expected_public_view_key);
+        assert_eq!(wallet.address(), &expected_address);
     }
 
     #[test]
