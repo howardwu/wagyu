@@ -1,6 +1,6 @@
 //! # Monero
 //!
-//! A library for generating Monero Wallets.
+//! A library for generating Monero wallets.
 
 #![forbid(unsafe_code)]
 

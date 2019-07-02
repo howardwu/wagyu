@@ -1,6 +1,6 @@
 //! # Zcash
 //!
-//! A library for generating Zcash Wallets.
+//! A library for generating Zcash wallets.
 
 #![forbid(unsafe_code)]
 

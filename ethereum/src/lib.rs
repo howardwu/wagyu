@@ -1,6 +1,6 @@
 //! # Ethereum
 //!
-//! A library for generating Ethereum Wallets.
+//! A library for generating Ethereum wallets.
 
 #![forbid(unsafe_code)]
 

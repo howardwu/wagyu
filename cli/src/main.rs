@@ -1,3 +1,7 @@
+//! # Ethereum
+//!
+//! A command-line tool to generate cryptocurrency wallets.
+
 extern crate arrayvec;
 extern crate base58;
 #[macro_use(value_t)]

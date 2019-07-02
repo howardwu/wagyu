@@ -1,6 +1,6 @@
 //! # Bitcoin
 //!
-//! A library for generating Bitcoin Wallets.
+//! A library for generating Bitcoin wallets.
 
 #![forbid(unsafe_code)]
 
