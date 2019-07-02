@@ -11,7 +11,6 @@ extern crate tiny_keccak;
 
 pub mod address;
 
-#[cfg(feature = "serde")]
 pub mod builder;
 
 pub mod keypair;
@@ -20,7 +19,5 @@ pub use self::keypair::*;
 pub mod utils;
 pub use self::utils::*;
 
-#[cfg(feature = "serde")]
 pub mod wallet;
-#[cfg(feature = "serde")]
 pub use self::wallet::*;

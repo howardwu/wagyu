@@ -2,6 +2,7 @@ use address::Address;
 use network::Network;
 use privatekey::PrivateKey;
 
+use serde::Serialize;
 use serde_json::to_string_pretty;
 use std::fmt;
 

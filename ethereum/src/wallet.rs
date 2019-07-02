@@ -1,6 +1,7 @@
 use address::Address;
 use keypair::KeyPair;
 
+use serde::Serialize;
 use serde_json::to_string_pretty;
 use std::fmt;
 

@@ -13,7 +13,6 @@ extern crate sha2;
 pub mod address;
 pub use self::address::*;
 
-#[cfg(feature = "serde")]
 pub mod builder;
 
 pub mod network;
@@ -25,7 +24,5 @@ pub use self::privatekey::*;
 pub mod utils;
 pub use self::utils::*;
 
-#[cfg(feature = "serde")]
 pub mod wallet;
-#[cfg(feature = "serde")]
 pub use self::wallet::*;
