@@ -18,7 +18,7 @@ license = "GPL-3.0"
 [dependencies]
 arrayvec = "0.4.7"
 base58 = "0.1"
-ed25519-dalek = "1.0.0-pre.1"
+curve25519-dalek = "1.2.1"
 hex = "0.3.2"
 rand = "0.5"
 secp256k1 = "0.11.1"

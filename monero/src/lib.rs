@@ -6,7 +6,7 @@
 
 extern crate arrayvec;
 extern crate base58;
-extern crate ed25519_dalek;
+extern crate curve25519_dalek;
 extern crate rand;
 extern crate serde;
 extern crate tiny_keccak;
