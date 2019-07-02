@@ -19,16 +19,16 @@ pub struct MoneroWallet {
     pub address: String,
     /// private spend key
     #[serde(rename = "spend_key")]
-    pub private_spend_key: String,
+    pub private_spend_key: [u8; 32],
     /// private view key
     #[serde(rename = "view_key")]
-    pub private_view_key: String,
+    pub private_view_key: [u8; 32],
     /// public spend key
     #[serde(skip_serializing)]
-    pub public_spend_key: String,
+    pub public_spend_key: [u8; 32],
     /// public view key
     #[serde(skip_serializing)]
-    pub public_view_key: String,
+    pub public_view_key: [u8; 32],
 }
 
 impl MoneroWallet {
@@ -50,22 +50,13 @@ impl MoneroWallet {
 
         MoneroWallet {
             address,
-            private_spend_key: HexSlice::new(&private_spend_key).format(),
-            private_view_key: HexSlice::new(&private_view_key).format(),
-            public_spend_key: HexSlice::new(&public_spend_key).format(),
-            public_view_key: HexSlice::new(&public_view_key).format(),
+            private_spend_key,
+            private_view_key,
+            public_spend_key,
+            public_view_key,
         }
     }
-        
-    pub fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
-        let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
-        let compressed = *point.compress().as_bytes();
-        compressed
-    }
 
-
-    /// Generate the Cryptonote wallet address from the two public keys
-    /// reference: https://gitlab.com/standard-mining/wallet-gen/blob/master/src/cryptonote.rs
     pub fn generate_address(
         network: &Network,
         spend_key: &[u8; 32],
@@ -113,27 +104,50 @@ impl MoneroWallet {
     }
 
     /// returns spend private key
-    pub fn private_spend_key(&self) -> &String {
+    pub fn private_spend_key(&self) -> String {
+        HexSlice::new(&self.private_spend_key).format()
+    }
+
+    /// returns spend private key as [u8]
+    pub fn private_spend_key_u8(&self) -> &[u8; 32] {
         &self.private_spend_key
     }
 
     /// returns view private key
-    pub fn private_view_key(&self) -> &String {
+    pub fn private_view_key(&self) -> String {
+        HexSlice::new(&self.private_view_key).format()
+    }
+
+    /// returns view private key as [u8]
+    pub fn private_view_key_u8(&self) -> &[u8; 32] {
         &self.private_view_key
     }
+
     /// returns spend public key
-    pub fn public_spend_key(&self) -> &String {
+    pub fn public_spend_key(&self) -> String {
+        HexSlice::new(&self.public_spend_key).format()
+    }
+
+    /// returns spend public key as [u8]
+    pub fn public_spend_key_u8(&self) -> &[u8; 32] {
         &self.public_spend_key
     }
 
     /// returns view public key
-    pub fn public_view_key(&self) -> &String {
+    pub fn public_view_key(&self) -> String {
+        HexSlice::new(&self.public_view_key).format()
+    }
+
+    /// returns view public key as [u8]
+    pub fn public_view_key_u8(&self) -> &[u8; 32] {
         &self.public_view_key
     }
 
-    // pub fn to_json(&self) -> String {
-    //     to_string_pretty(&self).unwrap()
-    // }
+    fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
+        let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
+        let compressed = *point.compress().as_bytes();
+        compressed
+    }
 }
 
 impl fmt::Display for MoneroWallet {
@@ -161,17 +175,18 @@ mod tests {
         let network = Network::Mainnet;
         let wallet = MoneroWallet::new(&network);
 
-        let private_spend_key: &[u8; 32] = wallet.private_spend_key().as_bytes();
-        let hash = keccak256(&private_spend_key);
+        let private_spend_key = wallet.private_spend_key_u8();
+
+        let hash = keccak256(private_spend_key);
         let expected_private_view_key = Scalar::from_bytes_mod_order(hash).to_bytes();
         let expected_public_spend_key = MoneroWallet::scalar_mul_by_b_compressed(&private_spend_key);
         let expected_public_view_key = MoneroWallet::scalar_mul_by_b_compressed(&hash);
         let expected_address =
             MoneroWallet::generate_address(&network, &expected_public_spend_key, &expected_public_view_key);
         
-        assert_eq!(wallet.private_view_key().as_bytes(), expected_private_view_key);
-        assert_eq!(wallet.public_spend_key().as_bytes(), expected_public_spend_key);
-        assert_eq!(wallet.public_view_key().as_bytes(), expected_public_view_key);
+        assert_eq!(*wallet.private_view_key_u8(), expected_private_view_key);
+        assert_eq!(*wallet.public_spend_key_u8(), expected_public_spend_key);
+        assert_eq!(*wallet.public_view_key_u8(), expected_public_view_key);
         assert_eq!(wallet.address(), &expected_address);
     }
 
@@ -186,21 +201,22 @@ mod tests {
 
         assert_eq!(
             &wallet.address,
-            "444SttAXhqVUeqCpPiTTwHcYTGpApapxjgsBzqSxWANvfmxGHJTLTTE6JgYM6yYNjmGBrGLhsVu8ZJh6RnFP8yqM6F8Lmb1");
+            "444SttAXhqVUeqCpPiTTwHcYTGpApapxjgsBzqSxWANvfmxGHJTLTTE6JgYM6yYNjmGBrGLhsVu8ZJh6RnFP8yqM6F8Lmb1"
+        );
         assert_eq!(
-            &wallet.private_spend_key,
+            &wallet.private_spend_key(),
             "7db5d140c19b66de0c5c9743a851efbd37a500155975cdcf4dbdfb8dc1836006",
         );
         assert_eq!(
-            &wallet.private_view_key,
+            &wallet.private_view_key(),
             "2d4f19ff6f2a2b2e918996e7ebbbabba791c29120ceb66518a4f232f3a88e30a",
         );
         assert_eq!(
-            &wallet.public_spend_key,
+            &wallet.public_spend_key(),
             "404e19168faffca55272b37aff9494d47e54fa7fd6ed34ee56db492a057953e7",
         );
         assert_eq!(
-            &wallet.public_view_key,
+            &wallet.public_view_key(),
             "d22475de8a58511fb7362dc18fc79c5acc2848cbd73cc669c4e93811465e4c2e",
         );
     }
