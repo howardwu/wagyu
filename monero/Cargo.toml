@@ -16,7 +16,6 @@ readme = "README.md"
 license = "GPL-3.0"
 
 [dependencies]
-arrayvec = "0.4.7"
 base58 = "0.1"
 curve25519-dalek = "1.2.1"
 hex = "0.3.2"

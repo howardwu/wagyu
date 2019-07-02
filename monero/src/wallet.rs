@@ -2,7 +2,6 @@
 
 use network::{get_prefix, Network};
 
-use arrayvec::ArrayVec;
 use base58::ToBase58;
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use hex_slice::HexSlice;
@@ -72,7 +71,7 @@ impl MoneroWallet {
         spend_key: &[u8; 32],
         view_key: &[u8; 32],
     ) -> String {
-        let mut bytes = ArrayVec::<[u8; 72]>::new();
+        let mut bytes = Vec::new();
 
         // Add coin prefix
         match get_prefix(&network) {
