@@ -1,11 +1,8 @@
-//! Monero
+//! # Monero
 //!
-//! Enable the `serde` feature to add `#[derive(Serialize, Deserialize)]`
-//!
+//! A library for generating Monero Wallets.
 
-#![deny(missing_debug_implementations, missing_docs)]
-#![warn(missing_docs)]
-#![allow(unknown_lints)]
+#![forbid(unsafe_code)]
 
 extern crate arrayvec;
 extern crate base58;

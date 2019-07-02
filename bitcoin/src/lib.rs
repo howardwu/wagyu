@@ -2,6 +2,8 @@
 //!
 //! A library for generating Bitcoin Wallets.
 
+#![forbid(unsafe_code)]
+
 extern crate base58;
 extern crate rand;
 extern crate ripemd160;

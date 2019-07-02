@@ -2,6 +2,8 @@
 //!
 //! A library for generating Ethereum Wallets.
 
+#![forbid(unsafe_code)]
+
 extern crate hex;
 extern crate rand;
 extern crate secp256k1;
