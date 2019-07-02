@@ -7,10 +7,9 @@
 #![warn(missing_docs)]
 #![allow(unknown_lints)]
 
+extern crate ed25519_dalek;
+
 pub mod builder;
-pub mod ed25519;
-pub mod error;
 pub mod hex_slice;
 pub mod network;
-pub mod prelude;
 pub mod wallet;

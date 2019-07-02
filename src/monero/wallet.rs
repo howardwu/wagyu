@@ -2,14 +2,12 @@
 
 use std::fmt;
 
-use super::prelude::*;
 use arrayvec::ArrayVec;
 use base58::ToBase58;
-use monero::ed25519::{keypair_from_bytes, PublicKey};
-use monero::hex_slice::HexSlice;
-use monero::network::{get_prefix, Network};
-use openssl::bn::BigNumContext;
-use openssl::rand::rand_bytes;
+use rand::rngs::OsRng;
+use ed25519_dalek::{Keypair, PublicKey, SecretKey};
+use crate::monero::hex_slice::HexSlice;
+use crate::monero::network::{get_prefix, Network};
 use tiny_keccak::keccak256;
 
 /// Represents Monero keypairs
@@ -34,59 +32,75 @@ pub struct MoneroWallet {
 
 impl MoneroWallet {
     /// Generates a new MoneroWallet for a given `network`
-    pub fn new(network: &Network) -> Result<MoneroWallet> {
-        let mut seed = [0; 32];
-        rand_bytes(&mut seed[..])?;
+    pub fn new(network: &Network) -> MoneroWallet {
+        let mut csprng: OsRng = OsRng::new().unwrap();
 
-        let mut ctx = BigNumContext::new()?;
-
-        let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
+        let spend_keypair: Keypair = Keypair::generate(&mut csprng);
         let view_keypair = {
-            let mut buffer = keccak256(spend_keypair.private.as_ref());
-            keypair_from_bytes(buffer, &mut ctx)?
+            let buffer = keccak256(spend_keypair.secret.as_bytes());
+            let view_key_priv = SecretKey::from_bytes(&buffer).unwrap();
+            let view_key_pub : PublicKey = (&view_key_priv).into();
+            let mut bytes = ArrayVec::<[u8; 64]>::new();
+            bytes.extend(view_key_priv.as_bytes().iter().cloned());
+            bytes.extend(view_key_pub.as_bytes().iter().cloned());
+
+            Keypair::from_bytes(&bytes).unwrap()
         };
+        println!("hello");
 
         let address =
-            MoneroWallet::generate_address(&network, &spend_keypair.public, &view_keypair.public)?;
+            MoneroWallet::generate_address(&network, &spend_keypair.secret, &view_keypair.public);
 
-        Ok(MoneroWallet {
+        MoneroWallet {
             address,
-            private_spend_key: HexSlice::new(spend_keypair.private.as_ref()).format(),
-            private_view_key: HexSlice::new(view_keypair.private.as_ref()).format(),
-            public_spend_key: HexSlice::new(spend_keypair.public.as_ref()).format(),
-            public_view_key: HexSlice::new(view_keypair.public.as_ref()).format(),
-        })
+            private_spend_key: HexSlice::new(spend_keypair.secret.as_bytes()).format(),
+            private_view_key: HexSlice::new(view_keypair.secret.as_bytes()).format(),
+            public_spend_key: HexSlice::new(spend_keypair.public.as_bytes()).format(),
+            public_view_key: HexSlice::new(view_keypair.public.as_bytes()).format(),
+        }
     }
 
     /// Generates a MoneroWallet for a given `network` from a seed.
-    pub fn from_seed(network: &Network, seed: [u8; 32]) -> Result<MoneroWallet> {
-        let mut ctx = BigNumContext::new()?;
+    pub fn from_seed(network: &Network, seed: [u8; 32]) -> MoneroWallet {
+        let spend_keypair = {
+            let spend_key_priv = SecretKey::from_bytes(&seed).unwrap();
+            let view_key_priv : PublicKey = (&spend_key_priv).into();
+            let mut bytes = ArrayVec::<[u8; 64]>::new();
+            bytes.extend(spend_key_priv.as_bytes().iter().cloned());
+            bytes.extend(view_key_priv.as_bytes().iter().cloned());
 
-        let spend_keypair = keypair_from_bytes(seed, &mut ctx)?;
+            Keypair::from_bytes(&bytes).unwrap()
+        };
         let view_keypair = {
-            let mut buffer = keccak256(spend_keypair.private.as_ref());
-            keypair_from_bytes(buffer, &mut ctx)?
+            let buffer = keccak256(spend_keypair.secret.as_bytes());
+            let view_key_priv = SecretKey::from_bytes(&buffer).unwrap();
+            let view_key_pub : PublicKey = (&view_key_priv).into();
+            let mut bytes = ArrayVec::<[u8; 64]>::new();
+            bytes.extend(view_key_priv.as_bytes().iter().cloned());
+            bytes.extend(view_key_pub.as_bytes().iter().cloned());
+
+            Keypair::from_bytes(&bytes).unwrap()
         };
 
         let address =
-            MoneroWallet::generate_address(&network, &spend_keypair.public, &view_keypair.public)?;
+            MoneroWallet::generate_address(&network, &spend_keypair.secret, &view_keypair.public);
 
-        Ok(MoneroWallet {
+        MoneroWallet {
             address,
-            private_spend_key: HexSlice::new(spend_keypair.private.as_ref()).format(),
-            private_view_key: HexSlice::new(view_keypair.private.as_ref()).format(),
-            public_spend_key: HexSlice::new(spend_keypair.public.as_ref()).format(),
-            public_view_key: HexSlice::new(view_keypair.public.as_ref()).format(),
-        })
+            private_spend_key: HexSlice::new(spend_keypair.secret.as_bytes()).format(),
+            private_view_key: HexSlice::new(view_keypair.secret.as_bytes()).format(),
+            public_spend_key: HexSlice::new(spend_keypair.public.as_bytes()).format(),
+            public_view_key: HexSlice::new(view_keypair.public.as_bytes()).format(),
+        }
     }
 
     /// Generate the Cryptonote wallet address from the two public keys
     /// reference: https://gitlab.com/standard-mining/wallet-gen/blob/master/src/cryptonote.rs
     pub fn generate_address(
         network: &Network,
-        spend_key: &PublicKey,
+        spend_key: &SecretKey,
         view_key: &PublicKey,
-    ) -> Result<String> {
+    ) -> String {
         let mut bytes = ArrayVec::<[u8; 72]>::new();
 
         // Add coin prefix
@@ -96,8 +110,8 @@ impl MoneroWallet {
         };
 
         // Add public keys
-        bytes.extend(spend_key.iter().cloned());
-        bytes.extend(view_key.iter().cloned());
+        bytes.extend(spend_key.as_bytes().iter().cloned());
+        bytes.extend(view_key.as_bytes().iter().cloned());
 
         // Add checksum
         let hash = &keccak256(bytes.as_slice())[..4];
@@ -120,7 +134,7 @@ impl MoneroWallet {
             base58.push_str(&part);
         }
 
-        Ok(base58)
+        base58
     }
 
     /// returns public address
@@ -174,7 +188,7 @@ mod tests {
 
     #[test]
     fn generate_new_wallet() {
-        println!("Monero {:?}", MoneroWallet::new(&Network::Mainnet).unwrap())
+        println!("Monero {:?}", MoneroWallet::new(&Network::Mainnet))
     }
 
     #[test]
@@ -184,7 +198,7 @@ mod tests {
             89, 117, 205, 207, 77, 189, 251, 141, 193, 131, 96, 54,
         ];
 
-        let wallet = MoneroWallet::from_seed(&Network::Mainnet, seed).unwrap();
+        let wallet = MoneroWallet::from_seed(&Network::Mainnet, seed);
 
         assert_eq!(
             &wallet.address,
