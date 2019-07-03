@@ -22,3 +22,34 @@ pub fn to_checksum_address(addr: &str) -> String {
     }
     final_address
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hex;
+
+    fn test_to_hex_string(bytes: &[u8], expected: &str) {
+        assert_eq!(to_hex_string(bytes), expected);
+    }
+
+    fn test_to_checksum_address(addr: &str, expected: &str) {
+        assert_eq!(to_checksum_address(addr), expected);
+    }
+
+    #[test]
+    fn test_functionality_hex_string() {
+        test_to_hex_string(
+            &hex::decode("001d3f1ef827552ae1114027bd3ecf1f086ba0f9").unwrap(),
+            "001D3F1EF827552AE1114027BD3ECF1F086BA0F9"
+        )
+    }
+
+    #[test]
+    fn test_functionality_checksum_address() {
+        test_to_checksum_address(
+            "001d3f1ef827552ae1114027bd3ecf1f086ba0f9",
+            "0x001d3F1ef827552Ae1114027BD3ECF1f086bA0F9"
+        )
+    }
+}

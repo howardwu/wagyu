@@ -106,3 +106,95 @@ impl fmt::Display for KeyPair {
         write!(f, "{}", self.private_key)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_key_pair(key_pair: KeyPair) {
+        let secp = Secp256k1::new();
+        let expected_private_key = KeyPair::private_key_from_secret_key(*key_pair.secret_key());
+        let expected_public_key = PublicKey::from_secret_key(&secp, key_pair.secret_key());
+        assert_eq!(key_pair.private_key(), expected_private_key);
+        assert_eq!(key_pair.public_key(), &expected_public_key);
+    }
+
+    fn test_to_public_key(secret_key_string: &str, expected_public_key: &str) {
+        let secret_key = KeyPair::from_secret_key_string(secret_key_string);
+        let key_pair = KeyPair::from_secret_key(secret_key);
+
+        assert_eq!(key_pair.public_key().to_string(), expected_public_key);
+    }
+
+    fn test_from_secret_key(secret_key_string: &str) {
+        test_key_pair(
+            KeyPair::from_secret_key(
+                KeyPair::from_secret_key_string(secret_key_string)
+            )
+        )
+    }
+
+    fn test_from_secret_key_string(secret_key_string: &str) {
+        let secret_key = KeyPair::from_secret_key_string(secret_key_string);
+        assert_eq!(secret_key.to_string(), secret_key_string);
+    }
+
+    #[test]
+    fn test_new() {
+        test_key_pair(KeyPair::new());
+    }
+
+    #[test]
+    fn test_functionality_to_public_key() {
+        test_to_public_key(
+            "bca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698",
+            "038e25581f3acf823e3417ecd32a1d3479e292798a8d7538554c9039a51a659735"
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error decoding string")]
+    fn test_invalid_secret_key_to_public_key() {
+        test_to_public_key(
+            "ca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698",
+            ""
+        )
+    }
+
+    #[test]
+    fn test_functionality_from_secret_key() {
+        test_from_secret_key(
+            "bca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698"
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error decoding string")]
+    fn test_invalid_secret_key_from_secret_key() {
+        test_from_secret_key(
+            "ca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698"
+        )
+    }
+
+    #[test]
+    fn test_functionality_from_secret_key_string() {
+        test_from_secret_key_string(
+            "f8f8a2f43c8376ccb0871305060d7b27b0554d2cc72bccf41b2705608452f315",
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error decoding string")]
+    fn test_invalid_secret_key_from_secret_key_string() {
+        test_from_secret_key_string(
+            "ca329365b086a46a47e0ccce37059c266d1d408476be222eb5bafbd07cce698"
+        )
+    }
+
+    #[test]
+    fn test_private_key_from_secret_key() {
+        let key_pair = KeyPair::new();
+        let private_key = KeyPair::private_key_from_secret_key(*key_pair.secret_key());
+        assert_eq!(key_pair.private_key(), private_key);
+    }
+}

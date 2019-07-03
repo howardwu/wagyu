@@ -114,14 +114,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key_wif, &expected_address)| {
             let address = Address::from_wif(&private_key_wif, &Type::P2PKH);
-            assert_eq!(expected_address, address.wif);
+            assert_eq!(address.wif, expected_address);
         });
     }
 
     fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
         let address = Address::from_wif(&private_key, &Type::P2WPKH_P2SH);
         println!("{}, {}", address, expected_address);
-        assert_eq!(expected_address, address.wif);
+        assert_eq!(address.wif, expected_address);
     }
 
     fn test_from_private_key(
@@ -131,7 +131,7 @@ mod tests {
     ) {
         let private_key_object = PrivateKey::from_wif(private_key).expect("Error deriving PrivateKey from WIF");
         let address = Address::from_private_key(&private_key_object, address_type);
-        assert_eq!(expected_address, address.wif);
+        assert_eq!(address.wif, expected_address);
     }
 
     #[test]

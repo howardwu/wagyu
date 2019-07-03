@@ -23,7 +23,7 @@ impl EthereumWallet {
         EthereumWallet { keypair, address }
     }
 
-    /// Recovers a EthereumWallet from a KeyPair object
+    /// Recovers an EthereumWallet from a KeyPair object
     pub fn from_key_pair(keypair: KeyPair) -> EthereumWallet {
         let address = Address::from_key_pair(&keypair);
         EthereumWallet { keypair, address }
@@ -69,6 +69,15 @@ mod tests {
 
         assert_eq!(&private_key, private_key_string);
         assert_eq!(wallet.address().address(), address_string);
+    }
+
+    #[test]
+    fn test_new() {
+        let wallet = EthereumWallet::new();
+        assert_eq!(
+            Address::from_public_key(wallet.keypair().public_key()),
+            wallet.address().to_string()
+        );
     }
 
     #[test]
