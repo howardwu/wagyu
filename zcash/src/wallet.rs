@@ -97,10 +97,34 @@ impl fmt::Display for ZcashWallet {
 mod tests {
     use super::*;
 
-    fn test_from_wif(private_key_wif: &str, address_wif: &str) {
+    fn test_wallet_functionality(wallet: ZcashWallet, network: Network) {
+        let mut address = Address::from_private_key(wallet.private_key());
+        assert_eq!(wallet.address().to_string(), address.to_string());
+
+        address = Address::from_wif(wallet.private_key().wif());
+        assert_eq!(wallet.address().to_string(), address.to_string());
+
+        assert_eq!(wallet.private_key().network().to_string(), network.to_string());
+        assert_eq!(wallet.address().network.to_string(), network.to_string());
+    }
+
+    fn test_from_wif(private_key_wif: &str, address_wif: &str, network: Network) {
         let wallet = ZcashWallet::from_wif(private_key_wif);
         assert_eq!(wallet.private_key().wif(), private_key_wif);
+        assert_eq!(wallet.private_key().network().to_string(), network.to_string());
         assert_eq!(wallet.address().wif(), address_wif);
+    }
+
+    #[test]
+    fn test_new() {
+        test_wallet_functionality(ZcashWallet::new(Network::Mainnet), Network::Mainnet);
+        test_wallet_functionality(ZcashWallet::new(Network::Testnet), Network::Testnet);
+    }
+
+    #[test]
+    fn test_new_compressed() {
+        test_wallet_functionality(ZcashWallet::new_compressed(Network::Mainnet), Network::Mainnet);
+        test_wallet_functionality(ZcashWallet::new_compressed(Network::Testnet), Network::Testnet);
     }
 
     #[test]
@@ -108,6 +132,7 @@ mod tests {
         test_from_wif(
             "5KBUiRw5cDH5iGofacFTRTFseRgkg8bP1Vq4w7NeZEAUMUzuZ48",
             "t1cGCFCHzujWqMj6sBSKhCkbbXvAG3TA7eu",
+            Network::Mainnet
         );
     }
 
@@ -116,22 +141,25 @@ mod tests {
         test_from_wif(
             "L3FFKs3hLRByoAkyHLaocvteYBxTmiWk9CFAMq8YmF6oj1UzfkmF",
             "t1Qu2mQ1SGDvpQg1zXc5FXQK3kTwMtqVrab",
+            Network::Mainnet
         );
     }
 
-    // #[test]
-    // fn test_from_wif_testnet_uncompressed() {
-    //     test_from_wif(
-    //         "934pVYUzZ7Sm4ZSP7MtXaQXAcMhZHpFHFBvzfW3epFgk5cWeYih",
-    //         "my55YLK4BmM8AyUW5px2HSSKL4yzUE5Pho",
-    //     );
-    // }
+    #[test]
+    fn test_from_wif_testnet_uncompressed() {
+        test_from_wif(
+            "934pVYUzZ7Sm4ZSP7MtXaQXAcMhZHpFHFBvzfW3epFgk5cWeYih",
+            "tmTGUaT8cjjCy8kFDyR6WSzzfKifBpxkASe",
+            Network::Testnet
+        );
+    }
 
-    // #[test]
-    // fn test_from_wif_testnet_compressed() {
-    //     test_from_wif(
-    //         "cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
-    //         "mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w",
-    //     );
-    // }
+    #[test]
+    fn test_from_wif_testnet_compressed() {
+        test_from_wif(
+            "cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
+            "tmRPcirTzEEgWR8JjqAgeToayGdjbVQRJcC",
+            Network::Testnet
+        );
+    }
 }

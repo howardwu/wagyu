@@ -164,7 +164,8 @@ impl fmt::Display for PrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    extern crate hex;
+    use secp256k1::Message;
+    use hex;
 
     fn get_secret_key_from_string(secret_key_string: &str) -> SecretKey{
         let secp = Secp256k1::without_caps();
@@ -316,6 +317,17 @@ mod tests {
             "021db76245e286074dc2e7f0dd7227d6ea64a26b5a655b73477db8152ea7d5b71c",
             Network::Testnet
         )
+    }
+
+    #[test]
+    fn test_to_public_key_secp() {
+        let secp = Secp256k1::new();
+        let private_key = PrivateKey::new(Network::Mainnet);
+        let public_key = private_key.to_public_key();
+        let message = Message::from_slice(&[0xab; 32]).expect("32 bytes");
+
+        let sig = secp.sign(&message, &private_key.secret_key);
+        assert!(secp.verify(&message, &sig, &public_key).is_ok());
     }
 
     #[test]

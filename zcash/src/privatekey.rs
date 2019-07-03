@@ -164,6 +164,7 @@ impl fmt::Display for PrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use secp256k1::Message;
     extern crate hex;
 
     fn test_from_wif(wif: &str, secret_key_string: &str) {
@@ -204,6 +205,17 @@ mod tests {
         let from_wif =
             PrivateKey::from_wif(private_key.wif()).expect("Error unwrapping private key from WIF");
         assert_eq!(from_wif.wif(), private_key.wif());
+    }
+
+    #[test]
+    fn test_to_public_key() {
+        let secp = Secp256k1::new();
+        let private_key = PrivateKey::new(Network::Mainnet);
+        let public_key = private_key.to_public_key();
+        let message = Message::from_slice(&[0xab; 32]).expect("32 bytes");
+
+        let sig = secp.sign(&message, &private_key.secret_key);
+        assert!(secp.verify(&message, &sig, &public_key).is_ok());
     }
 
     #[test]

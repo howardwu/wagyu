@@ -73,14 +73,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key_wif, &expected_address)| {
             let address = Address::from_wif(&private_key_wif);
-            assert_eq!(expected_address, address.wif);
+            assert_eq!(address.wif, expected_address);
         });
     }
 
-    // fn test_private_key_address_pair(private_key: &str, expected_address: &str) {
-    //     let address = Address::from_wif(&private_key);
-    //     assert_eq!(expected_address, address.wif);
-    // }
+    fn test_private_key_wif(private_key_wif: &str, expected_address: &str) {
+        let address = Address::from_wif(&private_key_wif);
+        assert_eq!(address.wif, expected_address);
+    }
 
     #[test]
     fn test_mainnet_uncompressed_private_key_to_address() {
@@ -120,5 +120,14 @@ mod tests {
         ];
 
         test_private_key_address_pairs(private_keys, addresses);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error deriving PrivateKey from WIF")]
+    fn test_invalid_private_key_wif() {
+        test_private_key_wif(
+            "xYzZuBPkE3rnEEGCdsB6dCzxN1D4xoY5ogKoxbdUdkxbRzvgbij",
+            ""
+        )
     }
 }
