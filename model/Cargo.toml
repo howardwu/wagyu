@@ -1,0 +1,23 @@
+[package]
+name = "model"
+version = "0.6.0"
+authors = [
+    "Collin Chin",
+    "Raymond Chu",
+    "Ali Mousa",
+    "Howard Wu"
+]
+description = "A model for cryptocurrency wallets"
+homepage = "https://github.com/ArgusDeveloper/wagu"
+repository = "https://github.com/ArgusDeveloper/wagu"
+categories = ["command-line-utilities"]
+keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+readme = "README.md"
+license = "GPL-3.0"
+
+[dependencies]
+byteorder = { version = "1" }
+rand = { version = "0.7" }
+
+[badges]
+travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }

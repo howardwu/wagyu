@@ -1,6 +1,6 @@
 [workspace]
 
-members = [ "bitcoin", "cli", "ethereum", "monero", "zcash" ]
+members = [ "bitcoin", "cli", "ethereum", "model", "monero", "zcash" ]
 
 [profile.release]
 opt-level = 3
