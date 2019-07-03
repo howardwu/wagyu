@@ -124,12 +124,59 @@ mod tests {
         assert_eq!(expected_address, address.wif);
     }
 
+    fn test_from_private_key(
+        private_key: &str,
+        address_type: &Type,
+        expected_address: &str
+    ) {
+        let private_key_object = PrivateKey::from_wif(private_key).expect("Error deriving PrivateKey from WIF");
+        let address = Address::from_private_key(&private_key_object, address_type);
+        assert_eq!(expected_address, address.wif);
+    }
+
+    #[test]
+    fn test_single_p2wpkh_private_key() {
+        test_from_private_key(
+            "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
+            &Type::P2WPKH_P2SH,
+            "3D9iyFHi1Zs9KoyynUfrL82rGhJfYTfSG4"
+        );
+    }
+    
+    #[test]
+    fn test_single_p2pkh_private_key() {
+        test_from_private_key(
+            "5KA57SyWLAxwAT4qgQ9CcDpg3JgDL4254sGMMy5CmqZsBCsWFhc",
+            &Type::P2PKH,
+            "1QK5n4MT2smqoxRsHMCFsUkGToTFQ4NaYk"
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error deriving PrivateKey from WIF")]
+    fn test_invalid_wif_from_private_key() {
+        test_from_private_key(
+            "KA57SyWLAxwAT4qgQ9CcDpg3JgDL4254sGMMy5CmqZsBCsWFhc",
+            &Type::P2PKH,
+            "1QK5n4MT2smqoxRsHMCFsUkGToTFQ4NaYk"
+        )
+    }
+
     #[test]
     fn test_p2wpkh() {
         test_p2wpkh_pair(
             "Kxr9tQED9H44gCmp6HAdmemAzU3n84H3dGkuWTKvE23JgHMW8gct",
             "34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53",
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "Error deriving PrivateKey from WIF")]
+    fn test_invalid_wif_from_wif() {
+        test_p2wpkh_pair(
+            "xr9tQED9H44gCmp6HAdmemAzU3n84H3dGkuWTKvE23JgHMW8gct",
+            "34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53",
+        )
     }
 
     #[test]

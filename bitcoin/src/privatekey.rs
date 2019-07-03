@@ -166,14 +166,32 @@ mod tests {
     use super::*;
     extern crate hex;
 
-    fn test_from_wif(wif: &str, secret_key_string: &str) {
-        let private_key = PrivateKey::from_wif(wif).expect("Error deriving private key from wif");
+    fn get_secret_key_from_string(secret_key_string: &str) -> SecretKey{
         let secp = Secp256k1::without_caps();
         let secret_key_as_bytes =
             hex::decode(secret_key_string).expect("Error decoding secret key from hex string");
-        let secret_key = SecretKey::from_slice(&secp, &secret_key_as_bytes)
-            .expect("Error deriving secret key from hex string");
+
+        SecretKey::from_slice(&secp, &secret_key_as_bytes)
+            .expect("Error deriving secret key from hex string")
+    }
+
+    fn test_from_wif(wif: &str, expected_secret_key_string: &str) {
+        let private_key = PrivateKey::from_wif(wif).expect("Error deriving private key from wif");
+        let secret_key = get_secret_key_from_string(expected_secret_key_string);
         assert_eq!(private_key.secret_key, secret_key);
+    }
+
+    fn test_to_public_key(secret_key_string: &str, expected_public_key: &str, network: Network) {
+        let secret_key = get_secret_key_from_string(secret_key_string);
+        let private_key = PrivateKey::from_secret_key(secret_key, network);
+        let public_key = private_key.to_public_key();
+        assert_eq!(public_key.to_string(), expected_public_key);
+    }
+
+    fn test_from_secret_key(secret_key_string: &str, expected_wif: &str, network: Network) {
+        let secret_key = get_secret_key_from_string(secret_key_string);
+        let private_key = PrivateKey::from_secret_key(secret_key, network);
+        assert_eq!(private_key.wif(), expected_wif);
     }
 
     fn test_to_wif(secret_key_string: &str, wif: &str, network: Network) {
@@ -247,6 +265,24 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Error decoding base58 wif")]
+    fn test_invalid_characters_from_wif() {
+        test_from_wif(
+            "!@#$%^&*",
+            ""
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error deriving private key from wif")]
+    fn test_invalid_wif_from_wif() {
+        test_from_wif(
+            "3HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
+            ""
+        )
+    }
+
+    #[test]
     fn test_mainnet_to_wif() {
         test_to_wif(
             "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
@@ -261,6 +297,62 @@ mod tests {
             "37EE08B51CB5932276DB785C8E23CC0FDC99A2923C7ECA43A6D3FD26D94EBD44",
             "921YpFFoB1UN7tud1vne5hTrijX423MexQxYn6dmeHB25xT8c2s",
             Network::Testnet,
+        )
+    }
+
+    #[test]
+    fn test_mainnet_get_public_key() {
+        test_to_public_key(
+            "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
+            "02d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645c",
+            Network::Mainnet
+        )
+    }
+
+    #[test]
+    fn test_testnet_get_public_key() {
+        test_to_public_key(
+            "c36fcf36a3a80e54e046313e8d4eff4a62addc309702cee016706e3280972355",
+            "021db76245e286074dc2e7f0dd7227d6ea64a26b5a655b73477db8152ea7d5b71c",
+            Network::Testnet
+        )
+    }
+
+    #[test]
+    fn test_mainnet_from_secret_key() {
+        test_from_secret_key(
+            "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
+            "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
+            Network::Mainnet
+        )
+    }
+
+    #[test]
+    fn test_testnet_from_secret_key() {
+        test_from_secret_key(
+            "37EE08B51CB5932276DB785C8E23CC0FDC99A2923C7ECA43A6D3FD26D94EBD44",
+            "921YpFFoB1UN7tud1vne5hTrijX423MexQxYn6dmeHB25xT8c2s",
+            Network::Testnet
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error decoding secret key from hex string")]
+    fn test_invalid_characters_from_secret_key() {
+        test_from_secret_key(
+            "!@#$%^&*",
+            "",
+            Network::Mainnet
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "Error decoding secret key from hex string")]
+    fn test_invalid_secret_key_from_secret_key() {
+        test_from_secret_key(
+            "C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
+            "",
+            Network::Mainnet
         )
     }
 }

@@ -87,10 +87,23 @@ impl fmt::Display for BitcoinWallet {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use secp256k1::{Secp256k1, SecretKey};
+
 
     fn test_from_wif(private_key_wif: &str, address_wif: &str) {
         let wallet = BitcoinWallet::from_wif(private_key_wif, &Type::P2PKH);
         assert_eq!(wallet.private_key().wif(), private_key_wif);
+        assert_eq!(wallet.address().wif(), address_wif);
+    }
+
+    fn test_from_private_key(secret_key_string: &str, address_wif: &str, network: Network) {
+        let secp = Secp256k1::without_caps();
+        let secret_key_as_bytes =
+            hex::decode(secret_key_string).expect("Error decoding secret key from hex string");
+        let secret_key=SecretKey::from_slice(&secp, &secret_key_as_bytes)
+            .expect("Error deriving secret key from hex string");
+        let private_key = PrivateKey::from_secret_key(secret_key, network);
+        let wallet = BitcoinWallet::from_private_key(private_key, &Type::P2PKH);
         assert_eq!(wallet.address().wif(), address_wif);
     }
 
@@ -123,6 +136,32 @@ mod tests {
         test_from_wif(
             "cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
             "mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w",
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Error creating Bitcoin Wallet from WIF")]
+    fn test_invalid_wif_from_wif() {
+        test_from_wif(
+            "SCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
+            ""
+        )
+    }
+
+    #[test]
+    fn test_from_private_key_mainnet_uncompressed() {
+        test_from_private_key(
+            "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
+            "1GAehh7TsJAHuUAeKZcXf5CnwuGuGgyX2S",
+            Network::Mainnet
+        );
+    }
+    #[test]
+    fn test_from_private_key_testnet_uncompressed() {
+        test_from_private_key(
+            "c36fcf36a3a80e54e046313e8d4eff4a62addc309702cee016706e3280972355",
+            "n3cs3346BPfEj71Pa33AmQ6ictMePWQayH",
+            Network::Testnet
         );
     }
 }
