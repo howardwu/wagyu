@@ -2,35 +2,34 @@ use address::Address;
 use public_key::PublicKey;
 use utilities::bytes::{FromBytes, ToBytes};
 
-use rand::Rng;
 use std::{fmt::{Debug, Display}, hash::Hash, str::FromStr};
 
 /// The interface for a generic private key.
-pub trait PrivateKey<T>:
-    ToBytes
-    + FromBytes
-    + Copy
-    + Clone
+pub trait PrivateKey:
+//    ToBytes
+//    + FromBytes
+    Clone
     + Debug
     + Display
     + Default
+    + FromStr
     + Send
     + Sync
     + 'static
     + Eq
-    + Rng
     + Sized
-    + Hash
 {
-    /// Returns a randomly-generated private key.
-    fn new(network: T) -> Self;
+    type Address: Address;
+    type Format;
+    type Network;
+    type PublicKey: PublicKey;
 
-    /// Returns the network of the corresponding private key.
-    fn network() -> T;
+    /// Returns a randomly-generated private key.
+    fn new(network: Self::Network) -> Self;
 
     /// Returns the public key of the corresponding private key.
-    fn to_public_key<T: PublicKey>() -> T;
+    fn to_public_key(&self) -> Self::PublicKey;
 
     /// Returns the address of the corresponding private key.
-    fn to_address<T: Address>() -> T;
+    fn to_address(&self, format: Option<Self::Format>) -> Self::Address;
 }

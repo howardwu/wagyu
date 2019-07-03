@@ -16,6 +16,8 @@ readme = "README.md"
 license = "GPL-3.0"
 
 [dependencies]
+model = { path = "../model" }
+
 base58 = "0.1"
 rand = "0.7"
 ripemd160 = "0.7"

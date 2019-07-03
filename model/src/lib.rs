@@ -5,9 +5,11 @@
 #![forbid(unsafe_code)]
 
 extern crate byteorder;
-extern crate rand;
+extern crate ripemd160;
+extern crate sha2;
 
 pub mod address;
+pub use self::address::*;
 
 //pub mod network;
 //pub use self::network::*;

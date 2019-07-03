@@ -18,6 +18,7 @@ license = "GPL-3.0"
 [dependencies]
 bitcoin = { path = "../bitcoin" }
 ethereum = { path = "../ethereum" }
+model = { path = "../model" }
 monero = { path = "../monero" }
 zcash = { path = "../zcash" }
 
