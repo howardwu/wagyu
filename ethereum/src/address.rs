@@ -14,8 +14,6 @@ use tiny_keccak::keccak256;
 pub enum Format {
     /// Standard hex representation of an Ethereum address e.g "0xE9651749aA149fd5aa53c7352d3041284aa64986"
     Standard,
-    //    /// <THAT WEIRD REPRESENTATION> representation of an Ethereum address e.g "INSERT EXAMPLE HERE"
-    //    Weird, Commented out because i can't remember what the name of it was
 }
 
 /// Represents an Ethereum Address

@@ -1,8 +1,10 @@
 use address::{EthereumAddress, Format};
 use model::{
-//    bytes::{FromBytes, ToBytes},
-//    crypto::checksum,
-    Address, PrivateKey, PublicKey,
+    //    bytes::{FromBytes, ToBytes},
+    //    crypto::checksum,
+    Address,
+    PrivateKey,
+    PublicKey,
 };
 
 use network::Network;

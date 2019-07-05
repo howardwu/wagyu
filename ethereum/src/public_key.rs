@@ -1,7 +1,8 @@
 use address::{EthereumAddress, Format};
 use model::{
-//    bytes::{FromBytes, ToBytes},
-    Address, PublicKey,
+    //    bytes::{FromBytes, ToBytes},
+    Address,
+    PublicKey,
 };
 use network::Network;
 use private_key::EthereumPrivateKey;
