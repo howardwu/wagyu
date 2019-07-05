@@ -22,11 +22,11 @@ extern crate zcash;
 
 use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey};
+use ethereum::address::Format as EthereumFormat;
+use ethereum::{EthereumAddress, EthereumPrivateKey};
 
 use model::{Address, PrivateKey};
 
-
-use ethereum::builder::WalletBuilder as EthereumWalletBuilder;
 use monero::builder::WalletBuilder as MoneroWalletBuilder;
 use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
@@ -94,17 +94,12 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     };
 }
 
-fn print_bitcoin_wallet(
-    count: usize,
-    testnet: bool,
-    format: &BitcoinFormat,
-    json: bool,
-) {
+fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, json: bool) {
     use bitcoin::Network;
 
     let network = match testnet {
         true => Network::Testnet,
-        false => Network::Mainnet
+        false => Network::Mainnet,
     };
 
     let private_key = BitcoinPrivateKey::new(network);
@@ -115,14 +110,14 @@ fn print_bitcoin_wallet(
         private_key: String,
         address: String,
         network: String,
-        compressed: bool
+        compressed: bool,
     };
 
     let wallet = Wallet {
         private_key: private_key.wif.clone(),
         address: address.address,
         network: private_key.network.to_string(),
-        compressed: private_key.compressed
+        compressed: private_key.compressed,
     };
 
     for _ in 0..count {
@@ -136,21 +131,46 @@ fn print_bitcoin_wallet(
         Network:        {}
         Compressed:     {}
         ",
-                wallet.private_key,
-                wallet.address,
-                wallet.network,
-                wallet.compressed
+                wallet.private_key, wallet.address, wallet.network, wallet.compressed
             )
         }
     }
 }
 
 fn print_ethereum_wallet(count: usize, json: bool) {
-    let wallets = EthereumWalletBuilder::build_many_from_options(count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    use ethereum::Network;
+
+    let network = Network::Mainnet;
+    let format = EthereumFormat::Standard;
+    let private_key = EthereumPrivateKey::new(network);
+    let address = EthereumAddress::from_private_key(&private_key, Some((format, network)));
+
+    #[derive(Serialize, Debug)]
+    pub struct Wallet {
+        private_key: String,
+        address: String,
+        network: String,
+    };
+
+    let wallet = Wallet {
+        private_key: private_key.wif.clone(),
+        address: address.address,
+        network: network.to_string(),
+    };
+
+    for _ in 0..count {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
+        } else {
+            println!(
+                "
+        Private Key:    {}
+        Address:        {}
+        Network:        {}
+        ",
+                wallet.private_key, wallet.address, wallet.network
+            )
+        }
     }
 }
 

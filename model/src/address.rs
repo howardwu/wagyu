@@ -1,20 +1,15 @@
 use private_key::PrivateKey;
 use public_key::PublicKey;
 
-use std::{fmt::{Debug, Display}, hash::Hash, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    str::FromStr,
+};
 
 /// The interface for a generic address.
 pub trait Address:
-    Clone
-    + Debug
-    + Display
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Ord
-    + Sized
-    + Hash
+    Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash
 {
     type Format;
     type PrivateKey: PrivateKey;

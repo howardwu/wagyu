@@ -16,6 +16,8 @@ readme = "README.md"
 license = "GPL-3.0"
 
 [dependencies]
+model = { path = "../model" }
+
 hex = "0.3.2"
 rand = "0.7"
 secp256k1 = "0.11.1"
