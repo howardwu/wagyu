@@ -1,39 +1,79 @@
+use model::{Address, crypto::{checksum, hash160}, PrivateKey};
 use network::{Network, MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
-use privatekey::PrivateKey;
-use utils::checksum;
+use private_key::ZcashPrivateKey;
+use public_key::ZcashPublicKey;
 
 use base58::ToBase58;
-use ripemd160::Ripemd160;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::fmt;
 
+/// Represents the format of a Zcash address
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Format {
+
+    /// Unshielded Zcash Address
+    Unshielded,
+
+    /// Shielded Zcash Address
+    Shielded,
+}
+
 /// Represents a Zcash t-address
-#[derive(Serialize, Debug)]
-pub struct Address {
-    pub wif: String,
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ZcashAddress {
+
+    /// The Zcash address
+    pub address: String,
+
+    /// The format of the address
+    pub format: Format,
+
+    /// The network on which this address is usable
     pub network: Network,
 }
 
-impl Address {
-    /// Returns an Address given a PrivateKey object
-    pub fn from_private_key(private_key: &PrivateKey) -> Address {
-        let public_key = match private_key.compressed() {
-            true => private_key.to_public_key().serialize().to_vec(),
-            false => private_key
-                .to_public_key()
-                .serialize_uncompressed()
-                .to_vec(),
-        };
-        let sha256_hash = Sha256::digest(&public_key); // Sha256 Hash
-        let ripemd160_hash = Ripemd160::digest(&sha256_hash); // Ripemd160 Hash
-        let mut address_bytes = [0u8; 26];
+impl Address for ZcashAddress{
+    type Format = (Format, Network);
+    type PrivateKey = ZcashPrivateKey;
+    type PublicKey = ZcashPublicKey;
 
-        let network_bytes = match private_key.network() {
-            // Prepend Network Bytes
+    /// Returns the address corresponding to the given Zcash private key.
+    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+        match format {
+            Some((Format::Unshielded, _)) => Self::unshielded(&private_key.to_public_key(), &private_key.network),
+            Some((Format::Shielded, _)) => Self::shielded(&private_key.to_public_key(), &private_key.network),
+            None => Self::unshielded(&private_key.to_public_key(), &private_key.network)
+        }
+    }
+
+    /// Returns the address corresponding to the given Zcash public key.
+    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>) -> Self {
+        match format {
+            Some((Format::Unshielded, network)) => Self::unshielded(public_key, &network),
+            Some((Format::Shielded, network)) => Self::shielded(public_key, &network),
+            None => Self::unshielded(public_key, &Network::Mainnet)
+        }
+    }
+}
+
+impl ZcashAddress {
+
+    /// Returns an unshielded address from a given Zcash public key
+    fn unshielded(public_key: &ZcashPublicKey, network: &Network) -> Self {
+        let public_key = match public_key.compressed {
+            true => public_key.public_key.serialize().to_vec(),
+            false => public_key.public_key.serialize_uncompressed().to_vec()
+        };
+
+        let network_bytes = match network {
+            Network::Mainnet => MAINNET_ADDRESS_BYTES,
             Network::Testnet => TESTNET_ADDRESS_BYTES,
             _ => MAINNET_ADDRESS_BYTES,
         };
+
+        let mut address_bytes = [0u8; 26];
+        let ripemd160_hash = hash160(&public_key); // Ripemd160 Hash
+
 
         address_bytes[0] = network_bytes[0];
         address_bytes[1] = network_bytes[1];
@@ -42,26 +82,22 @@ impl Address {
         let checksum_bytes = checksum(&address_bytes[0..22]); // Calculate Checksum
         address_bytes[22..26].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
 
-        Address {
-            wif: address_bytes.to_base58(),
-            network: private_key.network().clone(),
+        Self {
+            address: address_bytes.to_base58(),
+            format: Format::Unshielded,
+            network: network.clone(),
         }
     }
 
-    /// Returns an Address given a private key in Wallet Import Format
-    pub fn from_wif(wif: &str) -> Address {
-        let private_key = PrivateKey::from_wif(wif).expect("Error deriving PrivateKey from WIF");
-        Address::from_private_key(&private_key)
-    }
-
-    pub fn wif(&self) -> &str {
-        &self.wif
+    /// TODO Returns a shielded address from a given Zcash public key
+    fn shielded(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
+        panic!("shieled addresses not implemented");
     }
 }
 
-impl fmt::Display for Address {
+impl fmt::Display for ZcashAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.wif)
+        write!(f, "{}", self.address)
     }
 }
 
@@ -71,15 +107,17 @@ mod tests {
 
     fn test_private_key_address_pairs(private_keys: [&str; 5], addresses: [&str; 5]) {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
-        key_address_pairs.for_each(|(&private_key_wif, &expected_address)| {
-            let address = Address::from_wif(&private_key_wif);
-            assert_eq!(address.wif, expected_address);
+        key_address_pairs.for_each(|(&private_key, &expected_address)| {
+            let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+            let address = ZcashAddress::from_private_key(&private_key, Some((Format::Unshielded, private_key.network)));
+            assert_eq!(address.address, expected_address);
         });
     }
 
-    fn test_private_key_wif(private_key_wif: &str, expected_address: &str) {
-        let address = Address::from_wif(&private_key_wif);
-        assert_eq!(address.wif, expected_address);
+    fn test_private_key_wif(private_key: &str, expected_address: &str) {
+        let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+        let address = ZcashAddress::from_private_key(&private_key, Some((Format::Unshielded, private_key.network)));
+        assert_eq!(address.address, expected_address);
     }
 
     #[test]

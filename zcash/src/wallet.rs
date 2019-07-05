@@ -1,6 +1,6 @@
-use address::Address;
+use address::{Address, Type};
 use network::Network;
-use privatekey::PrivateKey;
+use private_key::PrivateKey;
 
 use serde::Serialize;
 use serde_json::to_string_pretty;
