@@ -1,38 +1,95 @@
+use model::{Address, crypto::{checksum, hash160}, PrivateKey};
 use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
-use privatekey::PrivateKey;
-use utils::{checksum, hash160};
+use private_key::BitcoinPrivateKey;
+use public_key::BitcoinPublicKey;
 
 use base58::ToBase58;
 use serde::Serialize;
 use std::fmt;
 
-/// Represents a Bitcoin Address
-#[derive(Serialize, Debug)]
-pub struct Address {
-    pub wif: String,
-    pub network: Network,
-    pub address_type: Type,
-}
+/// Represents the format of a Bitcoin address
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Format {
 
-/// Represents type of Bitcoin Address
-#[derive(Serialize, Debug, Clone)]
-pub enum Type {
+    /// Pay-to-Pubkey Hash, e.g. 1NoZQSmjYHUZMbqLerwmT4xfe8A6mAo8TT
     P2PKH,
-    P2WPKH_P2SH,
+
+    /// SegWit Pay-to-Witness-Public-Key Hash, e.g. 34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53
+    P2SH_P2WPKH,
+
 }
 
-impl Address {
-    /// Returns an Address given a PrivateKey object
-    pub fn from_private_key(private_key: &PrivateKey, address_type: &Type) -> Address {
-        match address_type {
-            Type::P2PKH => Address::p2pkh(private_key),
-            Type::P2WPKH_P2SH => Address::p2wpkh_p2sh(private_key),
+/// Represents a Bitcoin address
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BitcoinAddress {
+
+    /// The Bitcoin address
+    pub address: String,
+
+    /// The format of the address
+    pub format: Format,
+
+    /// The network on which this address is usable
+    pub network: Network,
+
+}
+
+impl Address for BitcoinAddress {
+    type Format = (Format, Network);
+    type PrivateKey = BitcoinPrivateKey;
+    type PublicKey = BitcoinPublicKey;
+
+    /// Returns the address corresponding to the given Bitcoin private key.
+    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+        match format {
+            Some((Format::P2PKH, _)) => Self::p2pkh(&private_key.to_public_key(), &private_key.network),
+            Some((Format::P2SH_P2WPKH, _)) => Self::p2sh_p2wpkh(&private_key.to_public_key(), &private_key.network),
+            None => Self::p2pkh(&private_key.to_public_key(), &private_key.network)
         }
     }
 
-    /// Returns P2WPKH_P2SH address from PrivateKey
-    fn p2wpkh_p2sh(private_key: &PrivateKey) -> Address {
-        let public_key = private_key.to_public_key().serialize();
+    /// Returns the address corresponding to the given Bitcoin public key.
+    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>) -> Self {
+        match format {
+            Some((Format::P2PKH, network)) => Self::p2pkh(public_key, &network),
+            Some((Format::P2SH_P2WPKH, network)) => Self::p2sh_p2wpkh(public_key, &network),
+            None => Self::p2pkh(public_key, &Network::Mainnet)
+        }
+    }
+}
+
+impl BitcoinAddress {
+
+    /// Returns a P2PKH address from a given Bitcoin public key.
+    fn p2pkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+        let public_key = match public_key.compressed {
+            true => public_key.public_key.serialize().to_vec(),
+            false => public_key.public_key.serialize_uncompressed().to_vec()
+        };
+
+        let network_byte = match network {
+            Network::Mainnet => MAINNET_ADDRESS_BYTE,
+            Network::Testnet => TESTNET_ADDRESS_BYTE,
+            _ =>  MAINNET_ADDRESS_BYTE,
+        };
+
+        let mut address_bytes = [0u8; 25];
+        address_bytes[0] = network_byte;
+        address_bytes[1..21].copy_from_slice(&hash160(&public_key));
+
+        let checksum_bytes = checksum(&address_bytes[0..21]);
+        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append checksum bytes
+
+        Self {
+            address: address_bytes.to_base58(),
+            format: Format::P2PKH,
+            network: network.clone(),
+        }
+    }
+
+    /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
+    fn p2sh_p2wpkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+        let public_key = public_key.public_key.serialize();
         let mut address_bytes = [0u8; 25];
         let version_byte = 0x05;
 
@@ -43,66 +100,23 @@ impl Address {
         redeem_script[2..].copy_from_slice(&witness_program);
 
         let script_hash = hash160(&redeem_script);
-
         address_bytes[0] = version_byte;
         address_bytes[1..21].copy_from_slice(&script_hash);
 
-        let checksum_bytes = checksum(&address_bytes[0..21]); // Calculate Checksum
-        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
+        let checksum_bytes = checksum(&address_bytes[0..21]);
+        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append checksum bytes
 
-        Address {
-            wif: address_bytes.to_base58(),
-            network: private_key.network().clone(),
-            address_type: Type::P2WPKH_P2SH,
+        Self {
+            address: address_bytes.to_base58(),
+            format: Format::P2SH_P2WPKH,
+            network: network.clone(),
         }
-    }
-
-    /// Returns P2PKH address from PrivateKey
-    fn p2pkh(private_key: &PrivateKey) -> Address {
-        let public_key = if *private_key.compressed() {
-            private_key.to_public_key().serialize().to_vec()
-        } else {
-            private_key
-                .to_public_key()
-                .serialize_uncompressed()
-                .to_vec()
-        };
-        let pub_key_hash = hash160(&public_key);
-        let mut address_bytes = [0u8; 25];
-
-        let network_byte = match private_key.network() {
-            // Prepend Network Bytes
-            Network::Testnet => TESTNET_ADDRESS_BYTE,
-            _ => MAINNET_ADDRESS_BYTE,
-        };
-
-        address_bytes[0] = network_byte;
-        address_bytes[1..21].copy_from_slice(&pub_key_hash);
-
-        let checksum_bytes = checksum(&address_bytes[0..21]); // Calculate Checksum
-        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
-
-        Address {
-            wif: address_bytes.to_base58(),
-            network: private_key.network().clone(),
-            address_type: Type::P2PKH,
-        }
-    }
-
-    /// Returns an Address given a private key in Wallet Import Format
-    pub fn from_wif(wif: &str, address_type: &Type) -> Address {
-        let private_key = PrivateKey::from_wif(wif).expect("Error deriving PrivateKey from WIF");
-        Address::from_private_key(&private_key, address_type)
-    }
-
-    pub fn wif(&self) -> &str {
-        &self.wif
     }
 }
 
-impl fmt::Display for Address {
+impl fmt::Display for BitcoinAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.wif)
+        write!(f, "{}", self.address)
     }
 }
 
@@ -112,54 +126,18 @@ mod tests {
 
     fn test_p2pkh_pairs(private_keys: [&str; 5], addresses: [&str; 5]) {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
-        key_address_pairs.for_each(|(&private_key_wif, &expected_address)| {
-            let address = Address::from_wif(&private_key_wif, &Type::P2PKH);
-            assert_eq!(address.wif, expected_address);
+        key_address_pairs.for_each(|(&private_key, &expected_address)| {
+            let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
+            let address = BitcoinAddress::from_private_key(&private_key, Some((Format::P2PKH, private_key.network)));
+            assert_eq!(expected_address, address.address);
         });
     }
 
     fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
-        let address = Address::from_wif(&private_key, &Type::P2WPKH_P2SH);
+        let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
+        let address = BitcoinAddress::from_private_key(&private_key, Some((Format::P2SH_P2WPKH, private_key.network)));
         println!("{}, {}", address, expected_address);
-        assert_eq!(address.wif, expected_address);
-    }
-
-    fn test_from_private_key(
-        private_key: &str,
-        address_type: &Type,
-        expected_address: &str
-    ) {
-        let private_key_object = PrivateKey::from_wif(private_key).expect("Error deriving PrivateKey from WIF");
-        let address = Address::from_private_key(&private_key_object, address_type);
-        assert_eq!(address.wif, expected_address);
-    }
-
-    #[test]
-    fn test_single_p2wpkh_private_key() {
-        test_from_private_key(
-            "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
-            &Type::P2WPKH_P2SH,
-            "3D9iyFHi1Zs9KoyynUfrL82rGhJfYTfSG4"
-        );
-    }
-    
-    #[test]
-    fn test_single_p2pkh_private_key() {
-        test_from_private_key(
-            "5KA57SyWLAxwAT4qgQ9CcDpg3JgDL4254sGMMy5CmqZsBCsWFhc",
-            &Type::P2PKH,
-            "1QK5n4MT2smqoxRsHMCFsUkGToTFQ4NaYk"
-        )
-    }
-
-    #[test]
-    #[should_panic(expected = "Error deriving PrivateKey from WIF")]
-    fn test_invalid_wif_from_private_key() {
-        test_from_private_key(
-            "KA57SyWLAxwAT4qgQ9CcDpg3JgDL4254sGMMy5CmqZsBCsWFhc",
-            &Type::P2PKH,
-            "1QK5n4MT2smqoxRsHMCFsUkGToTFQ4NaYk"
-        )
+        assert_eq!(expected_address, address.address);
     }
 
     #[test]

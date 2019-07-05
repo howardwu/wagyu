@@ -16,16 +16,22 @@ extern crate tiny_keccak;
 
 extern crate bitcoin;
 extern crate ethereum;
+extern crate model;
 extern crate monero;
 extern crate zcash;
 
-use bitcoin::address::Type as AddressType;
-use bitcoin::builder::WalletBuilder as BitcoinWalletBuilder;
+use bitcoin::address::Format as BitcoinFormat;
+use bitcoin::{BitcoinAddress, BitcoinPrivateKey};
+
+use model::{Address, PrivateKey};
+
+
 use ethereum::builder::WalletBuilder as EthereumWalletBuilder;
 use monero::builder::WalletBuilder as MoneroWalletBuilder;
 use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
 use clap::{App, Arg};
+use serde::Serialize;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
@@ -69,9 +75,9 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
     let address_type = if matches.is_present("segwit") {
         compressed = true;
-        AddressType::P2WPKH_P2SH
+        BitcoinFormat::P2SH_P2WPKH
     } else {
-        AddressType::P2PKH
+        BitcoinFormat::P2PKH
     };
     let testnet = match matches.value_of("network") {
         Some("mainnet") => false,
@@ -80,7 +86,7 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     };
 
     match currency {
-        "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, compressed, json),
+        "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, json),
         "ethereum" => print_ethereum_wallet(count, json),
         "monero" => print_monero_wallet(count, testnet, json),
         "zcash" => print_zcash_wallet(count, testnet, compressed, json),
@@ -91,16 +97,51 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
 fn print_bitcoin_wallet(
     count: usize,
     testnet: bool,
-    address_type: &AddressType,
-    compressed: bool,
+    format: &BitcoinFormat,
     json: bool,
 ) {
-    let wallets =
-        BitcoinWalletBuilder::build_many_from_options(compressed, testnet, address_type, count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    use bitcoin::Network;
+
+    let network = match testnet {
+        true => Network::Testnet,
+        false => Network::Mainnet
+    };
+
+    let private_key = BitcoinPrivateKey::new(network);
+    let address = BitcoinAddress::from_private_key(&private_key, Some((format.clone(), network)));
+
+    #[derive(Serialize, Debug)]
+    pub struct Wallet {
+        private_key: String,
+        address: String,
+        network: String,
+        compressed: bool
+    };
+
+    let wallet = Wallet {
+        private_key: private_key.wif.clone(),
+        address: address.address,
+        network: private_key.network.to_string(),
+        compressed: private_key.compressed
+    };
+
+    for _ in 0..count {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
+        } else {
+            println!(
+                "
+        Private Key:    {}
+        Address:        {}
+        Network:        {}
+        Compressed:     {}
+        ",
+                wallet.private_key,
+                wallet.address,
+                wallet.network,
+                wallet.compressed
+            )
+        }
     }
 }
 

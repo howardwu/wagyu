@@ -1,5 +1,5 @@
 [package]
-name = "bitcoin"
+name = "model"
 version = "0.6.0"
 authors = [
     "Collin Chin",
@@ -7,7 +7,7 @@ authors = [
     "Ali Mousa",
     "Howard Wu"
 ]
-description = "A library for generating Bitcoin wallets"
+description = "A model for cryptocurrency wallets"
 homepage = "https://github.com/ArgusDeveloper/wagu"
 repository = "https://github.com/ArgusDeveloper/wagu"
 categories = ["command-line-utilities"]
@@ -16,20 +16,10 @@ readme = "README.md"
 license = "GPL-3.0"
 
 [dependencies]
-model = { path = "../model" }
-
-base58 = "0.1"
-hex = "0.3.2"
-rand = "0.7"
-ripemd160 = "0.7"
-secp256k1 = "0.11.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.7"
-tiny-keccak = "1.4"
-
-[dev-dependencies]
-hex = "0.3.2"
+byteorder = { version = "1" }
+hex = { version = "0.3.2" }
+ripemd160 = { version = "0.7" }
+sha2 = { version = "0.7" }
 
 [badges]
 travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
