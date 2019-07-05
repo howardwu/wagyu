@@ -166,9 +166,8 @@ fn print_ethereum_wallet(count: usize, json: bool) {
                 "
         Private Key:    {}
         Address:        {}
-        Network:        {}
         ",
-                wallet.private_key, wallet.address, wallet.network
+                wallet.private_key, wallet.address
             )
         }
     }
