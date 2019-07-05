@@ -16,9 +16,6 @@ extern crate model;
 pub mod address;
 pub use self::address::*;
 
-//pub mod builder;
-
-
 pub mod network;
 pub use self::network::*;
 
@@ -30,3 +27,6 @@ pub use self::public_key::*;
 
 pub mod utils;
 pub use self::utils::*;
+
+#[cfg(test)]
+mod test;

@@ -36,7 +36,7 @@ impl PrivateKey for EthereumPrivateKey {
         Self::build()
     }
 
-    /// Returns the public key of the corresponding Bitcoin private key.
+    /// Returns the public key of the corresponding Ethereum private key.
     fn to_public_key(&self) -> Self::PublicKey {
         EthereumPublicKey::from_private_key(self)
     }
@@ -130,11 +130,4 @@ impl Display for EthereumPrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.wif)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    extern crate hex;
-
 }
