@@ -1,4 +1,4 @@
-//! # Ethereum
+//! # Wagu CLI
 //!
 //! A command-line tool to generate cryptocurrency wallets.
 
@@ -22,13 +22,15 @@ extern crate zcash;
 
 use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey};
+use ethereum::address::Format as EthereumFormat;
+use ethereum::{EthereumAddress, EthereumPrivateKey};
+
+use zcash::address::Format as ZcashFormat;
+use zcash::{ZcashAddress, ZcashPrivateKey};
 
 use model::{Address, PrivateKey};
 
-
-use ethereum::builder::WalletBuilder as EthereumWalletBuilder;
 use monero::builder::WalletBuilder as MoneroWalletBuilder;
-use zcash::builder::WalletBuilder as ZcashWalletBuilder;
 
 use clap::{App, Arg};
 use serde::Serialize;
@@ -70,14 +72,19 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
-    let mut compressed = matches.is_present("compressed");
+//    let mut compressed = matches.is_present("compressed");
     let json = matches.is_present("json");
     let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
-    let address_type = if matches.is_present("segwit") {
-        compressed = true;
+    let bitcoin_address_type = if matches.is_present("segwit") {
+//        compressed = true;
         BitcoinFormat::P2SH_P2WPKH
     } else {
         BitcoinFormat::P2PKH
+    };
+    let zcash_address_type = if matches.is_present("shielded") {
+        ZcashFormat::Shielded
+    } else {
+        ZcashFormat::Transparent
     };
     let testnet = match matches.value_of("network") {
         Some("mainnet") => false,
@@ -86,29 +93,116 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     };
 
     match currency {
-        "bitcoin" => print_bitcoin_wallet(count, testnet, &address_type, json),
+        "bitcoin" => print_bitcoin_wallet(count, testnet, &bitcoin_address_type, json),
         "ethereum" => print_ethereum_wallet(count, json),
         "monero" => print_monero_wallet(count, testnet, json),
-        "zcash" => print_zcash_wallet(count, testnet, compressed, json),
+        "zcash" => print_zcash_wallet(count, testnet, &zcash_address_type, json),
         _ => panic!("Unsupported currency"),
     };
 }
 
-fn print_bitcoin_wallet(
+fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, json: bool) {
+    use bitcoin::Network;
+
+    let network = match testnet {
+        true => Network::Testnet,
+        false => Network::Mainnet,
+    };
+
+    let private_key = BitcoinPrivateKey::new(network);
+    let address = BitcoinAddress::from_private_key(&private_key, Some((format.clone(), network)));
+
+    #[derive(Serialize, Debug)]
+    pub struct Wallet {
+        private_key: String,
+        address: String,
+        network: String,
+        compressed: bool,
+    };
+
+    let wallet = Wallet {
+        private_key: private_key.wif.clone(),
+        address: address.address,
+        network: private_key.network.to_string(),
+        compressed: private_key.compressed,
+    };
+
+    for _ in 0..count {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
+        } else {
+            println!(
+                "
+        Private Key:    {}
+        Address:        {}
+        Network:        {}
+        Compressed:     {}
+        ",
+                wallet.private_key, wallet.address, wallet.network, wallet.compressed
+            )
+        }
+    }
+}
+
+fn print_ethereum_wallet(count: usize, json: bool) {
+    use ethereum::Network;
+
+    let network = Network::Mainnet;
+    let format = EthereumFormat::Standard;
+    let private_key = EthereumPrivateKey::new(network);
+    let address = EthereumAddress::from_private_key(&private_key, Some(format));
+
+    #[derive(Serialize, Debug)]
+    pub struct Wallet {
+        private_key: String,
+        address: String,
+        network: String,
+    };
+
+    let wallet = Wallet {
+        private_key: private_key.wif.clone(),
+        address: address.address,
+        network: network.to_string(),
+    };
+
+    for _ in 0..count {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
+        } else {
+            println!(
+                "
+        Private Key:    {}
+        Address:        {}
+        ",
+                wallet.private_key, wallet.address
+            )
+        }
+    }
+}
+
+fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
+    let wallets = MoneroWalletBuilder::build_many_from_options(testnet, count);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
+    } else {
+        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    }
+}
+
+fn print_zcash_wallet(
     count: usize,
     testnet: bool,
-    format: &BitcoinFormat,
-    json: bool,
-) {
-    use bitcoin::Network;
+    format: &ZcashFormat,
+    json: bool) {
+    use zcash::Network;
 
     let network = match testnet {
         true => Network::Testnet,
         false => Network::Mainnet
     };
 
-    let private_key = BitcoinPrivateKey::new(network);
-    let address = BitcoinAddress::from_private_key(&private_key, Some((format.clone(), network)));
+    let private_key = ZcashPrivateKey::new(network);
+    let address = ZcashAddress::from_private_key(&private_key, Some((format.clone(), network)));
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
@@ -142,32 +236,5 @@ fn print_bitcoin_wallet(
                 wallet.compressed
             )
         }
-    }
-}
-
-fn print_ethereum_wallet(count: usize, json: bool) {
-    let wallets = EthereumWalletBuilder::build_many_from_options(count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
-    }
-}
-
-fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
-    let wallets = MoneroWalletBuilder::build_many_from_options(testnet, count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
-    }
-}
-
-fn print_zcash_wallet(count: usize, testnet: bool, compressed: bool, json: bool) {
-    let wallets = ZcashWalletBuilder::build_many_from_options(compressed, testnet, count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
     }
 }

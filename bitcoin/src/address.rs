@@ -10,28 +10,21 @@ use std::fmt;
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
-
     /// Pay-to-Pubkey Hash, e.g. 1NoZQSmjYHUZMbqLerwmT4xfe8A6mAo8TT
     P2PKH,
-
     /// SegWit Pay-to-Witness-Public-Key Hash, e.g. 34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53
     P2SH_P2WPKH,
-
 }
 
 /// Represents a Bitcoin address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinAddress {
-
     /// The Bitcoin address
     pub address: String,
-
     /// The format of the address
     pub format: Format,
-
     /// The network on which this address is usable
     pub network: Network,
-
 }
 
 impl Address for BitcoinAddress {

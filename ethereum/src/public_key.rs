@@ -1,40 +1,42 @@
-use address::{BitcoinAddress, Format};
-use model::{Address, PublicKey, bytes::{FromBytes, ToBytes}};
+use address::{EthereumAddress, Format};
+use model::{
+    //    bytes::{FromBytes, ToBytes},
+    Address,
+    PublicKey,
+};
 use network::Network;
-use private_key::BitcoinPrivateKey;
+use private_key::EthereumPrivateKey;
 
 use secp256k1;
+//use std::io::{Read, Result as IoResult, Write};
 use std::{fmt, fmt::Display};
-use std::io::{Read, Result as IoResult, Write};
 
-/// Represents a Bitcoin public key
+/// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BitcoinPublicKey {
+pub struct EthereumPublicKey {
     /// The ECDSA public key
     pub public_key: secp256k1::PublicKey,
-    /// If true, the public key is serialized in compressed form
-    pub compressed: bool,
 }
 
-impl PublicKey for BitcoinPublicKey {
-    type Address = BitcoinAddress;
-    type Format = (Format, Network);
-    type PrivateKey = BitcoinPrivateKey;
+impl PublicKey for EthereumPublicKey {
+    type Address = EthereumAddress;
+    type Format = Format;
+    type PrivateKey = EthereumPrivateKey;
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         let secp = secp256k1::Secp256k1::new();
         let public_key = secp256k1::PublicKey::from_secret_key(&secp, &private_key.secret_key);
-        Self { public_key, compressed: private_key.compressed }
+        Self { public_key }
     }
 
     /// Returns the address of the corresponding private key.
     fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
-        BitcoinAddress::from_public_key(self, format)
+        EthereumAddress::from_public_key(self, format)
     }
 }
 
-//impl FromBytes for BitcoinPublicKey {
+//impl FromBytes for EthereumPublicKey {
 //    #[inline]
 //    fn read<R: Read>(reader: R) -> IoResult<Self> {
 //        let mut f = reader;
@@ -53,7 +55,7 @@ impl PublicKey for BitcoinPublicKey {
 //    }
 //}
 //
-//impl ToBytes for BitcoinPublicKey {
+//impl ToBytes for EthereumPublicKey {
 //    #[inline]
 //    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
 //        let mut buf = Vec::new();
@@ -62,16 +64,10 @@ impl PublicKey for BitcoinPublicKey {
 //    }
 //}
 
-impl Display for BitcoinPublicKey {
+impl Display for EthereumPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.compressed {
-            for s in &self.public_key.serialize()[..] {
-                write!(f, "{:02x}", s)?;
-            }
-        } else {
-            for s in &self.public_key.serialize_uncompressed()[..] {
-                write!(f, "{:02x}", s)?;
-            }
+        for s in &self.public_key.serialize_uncompressed()[..] {
+            write!(f, "{:02x}", s)?;
         }
         Ok(())
     }

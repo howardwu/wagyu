@@ -2,7 +2,11 @@ use address::Address;
 use private_key::PrivateKey;
 use utilities::bytes::{FromBytes, ToBytes};
 
-use std::{fmt::{Debug, Display}, hash::Hash, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    str::FromStr,
+};
 
 /// The interface for a generic public key.
 pub trait PublicKey:
