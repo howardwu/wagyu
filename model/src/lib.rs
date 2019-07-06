@@ -11,9 +11,6 @@ extern crate sha2;
 pub mod address;
 pub use self::address::*;
 
-//pub mod network;
-//pub use self::network::*;
-
 pub mod private_key;
 pub use self::private_key::*;
 

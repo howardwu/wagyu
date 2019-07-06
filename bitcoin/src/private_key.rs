@@ -228,7 +228,6 @@ mod tests {
             (Network::Testnet, false) => first_character == '9',
             (Network::Mainnet, true) => first_character == 'L' || first_character == 'K',
             (Network::Testnet, true) => first_character == 'c',
-            _ => false,
         };
         assert!(is_valid_first_character);
         let from_wif =
