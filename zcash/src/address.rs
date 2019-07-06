@@ -37,7 +37,7 @@ impl Address for ZcashAddress{
     fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
         let public_key = private_key.to_public_key();
         match format {
-            Format::Transparent => Self::unshielded(&public_key, &private_key.network),
+            Format::Transparent => Self::transparent(&public_key, &private_key.network),
             Format::Shielded => Self::shielded(&public_key, &private_key.network),
         }
     }
@@ -49,15 +49,15 @@ impl Address for ZcashAddress{
         network: &Self::Network
     ) -> Self {
         match format {
-            Format::Transparent => Self::unshielded(public_key, &network),
+            Format::Transparent => Self::transparent(public_key, &network),
             Format::Shielded => Self::shielded(public_key, &network),
         }
     }
 }
 
 impl ZcashAddress {
-    /// Returns an unshielded address from a given Zcash public key
-    fn unshielded(public_key: &ZcashPublicKey, network: &Network) -> Self {
+    /// Returns a transparent address from a given Zcash public key
+    fn transparent(public_key: &ZcashPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
             true => public_key.public_key.serialize().to_vec(),
             false => public_key.public_key.serialize_uncompressed().to_vec()

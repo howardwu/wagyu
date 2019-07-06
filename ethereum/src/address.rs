@@ -1,5 +1,4 @@
 use model::{Address, PrivateKey, to_hex_string};
-use network::Network;
 use private_key::EthereumPrivateKey;
 use public_key::EthereumPublicKey;
 
@@ -8,12 +7,6 @@ use std::fmt;
 use std::marker::PhantomData;
 use tiny_keccak::keccak256;
 
-/// Represents the format of a Ethereum address
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Format {
-    /// Standard hex representation of an Ethereum address e.g "0xE9651749aA149fd5aa53c7352d3041284aa64986"
-    Standard,
-}
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]

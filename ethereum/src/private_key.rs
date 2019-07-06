@@ -1,4 +1,4 @@
-use address::{EthereumAddress, Format};
+use address::EthereumAddress;
 use model::{
     //    bytes::{FromBytes, ToBytes},
     //    crypto::checksum,
@@ -6,9 +6,8 @@ use model::{
     PrivateKey,
     PublicKey,
 };
-
-use network::Network;
 use public_key::EthereumPublicKey;
+
 use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;

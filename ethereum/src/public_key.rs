@@ -1,10 +1,9 @@
-use address::{EthereumAddress, Format};
+use address::EthereumAddress;
 use model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
     PublicKey,
 };
-use network::Network;
 use private_key::EthereumPrivateKey;
 
 use secp256k1;

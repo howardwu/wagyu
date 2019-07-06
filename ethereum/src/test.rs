@@ -1,4 +1,4 @@
-use address::{EthereumAddress, Format};
+use address::EthereumAddress;
 use model::address::Address;
 use model::private_key::PrivateKey;
 use model::public_key::PublicKey;
