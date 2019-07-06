@@ -12,6 +12,7 @@ pub trait Address:
     Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash
 {
     type Format;
+    type Network;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 
@@ -19,5 +20,9 @@ pub trait Address:
     fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self;
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>) -> Self;
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        format: Option<Self::Format>,
+        network: Option<Self::Network>
+    ) -> Self;
 }

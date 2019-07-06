@@ -10,10 +10,8 @@ use std::fmt;
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
-
     /// Transparent Zcash Address
     Transparent,
-
     /// Shielded Zcash Address
     Shielded,
 }
@@ -21,43 +19,49 @@ pub enum Format {
 /// Represents a Zcash t-address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashAddress {
-
     /// The Zcash address
     pub address: String,
-
     /// The format of the address
     pub format: Format,
-
     /// The network on which this address is usable
     pub network: Network,
 }
 
 impl Address for ZcashAddress{
-    type Format = (Format, Network);
+    type Format = Format;
+    type Network = Network;
     type PrivateKey = ZcashPrivateKey;
     type PublicKey = ZcashPublicKey;
 
     /// Returns the address corresponding to the given Zcash private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+        let public_key = private_key.to_public_key();
         match format {
-            Some((Format::Transparent, _)) => Self::unshielded(&private_key.to_public_key(), &private_key.network),
-            Some((Format::Shielded, _)) => Self::shielded(&private_key.to_public_key(), &private_key.network),
-            None => Self::unshielded(&private_key.to_public_key(), &private_key.network)
+            Some(Format::Transparent) => Self::unshielded(&public_key, &private_key.network),
+            Some(Format::Shielded) => Self::shielded(&public_key, &private_key.network),
+            None => Self::unshielded(&public_key, &private_key.network)
         }
     }
 
     /// Returns the address corresponding to the given Zcash public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>) -> Self {
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        format: Option<Self::Format>,
+        network: Option<Self::Network>
+    ) -> Self {
+        let network = match network {
+            Some(network) => network,
+            _ => Network::Mainnet,
+        };
         match format {
-            Some((Format::Transparent, network)) => Self::unshielded(public_key, &network),
-            Some((Format::Shielded, network)) => Self::shielded(public_key, &network),
+            Some(Format::Transparent) => Self::unshielded(public_key, &network),
+            Some(Format::Shielded) => Self::shielded(public_key, &network),
             None => Self::unshielded(public_key, &Network::Mainnet)
         }
     }
 }
 
 impl ZcashAddress {
-
     /// Returns an unshielded address from a given Zcash public key
     fn unshielded(public_key: &ZcashPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
@@ -109,14 +113,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key, &expected_address)| {
             let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-            let address = ZcashAddress::from_private_key(&private_key, Some((Format::Transparent, private_key.network)));
+            let address = ZcashAddress::from_private_key(&private_key, Some(Format::Transparent));
             assert_eq!(address.address, expected_address);
         });
     }
 
     fn test_private_key_wif(private_key: &str, expected_address: &str) {
         let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-        let address = ZcashAddress::from_private_key(&private_key, Some((Format::Transparent, private_key.network)));
+        let address = ZcashAddress::from_private_key(&private_key, Some(Format::Transparent));
         assert_eq!(address.address, expected_address);
     }
 

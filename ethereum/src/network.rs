@@ -6,7 +6,6 @@ use std::fmt;
 pub enum Network {
     Mainnet,
     Testnet,
-    Error,
 }
 
 impl fmt::Display for Network {
@@ -14,7 +13,6 @@ impl fmt::Display for Network {
         match *self {
             Network::Mainnet => write!(f, "Mainnet"),
             Network::Testnet => write!(f, "Testnet"),
-            _ => write!(f, "Error"),
         }
     }
 }

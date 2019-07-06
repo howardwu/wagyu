@@ -25,8 +25,5 @@ pub use self::private_key::*;
 pub mod public_key;
 pub use self::public_key::*;
 
-pub mod utils;
-pub use self::utils::*;
-
 #[cfg(test)]
 mod test;

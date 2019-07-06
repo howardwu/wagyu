@@ -21,6 +21,7 @@ pub struct EthereumPublicKey {
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
     type Format = Format;
+    type Network = Network;
     type PrivateKey = EthereumPrivateKey;
 
     /// Returns the address corresponding to the given public key.
@@ -31,8 +32,8 @@ impl PublicKey for EthereumPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
-        EthereumAddress::from_public_key(self, format)
+    fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address {
+        EthereumAddress::from_public_key(self, format, network)
     }
 }
 
