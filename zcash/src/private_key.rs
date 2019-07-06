@@ -30,12 +30,12 @@ impl PrivateKey for ZcashPrivateKey {
     type Network = Network;
     type PublicKey = ZcashPublicKey;
 
-    /// Randomly generates a new compressed private key
+    /// Returns a randomly-generated compressed Zcash private key.
      fn new(network: &Network) -> Self {
         Self::build(network, true)
     }
 
-    /// Returns the Secp256k1 PublicKey generated from this PrivateKey
+    /// Returns the public key of the corresponding Zcash private key.
      fn to_public_key(&self) -> Self::PublicKey {
         ZcashPublicKey::from_private_key(self)
     }
@@ -54,7 +54,7 @@ impl ZcashPrivateKey {
         Self { secret_key, wif, network: *network, compressed}
     }
 
-    /// Returns a Result which holds either the PrivateKey corresponding to `wif` or an error
+    /// Returns either a Zcash private key struct or errors.
     pub fn from_wif(wif: &str) -> Result<Self, &'static str> {
         let data = wif.from_base58().expect("Error decoding base58 wif");
         let len = data.len();
@@ -124,10 +124,10 @@ impl Display for ZcashPrivateKey {
 
 #[cfg(test)]
 mod tests {
+    extern crate hex;
+
     use super::*;
     use secp256k1::Message;
-
-    extern crate hex;
 
     fn test_from_wif(wif: &str, secret_key_string: &str) {
         let private_key = ZcashPrivateKey::from_wif(wif).expect("Error deriving private key from wif");
