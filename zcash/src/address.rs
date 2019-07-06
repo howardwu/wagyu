@@ -1,5 +1,5 @@
 use model::{Address, crypto::{checksum, hash160}, PrivateKey};
-use network::{Network, MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
+use network::Network;
 use private_key::ZcashPrivateKey;
 use public_key::ZcashPublicKey;
 
@@ -34,67 +34,51 @@ impl Address for ZcashAddress{
     type PublicKey = ZcashPublicKey;
 
     /// Returns the address corresponding to the given Zcash private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
         let public_key = private_key.to_public_key();
         match format {
-            Some(Format::Transparent) => Self::unshielded(&public_key, &private_key.network),
-            Some(Format::Shielded) => Self::shielded(&public_key, &private_key.network),
-            None => Self::unshielded(&public_key, &private_key.network)
+            Format::Transparent => Self::transparent(&public_key, &private_key.network),
+            Format::Shielded => Self::shielded(&public_key, &private_key.network),
         }
     }
 
     /// Returns the address corresponding to the given Zcash public key.
     fn from_public_key(
         public_key: &Self::PublicKey,
-        format: Option<Self::Format>,
-        network: Option<Self::Network>
+        format: &Self::Format,
+        network: &Self::Network
     ) -> Self {
-        let network = match network {
-            Some(network) => network,
-            _ => Network::Mainnet,
-        };
         match format {
-            Some(Format::Transparent) => Self::unshielded(public_key, &network),
-            Some(Format::Shielded) => Self::shielded(public_key, &network),
-            None => Self::unshielded(public_key, &Network::Mainnet)
+            Format::Transparent => Self::transparent(public_key, &network),
+            Format::Shielded => Self::shielded(public_key, &network),
         }
     }
 }
 
 impl ZcashAddress {
-    /// Returns an unshielded address from a given Zcash public key
-    fn unshielded(public_key: &ZcashPublicKey, network: &Network) -> Self {
+    /// Returns a transparent address from a given Zcash public key
+    pub fn transparent(public_key: &ZcashPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
             true => public_key.public_key.serialize().to_vec(),
             false => public_key.public_key.serialize_uncompressed().to_vec()
         };
 
-        let network_bytes = match network {
-            Network::Mainnet => MAINNET_ADDRESS_BYTES,
-            Network::Testnet => TESTNET_ADDRESS_BYTES,
-            _ => MAINNET_ADDRESS_BYTES,
-        };
+        let mut address = [0u8; 26];
+        address[0..2].copy_from_slice(&network.to_address_prefix());
+        address[2..22].copy_from_slice(&hash160(&public_key));
 
-        let mut address_bytes = [0u8; 26];
-        let ripemd160_hash = hash160(&public_key); // Ripemd160 Hash
-
-
-        address_bytes[0] = network_bytes[0];
-        address_bytes[1] = network_bytes[1];
-        address_bytes[2..22].copy_from_slice(&ripemd160_hash);
-
-        let checksum_bytes = checksum(&address_bytes[0..22]); // Calculate Checksum
-        address_bytes[22..26].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
+        let sum = &checksum(&address[0..22])[0..4];
+        address[22..26].copy_from_slice(sum);
 
         Self {
-            address: address_bytes.to_base58(),
+            address: address.to_base58(),
             format: Format::Transparent,
             network: network.clone(),
         }
     }
 
     /// TODO Returns a shielded address from a given Zcash public key
-    fn shielded(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
+    pub fn shielded(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
         panic!("shieled addresses not implemented");
     }
 }
@@ -113,14 +97,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key, &expected_address)| {
             let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-            let address = ZcashAddress::from_private_key(&private_key, Some(Format::Transparent));
+            let address = ZcashAddress::from_private_key(&private_key, &Format::Transparent);
             assert_eq!(address.address, expected_address);
         });
     }
 
     fn test_private_key_wif(private_key: &str, expected_address: &str) {
         let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-        let address = ZcashAddress::from_private_key(&private_key, Some(Format::Transparent));
+        let address = ZcashAddress::from_private_key(&private_key, &Format::Transparent);
         assert_eq!(address.address, expected_address);
     }
 

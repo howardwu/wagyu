@@ -1,18 +1,12 @@
 use model::{Address, PrivateKey, to_hex_string};
-use network::Network;
 use private_key::EthereumPrivateKey;
 use public_key::EthereumPublicKey;
 
 use serde::Serialize;
 use std::fmt;
+use std::marker::PhantomData;
 use tiny_keccak::keccak256;
 
-/// Represents the format of a Ethereum address
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Format {
-    /// Standard hex representation of an Ethereum address e.g "0xE9651749aA149fd5aa53c7352d3041284aa64986"
-    Standard,
-}
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
@@ -21,24 +15,23 @@ pub struct EthereumAddress {
 }
 
 impl Address for EthereumAddress {
-    type Format = Format;
-    type Network = Network;
+    type Format = PhantomData<u8>;
+    type Network = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
-        Self::from_public_key(&private_key.to_public_key(), format, None)
+    fn from_private_key(private_key: &Self::PrivateKey, _: &Self::Format) -> Self {
+        Self::from_public_key(&private_key.to_public_key(), &PhantomData, &PhantomData)
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _: Option<Self::Format>, _: Option<Self::Network>) -> Self {
+    fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format, _: &Self::Network) -> Self {
         Self::checksum_address(public_key)
     }
 }
 
 impl EthereumAddress {
-
     /// Returns the checksum address given a public key.
     /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
     pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {

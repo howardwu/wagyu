@@ -17,12 +17,12 @@ pub trait Address:
     type PublicKey: PublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self;
+    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self;
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(
         public_key: &Self::PublicKey,
-        format: Option<Self::Format>,
-        network: Option<Self::Network>
+        format: &Self::Format,
+        network: &Self::Network
     ) -> Self;
 }

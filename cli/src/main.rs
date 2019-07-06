@@ -21,17 +21,16 @@ extern crate monero;
 extern crate zcash;
 
 use bitcoin::address::Format as BitcoinFormat;
-use bitcoin::{BitcoinAddress, BitcoinPrivateKey};
-use ethereum::address::Format as EthereumFormat;
+use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
-
-use zcash::address::Format as ZcashFormat;
-use zcash::{ZcashAddress, ZcashPrivateKey};
-
 use model::{Address, PrivateKey};
+use monero::builder::WalletBuilder as MoneroWalletBuilder;
+use zcash::address::Format as ZcashFormat;
+use zcash::{ZcashAddress, ZcashPrivateKey, Network as ZcashNetwork};
 
 use clap::{App, Arg};
 use serde::Serialize;
+use std::marker::PhantomData;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
@@ -100,15 +99,13 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
 }
 
 fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, json: bool) {
-    use bitcoin::Network;
-
     let network = match testnet {
-        true => Network::Testnet,
-        false => Network::Mainnet,
+        true => BitcoinNetwork::Testnet,
+        false => BitcoinNetwork::Mainnet,
     };
 
-    let private_key = BitcoinPrivateKey::new(network);
-    let address = BitcoinAddress::from_private_key(&private_key, Some(format.clone()));
+    let private_key = BitcoinPrivateKey::new(&network);
+    let address = BitcoinAddress::from_private_key(&private_key, &format);
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
@@ -143,24 +140,18 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
 }
 
 fn print_ethereum_wallet(count: usize, json: bool) {
-    use ethereum::Network;
-
-    let network = Network::Mainnet;
-    let format = EthereumFormat::Standard;
-    let private_key = EthereumPrivateKey::new(network);
-    let address = EthereumAddress::from_private_key(&private_key, Some(format));
+    let private_key = EthereumPrivateKey::new(&PhantomData);
+    let address = EthereumAddress::from_private_key(&private_key, &PhantomData);
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
         address: String,
-        network: String,
     };
 
     let wallet = Wallet {
         private_key: private_key.wif.clone(),
         address: address.address,
-        network: network.to_string(),
     };
 
     for _ in 0..count {
@@ -187,20 +178,14 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
     }
 }
 
-fn print_zcash_wallet(
-    count: usize,
-    testnet: bool,
-    format: &ZcashFormat,
-    json: bool) {
-    use zcash::Network;
-
+fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: bool) {
     let network = match testnet {
-        true => Network::Testnet,
-        false => Network::Mainnet
+        true => ZcashNetwork::Testnet,
+        false => ZcashNetwork::Mainnet
     };
 
-    let private_key = ZcashPrivateKey::new(network);
-    let address = ZcashAddress::from_private_key(&private_key, Some(format.clone()));
+    let private_key = ZcashPrivateKey::new(&network);
+    let address = ZcashAddress::from_private_key(&private_key, &format);
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {

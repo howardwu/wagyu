@@ -25,11 +25,11 @@ pub trait PrivateKey:
     type PublicKey: PublicKey;
 
     /// Returns a randomly-generated private key.
-    fn new(network: Self::Network) -> Self;
+    fn new(network: &Self::Network) -> Self;
 
     /// Returns the public key of the corresponding private key.
     fn to_public_key(&self) -> Self::PublicKey;
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address;
+    fn to_address(&self, format: &Self::Format) -> Self::Address;
 }

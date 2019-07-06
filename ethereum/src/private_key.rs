@@ -1,4 +1,4 @@
-use address::{EthereumAddress, Format};
+use address::EthereumAddress;
 use model::{
     //    bytes::{FromBytes, ToBytes},
     //    crypto::checksum,
@@ -6,16 +6,16 @@ use model::{
     PrivateKey,
     PublicKey,
 };
-
-use network::Network;
 use public_key::EthereumPublicKey;
+
 use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
 use secp256k1::Secp256k1;
 //use std::io::{Read, Result as IoResult, Write};
-use std::str::FromStr;
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
+use std::str::FromStr;
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,12 +29,12 @@ pub struct EthereumPrivateKey {
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
-    type Format = Format;
-    type Network = Network;
+    type Format = PhantomData<u8>;
+    type Network = PhantomData<u8>;
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
-    fn new(_network: Self::Network) -> Self {
+    fn new(_network: &Self::Network) -> Self {
         Self::build()
     }
 
@@ -44,8 +44,8 @@ impl PrivateKey for EthereumPrivateKey {
     }
 
     /// Returns the address of the corresponding Ethereum private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
-        EthereumAddress::from_private_key(self, format)
+    fn to_address(&self, _: &Self::Format) -> Self::Address {
+        EthereumAddress::from_private_key(self, &PhantomData)
     }
 }
 
@@ -58,29 +58,24 @@ impl EthereumPrivateKey {
 
     /// Returns either a Ethereum private key struct or errors.
     pub fn from_wif(wif: &str) -> Result<Self, &'static str> {
-        let secp = Secp256k1::new();
-        let secret_key_bytes = hex::decode(wif).expect("Error decoding wif (invalid hex string)");
-        let secret_key = secp256k1::SecretKey::from_slice(&secp, &secret_key_bytes)
+        let secret_key = hex::decode(wif).expect("Error decoding wif (invalid hex string)");
+        let secret_key = secp256k1::SecretKey::from_slice(&Secp256k1::new(), &secret_key)
             .expect("Error converting byte slice to secret key");
-        let wif_string = String::from(wif);
-        Ok(Self { wif: wif_string, secret_key })
+        Ok(Self { wif: wif.into(), secret_key })
     }
 
     /// Returns a randomly-generated Ethereum private key.
     fn build() -> Self {
-        let secret_key = Self::generate_secret_key();
+        let secret_key = Self::random_secret_key();
         let wif = Self::secret_key_to_wif(&secret_key);
         Self { secret_key, wif }
     }
 
     /// Returns a randomly-generated secp256k1 secret key.
-    fn generate_secret_key() -> secp256k1::SecretKey {
-        let secp = Secp256k1::new();
-        let mut rand_bytes = [0u8; 32];
-        OsRng
-            .try_fill(&mut rand_bytes)
-            .expect("Error generating random bytes for private key");
-        secp256k1::SecretKey::from_slice(&secp, &rand_bytes)
+    fn random_secret_key() -> secp256k1::SecretKey {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
+        secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)
             .expect("Error creating secret key from byte slice")
     }
 
@@ -93,9 +88,9 @@ impl EthereumPrivateKey {
 }
 
 impl Default for EthereumPrivateKey {
-    /// Returns a randomly-generated mainnet Ethereum private key.
+    /// Returns a randomly-generated Ethereum private key.
     fn default() -> Self {
-        Self::new(Network::Mainnet)
+        Self::new(&PhantomData)
     }
 }
 
