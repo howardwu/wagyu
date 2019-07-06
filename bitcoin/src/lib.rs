@@ -5,7 +5,6 @@
 #![forbid(unsafe_code)]
 
 extern crate base58;
-extern crate hex;
 extern crate rand;
 extern crate ripemd160;
 extern crate secp256k1;

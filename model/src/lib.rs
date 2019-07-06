@@ -7,7 +7,6 @@
 extern crate byteorder;
 extern crate ripemd160;
 extern crate sha2;
-extern crate hex;
 
 pub mod address;
 pub use self::address::*;

@@ -169,9 +169,10 @@ impl Display for BitcoinPrivateKey {
 
 #[cfg(test)]
 mod tests {
+    extern crate hex;
+
     use super::*;
     use secp256k1::{ Message, SecretKey };
-    extern crate hex;
 
     fn get_secret_key_from_string(secret_key_string: &str) -> SecretKey{
         let secp = Secp256k1::without_caps();

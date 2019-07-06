@@ -17,9 +17,11 @@ license = "GPL-3.0"
 
 [dependencies]
 byteorder = { version = "1" }
-hex = { version = "0.3.2" }
 ripemd160 = { version = "0.7" }
 sha2 = { version = "0.7" }
+
+[dev-dependencies]
+hex = { version = "0.3.2" }
 
 [badges]
 travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
