@@ -7,11 +7,12 @@ use private_key::MoneroPrivateKey;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroPublicKey {
 
+    /// The public spending key
+    pub public_spend_key: [u8; 32],
+    
     /// The public viewing key
     pub public_view_key: [u8; 32],
 
-    /// The public spending key
-    pub public_spend_key: [u8; 32],
 }
 
 impl PublicKey for MoneroPublicKey {
