@@ -43,7 +43,6 @@ impl Address for BitcoinAddress {
     }
 
     /// Returns the address corresponding to the given Bitcoin public key.
-    /// Defaults to mainnet if no network is specified.
     fn from_public_key(
         public_key: &Self::PublicKey,
         format: &Self::Format,
