@@ -16,10 +16,8 @@ use tiny_keccak::keccak256;
 pub struct MoneroPrivateKey {
     /// The private spending key
     pub private_spend_key: [u8; 32],
-
     /// The private viewing key
     pub private_view_key: [u8; 32],
-
     /// The network of the private key
     pub network: Network,
 }
