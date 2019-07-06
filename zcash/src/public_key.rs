@@ -29,7 +29,7 @@ impl PublicKey for ZcashPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address {
+    fn to_address(&self, format: &Self::Format, network: &Self::Network) -> Self::Address {
         ZcashAddress::from_public_key(self, format, network)
     }
 }

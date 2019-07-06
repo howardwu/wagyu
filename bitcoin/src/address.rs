@@ -34,12 +34,11 @@ impl Address for BitcoinAddress {
     type PublicKey = BitcoinPublicKey;
 
     /// Returns the address corresponding to the given Bitcoin private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
         let public_key = private_key.to_public_key();
         match format {
-            Some(Format::P2PKH) => Self::p2pkh(&public_key, &private_key.network),
-            Some(Format::P2SH_P2WPKH) => Self::p2sh_p2wpkh(&public_key, &private_key.network),
-            None => Self::p2pkh(&public_key, &private_key.network)
+            Format::P2PKH => Self::p2pkh(&public_key, &private_key.network),
+            Format::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key, &private_key.network),
         }
     }
 
@@ -47,23 +46,17 @@ impl Address for BitcoinAddress {
     /// Defaults to mainnet if no network is specified.
     fn from_public_key(
         public_key: &Self::PublicKey,
-        format: Option<Self::Format>,
-        network: Option<Self::Network>
+        format: &Self::Format,
+        network: &Self::Network
     ) -> Self {
-        let network = match network {
-            Some(network) => network,
-            _ => Network::Mainnet,
-        };
         match format {
-            Some(Format::P2PKH) => Self::p2pkh(public_key, &network),
-            Some(Format::P2SH_P2WPKH) => Self::p2sh_p2wpkh(public_key, &network),
-            None => Self::p2pkh(public_key, &Network::Mainnet)
+            Format::P2PKH => Self::p2pkh(public_key, &network),
+            Format::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key, &network),
         }
     }
 }
 
 impl BitcoinAddress {
-
     /// Returns a P2PKH address from a given Bitcoin public key.
     fn p2pkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
@@ -131,14 +124,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key, &expected_address)| {
             let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-            let address = BitcoinAddress::from_private_key(&private_key, Some(Format::P2PKH));
+            let address = BitcoinAddress::from_private_key(&private_key, &Format::P2PKH);
             assert_eq!(expected_address, address.address);
         });
     }
 
     fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
         let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-        let address = BitcoinAddress::from_private_key(&private_key, Some(Format::P2SH_P2WPKH));
+        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2SH_P2WPKH);
         println!("{}, {}", address, expected_address);
         assert_eq!(expected_address, address.address);
     }

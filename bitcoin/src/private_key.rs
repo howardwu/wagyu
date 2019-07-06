@@ -32,7 +32,7 @@ impl PrivateKey for BitcoinPrivateKey {
     type PublicKey = BitcoinPublicKey;
 
     /// Returns a randomly-generated compressed Bitcoin private key.
-    fn new(network: Self::Network) -> Self {
+    fn new(network: &Self::Network) -> Self {
         Self::build(network, true)
     }
 
@@ -42,7 +42,7 @@ impl PrivateKey for BitcoinPrivateKey {
     }
 
     /// Returns the address of the corresponding Bitcoin private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Self::Address {
         BitcoinAddress::from_private_key(self, format)
     }
 }
@@ -50,10 +50,10 @@ impl PrivateKey for BitcoinPrivateKey {
 impl BitcoinPrivateKey {
 
     /// Returns a private key given a secp256k1 secret key
-    pub fn from_secret_key(secret_key: secp256k1::SecretKey, network: Network) -> Self {
+    pub fn from_secret_key(secret_key: secp256k1::SecretKey, network: &Network) -> Self {
         let compressed = secret_key.len() == 65;
         let wif = Self::secret_key_to_wif(&secret_key, &network, compressed);
-        Self { secret_key, wif, network, compressed }
+        Self { secret_key, wif, network: *network, compressed }
     }
 
     /// Returns either a Bitcoin private key struct or errors.
@@ -90,10 +90,10 @@ impl BitcoinPrivateKey {
     }
 
     /// Returns a randomly-generated Bitcoin private key.
-    fn build(network: Network, compressed: bool) -> Self {
+    fn build(network: &Network, compressed: bool) -> Self {
         let secret_key = Self::generate_secret_key();
-        let wif = Self::secret_key_to_wif(&secret_key, &network, compressed);
-        Self { secret_key, wif, network, compressed }
+        let wif = Self::secret_key_to_wif(&secret_key, network, compressed);
+        Self { secret_key, wif, network: *network, compressed }
     }
 
     /// Returns a randomly-generated secp256k1 secret key.
@@ -109,9 +109,9 @@ impl BitcoinPrivateKey {
     /// Returns a WIF string given a secp256k1 secret key.
     fn secret_key_to_wif(secret_key: &secp256k1::SecretKey, network: &Network, compressed: bool) -> String {
         let mut wif = [0u8; 38];
-        wif[0] = match network { // Prepend network byte
+        wif[0] = match network {
+            Network::Mainnet => MAINNET_BYTE,
             Network::Testnet => TESTNET_BYTE,
-            _ => MAINNET_BYTE,
         };
         wif[1..33].copy_from_slice(&secret_key[..]);
 
@@ -131,7 +131,7 @@ impl BitcoinPrivateKey {
 impl Default for BitcoinPrivateKey {
     /// Returns a randomly-generated mainnet Bitcoin private key.
     fn default() -> Self {
-        Self::new(Network::Mainnet)
+        Self::new(&Network::Mainnet)
     }
 }
 
@@ -183,14 +183,14 @@ mod tests {
             .expect("Error deriving secret key from hex string")
     }
 
-    fn test_to_public_key(secret_key_string: &str, expected_public_key: &str, network: Network) {
+    fn test_to_public_key(secret_key_string: &str, expected_public_key: &str, network: &Network) {
         let secret_key = get_secret_key_from_string(secret_key_string);
         let private_key = BitcoinPrivateKey::from_secret_key(secret_key, network);
         let public_key = private_key.to_public_key();
         assert_eq!(public_key.to_string(), expected_public_key);
     }
 
-    fn test_from_secret_key(secret_key_string: &str, expected_wif: &str, network: Network) {
+    fn test_from_secret_key(secret_key_string: &str, expected_wif: &str, network: &Network) {
         let secret_key = get_secret_key_from_string(secret_key_string);
         let private_key = BitcoinPrivateKey::from_secret_key(secret_key, network);
         assert_eq!(private_key.wif, expected_wif);
@@ -206,7 +206,7 @@ mod tests {
         assert_eq!(private_key.secret_key, secret_key);
     }
 
-    fn test_to_wif(secret_key_string: &str, wif: &str, network: Network) {
+    fn test_to_wif(secret_key_string: &str, wif: &str, network: &Network) {
         let secp = Secp256k1::without_caps();
         let secret_key_as_bytes =
             hex::decode(secret_key_string).expect("Error decoding secret key from hex string");
@@ -238,25 +238,25 @@ mod tests {
 
     #[test]
     fn test_new_mainnet() {
-        let private_key = BitcoinPrivateKey::new(Network::Mainnet);
+        let private_key = BitcoinPrivateKey::new(&Network::Mainnet);
         test_new(private_key);
     }
 
     #[test]
     fn test_new_testnet() {
-        let private_key = BitcoinPrivateKey::new(Network::Testnet);
+        let private_key = BitcoinPrivateKey::new(&Network::Testnet);
         test_new(private_key);
     }
 
     #[test]
     fn test_new_compressed_mainnet() {
-        let private_key = BitcoinPrivateKey::new(Network::Mainnet);
+        let private_key = BitcoinPrivateKey::new(&Network::Mainnet);
         test_new(private_key);
     }
 
     #[test]
     fn test_new_compressed_testnet() {
-        let private_key = BitcoinPrivateKey::new(Network::Testnet);
+        let private_key = BitcoinPrivateKey::new(&Network::Testnet);
         test_new(private_key);
     }
 
@@ -299,7 +299,7 @@ mod tests {
         test_to_wif(
             "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
             "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
-            Network::Mainnet,
+            &Network::Mainnet,
         )
     }
 
@@ -308,7 +308,7 @@ mod tests {
         test_to_wif(
             "37EE08B51CB5932276DB785C8E23CC0FDC99A2923C7ECA43A6D3FD26D94EBD44",
             "921YpFFoB1UN7tud1vne5hTrijX423MexQxYn6dmeHB25xT8c2s",
-            Network::Testnet,
+            &Network::Testnet,
         )
     }
 
@@ -317,7 +317,7 @@ mod tests {
         test_to_public_key(
             "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
             "04d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645cd85228a6fb29940e858e7e55842ae2bd115d1ed7cc0e82d934e929c97648cb0a",
-            Network::Mainnet
+            &Network::Mainnet
         )
     }
 
@@ -326,14 +326,14 @@ mod tests {
         test_to_public_key(
             "c36fcf36a3a80e54e046313e8d4eff4a62addc309702cee016706e3280972355",
             "041db76245e286074dc2e7f0dd7227d6ea64a26b5a655b73477db8152ea7d5b71cd645fe3aeabd7b709850870d0bfd88e72f8152a4006c73183fa3ec2dc235890c",
-            Network::Testnet
+            &Network::Testnet
         )
     }
 
     #[test]
     fn test_to_public_key_secp() {
         let secp = Secp256k1::new();
-        let private_key = BitcoinPrivateKey::new(Network::Mainnet);
+        let private_key = BitcoinPrivateKey::new(&Network::Mainnet);
         let public_key = private_key.to_public_key().public_key;
         let message = Message::from_slice(&[0xab; 32]).expect("32 bytes");
 
@@ -346,7 +346,7 @@ mod tests {
         test_from_secret_key(
             "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
             "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
-            Network::Mainnet
+            &Network::Mainnet
         )
     }
 
@@ -355,7 +355,7 @@ mod tests {
         test_from_secret_key(
             "37EE08B51CB5932276DB785C8E23CC0FDC99A2923C7ECA43A6D3FD26D94EBD44",
             "921YpFFoB1UN7tud1vne5hTrijX423MexQxYn6dmeHB25xT8c2s",
-            Network::Testnet
+            &Network::Testnet
         )
     }
 
@@ -365,7 +365,7 @@ mod tests {
         test_from_secret_key(
             "!@#$%^&*",
             "",
-            Network::Mainnet
+            &Network::Mainnet
         )
     }
 
@@ -375,7 +375,7 @@ mod tests {
         test_from_secret_key(
             "C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
             "",
-            Network::Mainnet
+            &Network::Mainnet
         )
     }
 }

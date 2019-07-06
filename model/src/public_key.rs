@@ -32,5 +32,5 @@ pub trait PublicKey:
     fn from_private_key(private_key: &Self::PrivateKey) -> Self;
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address;
+    fn to_address(&self, format: &Self::Format, network: &Self::Network) -> Self::Address;
 }

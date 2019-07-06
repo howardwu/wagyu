@@ -29,12 +29,12 @@ pub struct EthereumPrivateKey {
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
-    type Format = Format;
-    type Network = Network;
+    type Format = Option<Format>;
+    type Network = Option<Network>;
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
-    fn new(_network: Self::Network) -> Self {
+    fn new(_network: &Self::Network) -> Self {
         Self::build()
     }
 
@@ -44,7 +44,7 @@ impl PrivateKey for EthereumPrivateKey {
     }
 
     /// Returns the address of the corresponding Ethereum private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Self::Address {
         EthereumAddress::from_private_key(self, format)
     }
 }
@@ -93,9 +93,9 @@ impl EthereumPrivateKey {
 }
 
 impl Default for EthereumPrivateKey {
-    /// Returns a randomly-generated mainnet Ethereum private key.
+    /// Returns a randomly-generated Ethereum private key.
     fn default() -> Self {
-        Self::new(Network::Mainnet)
+        Self::new(&None)
     }
 }
 

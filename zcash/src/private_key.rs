@@ -31,7 +31,7 @@ impl PrivateKey for ZcashPrivateKey {
     type PublicKey = ZcashPublicKey;
 
     /// Randomly generates a new compressed private key
-     fn new(network: Network) -> Self {
+     fn new(network: &Network) -> Self {
         Self::build(network, true)
     }
 
@@ -41,18 +41,18 @@ impl PrivateKey for ZcashPrivateKey {
     }
 
     /// Returns the address of the corresponding Zcash private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Self::Address {
         ZcashAddress::from_private_key(self, format)
     }
 }
 
 impl ZcashPrivateKey {
     /// Returns a private key given a secp256k1 secret key
-    pub fn from_secret_key(secret_key: secp256k1::SecretKey, network: Network) -> Self {
+    pub fn from_secret_key(secret_key: secp256k1::SecretKey, network: &Network) -> Self {
         let compressed = secret_key.len() == 65;
-        let wif = Self::secret_key_to_wif(&secret_key, &network, compressed);
+        let wif = Self::secret_key_to_wif(&secret_key, network, compressed);
 
-        Self { secret_key, wif, network, compressed}
+        Self { secret_key, wif, network: *network, compressed}
     }
 
     /// Returns a Result which holds either the PrivateKey corresponding to `wif` or an error
@@ -63,14 +63,14 @@ impl ZcashPrivateKey {
         let network = match wif_bytes[0] {
             MAINNET_BYTE => Network::Mainnet,
             TESTNET_BYTE=> Network::Testnet,
-            _ => Network::Error,
+            _ => return Err("Invalid wif")
         };
 
         let wif_bytes_to_hash = &wif_bytes[0..wif_length - 4];
         let expected_checksum = &wif_bytes[wif_length - 4..];
         let is_valid_checksum = checksum(wif_bytes_to_hash)[0..4] == expected_checksum[0..4];
 
-        match is_valid_checksum && network != Network::Error {
+        match is_valid_checksum {
             true => {
                 let secp = Secp256k1::without_caps();
                 let secret_key = secp256k1::SecretKey::from_slice(&secp, &wif_bytes[1..33])
@@ -89,10 +89,10 @@ impl ZcashPrivateKey {
     }
 
     /// Returns a randomly-generated Zcash private key.
-    fn build(network: Network, compressed: bool) -> Self {
+    fn build(network: &Network, compressed: bool) -> Self {
         let secret_key = Self::generate_secret_key();
-        let wif = Self::secret_key_to_wif(&secret_key, &network, compressed);
-        Self { secret_key, wif, network, compressed }
+        let wif = Self::secret_key_to_wif(&secret_key, network, compressed);
+        Self { secret_key, wif, network: *network, compressed }
     }
 
     /// Returns a randomly-generated a secp256k1 secret key.
@@ -105,15 +105,12 @@ impl ZcashPrivateKey {
             .expect("Error creating secret key from byte slice")
     }
 
-
-
-    /// Convert Secp256k1 SecretKey to PrivateKey WIF String
+    /// Returns a WIF string given a secp256k1 secret key.
     fn secret_key_to_wif(secret_key: &secp256k1::SecretKey, network: &Network, compressed: bool) -> String {
         let mut wif = [0u8; 38];
         wif[0] = match network {
-            // Prepend network byte
+            Network::Mainnet => MAINNET_BYTE,
             Network::Testnet => TESTNET_BYTE,
-            _ => MAINNET_BYTE,
         };
         wif[1..33].copy_from_slice(&secret_key[..]);
 
@@ -132,7 +129,7 @@ impl ZcashPrivateKey {
 
 impl Default for ZcashPrivateKey {
     /// Returns a randomly-generated mainnet Zcash private key.
-    fn default() -> Self { Self::new(Network::Mainnet) }
+    fn default() -> Self { Self::new(&Network::Mainnet) }
 }
 
 impl FromStr for ZcashPrivateKey {
@@ -161,7 +158,7 @@ mod tests {
         assert_eq!(private_key.secret_key, secret_key);
     }
 
-    fn test_to_wif(secret_key_string: &str, wif: &str, network: Network) {
+    fn test_to_wif(secret_key_string: &str, wif: &str, network: &Network) {
         let secp = Secp256k1::without_caps();
         let secret_key_as_bytes =
             hex::decode(secret_key_string).expect("Error decoding secret key from hex string");
@@ -194,7 +191,7 @@ mod tests {
     #[test]
     fn test_to_public_key() {
         let secp = Secp256k1::new();
-        let private_key = ZcashPrivateKey::new(Network::Mainnet);
+        let private_key = ZcashPrivateKey::new(&Network::Mainnet);
         let public_key = private_key.to_public_key();
         let message = Message::from_slice(&[0xab; 32]).expect("32 bytes");
 
@@ -204,13 +201,13 @@ mod tests {
 
     #[test]
     fn test_new_mainnet() {
-        let private_key = ZcashPrivateKey::new(Network::Mainnet);
+        let private_key = ZcashPrivateKey::new(&Network::Mainnet);
         test_new(private_key);
     }
 
     #[test]
     fn test_new_testnet() {
-        let private_key = ZcashPrivateKey::new(Network::Testnet);
+        let private_key = ZcashPrivateKey::new(&Network::Testnet);
         test_new(private_key);
     }
 
@@ -247,7 +244,7 @@ mod tests {
         test_to_wif(
             "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
             "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
-            Network::Mainnet,
+            &Network::Mainnet,
         )
     }
 
@@ -256,7 +253,7 @@ mod tests {
         test_to_wif(
             "37EE08B51CB5932276DB785C8E23CC0FDC99A2923C7ECA43A6D3FD26D94EBD44",
             "921YpFFoB1UN7tud1vne5hTrijX423MexQxYn6dmeHB25xT8c2s",
-            Network::Testnet,
+            &Network::Testnet,
         )
     }
 }

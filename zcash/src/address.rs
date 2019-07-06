@@ -34,29 +34,23 @@ impl Address for ZcashAddress{
     type PublicKey = ZcashPublicKey;
 
     /// Returns the address corresponding to the given Zcash private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
         let public_key = private_key.to_public_key();
         match format {
-            Some(Format::Transparent) => Self::unshielded(&public_key, &private_key.network),
-            Some(Format::Shielded) => Self::shielded(&public_key, &private_key.network),
-            None => Self::unshielded(&public_key, &private_key.network)
+            Format::Transparent => Self::unshielded(&public_key, &private_key.network),
+            Format::Shielded => Self::shielded(&public_key, &private_key.network),
         }
     }
 
     /// Returns the address corresponding to the given Zcash public key.
     fn from_public_key(
         public_key: &Self::PublicKey,
-        format: Option<Self::Format>,
-        network: Option<Self::Network>
+        format: &Self::Format,
+        network: &Self::Network
     ) -> Self {
-        let network = match network {
-            Some(network) => network,
-            _ => Network::Mainnet,
-        };
         match format {
-            Some(Format::Transparent) => Self::unshielded(public_key, &network),
-            Some(Format::Shielded) => Self::shielded(public_key, &network),
-            None => Self::unshielded(public_key, &Network::Mainnet)
+            Format::Transparent => Self::unshielded(public_key, &network),
+            Format::Shielded => Self::shielded(public_key, &network),
         }
     }
 }
@@ -72,12 +66,10 @@ impl ZcashAddress {
         let network_bytes = match network {
             Network::Mainnet => MAINNET_ADDRESS_BYTES,
             Network::Testnet => TESTNET_ADDRESS_BYTES,
-            _ => MAINNET_ADDRESS_BYTES,
         };
 
         let mut address_bytes = [0u8; 26];
         let ripemd160_hash = hash160(&public_key); // Ripemd160 Hash
-
 
         address_bytes[0] = network_bytes[0];
         address_bytes[1] = network_bytes[1];
@@ -113,14 +105,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key, &expected_address)| {
             let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-            let address = ZcashAddress::from_private_key(&private_key, Some(Format::Transparent));
+            let address = ZcashAddress::from_private_key(&private_key, &Format::Transparent);
             assert_eq!(address.address, expected_address);
         });
     }
 
     fn test_private_key_wif(private_key: &str, expected_address: &str) {
         let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-        let address = ZcashAddress::from_private_key(&private_key, Some(Format::Transparent));
+        let address = ZcashAddress::from_private_key(&private_key, &Format::Transparent);
         assert_eq!(address.address, expected_address);
     }
 
