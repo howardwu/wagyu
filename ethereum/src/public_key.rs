@@ -4,7 +4,6 @@ use model::{
     Address,
     PublicKey,
 };
-use network::Network;
 use private_key::EthereumPrivateKey;
 
 use secp256k1;

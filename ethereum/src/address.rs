@@ -1,9 +1,6 @@
 use model::{Address, PrivateKey, to_hex_string};
-use network::Network;
 use private_key::EthereumPrivateKey;
 use public_key::EthereumPublicKey;
-
-use utils::{to_checksum_address};
 
 use serde::Serialize;
 use std::fmt;
@@ -16,7 +13,7 @@ pub enum Format {
     Standard,
 }
 
-/// Represents an Ethereum Address
+/// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
 pub struct EthereumAddress {
     pub address: String,
@@ -29,20 +26,33 @@ impl Address for EthereumAddress {
 
     /// Returns the address corresponding to the given private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
-        let public_key = private_key.to_public_key();
-        Self::from_public_key(&public_key, format)
+        Self::from_public_key(&private_key.to_public_key(), format)
     }
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(public_key: &Self::PublicKey, _: Option<Self::Format>) -> Self {
-        let public_key = public_key.public_key.serialize_uncompressed();
-        let hash = keccak256(&public_key[1..]);
+        Self::checksum_address(public_key)
+    }
+}
 
-        let mut address_bytes = [0u8; 20];
-        address_bytes.copy_from_slice(&hash[12..]);
+impl EthereumAddress {
 
-        let address = to_checksum_address(&to_hex_string(&address_bytes).to_lowercase());
-        EthereumAddress { address }
+    /// Returns the checksum address given a public key.
+    /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
+    pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {
+        let hash = keccak256(&public_key.public_key.serialize_uncompressed()[1..]);
+        let address = to_hex_string(&hash[12..]).to_lowercase();
+
+        let hash = to_hex_string(&keccak256(address.as_bytes()));
+        let mut checksum_address = "0x".to_string();
+        for c in 0..40 {
+            let ch = match &hash[c..=c] {
+                "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" => address[c..=c].to_lowercase(),
+                _ => address[c..=c].to_uppercase(),
+            };
+            checksum_address.push_str(&ch);
+        }
+        EthereumAddress { address: checksum_address }
     }
 }
 

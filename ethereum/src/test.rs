@@ -2,7 +2,6 @@ use address::{EthereumAddress, Format};
 use model::address::Address;
 use model::private_key::PrivateKey;
 use model::public_key::PublicKey;
-use network::Network;
 use private_key::EthereumPrivateKey;
 use public_key::EthereumPublicKey;
 
