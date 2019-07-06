@@ -58,29 +58,24 @@ impl EthereumPrivateKey {
 
     /// Returns either a Ethereum private key struct or errors.
     pub fn from_wif(wif: &str) -> Result<Self, &'static str> {
-        let secp = Secp256k1::new();
-        let secret_key_bytes = hex::decode(wif).expect("Error decoding wif (invalid hex string)");
-        let secret_key = secp256k1::SecretKey::from_slice(&secp, &secret_key_bytes)
+        let secret_key = hex::decode(wif).expect("Error decoding wif (invalid hex string)");
+        let secret_key = secp256k1::SecretKey::from_slice(&Secp256k1::new(), &secret_key)
             .expect("Error converting byte slice to secret key");
-        let wif_string = String::from(wif);
-        Ok(Self { wif: wif_string, secret_key })
+        Ok(Self { wif: wif.into(), secret_key })
     }
 
     /// Returns a randomly-generated Ethereum private key.
     fn build() -> Self {
-        let secret_key = Self::generate_secret_key();
+        let secret_key = Self::random_secret_key();
         let wif = Self::secret_key_to_wif(&secret_key);
         Self { secret_key, wif }
     }
 
     /// Returns a randomly-generated secp256k1 secret key.
-    fn generate_secret_key() -> secp256k1::SecretKey {
-        let secp = Secp256k1::new();
-        let mut rand_bytes = [0u8; 32];
-        OsRng
-            .try_fill(&mut rand_bytes)
-            .expect("Error generating random bytes for private key");
-        secp256k1::SecretKey::from_slice(&secp, &rand_bytes)
+    fn random_secret_key() -> secp256k1::SecretKey {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
+        secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)
             .expect("Error creating secret key from byte slice")
     }
 

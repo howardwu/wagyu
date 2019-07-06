@@ -1,6 +1,6 @@
 use address::{ZcashAddress, Format};
 use model::{Address, PrivateKey, PublicKey, crypto::checksum};
-use network::{Network, MAINNET_BYTE, TESTNET_BYTE};
+use network::Network;
 use public_key::ZcashPublicKey;
 
 use base58::{FromBase58, ToBase58};
@@ -51,77 +51,58 @@ impl ZcashPrivateKey {
     pub fn from_secret_key(secret_key: secp256k1::SecretKey, network: &Network) -> Self {
         let compressed = secret_key.len() == 65;
         let wif = Self::secret_key_to_wif(&secret_key, network, compressed);
-
         Self { secret_key, wif, network: *network, compressed}
     }
 
     /// Returns a Result which holds either the PrivateKey corresponding to `wif` or an error
     pub fn from_wif(wif: &str) -> Result<Self, &'static str> {
-        let wif_bytes = wif.from_base58().expect("Error decoding base58 wif");
-        let wif_length = wif_bytes.len();
+        let data = wif.from_base58().expect("Error decoding base58 wif");
+        let len = data.len();
 
-        let network = match wif_bytes[0] {
-            MAINNET_BYTE => Network::Mainnet,
-            TESTNET_BYTE=> Network::Testnet,
-            _ => return Err("Invalid wif")
-        };
+        let expected = &data[len - 4..][0..4];
+        let checksum = &checksum(&data[0..len - 4])[0..4];
 
-        let wif_bytes_to_hash = &wif_bytes[0..wif_length - 4];
-        let expected_checksum = &wif_bytes[wif_length - 4..];
-        let is_valid_checksum = checksum(wif_bytes_to_hash)[0..4] == expected_checksum[0..4];
-
-        match is_valid_checksum {
-            true => {
-                let secp = Secp256k1::without_caps();
-                let secret_key = secp256k1::SecretKey::from_slice(&secp, &wif_bytes[1..33])
-                    .expect("Error creating secret key from slice");
-                Ok(
-                    Self {
-                        network,
-                        wif: wif.to_string(),
-                        secret_key,
-                        compressed: wif_length == 38,
-                    }
-                )
-            },
+        match *expected == *checksum {
+            true => Ok(Self {
+                network: Network::from_wif_prefix(data[0])?,
+                wif: wif.to_string(),
+                secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])
+                    .expect("Error creating secret key from slice"),
+                compressed: len == 38,
+            }),
             false => Err("Invalid wif")
         }
     }
 
     /// Returns a randomly-generated Zcash private key.
     fn build(network: &Network, compressed: bool) -> Self {
-        let secret_key = Self::generate_secret_key();
+        let secret_key = Self::random_secret_key();
         let wif = Self::secret_key_to_wif(&secret_key, network, compressed);
         Self { secret_key, wif, network: *network, compressed }
     }
 
     /// Returns a randomly-generated a secp256k1 secret key.
-    fn generate_secret_key() -> secp256k1::SecretKey {
-        let secp = Secp256k1::new();
-        let mut rand_bytes = [0u8; 32];
-        OsRng.try_fill(&mut rand_bytes)
-            .expect("Error generating random bytes for private key");
-        secp256k1::SecretKey::from_slice(&secp, &rand_bytes)
+    fn random_secret_key() -> secp256k1::SecretKey {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
+        secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)
             .expect("Error creating secret key from byte slice")
     }
 
     /// Returns a WIF string given a secp256k1 secret key.
     fn secret_key_to_wif(secret_key: &secp256k1::SecretKey, network: &Network, compressed: bool) -> String {
         let mut wif = [0u8; 38];
-        wif[0] = match network {
-            Network::Mainnet => MAINNET_BYTE,
-            Network::Testnet => TESTNET_BYTE,
-        };
+        wif[0] = network.to_wif_prefix();
         wif[1..33].copy_from_slice(&secret_key[..]);
 
         if compressed {
             wif[33] = 0x01;
-            let checksum_bytes = checksum(&wif[0..34]);
-            wif[34..].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
+            let sum = &checksum(&wif[0..34])[0..4];
+            wif[34..].copy_from_slice(sum);
             wif.to_base58()
         } else {
-            let checksum_bytes = checksum(&wif[0..33]);
-            wif[33..37].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
+            let sum = &checksum(&wif[0..33])[0..4];
+            wif[33..37].copy_from_slice(sum);
             wif[..37].to_base58()
         }
     }

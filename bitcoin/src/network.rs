@@ -1,18 +1,39 @@
 use serde::Serialize;
 use std::fmt;
 
-/// The Network enum represents the different types of Networks we can create BitcoinWallets for
+/// Represents the available networks on Bitcoin
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Network {
     Mainnet,
     Testnet,
 }
 
-pub const MAINNET_BYTE: u8 = 0x80;
-pub const TESTNET_BYTE: u8 = 0xEF;
+impl Network {
+    /// Returns the address prefix of the given network.
+    pub fn to_address_prefix(&self) -> u8 {
+        match self {
+            Network::Mainnet => 0x00,
+            Network::Testnet => 0x6f,
+        }
+    }
 
-pub const MAINNET_ADDRESS_BYTE: u8 = 0x00;
-pub const TESTNET_ADDRESS_BYTE: u8 = 0x6f;
+    /// Returns the wif prefix of the given network.
+    pub fn to_wif_prefix(&self) -> u8 {
+        match self {
+            Network::Mainnet => 0x80,
+            Network::Testnet => 0xEF,
+        }
+    }
+
+    /// Returns the network of the given wif prefix.
+    pub fn from_wif_prefix(prefix: u8) -> Result<Self, &'static str> {
+        match prefix {
+            0x80 => Ok(Network::Mainnet),
+            0xEF => Ok(Network::Testnet),
+            _ => return Err("invalid wif prefix")
+        }
+    }
+}
 
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

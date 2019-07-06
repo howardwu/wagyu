@@ -1,5 +1,5 @@
 use model::{Address, crypto::{checksum, hash160}, PrivateKey};
-use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
+use network::Network;
 use private_key::BitcoinPrivateKey;
 use public_key::BitcoinPublicKey;
 
@@ -58,52 +58,42 @@ impl Address for BitcoinAddress {
 
 impl BitcoinAddress {
     /// Returns a P2PKH address from a given Bitcoin public key.
-    fn p2pkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+    pub fn p2pkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
             true => public_key.public_key.serialize().to_vec(),
             false => public_key.public_key.serialize_uncompressed().to_vec()
         };
 
-        let network_byte = match network {
-            Network::Mainnet => MAINNET_ADDRESS_BYTE,
-            Network::Testnet => TESTNET_ADDRESS_BYTE,
-        };
+        let mut address = [0u8; 25];
+        address[0] = network.to_address_prefix();
+        address[1..21].copy_from_slice(&hash160(&public_key));
 
-        let mut address_bytes = [0u8; 25];
-        address_bytes[0] = network_byte;
-        address_bytes[1..21].copy_from_slice(&hash160(&public_key));
-
-        let checksum_bytes = checksum(&address_bytes[0..21]);
-        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append checksum bytes
+        let sum = &checksum(&address[0..21])[0..4];
+        address[21..25].copy_from_slice(sum);
 
         Self {
-            address: address_bytes.to_base58(),
+            address: address.to_base58(),
             format: Format::P2PKH,
             network: network.clone(),
         }
     }
 
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
-    fn p2sh_p2wpkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
-        let public_key = public_key.public_key.serialize();
-        let mut address_bytes = [0u8; 25];
-        let version_byte = 0x05;
+    pub fn p2sh_p2wpkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+        let mut redeem = [0u8; 22];
+        redeem[0] = 0x00;
+        redeem[1] = 0x14;
+        redeem[2..].copy_from_slice(&hash160(&public_key.public_key.serialize()));
 
-        let witness_program = hash160(&public_key);
-        let mut redeem_script = [0u8; 22];
-        redeem_script[0] = 0x00;
-        redeem_script[1] = 0x14;
-        redeem_script[2..].copy_from_slice(&witness_program);
+        let mut address = [0u8; 25];
+        address[0] = 0x05;
+        address[1..21].copy_from_slice(&hash160(&redeem));
 
-        let script_hash = hash160(&redeem_script);
-        address_bytes[0] = version_byte;
-        address_bytes[1..21].copy_from_slice(&script_hash);
-
-        let checksum_bytes = checksum(&address_bytes[0..21]);
-        address_bytes[21..25].copy_from_slice(&checksum_bytes[0..4]); // Append checksum bytes
+        let sum = &checksum(&address[0..21])[0..4];
+        address[21..25].copy_from_slice(sum);
 
         Self {
-            address: address_bytes.to_base58(),
+            address: address.to_base58(),
             format: Format::P2SH_P2WPKH,
             network: network.clone(),
         }

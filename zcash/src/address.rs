@@ -1,5 +1,5 @@
 use model::{Address, crypto::{checksum, hash160}, PrivateKey};
-use network::{Network, MAINNET_ADDRESS_BYTES, TESTNET_ADDRESS_BYTES};
+use network::Network;
 use private_key::ZcashPrivateKey;
 use public_key::ZcashPublicKey;
 
@@ -57,36 +57,28 @@ impl Address for ZcashAddress{
 
 impl ZcashAddress {
     /// Returns a transparent address from a given Zcash public key
-    fn transparent(public_key: &ZcashPublicKey, network: &Network) -> Self {
+    pub fn transparent(public_key: &ZcashPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
             true => public_key.public_key.serialize().to_vec(),
             false => public_key.public_key.serialize_uncompressed().to_vec()
         };
 
-        let network_bytes = match network {
-            Network::Mainnet => MAINNET_ADDRESS_BYTES,
-            Network::Testnet => TESTNET_ADDRESS_BYTES,
-        };
+        let mut address = [0u8; 26];
+        address[0..2].copy_from_slice(&network.to_address_prefix());
+        address[2..22].copy_from_slice(&hash160(&public_key));
 
-        let mut address_bytes = [0u8; 26];
-        let ripemd160_hash = hash160(&public_key); // Ripemd160 Hash
-
-        address_bytes[0] = network_bytes[0];
-        address_bytes[1] = network_bytes[1];
-        address_bytes[2..22].copy_from_slice(&ripemd160_hash);
-
-        let checksum_bytes = checksum(&address_bytes[0..22]); // Calculate Checksum
-        address_bytes[22..26].copy_from_slice(&checksum_bytes[0..4]); // Append Checksum Bytes
+        let sum = &checksum(&address[0..22])[0..4];
+        address[22..26].copy_from_slice(sum);
 
         Self {
-            address: address_bytes.to_base58(),
+            address: address.to_base58(),
             format: Format::Transparent,
             network: network.clone(),
         }
     }
 
     /// TODO Returns a shielded address from a given Zcash public key
-    fn shielded(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
+    pub fn shielded(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
         panic!("shieled addresses not implemented");
     }
 }
