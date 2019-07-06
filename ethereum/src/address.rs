@@ -1,4 +1,5 @@
 use model::{Address, PrivateKey, to_hex_string};
+use network::Network;
 use private_key::EthereumPrivateKey;
 use public_key::EthereumPublicKey;
 
@@ -21,16 +22,17 @@ pub struct EthereumAddress {
 
 impl Address for EthereumAddress {
     type Format = Format;
+    type Network = Network;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
-        Self::from_public_key(&private_key.to_public_key(), format)
+        Self::from_public_key(&private_key.to_public_key(), format, None)
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _: Option<Self::Format>) -> Self {
+    fn from_public_key(public_key: &Self::PublicKey, _: Option<Self::Format>, _: Option<Self::Network>) -> Self {
         Self::checksum_address(public_key)
     }
 }

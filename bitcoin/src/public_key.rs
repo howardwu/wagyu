@@ -18,7 +18,8 @@ pub struct BitcoinPublicKey {
 
 impl PublicKey for BitcoinPublicKey {
     type Address = BitcoinAddress;
-    type Format = (Format, Network);
+    type Format = Format;
+    type Network = Network;
     type PrivateKey = BitcoinPrivateKey;
 
     /// Returns the address corresponding to the given public key.
@@ -29,8 +30,8 @@ impl PublicKey for BitcoinPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
-        BitcoinAddress::from_public_key(self, format)
+    fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address {
+        BitcoinAddress::from_public_key(self, format, network)
     }
 }
 

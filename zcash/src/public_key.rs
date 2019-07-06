@@ -17,7 +17,8 @@ pub struct ZcashPublicKey {
 
 impl PublicKey for ZcashPublicKey {
     type Address = ZcashAddress;
-    type Format = (Format, Network);
+    type Format = Format;
+    type Network = Network;
     type PrivateKey = ZcashPrivateKey;
 
     /// Returns the address corresponding to the given public key.
@@ -28,8 +29,8 @@ impl PublicKey for ZcashPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
-        ZcashAddress::from_public_key(self, format)
+    fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address {
+        ZcashAddress::from_public_key(self, format, network)
     }
 }
 

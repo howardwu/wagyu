@@ -27,7 +27,7 @@ pub struct BitcoinPrivateKey {
 
 impl PrivateKey for BitcoinPrivateKey {
     type Address = BitcoinAddress;
-    type Format = (Format, Network);
+    type Format = Format;
     type Network = Network;
     type PublicKey = BitcoinPublicKey;
 
@@ -64,14 +64,14 @@ impl BitcoinPrivateKey {
         let network = match wif_bytes[0] {
             MAINNET_BYTE => Network::Mainnet,
             TESTNET_BYTE => Network::Testnet,
-            _ => Network::Error,
+            _ => return Err("Invalid wif")
         };
 
         let wif_bytes_to_hash = &wif_bytes[0..wif_length - 4];
         let expected_checksum = &wif_bytes[wif_length - 4..];
         let is_valid_checksum = checksum(wif_bytes_to_hash)[0..4] == expected_checksum[0..4];
 
-        match is_valid_checksum && network != Network::Error {
+        match is_valid_checksum {
             true => {
                 let secp = Secp256k1::without_caps();
                 let secret_key = secp256k1::SecretKey::from_slice(&secp, &wif_bytes[1..33])

@@ -26,7 +26,7 @@ pub struct ZcashPrivateKey {
 
 impl PrivateKey for ZcashPrivateKey {
     type Address = ZcashAddress;
-    type Format = (Format, Network);
+    type Format = Format;
     type Network = Network;
     type PublicKey = ZcashPublicKey;
 

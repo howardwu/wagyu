@@ -110,7 +110,7 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
     };
 
     let private_key = BitcoinPrivateKey::new(network);
-    let address = BitcoinAddress::from_private_key(&private_key, Some((format.clone(), network)));
+    let address = BitcoinAddress::from_private_key(&private_key, Some(format.clone()));
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
@@ -202,7 +202,7 @@ fn print_zcash_wallet(
     };
 
     let private_key = ZcashPrivateKey::new(network);
-    let address = ZcashAddress::from_private_key(&private_key, Some((format.clone(), network)));
+    let address = ZcashAddress::from_private_key(&private_key, Some(format.clone()));
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {

@@ -22,7 +22,7 @@ fn ethereum_address_from_private_key() {
 fn ethereum_address_from_public_key() {
     let public_key = ethereum_get_public_key();
     let address =
-        EthereumAddress::from_public_key(&public_key, Some(Format::Standard));
+        EthereumAddress::from_public_key(&public_key, Some(Format::Standard), None);
 
     assert_eq!(address.to_string(), ADDRESS_STR);
 }
@@ -57,7 +57,7 @@ fn ethereum_public_key_to_address() {
 
     assert_eq!(
         public_key
-            .to_address(Some(Format::Standard))
+            .to_address(Some(Format::Standard), None)
             .to_string(),
         ADDRESS_STR
     );

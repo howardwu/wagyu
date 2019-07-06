@@ -28,24 +28,35 @@ pub struct BitcoinAddress {
 }
 
 impl Address for BitcoinAddress {
-    type Format = (Format, Network);
+    type Format = Format;
+    type Network = Network;
     type PrivateKey = BitcoinPrivateKey;
     type PublicKey = BitcoinPublicKey;
 
     /// Returns the address corresponding to the given Bitcoin private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
+        let public_key = private_key.to_public_key();
         match format {
-            Some((Format::P2PKH, _)) => Self::p2pkh(&private_key.to_public_key(), &private_key.network),
-            Some((Format::P2SH_P2WPKH, _)) => Self::p2sh_p2wpkh(&private_key.to_public_key(), &private_key.network),
-            None => Self::p2pkh(&private_key.to_public_key(), &private_key.network)
+            Some(Format::P2PKH) => Self::p2pkh(&public_key, &private_key.network),
+            Some(Format::P2SH_P2WPKH) => Self::p2sh_p2wpkh(&public_key, &private_key.network),
+            None => Self::p2pkh(&public_key, &private_key.network)
         }
     }
 
     /// Returns the address corresponding to the given Bitcoin public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>) -> Self {
+    /// Defaults to mainnet if no network is specified.
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        format: Option<Self::Format>,
+        network: Option<Self::Network>
+    ) -> Self {
+        let network = match network {
+            Some(network) => network,
+            _ => Network::Mainnet,
+        };
         match format {
-            Some((Format::P2PKH, network)) => Self::p2pkh(public_key, &network),
-            Some((Format::P2SH_P2WPKH, network)) => Self::p2sh_p2wpkh(public_key, &network),
+            Some(Format::P2PKH) => Self::p2pkh(public_key, &network),
+            Some(Format::P2SH_P2WPKH) => Self::p2sh_p2wpkh(public_key, &network),
             None => Self::p2pkh(public_key, &Network::Mainnet)
         }
     }
@@ -63,7 +74,6 @@ impl BitcoinAddress {
         let network_byte = match network {
             Network::Mainnet => MAINNET_ADDRESS_BYTE,
             Network::Testnet => TESTNET_ADDRESS_BYTE,
-            _ =>  MAINNET_ADDRESS_BYTE,
         };
 
         let mut address_bytes = [0u8; 25];
@@ -121,14 +131,14 @@ mod tests {
         let key_address_pairs = private_keys.iter().zip(addresses.iter());
         key_address_pairs.for_each(|(&private_key, &expected_address)| {
             let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-            let address = BitcoinAddress::from_private_key(&private_key, Some((Format::P2PKH, private_key.network)));
+            let address = BitcoinAddress::from_private_key(&private_key, Some(Format::P2PKH));
             assert_eq!(expected_address, address.address);
         });
     }
 
     fn test_p2wpkh_pair(private_key: &str, expected_address: &str) {
         let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-        let address = BitcoinAddress::from_private_key(&private_key, Some((Format::P2SH_P2WPKH, private_key.network)));
+        let address = BitcoinAddress::from_private_key(&private_key, Some(Format::P2SH_P2WPKH));
         println!("{}, {}", address, expected_address);
         assert_eq!(expected_address, address.address);
     }
