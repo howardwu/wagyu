@@ -11,7 +11,6 @@ use std::{fmt, fmt::Display};
 pub struct ZcashPublicKey {
     /// The ECDSA public key
     pub public_key: secp256k1::PublicKey,
-
     /// If true, the public key is serialized in compressed form
     pub compressed: bool,
 }

@@ -10,10 +10,8 @@ use std::fmt;
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
-
     /// Transparent Zcash Address
     Transparent,
-
     /// Shielded Zcash Address
     Shielded,
 }
@@ -21,13 +19,10 @@ pub enum Format {
 /// Represents a Zcash t-address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashAddress {
-
     /// The Zcash address
     pub address: String,
-
     /// The format of the address
     pub format: Format,
-
     /// The network on which this address is usable
     pub network: Network,
 }
@@ -57,7 +52,6 @@ impl Address for ZcashAddress{
 }
 
 impl ZcashAddress {
-
     /// Returns an unshielded address from a given Zcash public key
     fn unshielded(public_key: &ZcashPublicKey, network: &Network) -> Self {
         let public_key = match public_key.compressed {
