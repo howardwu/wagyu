@@ -10,13 +10,10 @@ use std::io::{Read, Result as IoResult, Write};
 /// Represents a Bitcoin public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinPublicKey {
-
     /// The ECDSA public key
     pub public_key: secp256k1::PublicKey,
-
     /// If true, the public key is serialized in compressed form
     pub compressed: bool,
-
 }
 
 impl PublicKey for BitcoinPublicKey {

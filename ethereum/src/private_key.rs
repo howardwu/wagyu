@@ -29,7 +29,7 @@ pub struct EthereumPrivateKey {
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
-    type Format = (Format, Network);
+    type Format = Format;
     type Network = Network;
     type PublicKey = EthereumPublicKey;
 
@@ -63,10 +63,7 @@ impl EthereumPrivateKey {
         let secret_key = secp256k1::SecretKey::from_slice(&secp, &secret_key_bytes)
             .expect("Error converting byte slice to secret key");
         let wif_string = String::from(wif);
-        Ok(Self {
-            wif: wif_string,
-            secret_key,
-        })
+        Ok(Self { wif: wif_string, secret_key })
     }
 
     /// Returns a randomly-generated Ethereum private key.

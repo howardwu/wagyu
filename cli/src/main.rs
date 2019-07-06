@@ -150,7 +150,7 @@ fn print_ethereum_wallet(count: usize, json: bool) {
     let network = Network::Mainnet;
     let format = EthereumFormat::Standard;
     let private_key = EthereumPrivateKey::new(network);
-    let address = EthereumAddress::from_private_key(&private_key, Some((format, network)));
+    let address = EthereumAddress::from_private_key(&private_key, Some(format));
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {

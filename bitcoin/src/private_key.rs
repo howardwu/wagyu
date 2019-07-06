@@ -15,19 +15,14 @@ use std::str::FromStr;
 /// Represents a Bitcoin private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BitcoinPrivateKey {
-
     /// The ECDSA private key
     pub secret_key: secp256k1::SecretKey,
-
     /// The Wallet Import Format (WIF) string encoding
     pub wif: String,
-
     /// The network of the private key
     pub network: Network,
-
     /// If true, the private key is serialized in compressed form
     pub compressed: bool,
-
 }
 
 impl PrivateKey for BitcoinPrivateKey {

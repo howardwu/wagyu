@@ -14,7 +14,7 @@ const ADDRESS_STR: &str = "0x0BED7ABd61247635c1973eB38474A2516eD1D884";
 fn ethereum_address_from_private_key() {
     let private_key = EthereumPrivateKey::from_wif(PRIVATE_KEY_STR).unwrap();
     let address =
-        EthereumAddress::from_private_key(&private_key, Some((Format::Standard, Network::Mainnet)));
+        EthereumAddress::from_private_key(&private_key, Some(Format::Standard));
 
     assert_eq!(address.to_string(), ADDRESS_STR);
 }
@@ -23,7 +23,7 @@ fn ethereum_address_from_private_key() {
 fn ethereum_address_from_public_key() {
     let public_key = ethereum_get_public_key();
     let address =
-        EthereumAddress::from_public_key(&public_key, Some((Format::Standard, Network::Mainnet)));
+        EthereumAddress::from_public_key(&public_key, Some(Format::Standard));
 
     assert_eq!(address.to_string(), ADDRESS_STR);
 }
@@ -39,7 +39,7 @@ fn ethereum_private_key_to_public_key() {
 #[test]
 fn ethereum_private_key_to_address() {
     let private_key = ethereum_get_private_key();
-    let address = private_key.to_address(Some((Format::Standard, Network::Mainnet)));
+    let address = private_key.to_address(Some(Format::Standard));
 
     assert_eq!(address.to_string(), ADDRESS_STR);
 }
@@ -58,7 +58,7 @@ fn ethereum_public_key_to_address() {
 
     assert_eq!(
         public_key
-            .to_address(Some((Format::Standard, Network::Mainnet)))
+            .to_address(Some(Format::Standard))
             .to_string(),
         ADDRESS_STR
     );

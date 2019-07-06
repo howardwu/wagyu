@@ -20,7 +20,7 @@ pub struct EthereumPublicKey {
 
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
-    type Format = (Format, Network);
+    type Format = Format;
     type PrivateKey = EthereumPrivateKey;
 
     /// Returns the address corresponding to the given public key.

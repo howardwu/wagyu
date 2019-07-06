@@ -1,10 +1,10 @@
-use utils::{to_checksum_address, to_hex_string};
-
-use model::address::Address;
-use model::private_key::PrivateKey;
+use model::{Address, PrivateKey, to_hex_string};
 use network::Network;
 use private_key::EthereumPrivateKey;
 use public_key::EthereumPublicKey;
+
+use utils::{to_checksum_address};
+
 use serde::Serialize;
 use std::fmt;
 use tiny_keccak::keccak256;
@@ -23,7 +23,7 @@ pub struct EthereumAddress {
 }
 
 impl Address for EthereumAddress {
-    type Format = (Format, Network);
+    type Format = Format;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
@@ -34,7 +34,7 @@ impl Address for EthereumAddress {
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _format: Option<Self::Format>) -> Self {
+    fn from_public_key(public_key: &Self::PublicKey, _: Option<Self::Format>) -> Self {
         let public_key = public_key.public_key.serialize_uncompressed();
         let hash = keccak256(&public_key[1..]);
 
@@ -42,14 +42,7 @@ impl Address for EthereumAddress {
         address_bytes.copy_from_slice(&hash[12..]);
 
         let address = to_checksum_address(&to_hex_string(&address_bytes).to_lowercase());
-
         EthereumAddress { address }
-    }
-}
-
-impl EthereumAddress {
-    pub fn address(&self) -> &str {
-        &self.address
     }
 }
 
