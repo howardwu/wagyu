@@ -23,7 +23,8 @@ pub struct MoneroAddress {
 }
 
 impl Address for MoneroAddress {
-    type Format = (Format, Network);
+    type Format = Format;
+    type Network = Network;
     type PrivateKey = MoneroPrivateKey;
     type PublicKey = MoneroPublicKey;
 
@@ -31,7 +32,7 @@ impl Address for MoneroAddress {
     fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self { }
 
     /// Returns the address corresponding to the given Bitcoin public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>) -> Self { }
+    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>, network: Option<Self::Network>) -> Self { }
 }
 
 impl fmt::Display for MoneroAddress {
