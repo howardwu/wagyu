@@ -9,14 +9,20 @@ extern crate curve25519_dalek;
 extern crate rand;
 extern crate serde;
 extern crate tiny_keccak;
+extern crate model;
 
-pub mod builder;
+pub mod address;
+pub use self::address::*;
 
-pub mod hex_slice;
-pub use self::hex_slice::*;
+//pub mod hex_slice;
+//pub use self::hex_slice::*;
 
 pub mod network;
 pub use self::network::*;
 
-pub mod wallet;
-pub use self::wallet::*;
+pub mod public_key;
+pub use self::public_key::*;
+
+pub mod private_key;
+pub use self::private_key::*;
+
