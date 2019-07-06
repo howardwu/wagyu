@@ -1,7 +1,7 @@
-use address::MoneroAddress;
+use crate::address::MoneroAddress;
 use model::{Address, PrivateKey, PublicKey};
-use network::Network;
-use public_key::MoneroPublicKey;
+use crate::network::Network;
+use crate::public_key::MoneroPublicKey;
 
 use curve25519_dalek::{scalar::Scalar};
 use rand::Rng;

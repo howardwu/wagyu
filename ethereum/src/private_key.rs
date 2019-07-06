@@ -1,4 +1,4 @@
-use address::EthereumAddress;
+use crate::address::EthereumAddress;
 use model::{
     //    bytes::{FromBytes, ToBytes},
     //    crypto::checksum,
@@ -6,7 +6,7 @@ use model::{
     PrivateKey,
     PublicKey,
 };
-use public_key::EthereumPublicKey;
+use crate::public_key::EthereumPublicKey;
 
 use rand::rngs::OsRng;
 use rand::Rng;

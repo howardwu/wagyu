@@ -1,11 +1,11 @@
-use address::{BitcoinAddress, Format};
-use model::{Address, PublicKey, bytes::{FromBytes, ToBytes}};
-use network::Network;
-use private_key::BitcoinPrivateKey;
+use crate::address::{BitcoinAddress, Format};
+use model::{Address, PublicKey};
+use crate::network::Network;
+use crate::private_key::BitcoinPrivateKey;
 
 use secp256k1;
 use std::{fmt, fmt::Display};
-use std::io::{Read, Result as IoResult, Write};
+//use std::io::{Write};
 
 /// Represents a Bitcoin public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

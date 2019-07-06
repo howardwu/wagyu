@@ -4,17 +4,6 @@
 
 #![forbid(unsafe_code)]
 
-extern crate base58;
-extern crate rand;
-extern crate ripemd160;
-extern crate secp256k1;
-extern crate serde;
-extern crate serde_json;
-extern crate sha2;
-
-extern crate model;
-extern crate core;
-
 pub mod address;
 pub use self::address::*;
 

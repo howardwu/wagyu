@@ -1,11 +1,10 @@
-use address::Address;
-use private_key::PrivateKey;
-use utilities::bytes::{FromBytes, ToBytes};
+use crate::address::Address;
+use crate::private_key::PrivateKey;
+
 
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
-    str::FromStr,
 };
 
 /// The interface for a generic public key.

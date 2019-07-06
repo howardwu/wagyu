@@ -1,7 +1,7 @@
-use address::MoneroAddress;
+use crate::address::MoneroAddress;
 use model::{Address, PublicKey};
-use network::Network;
-use private_key::MoneroPrivateKey;
+use crate::network::Network;
+use crate::private_key::MoneroPrivateKey;
 
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use std::{fmt, fmt::Display};

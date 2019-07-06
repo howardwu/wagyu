@@ -2,24 +2,6 @@
 //!
 //! A command-line tool to generate cryptocurrency wallets.
 
-extern crate arrayvec;
-extern crate base58;
-#[macro_use(value_t)]
-extern crate clap;
-extern crate digest;
-extern crate either;
-extern crate lazy_static;
-extern crate safemem;
-extern crate serde;
-extern crate serde_json;
-extern crate tiny_keccak;
-
-extern crate bitcoin;
-extern crate ethereum;
-extern crate model;
-extern crate monero;
-extern crate zcash;
-
 use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
@@ -71,7 +53,7 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     let currency = matches.value_of("currency").unwrap();
 //    let mut compressed = matches.is_present("compressed");
     let json = matches.is_present("json");
-    let count = value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
+    let count = clap::value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
     let bitcoin_address_type = if matches.is_present("segwit") {
 //        compressed = true;
         BitcoinFormat::P2SH_P2WPKH

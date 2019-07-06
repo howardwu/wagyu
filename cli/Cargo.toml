@@ -14,6 +14,7 @@ categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 readme = "README.md"
 license = "GPL-3.0"
+edition = "2018"
 
 [dependencies]
 bitcoin = { path = "../bitcoin" }

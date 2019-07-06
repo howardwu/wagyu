@@ -1,10 +1,9 @@
-use private_key::PrivateKey;
-use public_key::PublicKey;
+use crate::private_key::PrivateKey;
+use crate::public_key::PublicKey;
 
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
-    str::FromStr,
 };
 
 /// The interface for a generic address.

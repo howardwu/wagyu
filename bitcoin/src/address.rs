@@ -1,7 +1,7 @@
 use model::{Address, crypto::{checksum, hash160}, PrivateKey};
-use network::Network;
-use private_key::BitcoinPrivateKey;
-use public_key::BitcoinPublicKey;
+use crate::network::Network;
+use crate::private_key::BitcoinPrivateKey;
+use crate::public_key::BitcoinPublicKey;
 
 use base58::ToBase58;
 use serde::Serialize;

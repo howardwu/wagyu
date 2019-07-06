@@ -1,7 +1,7 @@
-use address::{ZcashAddress, Format};
+use crate::address::{ZcashAddress, Format};
 use model::{Address, PrivateKey, PublicKey, crypto::checksum};
-use network::Network;
-use public_key::ZcashPublicKey;
+use crate::network::Network;
+use crate::public_key::ZcashPublicKey;
 
 use base58::{FromBase58, ToBase58};
 use rand::Rng;
