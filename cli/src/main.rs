@@ -30,8 +30,6 @@ use zcash::{ZcashAddress, ZcashPrivateKey};
 
 use model::{Address, PrivateKey};
 
-use monero::builder::WalletBuilder as MoneroWalletBuilder;
-
 use clap::{App, Arg};
 use serde::Serialize;
 

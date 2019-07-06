@@ -6,7 +6,6 @@ use std::fmt;
 pub enum Network {
     Mainnet,
     Testnet,
-    Error,
 }
 
 pub const MAINNET_ADDRESS_BYTE: u8 = 0x12;
@@ -17,7 +16,6 @@ impl fmt::Display for Network {
         match *self {
             Network::Mainnet => write!(f, "Mainnet"),
             Network::Testnet => write!(f, "Testnet"),
-            _ => write!(f, "Error"),
         }
     }
 }

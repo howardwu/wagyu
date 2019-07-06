@@ -1,7 +1,11 @@
 use address::{MoneroAddress, Format};
+use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use model::{Address, PublicKey};
 use network::Network;
 use private_key::MoneroPrivateKey;
+
+use std::{fmt, fmt::Display};
+use tiny_keccak::keccak256;
 
 /// Represents a Monero public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -22,7 +26,13 @@ impl PublicKey for MoneroPublicKey {
     type PrivateKey = MoneroPrivateKey;
 
     /// Returns the address corresponding to the given public key.
-    fn from_private_key(private_key: &Self::PrivateKey) -> Self { }
+    fn from_private_key(private_key: &Self::PrivateKey) -> Self {
+        let hash = keccak256(&private_key.private_spend_key);
+        let public_spend_key = MoneroPublicKey::scalar_mul_by_b_compressed(&private_key.private_spend_key);
+        let public_view_key = MoneroPublicKey::scalar_mul_by_b_compressed(&hash);
+
+        Self {public_spend_key, public_view_key}
+    }
 
     /// Returns the address of the corresponding private key.
     fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address {
@@ -30,3 +40,25 @@ impl PublicKey for MoneroPublicKey {
     }
 }
 
+impl MoneroPublicKey {
+    pub fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
+        let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
+        let compressed = *point.compress().as_bytes();
+        compressed
+    }
+}
+
+impl Display for MoneroPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(")?;
+        for byte in &self.public_spend_key {
+            write!(f, "{:02x}", byte)?;
+        }
+        write!(f, ", ")?;
+        for byte in &self.public_view_key {
+            write!(f, "{:02x}", byte)?;
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
