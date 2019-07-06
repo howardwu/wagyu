@@ -14,8 +14,9 @@ use rand::Rng;
 use secp256k1;
 use secp256k1::Secp256k1;
 //use std::io::{Read, Result as IoResult, Write};
-use std::str::FromStr;
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
+use std::str::FromStr;
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,8 +30,8 @@ pub struct EthereumPrivateKey {
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
-    type Format = Option<Format>;
-    type Network = Option<Network>;
+    type Format = PhantomData<u8>;
+    type Network = PhantomData<u8>;
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
@@ -44,8 +45,8 @@ impl PrivateKey for EthereumPrivateKey {
     }
 
     /// Returns the address of the corresponding Ethereum private key.
-    fn to_address(&self, format: &Self::Format) -> Self::Address {
-        EthereumAddress::from_private_key(self, format)
+    fn to_address(&self, _: &Self::Format) -> Self::Address {
+        EthereumAddress::from_private_key(self, &PhantomData)
     }
 }
 
@@ -95,7 +96,7 @@ impl EthereumPrivateKey {
 impl Default for EthereumPrivateKey {
     /// Returns a randomly-generated Ethereum private key.
     fn default() -> Self {
-        Self::new(&None)
+        Self::new(&PhantomData)
     }
 }
 

@@ -24,16 +24,14 @@ use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey};
 use ethereum::address::Format as EthereumFormat;
 use ethereum::{EthereumAddress, EthereumPrivateKey};
-
+use model::{Address, PrivateKey};
+use monero::builder::WalletBuilder as MoneroWalletBuilder;
 use zcash::address::Format as ZcashFormat;
 use zcash::{ZcashAddress, ZcashPrivateKey};
 
-use model::{Address, PrivateKey};
-
-use monero::builder::WalletBuilder as MoneroWalletBuilder;
-
 use clap::{App, Arg};
 use serde::Serialize;
+use std::marker::PhantomData;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
@@ -147,22 +145,18 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
 fn print_ethereum_wallet(count: usize, json: bool) {
     use ethereum::Network;
 
-    let network = Network::Mainnet;
-    let format = EthereumFormat::Standard;
-    let private_key = EthereumPrivateKey::new(&None);
-    let address = EthereumAddress::from_private_key(&private_key, &Some(format));
+    let private_key = EthereumPrivateKey::new(&PhantomData);
+    let address = EthereumAddress::from_private_key(&private_key, &PhantomData);
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
         address: String,
-        network: String,
     };
 
     let wallet = Wallet {
         private_key: private_key.wif.clone(),
         address: address.address,
-        network: network.to_string(),
     };
 
     for _ in 0..count {

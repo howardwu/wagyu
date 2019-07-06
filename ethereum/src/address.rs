@@ -5,6 +5,7 @@ use public_key::EthereumPublicKey;
 
 use serde::Serialize;
 use std::fmt;
+use std::marker::PhantomData;
 use tiny_keccak::keccak256;
 
 /// Represents the format of a Ethereum address
@@ -21,14 +22,14 @@ pub struct EthereumAddress {
 }
 
 impl Address for EthereumAddress {
-    type Format = Option<Format>;
-    type Network = Option<Network>;
+    type Format = PhantomData<u8>;
+    type Network = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
-        Self::from_public_key(&private_key.to_public_key(), format, &None)
+    fn from_private_key(private_key: &Self::PrivateKey, _: &Self::Format) -> Self {
+        Self::from_public_key(&private_key.to_public_key(), &PhantomData, &PhantomData)
     }
 
     /// Returns the address corresponding to the given public key.

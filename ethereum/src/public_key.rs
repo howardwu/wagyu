@@ -10,6 +10,7 @@ use private_key::EthereumPrivateKey;
 use secp256k1;
 //use std::io::{Read, Result as IoResult, Write};
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
 
 /// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -20,8 +21,8 @@ pub struct EthereumPublicKey {
 
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
-    type Format = Option<Format>;
-    type Network = Option<Network>;
+    type Format = PhantomData<u8>;
+    type Network = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
 
     /// Returns the address corresponding to the given public key.
@@ -32,8 +33,8 @@ impl PublicKey for EthereumPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: &Self::Format, network: &Self::Network) -> Self::Address {
-        EthereumAddress::from_public_key(self, format, network)
+    fn to_address(&self, _: &Self::Format, _: &Self::Network) -> Self::Address {
+        EthereumAddress::from_public_key(self, &PhantomData, &PhantomData)
     }
 }
 
