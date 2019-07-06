@@ -14,9 +14,6 @@ extern crate model;
 pub mod address;
 pub use self::address::*;
 
-//pub mod hex_slice;
-//pub use self::hex_slice::*;
-
 pub mod network;
 pub use self::network::*;
 
