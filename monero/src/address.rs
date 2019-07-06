@@ -1,10 +1,10 @@
 use model::{Address, PrivateKey};
-use network::Network;
-use private_key::MoneroPrivateKey;
-use public_key::MoneroPublicKey;
+use crate::network::Network;
+use crate::private_key::MoneroPrivateKey;
+use crate::public_key::MoneroPublicKey;
 
 use base58::ToBase58;
-use serde::Serialize;
+
 use std::fmt;
 use std::marker::PhantomData;
 use tiny_keccak::keccak256;

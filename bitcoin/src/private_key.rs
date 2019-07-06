@@ -1,7 +1,7 @@
-use address::{BitcoinAddress, Format};
-use model::{Address, PrivateKey, PublicKey, bytes::{FromBytes, ToBytes}, crypto::checksum};
-use network::Network;
-use public_key::BitcoinPublicKey;
+use crate::address::{BitcoinAddress, Format};
+use model::{Address, PrivateKey, PublicKey, crypto::checksum};
+use crate::network::Network;
+use crate::public_key::BitcoinPublicKey;
 
 use base58::{FromBase58, ToBase58};
 use rand::Rng;
@@ -9,7 +9,7 @@ use rand::rngs::OsRng;
 use secp256k1;
 use secp256k1::Secp256k1;
 use std::{fmt, fmt::Display};
-use std::io::{Read, Result as IoResult, Write};
+//use std::io::{Write};
 use std::str::FromStr;
 
 /// Represents a Bitcoin private key

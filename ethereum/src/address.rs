@@ -1,6 +1,6 @@
 use model::{Address, PrivateKey, to_hex_string};
-use private_key::EthereumPrivateKey;
-use public_key::EthereumPublicKey;
+use crate::private_key::EthereumPrivateKey;
+use crate::public_key::EthereumPublicKey;
 
 use serde::Serialize;
 use std::fmt;

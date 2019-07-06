@@ -1,9 +1,9 @@
-use address::EthereumAddress;
+use crate::address::EthereumAddress;
 use model::address::Address;
 use model::private_key::PrivateKey;
 use model::public_key::PublicKey;
-use private_key::EthereumPrivateKey;
-use public_key::EthereumPublicKey;
+use crate::private_key::EthereumPrivateKey;
+use crate::public_key::EthereumPublicKey;
 
 use std::marker::PhantomData;
 

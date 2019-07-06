@@ -1,7 +1,7 @@
 use model::{Address, crypto::{checksum, hash160}, PrivateKey};
-use network::Network;
-use private_key::ZcashPrivateKey;
-use public_key::ZcashPublicKey;
+use crate::network::Network;
+use crate::private_key::ZcashPrivateKey;
+use crate::public_key::ZcashPublicKey;
 
 use base58::ToBase58;
 use serde::Serialize;
@@ -102,11 +102,11 @@ mod tests {
         });
     }
 
-    fn test_private_key_wif(private_key: &str, expected_address: &str) {
-        let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
-        let address = ZcashAddress::from_private_key(&private_key, &Format::Transparent);
-        assert_eq!(address.address, expected_address);
-    }
+//    fn test_private_key_wif(private_key: &str, expected_address: &str) {
+//        let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+//        let address = ZcashAddress::from_private_key(&private_key, &Format::Transparent);
+//        assert_eq!(address.address, expected_address);
+//    }
 
     #[test]
     fn test_mainnet_uncompressed_private_key_to_address() {

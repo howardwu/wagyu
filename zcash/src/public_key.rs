@@ -1,7 +1,7 @@
-use address::{ZcashAddress, Format};
+use crate::address::{ZcashAddress, Format};
 use model::{Address, PublicKey};
-use network::Network;
-use private_key::ZcashPrivateKey;
+use crate::network::Network;
+use crate::private_key::ZcashPrivateKey;
 
 use secp256k1;
 use std::{fmt, fmt::Display};

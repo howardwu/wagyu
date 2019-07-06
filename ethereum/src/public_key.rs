@@ -1,10 +1,10 @@
-use address::EthereumAddress;
+use crate::address::EthereumAddress;
 use model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
     PublicKey,
 };
-use private_key::EthereumPrivateKey;
+use crate::private_key::EthereumPrivateKey;
 
 use secp256k1;
 //use std::io::{Read, Result as IoResult, Write};
