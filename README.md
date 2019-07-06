@@ -1,5 +1,5 @@
 # wagu
-[![Build Status](https://travis-ci.com/ArgusDeveloper/wagu.svg?token=vLs9yE9nZjZuPeG7pEBi&branch=master)](https://travis-ci.com/ArgusObserver/wagu)
+[![Build Status](https://travis-ci.com/ArgusDeveloper/wagu.svg?token=vLs9yE9nZjZuPeG7pEBi&branch=master)](https://travis-ci.com/ArgusDeveloper/wagu)
 
 Pronounced like [wagyu](https://en.wikipedia.org/wiki/Wagyu). Wagu is the **wa**llet **g**eneration **u**tility.
 
