@@ -1,15 +1,15 @@
-use address::{MoneroAddress, Format};
-use model::{Address, PrivateKey, PublicKey, crypto::checksum};
+use address::MoneroAddress;
+use model::{Address, PrivateKey, PublicKey};
 use network::Network;
 use public_key::MoneroPublicKey;
 
-use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
+use curve25519_dalek::{scalar::Scalar};
 use rand::Rng;
 use rand::rngs::OsRng;
 use std::{fmt, fmt::Display};
-use std::io::{Read, Result as IoResult, Write};
 use std::str::FromStr;
 use tiny_keccak::keccak256;
+use serde::export::PhantomData;
 
 
 /// Represents a Monero private key
@@ -27,14 +27,14 @@ pub struct MoneroPrivateKey {
 
 impl PrivateKey for MoneroPrivateKey {
     type Address = MoneroAddress;
-    type Format = Format;
+    type Format = PhantomData<u8>;
     type Network = Network;
     type PublicKey = MoneroPublicKey;
 
     /// Returns a randomly-generated Monero private key.
-    fn new(network: Self::Network) -> Self {
+    fn new(network: &Self::Network) -> Self {
         let mut csprng: OsRng = OsRng::new().unwrap();
-        Self::from_seed(csprng.gen(), &network)
+        Self::from_seed(csprng.gen(), network)
     }
 
     /// Returns the public key of the corresponding Monero private key.
@@ -43,8 +43,8 @@ impl PrivateKey for MoneroPrivateKey {
     }
 
     /// Returns the address of the corresponding Monero private key.
-    fn to_address(&self, format: Option<Self::Format>) -> Self::Address {
-        MoneroAddress::from_private_key(self, format)
+    fn to_address(&self, _: &Self::Format) -> Self::Address {
+        MoneroAddress::from_private_key(self, &PhantomData)
     }
 }
 
@@ -68,7 +68,7 @@ impl MoneroPrivateKey {
 impl Default for MoneroPrivateKey {
     /// Returns a randomly-generated mainnet Monero private key.
     fn default() -> Self {
-        Self::new(Network::Mainnet)
+        Self::new(&Network::Mainnet)
     }
 }
 

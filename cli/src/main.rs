@@ -23,8 +23,8 @@ extern crate zcash;
 use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
+use monero::{MoneroAddress, MoneroPrivateKey, Network as MoneroNetwork};
 use model::{Address, PrivateKey};
-use monero::builder::WalletBuilder as MoneroWalletBuilder;
 use zcash::address::Format as ZcashFormat;
 use zcash::{ZcashAddress, ZcashPrivateKey, Network as ZcashNetwork};
 
@@ -170,11 +170,36 @@ fn print_ethereum_wallet(count: usize, json: bool) {
 }
 
 fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
-    let wallets = MoneroWalletBuilder::build_many_from_options(testnet, count);
-    if json {
-        println!("{}", serde_json::to_string_pretty(&wallets).unwrap())
-    } else {
-        wallets.iter().for_each(|wallet| println!("{}", wallet));
+    let network = match testnet {
+        true => MoneroNetwork::Testnet,
+        false => MoneroNetwork::Mainnet,
+    };
+    let private_key = MoneroPrivateKey::new(&network);
+    let address = MoneroAddress::from_private_key(&private_key, &PhantomData);
+
+    #[derive(Serialize, Debug)]
+    pub struct Wallet {
+        private_key: String,
+        address: String,
+    };
+
+    let wallet = Wallet {
+        private_key: private_key.to_string(),
+        address: address.address,
+    };
+
+    for _ in 0..count {
+        if json {
+            println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
+        } else {
+            println!(
+                "
+        Private ( Spend, View ) Key:    {}
+        Address:              {}
+        ",
+                wallet.private_key, wallet.address
+            )
+        }
     }
 }
 

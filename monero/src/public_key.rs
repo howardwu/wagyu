@@ -1,4 +1,4 @@
-use address::{MoneroAddress, Format};
+use address::MoneroAddress;
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use model::{Address, PublicKey};
 use network::Network;
@@ -6,6 +6,7 @@ use private_key::MoneroPrivateKey;
 
 use std::{fmt, fmt::Display};
 use tiny_keccak::keccak256;
+use serde::export::PhantomData;
 
 /// Represents a Monero public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -21,7 +22,7 @@ pub struct MoneroPublicKey {
 
 impl PublicKey for MoneroPublicKey {
     type Address = MoneroAddress;
-    type Format = Format;
+    type Format = PhantomData<u8>;
     type Network = Network;
     type PrivateKey = MoneroPrivateKey;
 
@@ -35,8 +36,12 @@ impl PublicKey for MoneroPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: Option<Self::Format>, network: Option<Self::Network>) -> Self::Address {
-        MoneroAddress::from_public_key(self, format, network)
+    fn to_address(
+        &self,
+        _: &Self::Format,
+        network: &Self::Network
+    ) -> Self::Address {
+        MoneroAddress::from_public_key(self, &PhantomData, network)
     }
 }
 

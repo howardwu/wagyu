@@ -1,4 +1,4 @@
-use model::{Address, crypto::{checksum, hash160}, PrivateKey};
+use model::{Address, PrivateKey};
 use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
 use private_key::MoneroPrivateKey;
 use public_key::MoneroPublicKey;
@@ -6,6 +6,7 @@ use public_key::MoneroPublicKey;
 use base58::ToBase58;
 use serde::Serialize;
 use std::fmt;
+use std::marker::PhantomData;
 use tiny_keccak::keccak256;
 
 /// Represents the format of a Monero address
@@ -26,28 +27,25 @@ pub struct MoneroAddress {
 }
 
 impl Address for MoneroAddress {
-    type Format = Format;
+    type Format = PhantomData<u8>;
     type Network = Network;
     type PrivateKey = MoneroPrivateKey;
     type PublicKey = MoneroPublicKey;
 
     /// Returns the address corresponding to the given Monero private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: Option<Self::Format>) -> Self {
-        let public_key = private_key.to_public_key();
-        let address =
-            MoneroAddress::generate_address(&private_key.network, &public_key.public_spend_key, &public_key.public_view_key);
-        Self { address, network: private_key.network }
+    fn from_private_key(private_key: &Self::PrivateKey, _: &Self::Format) -> Self {
+        Self::from_public_key(&private_key.to_public_key(), &PhantomData, &private_key.network)
     }
 
     /// Returns the address corresponding to the given Bitcoin public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: Option<Self::Format>, network: Option<Self::Network>) -> Self {
-        let network = match network {
-            Some(network) => network,
-            _ => Network::Mainnet,
-        };
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        _: &Self::Format,
+        network: &Self::Network,
+    ) -> Self {
         let address =
             MoneroAddress::generate_address(&network, &public_key.public_spend_key, &public_key.public_view_key);
-        Self { address, network }
+        Self { address, network: *network }
     }
 }
 
