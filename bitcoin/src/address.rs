@@ -142,6 +142,15 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Error deriving PrivateKey from WIF")]
+    fn test_invalid_wif_from_wif() {
+        test_p2wpkh_pair(
+            "xr9tQED9H44gCmp6HAdmemAzU3n84H3dGkuWTKvE23JgHMW8gct",
+            "34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53",
+        )
+    }
+
+    #[test]
     fn test_testnet_uncompressed_p2pkh() {
         let private_keys = [
             "934pVYUzZ7Sm4ZSP7MtXaQXAcMhZHpFHFBvzfW3epFgk5cWeYih",
