@@ -7,10 +7,9 @@ use curve25519_dalek::{scalar::Scalar};
 use rand::Rng;
 use rand::rngs::OsRng;
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
-use serde::export::PhantomData;
-
 
 /// Represents a Monero private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -49,19 +48,23 @@ impl PrivateKey for MoneroPrivateKey {
 }
 
 impl MoneroPrivateKey {
-    /// Returns a private key given seed bytes
+    /// Returns a private key given seed bytes.
     pub fn from_seed(seed: [u8; 32], network: &Network) -> Self {
         let private_spend_key = Scalar::from_bytes_mod_order(seed).to_bytes();
-        let hash = keccak256(&private_spend_key);
-        let private_view_key = Scalar::from_bytes_mod_order(hash).to_bytes();
-        Self { private_spend_key, private_view_key, network: *network }
+        Self {
+            private_spend_key,
+            private_view_key: Scalar::from_bytes_mod_order(keccak256(&private_spend_key)).to_bytes(),
+            network: *network
+        }
     }
 
-    /// Returns a private key given a private spend key
+    /// Returns a private key given a private spend key.
     pub fn from_private_spend_key(private_spend_key: &[u8; 32], network: &Network) -> Self {
-        let hash = keccak256(private_spend_key);
-        let private_view_key = Scalar::from_bytes_mod_order(hash).to_bytes();
-        Self { private_spend_key: *private_spend_key, private_view_key, network: *network }
+        Self {
+            private_spend_key: *private_spend_key,
+            private_view_key: Scalar::from_bytes_mod_order(keccak256(private_spend_key)).to_bytes(),
+            network: *network
+        }
     }
 }
 
@@ -74,6 +77,7 @@ impl Default for MoneroPrivateKey {
 
 impl FromStr for MoneroPrivateKey {
     type Err = &'static str;
+    // TODO (howardwu): Add parsing of mainnet or testnet as an option.
     fn from_str(s: &str) -> Result<Self, &'static str> {
         let seed = hex::decode(s).expect("error decoding string");
         let mut bytes = [0u8; 32];

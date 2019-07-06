@@ -1,5 +1,5 @@
 use model::{Address, PrivateKey};
-use network::{Network, MAINNET_ADDRESS_BYTE, TESTNET_ADDRESS_BYTE};
+use network::Network;
 use private_key::MoneroPrivateKey;
 use public_key::MoneroPublicKey;
 
@@ -9,19 +9,11 @@ use std::fmt;
 use std::marker::PhantomData;
 use tiny_keccak::keccak256;
 
-/// Represents the format of a Monero address
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Format {
-    /// Standard address format
-    Standard
-}
-
 /// Represents a Monero address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroAddress {
     /// The Monero address
     pub address: String,
-
     /// The Network on which this address is usable
     pub network:Network,
 }
@@ -50,20 +42,15 @@ impl Address for MoneroAddress {
 }
 
 impl MoneroAddress {
-    /// Generate Monero address
+    /// Returns a Monero address given the public spend key and public view key.
     pub fn generate_address(
         network: &Network,
-        spend_key: &[u8; 32],
-        view_key: &[u8; 32],
+        public_spend_key: &[u8; 32],
+        public_view_key: &[u8; 32],
     ) -> String {
-        let network_byte = match network {
-            Network::Mainnet => MAINNET_ADDRESS_BYTE,
-            Network::Testnet => TESTNET_ADDRESS_BYTE,
-        };
-
-        let mut bytes = vec![network_byte];
-        bytes.extend(spend_key.iter().cloned());
-        bytes.extend(view_key.iter().cloned());
+        let mut bytes = vec![network.to_address_prefix()];
+        bytes.extend(public_spend_key.iter().cloned());
+        bytes.extend(public_view_key.iter().cloned());
 
         let hash = &keccak256(bytes.as_slice())[..4];
         bytes.extend(hash.iter().cloned());
@@ -84,7 +71,6 @@ impl MoneroAddress {
             }
             base58.push_str(&part);
         }
-
         base58
     }
 }

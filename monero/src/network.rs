@@ -8,8 +8,15 @@ pub enum Network {
     Testnet,
 }
 
-pub const MAINNET_ADDRESS_BYTE: u8 = 0x12;
-pub const TESTNET_ADDRESS_BYTE: u8 = 0x35;
+impl Network {
+    /// Returns the address prefix of the given network.
+    pub fn to_address_prefix(&self) -> u8 {
+        match self {
+            Network::Mainnet => 0x12,
+            Network::Testnet => 0x35,
+        }
+    }
+}
 
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

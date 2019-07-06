@@ -9,6 +9,7 @@ extern crate curve25519_dalek;
 extern crate rand;
 extern crate serde;
 extern crate tiny_keccak;
+
 extern crate model;
 
 pub mod address;
