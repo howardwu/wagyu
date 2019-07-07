@@ -107,24 +107,26 @@ impl BitcoinExtendedPrivateKey {
 }
 
 impl fmt::Display for BitcoinExtendedPrivateKey {
+    /// BIP32 serialization format: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut ret = [0; 82];
-        ret[0..4].copy_from_slice(&match self.network {
+        let mut result = [0; 82];
+        result[0..4].copy_from_slice(&match self.network {
             Network::Mainnet => [0x04, 0x88, 0xAD, 0xE4],
             Network::Testnet => [0x04, 0x35, 0x83, 0x94],
         }[..]);
-        ret[4] = self.depth as u8;
-        ret[5..9].copy_from_slice(&self.parent_fingerprint[..]);
+        result[4] = self.depth as u8;
+        result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
 
-        BigEndian::write_u32(&mut ret[9..13], u32::from(self.child_number));
+        BigEndian::write_u32(&mut result[9..13], u32::from(self.child_number));
 
-        ret[13..45].copy_from_slice(&self.chain_code[..]);
-        ret[45] = 0;
-        ret[46..78].copy_from_slice(&self.private_key.secret_key[..]);
-        let sum = &checksum(&ret[..])[0..4];
-        ret[78..82].copy_from_slice(sum);
+        result[13..45].copy_from_slice(&self.chain_code[..]);
+        result[45] = 0;
+        result[46..78].copy_from_slice(&self.private_key.secret_key[..]);
 
-        fmt.write_str(&ret.to_base58())
+        let sum = &checksum(&result[..])[0..4];
+        result[78..82].copy_from_slice(sum);
+
+        fmt.write_str(&result.to_base58())
     }
 }
 
