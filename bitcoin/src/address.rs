@@ -221,7 +221,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
                 let public_key = BitcoinPublicKey::from_private_key(&private_key);
-                super::test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Mainnet);
+                test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Mainnet);
             });
         }
 
@@ -280,7 +280,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
                 let public_key = BitcoinPublicKey::from_private_key(&private_key);
-                super::test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Mainnet);
+                test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Mainnet);
             });
         }
 
@@ -339,7 +339,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
                 let public_key = BitcoinPublicKey::from_private_key(&private_key);
-                super::test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Testnet);
+                test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Testnet);
             });
         }
 
@@ -398,7 +398,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
                 let public_key = BitcoinPublicKey::from_private_key(&private_key);
-                super::test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Testnet);
+                test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Testnet);
             });
         }
 
@@ -457,7 +457,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
                 let public_key = BitcoinPublicKey::from_private_key(&private_key);
-                super::test_from_public_key(address, &public_key, &Format::P2SH_P2WPKH, &Network::Mainnet);
+                test_from_public_key(address, &public_key, &Format::P2SH_P2WPKH, &Network::Mainnet);
             });
         }
 
@@ -516,7 +516,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
                 let public_key = BitcoinPublicKey::from_private_key(&private_key);
-                super::test_from_public_key(address, &public_key, &Format::P2SH_P2WPKH, &Network::Testnet);
+                test_from_public_key(address, &public_key, &Format::P2SH_P2WPKH, &Network::Testnet);
             });
         }
 

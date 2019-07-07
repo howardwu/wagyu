@@ -1,7 +1,7 @@
 use crate::address::{BitcoinAddress, Format};
-use model::{Address, PublicKey};
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
+use model::{Address, PublicKey};
 
 use secp256k1;
 use std::{fmt, fmt::Display};
