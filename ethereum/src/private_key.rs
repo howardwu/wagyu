@@ -1,11 +1,11 @@
 use crate::address::EthereumAddress;
+use crate::public_key::EthereumPublicKey;
 use model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
     PrivateKey,
     PublicKey,
 };
-use crate::public_key::EthereumPublicKey;
 
 use rand::rngs::OsRng;
 use rand::Rng;

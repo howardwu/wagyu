@@ -1,10 +1,9 @@
-use model::{Address, PrivateKey};
 use crate::network::Network;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
+use model::{Address, PrivateKey};
 
 use base58::ToBase58;
-
 use std::fmt;
 use std::marker::PhantomData;
 use tiny_keccak::keccak256;
