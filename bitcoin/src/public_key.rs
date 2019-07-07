@@ -556,7 +556,7 @@ mod tests {
     #[test]
     fn test_p2pkh_invalid() {
 
-        // Invalid WIF length
+        // Invalid public key length
 
         let public_key = "0";
         assert!(BitcoinPublicKey::from_str(public_key).is_err());
@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn test_p2sh_p2wpkh_invalid() {
 
-        // Invalid WIF length
+        // Invalid public key length
 
         let public_key = "0";
         assert!(BitcoinPublicKey::from_str(public_key).is_err());

@@ -185,4 +185,26 @@ mod tests {
             });
         }
     }
+
+    #[test]
+    fn test_checksum_address_invalid() {
+
+        // Invalid public key length
+
+        let public_key = "0";
+        assert!(EthereumPublicKey::from_str(public_key).is_err());
+
+        let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b014";
+        assert!(EthereumPublicKey::from_str(public_key).is_err());
+
+        let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721";
+        assert!(EthereumPublicKey::from_str(public_key).is_err());
+
+        let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f3593";
+        assert!(EthereumPublicKey::from_str(public_key).is_err());
+
+        let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c";
+        assert!(EthereumPublicKey::from_str(public_key).is_err());
+
+    }
 }
