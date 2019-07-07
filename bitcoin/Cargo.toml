@@ -22,6 +22,7 @@ model = { path = "../model" }
 base58 = "0.1"
 byteorder = { version = "1.2" }
 digest = "0.8.1"
+generic-array = "0.12.0"
 hmac = "0.7.0"
 rand = "0.7"
 ripemd160 = "0.7"
