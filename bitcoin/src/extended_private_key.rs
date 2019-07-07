@@ -6,6 +6,8 @@ use byteorder::{BigEndian, ByteOrder};
 use hmac::{Hmac, Mac};
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
+//use std::{fmt, fmt::Display};
+//use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -19,13 +21,15 @@ pub struct BitcoinExtendedPrivateKey {
 
     /// The network this extended private key can be used on.
     pub network: Network,
+
+    // TODO: version_bytes, depth, parent_fingerprint, child_number need to be added to generate bitcoin extended key address
 }
 
 impl BitcoinExtendedPrivateKey {
     /// Generates new extended private key
-    pub fn new() -> Self {
-        let mut mac = HmacSha512::new_varkey(b"bitcoin").expect("Error generating hmac");
-        mac.input(b"seed");
+    pub fn new(seed: &[u8]) -> Self {
+        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed").expect("Error generating hmac");
+        mac.input(seed);
         let result = mac.result().code();
         let network = Network::Mainnet;
 
@@ -42,7 +46,7 @@ impl BitcoinExtendedPrivateKey {
         network: Network,
     ) -> Self {
         let private_key = BitcoinPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::without_caps(), secret_key_slice).expect("error generating secret key"),
+            SecretKey::from_slice(&Secp256k1::without_caps(),secret_key_slice).expect("error generating secret key"),
             &Network::Mainnet,
         );
 
@@ -62,11 +66,14 @@ impl BitcoinExtendedPrivateKey {
         mac.input(&child_num_be);
 
         let result = mac.result().code();
-        Self::generate_extended_private_key(
+        let mut xpriv = Self::generate_extended_private_key(
             &result[..32],
             &result[32..],
-            self.network
-        )
+            self.network,
+        );
+        xpriv.private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key).expect("error add assign");
+
+        xpriv
     }
 
     /// Generates child extended public key
@@ -74,3 +81,39 @@ impl BitcoinExtendedPrivateKey {
         BitcoinExtendedPublicKey::from_private(&self)
     }
 }
+
+//impl fmt::Display for ExtendedPrivKey {
+//    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+//        let mut ret = [0; 78];
+//        ret[0..4].copy_from_slice(&match self.network {
+//            Network::Bitcoin => [0x04, 0x88, 0xAD, 0xE4],
+//            Network::Testnet | Network::Regtest => [0x04, 0x35, 0x83, 0x94],
+//        }[..]);
+//        ret[4] = self.depth as u8;
+//        ret[5..9].copy_from_slice(&self.parent_fingerprint[..]);
+//
+//        BigEndian::write_u32(&mut ret[9..13], u32::from(self.child_number));
+//
+//        ret[13..45].copy_from_slice(&self.chain_code[..]);
+//        ret[45] = 0;
+//        ret[46..78].copy_from_slice(&self.private_key[..]);
+//        fmt.write_str(&base58::check_encode_slice(&ret[..]))
+//    }
+//}
+
+//
+//
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//    use hex;
+//
+//    #[test]
+//    fn test_new() {
+//        let seed = hex::decode("2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd381ee6260e8d9739fce1f607").unwrap();
+//        let xpriv = BitcoinExtendedPrivateKey::new(&seed);
+//        println!("  private key: {}", xpriv.private_key.secret_key.to_string());
+//        println!("  chain code: {:?}", xpriv.chain_code);
+//        println!("  network: {:?}", xpriv.network.to_string());
+//    }
+//}

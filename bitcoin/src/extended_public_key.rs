@@ -5,6 +5,8 @@ use byteorder::{BigEndian, ByteOrder};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
+//use std::{fmt, fmt::Display};
+//use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -18,6 +20,8 @@ pub struct BitcoinExtendedPublicKey {
 
     /// the network this extended public key can be used on
     pub network: Network,
+
+    // TODO: version_bytes, depth, parent_fingerprint, child_number need to be added to generate bitcoin extended key address
 }
 
 impl BitcoinExtendedPublicKey {
@@ -43,11 +47,31 @@ impl BitcoinExtendedPublicKey {
         let secret_key = SecretKey::from_slice(&Secp256k1::without_caps(), &result[..32]).expect("error generating secret key");
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
+        let mut public_key = self.public_key.clone();
+        public_key.add_exp_assign(&Secp256k1::new(), &secret_key).expect("error exp assign");
 
         Self {
-            public_key: PublicKey::from_secret_key(&Secp256k1::new(), &secret_key),
+            public_key,
             chain_code,
             network: self.network,
         }
     }
 }
+//
+//impl fmt::Display for ExtendedPubKey {
+//    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+//        let mut ret = [0; 78];
+//        ret[0..4].copy_from_slice(&match self.network {
+//            Network::Bitcoin => [0x04u8, 0x88, 0xB2, 0x1E],
+//            Network::Testnet | Network::Regtest => [0x04u8, 0x35, 0x87, 0xCF],
+//        }[..]);
+//        ret[4] = self.depth as u8;
+//        ret[5..9].copy_from_slice(&self.parent_fingerprint[..]);
+//
+//        BigEndian::write_u32(&mut ret[9..13], u32::from(self.child_number));
+//
+//        ret[13..45].copy_from_slice(&self.chain_code[..]);
+//        ret[45..78].copy_from_slice(&self.public_key.key.serialize()[..]);
+//        fmt.write_str(&base58::check_encode_slice(&ret[..]))
+//    }
+//}
