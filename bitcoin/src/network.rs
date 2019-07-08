@@ -10,10 +10,20 @@ pub enum Network {
 
 impl Network {
     /// Returns the address prefix of the given network.
+    // TODO (howardwu): Account for formats other than pubkey hash.
     pub fn to_address_prefix(&self) -> u8 {
         match self {
             Network::Mainnet => 0x00,
-            Network::Testnet => 0x6f,
+            Network::Testnet => 0x6F,
+        }
+    }
+
+    /// Returns the network of the given address prefix.
+    pub fn from_address_prefix(prefix: u8) -> Result<Self, &'static str> {
+        match prefix {
+            0x00 | 0x05 => Ok(Network::Mainnet),
+            0x6F | 0xC4 => Ok(Network::Testnet),
+            _ => return Err("invalid address prefix")
         }
     }
 
