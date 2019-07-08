@@ -25,6 +25,8 @@ secp256k1 = "0.11.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tiny-keccak = "1.4"
+rlp = "0.4"
+ethereum-types = "0.6.0"
 
 [badges]
 travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
