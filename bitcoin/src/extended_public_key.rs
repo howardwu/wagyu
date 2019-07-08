@@ -46,13 +46,21 @@ impl BitcoinExtendedPublicKey {
         }
     }
 
-    /// Generates a normal child extended public key
+    /// Generates a child extended public key at child_number from the current extended private key
     pub fn ckd_pub(&self, child_number: u32) -> Self {
 
-        // let I = HMAC-SHA512(Key = cpar, Data = serP(point(kpar)) || ser32(i)). serP(point(kpar)) ~ Secp256k1_PublicKey.serialize()
-        let mut mac = HmacSha512::new_varkey(&self.chain_code).expect("error generating hmac");
+        let mut mac = HmacSha512::new_varkey(
+            &self.chain_code).expect("error generating hmac");
         let public_key_serialized = &self.public_key.serialize()[..];
-        mac.input(public_key_serialized);
+
+        // Check whether i ≥ 231 (whether the child is a hardened key).
+        // If so (hardened child): return failure
+        // If not (normal child): let I = HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i)).
+        if child_number >= 2_u32.pow(31) {
+            panic!("Cannot derive hardened child from extended public key")
+        } else {
+            mac.input(public_key_serialized);
+        }
 
         let mut child_num_big_endian = [0; 4];
         BigEndian::write_u32(&mut child_num_big_endian, child_number);
@@ -60,9 +68,12 @@ impl BitcoinExtendedPublicKey {
 
         let result = mac.result().code();
 
-        let secret_key = SecretKey::from_slice(&Secp256k1::without_caps(), &result[..32]).expect("error generating secret key");
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
+
+        let secret_key = SecretKey::from_slice(
+            &Secp256k1::without_caps(),
+            &result[..32]).expect("error generating secret key");
         let mut public_key = self.public_key.clone();
         public_key.add_exp_assign(&Secp256k1::new(), &secret_key).expect("error exp assign");
 
@@ -83,7 +94,7 @@ impl BitcoinExtendedPublicKey {
 impl fmt::Display for BitcoinExtendedPublicKey {
     /// BIP32 serialization format: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut result = [0; 82];
+        let mut result = [0u8; 82];
         result[0..4].copy_from_slice(&match self.network {
             Network::Mainnet => [0x04u8, 0x88, 0xB2, 0x1E],
             Network::Testnet => [0x04u8, 0x35, 0x87, 0xCF],
@@ -96,7 +107,7 @@ impl fmt::Display for BitcoinExtendedPublicKey {
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45..78].copy_from_slice(&self.public_key.serialize()[..]);
 
-        let sum = &checksum(&result[..])[0..4];
+        let sum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(sum);
 
         fmt.write_str(&result.to_base58())
@@ -108,13 +119,29 @@ mod tests {
     use super::*;
     use hex;
 
+    /// Test vectors from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+    const SEED_STR : &str = "000102030405060708090a0b0c0d0e0f";
+    const M_XPUB_SERIALIZED: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+    const M0_XPUB_SERIALIZED: &str = "xpub68Gmy5EVb2BdFbj2LpWrk1M7obNuaPTpT5oh9QCCo5sRfqSHVYWex97WpDZzszdzHzxXDAzPLVSwybe4uPYkSk4G3gnrPqqkV9RyNzAcNJ1";
     #[test]
     fn test_from_private() {
-        let seed = hex::decode("2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd381ee6260e8d9739fce1f607").unwrap();
-        let expected_xpub = "xpub661MyMwAqRbcFAEb7d5FeyQpgzpW1yk1koNRtHHhuayKXL7Ls2Kg3GdMzWHSDAfpkzzxKfB9pDHeF8iWTcnovFuJ4DYPBbPBWq7oUDhk4xB";
+        let seed = hex::decode(SEED_STR).unwrap();
         let xpriv = BitcoinExtendedPrivateKey::new(&seed);
         let xpub = BitcoinExtendedPublicKey::from_private(&xpriv);
         println!("{}", xpub.to_string());
-        assert_eq!(xpub.to_string(), expected_xpub);
+        assert_eq!(xpub.to_string(), M_XPUB_SERIALIZED);
+    }
+
+    #[test]
+    fn test_ckd_pub_m0() {
+        let seed = hex::decode(SEED_STR).unwrap();
+        let xpriv = BitcoinExtendedPrivateKey::new(&seed);
+        let child_xpriv = xpriv.ckd_priv(0);
+        let expected_child_xpub = child_xpriv.to_pub().to_string();
+
+        let xpub = BitcoinExtendedPublicKey::from_private(&xpriv);
+        let child_xpub = xpub.ckd_pub(0).to_string();
+        assert_eq!(child_xpub, expected_child_xpub);
+        assert_eq!(child_xpub, M0_XPUB_SERIALIZED);
     }
 }
