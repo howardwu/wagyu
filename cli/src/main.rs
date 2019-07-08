@@ -5,6 +5,7 @@
 use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
+use monero::address::Format as MoneroFormat;
 use monero::{MoneroAddress, MoneroPrivateKey, Network as MoneroNetwork};
 use model::{Address, PrivateKey};
 use zcash::address::Format as ZcashFormat;
@@ -157,7 +158,7 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
         false => MoneroNetwork::Mainnet,
     };
     let private_key = MoneroPrivateKey::new(&network);
-    let address = MoneroAddress::from_private_key(&private_key, &PhantomData);
+    let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard);
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
