@@ -1,7 +1,7 @@
-use model::{Address, crypto::{checksum, hash160}, PrivateKey};
 use crate::network::Network;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::ZcashPublicKey;
+use model::{Address, crypto::{checksum, hash160}, PrivateKey};
 
 use base58::ToBase58;
 use serde::Serialize;
