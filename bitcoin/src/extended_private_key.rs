@@ -10,7 +10,6 @@ use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 
 use std::fmt;
-use std::str;
 
 //use std::str::FromStr;
 
@@ -112,6 +111,7 @@ impl BitcoinExtendedPrivateKey {
         let private_key = BitcoinPrivateKey::from_secret_key(
             SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32]).expect("error generating secret key"),
             &Network::Mainnet,
+            true
         );
 
         let mut chain_code = [0u8; 32];
