@@ -15,8 +15,8 @@ pub enum Format {
     P2PKH,
     /// Pay-to-Script Hash, transparent address beginning with "t3" or "t2"
     P2SH,
-    /// Shielded address beginning with "zc" or "zt"
-    Shielded,
+    /// Sprout shielded address beginning with "zc" or "zt"
+    Sprout,
 }
 
 impl Format {
@@ -26,12 +26,12 @@ impl Format {
             Network::Mainnet => match self {
                 Format::P2PKH => [0x1C, 0xB8],
                 Format::P2SH => [0x1C, 0xBD],
-                Format::Shielded => [0x16, 0x9A]
+                Format::Sprout => [0x16, 0x9A]
             },
             Network::Testnet => match self {
                 Format::P2PKH => [0x1D, 0x25],
                 Format::P2SH => [0x1C, 0xBA],
-                Format::Shielded => [0x16, 0xB6]
+                Format::Sprout => [0x16, 0xB6]
             },
         }
     }
@@ -41,7 +41,7 @@ impl Format {
         match prefix {
             [0x1C, 0xB8] | [0x1D, 0x25] => Ok(Format::P2PKH),
             [0x1C, 0xBD] | [0x1C, 0xBA] => Ok(Format::P2SH),
-            [0x16, 0x9A] | [0x16, 0xB6] => Ok(Format::Shielded),
+            [0x16, 0x9A] | [0x16, 0xB6] => Ok(Format::Sprout),
             _ => return Err("invalid address prefix")
         }
     }
@@ -58,7 +58,7 @@ pub struct ZcashAddress {
     pub network: Network,
 }
 
-impl Address for ZcashAddress{
+impl Address for ZcashAddress {
     type Format = Format;
     type Network = Network;
     type PrivateKey = ZcashPrivateKey;
@@ -70,7 +70,7 @@ impl Address for ZcashAddress{
         match format {
             Format::P2PKH => Self::p2pkh(&public_key, &private_key.network),
             Format::P2SH => Self::p2sh( &private_key.network),
-            Format::Shielded => Self::shielded(&public_key, &private_key.network),
+            Format::Sprout => Self::shielded(&public_key, &private_key.network),
         }
     }
 
@@ -83,7 +83,7 @@ impl Address for ZcashAddress{
         match format {
             Format::P2PKH => Self::p2pkh(public_key, network),
             Format::P2SH => Self::p2sh(network),
-            Format::Shielded => Self::shielded(public_key, network),
+            Format::Sprout => Self::shielded(public_key, network),
         }
     }
 }
@@ -151,7 +151,6 @@ impl fmt::Display for ZcashAddress {
         write!(f, "{}", self.address)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

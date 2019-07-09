@@ -116,10 +116,10 @@ Generate a testnet private key and address with the following command:
 ```bash
 ╰─ wagu bitcoin --network testnet
 
-        Private Key:    92Rk56bU8atxbM9mUyNJtijc8XFyw7UHrDaasyTzcn9iLn4M9Le
-        Address:        myPXYe7NrVpq8oYBugTFtHwamejxB6wNC8
+        Private Key:    cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX,
+        Address:        mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w
         Network:        Testnet
-        Compressed:     false
+        Compressed:     true
 ```
 
 ### 3.3 Generate a wallet as a JSON object
