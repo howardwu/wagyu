@@ -13,8 +13,12 @@ repository = "https://github.com/ArgusDeveloper/wagu"
 categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 readme = "README.md"
-license = "GPL-3.0"
+license = "MIT/Apache-2.0"
 edition = "2018"
+
+[[bin]]
+name = "wagu"
+path = "src/main.rs"
 
 [dependencies]
 bitcoin = { path = "../bitcoin" }
