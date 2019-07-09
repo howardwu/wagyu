@@ -5,7 +5,6 @@ use secp256k1::Secp256k1;
 use rlp::RlpStream;
 use ethereum_types::U256;
 
-
 /// Represents a raw Ethereum transaction
 pub struct EthereumTransaction {
     // Ethereum account nonce
@@ -64,11 +63,7 @@ impl EthereumTransaction {
     }
 
     // Generate the raw transaction hash
-    fn raw_transaction_hash(&self, chain_id: u8) -> Result<Vec<u8>, &'static str> {
-        if chain_id == 0 {
-            return Err("invalid chain_id");
-        }
-
+    fn raw_transaction_hash(&self, chain_id: u8) -> Vec<u8> {
         let mut transaction_rlp = RlpStream::new();
         transaction_rlp.begin_list(9);
         self.encode_transaction_rlp(&mut transaction_rlp);
@@ -76,7 +71,7 @@ impl EthereumTransaction {
         transaction_rlp.append(&U256::zero());
         transaction_rlp.append(&U256::zero());
 
-        Ok( keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect())
+        keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect()
     }
 
     // Sign the transaction with a given private key and output the encoded signature
@@ -85,7 +80,7 @@ impl EthereumTransaction {
             return Err("invalid chain_id");
         }
 
-        let hash = self.raw_transaction_hash(chain_id).unwrap();
+        let hash = self.raw_transaction_hash(chain_id);
         let ethereum_private_key = EthereumPrivateKey::from(private_key);
         if ethereum_private_key.is_err() {
             return Err("invalid private key");
@@ -112,15 +107,15 @@ impl EthereumTransaction {
     fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> EthereumTransactionSignature {
         let signing_key = private_key.secret_key;
         let message = secp256k1::Message::from_slice(hash).unwrap();
-        let s = Secp256k1::signing_only();
 
-        let (v, sig_bytes) = s.sign_recoverable(&message, &signing_key).serialize_compact(&s);
+        let sign = Secp256k1::signing_only();
+        let (v, signature_bytes) = sign.sign_recoverable(&message, &signing_key).serialize_compact(&sign);
         let protected_v = Self::chain_replay_protection(v.to_i32() as u8, chain_id);
 
         EthereumTransactionSignature {
             v: protected_v,
-            r: sig_bytes[0..32].to_vec(),
-            s: sig_bytes[32..64].to_vec(),
+            r: signature_bytes[0..32].to_vec(),
+            s: signature_bytes[32..64].to_vec(),
         }
     }
 
