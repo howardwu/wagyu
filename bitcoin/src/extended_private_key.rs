@@ -3,14 +3,15 @@ use crate::private_key::BitcoinPrivateKey;
 use crate::extended_public_key::BitcoinExtendedPublicKey;
 use crate::network::Network;
 
-use base58::ToBase58;
-use byteorder::{BigEndian, ByteOrder};
+use base58::{FromBase58, ToBase58};
+use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 
 use std::{fmt, fmt::Display};
-//use std::str::FromStr;
+use std::io::Cursor;
+use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -100,7 +101,7 @@ impl BitcoinExtendedPrivateKey {
     }
 
     /// Generates the extended public key associated with the current extended private key
-    pub fn to_pub(&self) -> BitcoinExtendedPublicKey {
+    pub fn to_xpub(&self) -> BitcoinExtendedPublicKey {
         BitcoinExtendedPublicKey::from_private(&self)
     }
 
@@ -126,12 +127,54 @@ impl BitcoinExtendedPrivateKey {
 //    }
 //}
 
-//impl FromStr for BitcoinExtendedPrivateKey {
-//    type Err = &'static str;
-//    fn from_str(s: &str) -> Result<Self, &'static str> {
-//        Self::from_secret_key(ecdsa secret key)
-//    }
-//}
+impl FromStr for BitcoinExtendedPrivateKey {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, &'static str> {
+        let data = s.from_base58().expect("Error decoding base58 extended private key string");
+        if data.len() != 82 {
+            return Err("Invalid extended private key string length");
+        }
+
+        let network = if &data[0..4] == [0x04u8, 0x88, 0xAD, 0xE4] {
+            Network::Mainnet
+        } else if &data[0..4] == [0x04u8, 0x35, 0x83, 0x94] {
+            Network::Testnet
+        } else {
+            return Err("Invalid network version");
+        };
+
+        let depth = data[4] as u8;
+
+        let mut parent_fingerprint = [0u8; 4];
+        parent_fingerprint.copy_from_slice(&data[5..9]);
+
+        let child_number: u32 = Cursor::new(&data[9..13]).read_u32::<BigEndian>().unwrap();
+
+        let mut chain_code = [0u8; 32];
+        chain_code.copy_from_slice(&data[13..45]);
+
+        let secp = Secp256k1::new();
+        let private_key = BitcoinPrivateKey::from_secret_key(
+            SecretKey::from_slice(&secp, &data[46..78]).expect("Error decoding secret key string"),
+            &network,
+            true);
+
+        let expected = &data[78..82];
+        let checksum = &checksum(&data[0..78])[0..4];
+
+        match *expected == *checksum {
+            true => Ok(Self {
+                private_key,
+                chain_code,
+                network,
+                depth,
+                parent_fingerprint,
+                child_number
+            }),
+            false => Err("Invalid extended private key")
+        }
+    }
+}
 
 impl Display for BitcoinExtendedPrivateKey {
     /// BIP32 serialization format: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
@@ -150,8 +193,8 @@ impl Display for BitcoinExtendedPrivateKey {
         result[45] = 0;
         result[46..78].copy_from_slice(&self.private_key.secret_key[..]);
 
-        let sum = &checksum(&result[0..78])[0..4];
-        result[78..82].copy_from_slice(&sum);
+        let checksum = &checksum(&result[0..78])[0..4];
+        result[78..82].copy_from_slice(&checksum);
 
         fmt.write_str(&result.to_base58())
     }
@@ -162,6 +205,23 @@ impl Display for BitcoinExtendedPrivateKey {
 mod tests {
     use super::*;
     use hex;
+
+    fn test_from_str(
+        expected_secret_key: &str,
+        expected_chain_code: &str,
+        expected_depth: u8,
+        expected_parent_fingerprint: &str,
+        expected_child_number: u32,
+        expected_xpriv_serialized: &str
+    ) {
+        let xpriv = BitcoinExtendedPrivateKey::from_str(&expected_xpriv_serialized).expect("error generating xpriv object");
+        assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
+        assert_eq!(expected_depth, xpriv.depth);
+        assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
+        assert_eq!(expected_child_number, xpriv.child_number);
+        assert_eq!(expected_xpriv_serialized, xpriv.to_string());
+    }
 
     fn test_new(
         expected_secret_key: &str,
@@ -180,8 +240,8 @@ mod tests {
         assert_eq!(expected_xpriv_serialized, xpriv.to_string());
     }
 
-    fn test_to_pub(expected_xpub_serialized: &str, xpriv: &BitcoinExtendedPrivateKey) {
-        let xpub = xpriv.to_pub();
+    fn test_to_xpub(expected_xpub_serialized: &str, xpriv: &BitcoinExtendedPrivateKey) {
+        let xpub = xpriv.to_xpub();
         assert_eq!(expected_xpub_serialized, xpub.to_string());
     }
 
@@ -199,7 +259,7 @@ mod tests {
         assert_eq!(expected_chain_code, hex::encode(child_xpriv.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(child_xpriv.parent_fingerprint));
         assert_eq!(expected_xpriv_serialized, child_xpriv.to_string());
-        assert_eq!(expected_xpub_serialized, child_xpriv.to_pub().to_string());
+        assert_eq!(expected_xpub_serialized, child_xpriv.to_xpub().to_string());
         assert_eq!(child_number, child_xpriv.child_number);
 
         child_xpriv
@@ -253,6 +313,48 @@ mod tests {
         ];
 
         #[test]
+        fn test_from_str_hardened() {
+            let (
+                _,
+                _,
+                secret_key,
+                chain_code,
+                parent_fingerprint,
+                xpriv,
+                _
+            ) = KEYPAIR_TREE_HARDENED[0];
+            test_from_str(
+                secret_key,
+                chain_code,
+                0,
+                parent_fingerprint,
+                0,
+                xpriv
+            );
+        }
+
+        #[test]
+        fn test_from_str_normal() {
+            let (
+                _,
+                _,
+                secret_key,
+                chain_code,
+                parent_fingerprint,
+                xpriv,
+                _
+            ) = KEYPAIR_TREE_HARDENED[0];
+            test_from_str(
+                secret_key,
+                chain_code,
+                0,
+                parent_fingerprint,
+                0,
+                xpriv
+            );
+        }
+
+        #[test]
         fn test_new_hardended() {
             let (_,
                 seed,
@@ -260,7 +362,8 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 xpriv,
-                _) = KEYPAIR_TREE_HARDENED[0];
+                _
+            ) = KEYPAIR_TREE_HARDENED[0];
             test_new(
                 secret_key,
                 chain_code,
@@ -279,31 +382,32 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 xpriv,
-                _) = KEYPAIR_TREE_NORMAL[0];
+                _
+            ) = KEYPAIR_TREE_NORMAL[0];
             test_new(
                 secret_key,
                 chain_code,
                 parent_fingerprint,
                 xpriv,
-                seed,
+                seed
             );
         }
 
 
         #[test]
-        fn test_to_pub_hardened() {
+        fn test_to_xpub_hardened() {
             let (_, seed, _, _, _, _, extended_public_key) = KEYPAIR_TREE_HARDENED[0];
             let seed_bytes = hex::decode(seed).unwrap();
             let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
-            test_to_pub(extended_public_key, &xpriv);
+            test_to_xpub(extended_public_key, &xpriv);
         }
 
         #[test]
-        fn test_to_pub_normal() {
+        fn test_to_xpub_normal() {
             let (_, seed, _, _, _, _, extended_public_key) = KEYPAIR_TREE_NORMAL[0];
             let seed_bytes = hex::decode(seed).unwrap();
             let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
-            test_to_pub(extended_public_key, &xpriv);
+            test_to_xpub(extended_public_key, &xpriv);
         }
 
         #[test]
@@ -329,7 +433,7 @@ mod tests {
                     xpriv,
                     xpub,
                     &parent_xpriv,
-                    2_u32.pow(31) + (i as u32),
+                    2_u32.pow(31) + (i as u32)
                 );
             }
         }
@@ -357,7 +461,7 @@ mod tests {
                     xpriv,
                     xpub,
                     &parent_xpriv,
-                    i as u32,
+                    i as u32
                 );
             }
         }
