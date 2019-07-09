@@ -2,9 +2,9 @@
 
 <p align="center">
     <a href="https://travis-ci.com/ArgusDeveloper/wagu"><img src="https://travis-ci.com/ArgusDeveloper/wagu.svg"></a>
-    <a href="https://github.com/ArgusDeveloper/wagu/blob/master/AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
-    <a href="https://github.com/ArgusDeveloper/wagu/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-   <a href="https://github.com/ArgusDeveloper/wagu/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
+    <a href="./LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
+    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
 Pronounced like [wagyu](https://en.wikipedia.org/wiki/Wagyu). Wagu is the **wa**llet **g**eneration **u**tility.
