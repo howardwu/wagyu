@@ -46,10 +46,10 @@ The supported currencies are listed above. Detailed examples are found below and
 
 ## Documentation
 
-* [Bitcoin](./docs/bitcoin.md)
-* [Ethereum](./docs/ethereum.md)
-* [Monero](./docs/monero.md)
-* [Zcash](./docs/zcash.md)
+* [Bitcoin](docs/bitcoin.md)
+* [Ethereum](docs/ethereum.md)
+* [Monero](docs/monero.md)
+* [Zcash](docs/zcash.md)
 
 ##  <a name='Features'></a>Features
 
