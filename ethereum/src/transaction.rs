@@ -7,7 +7,7 @@ use ethereum_types::U256;
 
 
 /// Represents a raw Ethereum transaction
-pub struct Transaction {
+pub struct EthereumTransaction {
     // Ethereum account nonce
     pub nonce: U256,
     // Transaction gas price in wei
@@ -23,7 +23,7 @@ pub struct Transaction {
 }
 
 // Represents an Ethereum transaction signature
-struct TransactionSignature {
+struct EthereumTransactionSignature {
     // The V field of the signature protected with a chain_id
     v: Vec<u8>,
     // The R field of the signature
@@ -33,14 +33,14 @@ struct TransactionSignature {
 }
 
 // Represents an Ethereum transaction output
-pub struct TransactionOutput {
+pub struct EthereumTransactionOutput {
     // Signed transaction output
     pub signed_transaction: String,
     // Hash of the signed transaction
     pub transaction_hash: String
 }
 
-impl Transaction {
+impl EthereumTransaction {
     // Generate a raw Ethereum transaction
     pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Self {
         let nonce = Self::str_to_u256(nonce);
@@ -54,7 +54,7 @@ impl Transaction {
     }
 
     // Generate a Recursive Length Prefix encoding from the raw transaction
-    pub fn encode_transaction_rlp (&self, transaction_rlp: &mut RlpStream) {
+    fn encode_transaction_rlp (&self, transaction_rlp: &mut RlpStream) {
         transaction_rlp.append(&self.nonce);
         transaction_rlp.append(&self.gas_price);
         transaction_rlp.append(&self.gas);
@@ -64,8 +64,8 @@ impl Transaction {
     }
 
     // Generate the raw transaction hash
-    pub fn raw_transaction_hash(&self, chain_id: u8) -> Result<Vec<u8>, &'static str> {
-        if (chain_id == 0) {
+    fn raw_transaction_hash(&self, chain_id: u8) -> Result<Vec<u8>, &'static str> {
+        if chain_id == 0 {
             return Err("invalid chain_id");
         }
 
@@ -81,14 +81,14 @@ impl Transaction {
     }
 
     // Sign the transaction with a given private key and output the encoded signature
-    pub fn sign_transaction(&self, private_key: &str, chain_id: u8) -> Result<TransactionOutput, &'static str> {
-        if (chain_id == 0) {
+    pub fn sign_transaction(&self, private_key: &str, chain_id: u8) -> Result<EthereumTransactionOutput, &'static str> {
+        if chain_id == 0 {
             return Err("invalid chain_id");
         }
 
         let hash = self.raw_transaction_hash(chain_id).unwrap();
         let ethereum_private_key = EthereumPrivateKey::from(private_key);
-        if(ethereum_private_key.is_err()) {
+        if ethereum_private_key.is_err() {
             return Err("invalid private key");
         }
 
@@ -107,11 +107,11 @@ impl Transaction {
         signed_transaction.push_str(&hex::encode(signed_transaction_bytes));
         transaction_hash.push_str(&hex::encode(keccak256(signed_transaction_bytes)));
 
-        Ok(TransactionOutput { signed_transaction, transaction_hash })
+        Ok(EthereumTransactionOutput { signed_transaction, transaction_hash })
     }
 
     // Sign the transaction hash with a given private key
-    fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> TransactionSignature {
+    fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> EthereumTransactionSignature {
         let signing_key = private_key.secret_key;
         let message = secp256k1::Message::from_slice(hash).unwrap();
         let s = Secp256k1::signing_only();
@@ -119,7 +119,7 @@ impl Transaction {
         let (v, sig_bytes) = s.sign_recoverable(&message, &signing_key).serialize_compact(&s);
         let protected_v = Self::chain_replay_protection(v.to_i32() as u8, chain_id);
 
-        TransactionSignature {
+        EthereumTransactionSignature {
             v: protected_v,
             r: sig_bytes[0..32].to_vec(),
             s: sig_bytes[32..64].to_vec(),
@@ -247,7 +247,7 @@ mod tests {
                                           signed_transaction,
                                           transaction_hash
                                       )| {
-            let tx = Transaction::new(nonce, gas_price, gas, to, value, data);
+            let tx = EthereumTransaction::new(nonce, gas_price, gas, to, value, data);
             let tx_output = tx.sign_transaction(private_key, *chain_id).unwrap();
 
             assert_eq!(*signed_transaction, tx_output.signed_transaction);
@@ -264,13 +264,13 @@ mod tests {
                                           to,
                                           value,
                                           data,
-                                          chain_id,
+                                          _,
                                           private_key,
-                                          signed_transaction,
-                                          transaction_hash
+                                          _,
+                                          _
                                       )| {
             let chain_id: u8 = 0;
-            let tx = Transaction::new(nonce, gas_price, gas, to, value, data);
+            let tx = EthereumTransaction::new(nonce, gas_price, gas, to, value, data);
             let tx_output = tx.sign_transaction(private_key, chain_id);
             assert!( tx_output.is_err());
         });
@@ -286,12 +286,12 @@ mod tests {
                                           value,
                                           data,
                                           chain_id,
-                                          private_key,
-                                          signed_transaction,
-                                          transaction_hash
+                                          _,
+                                          _,
+                                          _
                                       )| {
             let private_key = "DEADBEEF";
-            let tx = Transaction::new(nonce, gas_price, gas, to, value, data);
+            let tx = EthereumTransaction::new(nonce, gas_price, gas, to, value, data);
             let tx_output = tx.sign_transaction(private_key, *chain_id);
             assert!( tx_output.is_err());
         });
