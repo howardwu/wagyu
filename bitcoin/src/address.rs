@@ -87,7 +87,7 @@ impl BitcoinAddress {
         };
 
         let mut address = [0u8; 25];
-        address[0] = network.to_address_prefix();
+        address[0] = Format::P2PKH.to_address_prefix(network);
         address[1..21].copy_from_slice(&hash160(&public_key));
 
         let sum = &checksum(&address[0..21])[0..4];
