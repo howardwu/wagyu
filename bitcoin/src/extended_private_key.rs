@@ -9,8 +9,7 @@ use hmac::{Hmac, Mac};
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 
-use std::fmt;
-
+use std::{fmt, fmt::Display};
 //use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
@@ -44,7 +43,7 @@ impl BitcoinExtendedPrivateKey {
     }
 
     /// Generates new master extended private key
-    pub fn generate_master(seed: &[u8]) -> Self {
+    fn generate_master(seed: &[u8]) -> Self {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed").expect("Error generating hmac");
         mac.input(seed);
         let result = mac.result().code();
@@ -61,7 +60,6 @@ impl BitcoinExtendedPrivateKey {
 
     /// Generates the child extended private key at child_number from the current extended private key
     pub fn ckd_priv(&self, child_number: u32) -> Self {
-
         let mut mac = HmacSha512::new_varkey(
             &self.chain_code).expect("error generating hmac from chain code");
         let public_key_serialized = &PublicKey::from_secret_key(
@@ -111,7 +109,7 @@ impl BitcoinExtendedPrivateKey {
         let private_key = BitcoinPrivateKey::from_secret_key(
             SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32]).expect("error generating secret key"),
             &Network::Mainnet,
-            true
+            true,
         );
 
         let mut chain_code = [0u8; 32];
@@ -121,7 +119,21 @@ impl BitcoinExtendedPrivateKey {
     }
 }
 
-impl fmt::Display for BitcoinExtendedPrivateKey {
+//impl Default for BitcoinExtendedPrivateKey {
+//    /// Returns a randomly-generated mainnet Bitcoin private key.
+//    fn default() -> Self {
+//        Self::new(generate_random_seed)
+//    }
+//}
+
+//impl FromStr for BitcoinExtendedPrivateKey {
+//    type Err = &'static str;
+//    fn from_str(s: &str) -> Result<Self, &'static str> {
+//        Self::from_secret_key(ecdsa secret key)
+//    }
+//}
+
+impl Display for BitcoinExtendedPrivateKey {
     /// BIP32 serialization format: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
@@ -151,51 +163,203 @@ mod tests {
     use super::*;
     use hex;
 
-    /// Test vectors from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
-    const SEED_STR: &str = "000102030405060708090a0b0c0d0e0f";
-    const M_SECRET_KEY: &str = "e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35";
-    const M_CHAIN_CODE: &str = "873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508";
-    const M_PARENT_FINGERPRINT: &str = "00000000";
-    const M_XPRIV_SERIALIZED: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-    const M_XPUB_SERIALIZED: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-
-    const M0H_SECRET_KEY: &str = "edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea";
-    const M0H_CHAIN_CODE: &str = "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141";
-    const M0H_PARENT_FINGERPRINT: &str = "3442193e";
-    const M0H_XPRIV_SERIALIZED: &str = "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7";
-    const M0H_XPUB_SERIALIZED : &str = "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw";
-
-
-    #[test]
-    fn test_new() {
-        let seed = hex::decode(SEED_STR).unwrap();
-        let xpriv = BitcoinExtendedPrivateKey::new(&seed);
-        assert_eq!(xpriv.private_key.secret_key.to_string(), M_SECRET_KEY);
-        assert_eq!(hex::encode(xpriv.chain_code), M_CHAIN_CODE);
-        assert_eq!(xpriv.depth, 0);
-        assert_eq!(hex::encode(xpriv.parent_fingerprint), M_PARENT_FINGERPRINT);
-        assert_eq!(xpriv.child_number, 0);
-        assert_eq!(xpriv.to_string(), M_XPRIV_SERIALIZED);
+    fn test_new(
+        expected_secret_key: &str,
+        expected_chain_code: &str,
+        expected_parent_fingerprint: &str,
+        expected_xpriv_serialized: &str,
+        seed: &str,
+    ) {
+        let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
+        let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+        assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
+        assert_eq!(0, xpriv.depth);
+        assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
+        assert_eq!(0, xpriv.child_number);
+        assert_eq!(expected_xpriv_serialized, xpriv.to_string());
     }
 
-    #[test]
-    fn test_to_pub() {
-        let seed = hex::decode(SEED_STR).unwrap();
-        let xpriv = BitcoinExtendedPrivateKey::new(&seed);
+    fn test_to_pub(expected_xpub_serialized: &str, xpriv: &BitcoinExtendedPrivateKey) {
         let xpub = xpriv.to_pub();
-        assert_eq!(xpub.to_string(), M_XPUB_SERIALIZED);
+        assert_eq!(expected_xpub_serialized, xpub.to_string());
     }
 
-    #[test]
-    fn test_ckd_priv_m0h() {
-        let seed = hex::decode(SEED_STR).unwrap();
-        let parent_xpriv = BitcoinExtendedPrivateKey::new(&seed);
-        let child_xpriv = parent_xpriv.ckd_priv(2_u32.pow(31));
-        let child_xpub = child_xpriv.to_pub();
-        assert_eq!(hex::encode(child_xpriv.parent_fingerprint), M0H_PARENT_FINGERPRINT);
-        assert_eq!(child_xpriv.private_key.secret_key.to_string(), M0H_SECRET_KEY);
-        assert_eq!(hex::encode(child_xpriv.chain_code), M0H_CHAIN_CODE);
-        assert_eq!(child_xpriv.to_string(), M0H_XPRIV_SERIALIZED);
-        assert_eq!(child_xpub.to_string(), M0H_XPUB_SERIALIZED);
+    fn test_ckd_priv(
+        expected_secret_key: &str,
+        expected_chain_code: &str,
+        expected_parent_fingerprint: &str,
+        expected_xpriv_serialized: &str,
+        expected_xpub_serialized: &str,
+        parent_xpriv: &BitcoinExtendedPrivateKey,
+        child_number: u32,
+    ) -> BitcoinExtendedPrivateKey {
+        let child_xpriv = parent_xpriv.ckd_priv(child_number);
+        assert_eq!(expected_secret_key, child_xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(child_xpriv.chain_code));
+        assert_eq!(expected_parent_fingerprint, hex::encode(child_xpriv.parent_fingerprint));
+        assert_eq!(expected_xpriv_serialized, child_xpriv.to_string());
+        assert_eq!(expected_xpub_serialized, child_xpriv.to_pub().to_string());
+        assert_eq!(child_number, child_xpriv.child_number);
+
+        child_xpriv
+    }
+
+    /// Test vectors from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+    mod bip32_default {
+        use super::*;
+
+        // (depth, master_seed, secret_key, chain_code, parent_fingerprint, xpriv, xpub)
+        const KEYPAIR_TREE_HARDENED: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
+            (
+                "0x00",
+                "000102030405060708090a0b0c0d0e0f",
+                "e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35",
+                "873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508",
+                "00000000",
+                "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+                "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+            ),
+            (
+                "0x01",
+                "000102030405060708090a0b0c0d0e0f",
+                "edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea",
+                "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141",
+                "3442193e",
+                "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7",
+                "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
+            )
+        ];
+        // (depth, master_seed, secret_key, chain_code, parent_fingerprint, xpriv, xpub)
+        const KEYPAIR_TREE_NORMAL: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
+            (
+                "0x00",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
+                "4b03d6fc340455b363f51020ad3ecca4f0850280cf436c70c727923f6db46c3e",
+                "60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689",
+                "00000000",
+                "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U",
+                "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
+            ),
+            (
+                "0x01",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
+                "abe74a98f6c7eabee0428f53798f0ab8aa1bd37873999041703c742f15ac7e1e",
+                "f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c",
+                "bd16bee5",
+                "xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt",
+                "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+            )
+        ];
+
+        #[test]
+        fn test_new_hardended() {
+            let (_,
+                seed,
+                secret_key,
+                chain_code,
+                parent_fingerprint,
+                xpriv,
+                _) = KEYPAIR_TREE_HARDENED[0];
+            test_new(
+                secret_key,
+                chain_code,
+                parent_fingerprint,
+                xpriv,
+                seed
+            );
+        }
+
+        #[test]
+        fn test_new_normal() {
+            let (
+                _,
+                seed,
+                secret_key,
+                chain_code,
+                parent_fingerprint,
+                xpriv,
+                _) = KEYPAIR_TREE_NORMAL[0];
+            test_new(
+                secret_key,
+                chain_code,
+                parent_fingerprint,
+                xpriv,
+                seed,
+            );
+        }
+
+
+        #[test]
+        fn test_to_pub_hardened() {
+            let (_, seed, _, _, _, _, extended_public_key) = KEYPAIR_TREE_HARDENED[0];
+            let seed_bytes = hex::decode(seed).unwrap();
+            let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            test_to_pub(extended_public_key, &xpriv);
+        }
+
+        #[test]
+        fn test_to_pub_normal() {
+            let (_, seed, _, _, _, _, extended_public_key) = KEYPAIR_TREE_NORMAL[0];
+            let seed_bytes = hex::decode(seed).unwrap();
+            let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            test_to_pub(extended_public_key, &xpriv);
+        }
+
+        #[test]
+        fn test_ckd_priv_hardened() {
+            let (_, seed, _, _, _, _, _) = KEYPAIR_TREE_HARDENED[0];
+            let seed_bytes = hex::decode(seed).unwrap();
+            let mut parent_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            for (i,
+                (
+                    _,
+                    _,
+                    secret_key,
+                    chain_code,
+                    parent_fingerprint,
+                    xpriv,
+                    xpub
+                )
+            ) in KEYPAIR_TREE_HARDENED[1..].iter_mut().enumerate() {
+                parent_xpriv = test_ckd_priv(
+                    secret_key,
+                    chain_code,
+                    parent_fingerprint,
+                    xpriv,
+                    xpub,
+                    &parent_xpriv,
+                    2_u32.pow(31) + (i as u32),
+                );
+            }
+        }
+
+        #[test]
+        fn test_ckd_priv_normal() {
+            let (_, seed, _, _, _, _, _) = KEYPAIR_TREE_NORMAL[0];
+            let seed_bytes = hex::decode(seed).unwrap();
+            let mut parent_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            for (i,
+                (
+                    _,
+                    _,
+                    secret_key,
+                    chain_code,
+                    parent_fingerprint,
+                    xpriv,
+                    xpub
+                )
+            ) in KEYPAIR_TREE_NORMAL[1..].iter_mut().enumerate() {
+                parent_xpriv = test_ckd_priv(
+                    secret_key,
+                    chain_code,
+                    parent_fingerprint,
+                    xpriv,
+                    xpub,
+                    &parent_xpriv,
+                    i as u32,
+                );
+            }
+        }
     }
 }
