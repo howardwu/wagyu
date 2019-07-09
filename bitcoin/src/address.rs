@@ -1,9 +1,9 @@
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use model::{Address, crypto::{checksum, hash160}, PrivateKey};
+use model::{Address, PrivateKey, crypto::{checksum, hash160}};
 
-use base58::{ToBase58, FromBase58};
+use base58::{FromBase58, ToBase58};
 use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
@@ -21,7 +21,16 @@ pub enum Format {
 impl Format {
     /// Returns the address prefix of the given network.
     pub fn to_address_prefix(&self, network: &Network) -> u8 {
-        network.to_address_prefix(&self)
+        match network {
+            Network::Mainnet => match self {
+                Format::P2PKH => 0x00,
+                Format::P2SH_P2WPKH => 0x05
+            },
+            Network::Testnet => match self {
+                Format::P2PKH => 0x6F,
+                Format::P2SH_P2WPKH => 0xC4
+            },
+        }
     }
 
     /// Returns the format of the given address prefix.

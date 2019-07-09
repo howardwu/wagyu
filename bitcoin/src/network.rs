@@ -13,16 +13,7 @@ pub enum Network {
 impl Network {
     /// Returns the address prefix of the given network.
     pub fn to_address_prefix(&self, format: &Format) -> u8 {
-        match self {
-            Network::Mainnet => match format {
-                Format::P2PKH => 0x00,
-                Format::P2SH_P2WPKH => 0x05
-            },
-            Network::Testnet => match format {
-                Format::P2PKH => 0x6F,
-                Format::P2SH_P2WPKH => 0xC4
-            },
-        }
+        format.to_address_prefix(&self)
     }
 
     /// Returns the network of the given address prefix.
