@@ -70,12 +70,11 @@ impl EthereumTransaction {
         }
 
         let mut transaction_rlp = RlpStream::new();
-        transaction_rlp.begin_unbounded_list();
+        transaction_rlp.begin_list(9);
         self.encode_transaction_rlp(&mut transaction_rlp);
         transaction_rlp.append(&chain_id);
         transaction_rlp.append(&U256::zero());
         transaction_rlp.append(&U256::zero());
-        transaction_rlp.complete_unbounded_list();
 
         Ok( keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect())
     }
@@ -94,12 +93,11 @@ impl EthereumTransaction {
 
         let signature = Self::ecdsa_sign(&hash, ethereum_private_key.unwrap(), &chain_id);
         let mut signed_transaction_rlp = RlpStream::new();
-        signed_transaction_rlp.begin_unbounded_list();
+        signed_transaction_rlp.begin_list(9);
         self.encode_transaction_rlp(&mut signed_transaction_rlp);
         signed_transaction_rlp.append(&signature.v);
         signed_transaction_rlp.append(&signature.r);
         signed_transaction_rlp.append(&signature.s);
-        signed_transaction_rlp.complete_unbounded_list();
 
         let signed_transaction_bytes= signed_transaction_rlp.as_raw();
         let mut signed_transaction= "0x".to_owned();
