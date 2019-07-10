@@ -47,7 +47,7 @@ impl Format {
     }
 }
 
-/// Represents a Zcash t-address
+/// Represents a Zcash address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashAddress {
     /// The Zcash address
@@ -70,7 +70,7 @@ impl Address for ZcashAddress {
         match format {
             Format::P2PKH => Self::p2pkh(&public_key, &private_key.network),
             Format::P2SH => Self::p2sh( &private_key.network),
-            Format::Sprout => Self::shielded(&public_key, &private_key.network),
+            Format::Sprout => Self::sprout(&public_key, &private_key.network),
         }
     }
 
@@ -83,7 +83,7 @@ impl Address for ZcashAddress {
         match format {
             Format::P2PKH => Self::p2pkh(public_key, network),
             Format::P2SH => Self::p2sh(network),
-            Format::Sprout => Self::shielded(public_key, network),
+            Format::Sprout => Self::sprout(public_key, network),
         }
     }
 }
@@ -118,7 +118,7 @@ impl ZcashAddress {
 
     /// Returns a shielded address from a given Zcash public key.
     // TODO (howardwu): implement address scheme
-    pub fn shielded(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
+    pub fn sprout(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
         unimplemented!("shielded addresses are unimplemented");
     }
 }

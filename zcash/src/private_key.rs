@@ -130,7 +130,6 @@ impl Display for ZcashPrivateKey {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
