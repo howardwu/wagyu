@@ -191,10 +191,9 @@ mod tests {
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
-        seed: &str
+        xpriv_serialized: &str
     ) {
-        let seed = hex::decode(seed).unwrap();
-        let xpriv = BitcoinExtendedPrivateKey::new(&seed);
+        let xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
         let xpub = BitcoinExtendedPublicKey::from_private(&xpriv);
         assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
@@ -223,14 +222,15 @@ mod tests {
     mod bip32_default {
         use super::*;
 
-        // (depth, master_seed, public_key, chain_code, parent_fingerprint, xpub_serialized)
-        const KEYPAIR_TREE_HARDENED: [(&str, &str, &str, &str, &str, &str); 2] = [
+        // (depth, master_seed, public_key, chain_code, parent_fingerprint, xpriv_serialized, xpub_serialized)
+        const KEYPAIR_TREE_HARDENED: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
             (
                 "0x00",
                 "000102030405060708090a0b0c0d0e0f",
                 "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2",
                 "873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508",
                 "00000000",
+                "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
                 "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
             ),
             (
@@ -239,18 +239,20 @@ mod tests {
                 "035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56",
                 "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141",
                 "0x3442193e",
+                "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7",
                 "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
             )
         ];
 
-        // (depth, master_seed, secret_key, chain_code, parent_fingerprint, xpub_serialized)
-        const KEYPAIR_TREE_NORMAL: [(&str, &str, &str, &str, &str, &str); 2] = [
+        // (depth, master_seed, secret_key, chain_code, parent_fingerprint, xpriv_serialized, xpub_serialized)
+        const KEYPAIR_TREE_NORMAL: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
             (
                 "0x00",
                 "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
                 "03cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a7",
                 "60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689",
                 "00000000",
+                "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U",
                 "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
             ),
             (
@@ -259,6 +261,7 @@ mod tests {
                 "02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea",
                 "f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c",
                 "bd16bee5",
+                "xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt",
                 "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
             )
         ];
@@ -271,6 +274,7 @@ mod tests {
                 public_key,
                 chain_code,
                 parent_fingerprint,
+                _,
                 xpub
             ) = KEYPAIR_TREE_HARDENED[0];
             test_from_str(
@@ -291,6 +295,7 @@ mod tests {
                 public_key,
                 chain_code,
                 parent_fingerprint,
+                _,
                 xpub
             ) = KEYPAIR_TREE_NORMAL[0];
             test_from_str(
@@ -307,10 +312,11 @@ mod tests {
         fn test_from_private_hardened() {
             let (
                 _,
-                seed,
+                _,
                 public_key,
                 chain_code,
                 parent_fingerprint,
+                xpriv,
                 xpub
             ) = KEYPAIR_TREE_HARDENED[0];
             test_from_private(
@@ -318,7 +324,7 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 xpub,
-                seed
+                xpriv
             );
         }
 
@@ -326,10 +332,11 @@ mod tests {
         fn test_from_private_normal() {
             let (
                 _,
-                seed,
+                _,
                 public_key,
                 chain_code,
                 parent_fingerprint,
+                xpriv,
                 xpub
             ) = KEYPAIR_TREE_NORMAL[0];
             test_from_private(
@@ -337,15 +344,14 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 xpub,
-                seed
+                xpriv
             );
         }
 
         #[test]
         fn test_ckd_pub_normal() {
-            let (_, seed, _, _, _, _) = KEYPAIR_TREE_NORMAL[0];
-            let seed_bytes = hex::decode(seed).unwrap();
-            let parent_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
+            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
             let mut parent_xpub = parent_xpriv.to_xpub();
             for (i,
                 (
@@ -354,6 +360,7 @@ mod tests {
                     public_key,
                     chain_code,
                     parent_fingerprint,
+                    _,
                     xpub
                 )
             ) in KEYPAIR_TREE_NORMAL[1..].iter_mut().enumerate() {
@@ -371,9 +378,8 @@ mod tests {
         #[test]
         #[should_panic(expected = "Cannot derive hardened child from extended public key")]
         fn test_ckd_pub_hardened_panic() {
-            let (_, seed, _, _, _, _) = KEYPAIR_TREE_HARDENED[0];
-            let seed_bytes = hex::decode(seed).unwrap();
-            let parent_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
+            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_xpub();
             let _result = parent_xpub.ckd_pub(2_u32.pow(31));
         }

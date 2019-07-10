@@ -39,20 +39,20 @@ pub struct BitcoinExtendedPrivateKey {
 
 impl BitcoinExtendedPrivateKey {
     /// Generates new extended private key
-    pub fn new(seed: &[u8]) -> Self {
-        BitcoinExtendedPrivateKey::generate_master(seed)
+    pub fn new(seed: &[u8], network: &Network) -> Self {
+        BitcoinExtendedPrivateKey::generate_master(seed, network)
     }
 
     /// Generates new master extended private key
-    fn generate_master(seed: &[u8]) -> Self {
+    fn generate_master(seed: &[u8], network: &Network) -> Self {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed").expect("Error generating hmac");
         mac.input(seed);
         let result = mac.result().code();
-        let (private_key, chain_code) = BitcoinExtendedPrivateKey::derive_private_key_and_chain_code(&result);
+        let (private_key, chain_code) = BitcoinExtendedPrivateKey::derive_private_key_and_chain_code(&result, network);
         Self {
             private_key,
             chain_code,
-            network: Network::Mainnet,
+            network: *network,
             depth: 0,
             parent_fingerprint: [0; 4],
             child_number: 0x00000000,
@@ -83,7 +83,7 @@ impl BitcoinExtendedPrivateKey {
 
         let result = mac.result().code();
 
-        let (mut private_key, chain_code) = BitcoinExtendedPrivateKey::derive_private_key_and_chain_code(&result);
+        let (mut private_key, chain_code) = BitcoinExtendedPrivateKey::derive_private_key_and_chain_code(&result, &self.network);
         private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key).expect("error add assign");
 
         let mut parent_fingerprint = [0u8; 4];
@@ -106,10 +106,10 @@ impl BitcoinExtendedPrivateKey {
     }
 
     /// Generates extended private key from Secp256k1 secret key, chain code, and network
-    pub fn derive_private_key_and_chain_code(result: &[u8]) -> (BitcoinPrivateKey, [u8; 32]) {
+    pub fn derive_private_key_and_chain_code(result: &[u8], network: &Network) -> (BitcoinPrivateKey, [u8; 32]) {
         let private_key = BitcoinPrivateKey::from_secret_key(
             SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32]).expect("error generating secret key"),
-            &Network::Mainnet,
+            network,
             true,
         );
 
@@ -231,7 +231,7 @@ mod tests {
         seed: &str,
     ) {
         let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
-        let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+        let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
         assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(0, xpriv.depth);
@@ -396,25 +396,22 @@ mod tests {
 
         #[test]
         fn test_to_xpub_hardened() {
-            let (_, seed, _, _, _, _, extended_public_key) = KEYPAIR_TREE_HARDENED[0];
-            let seed_bytes = hex::decode(seed).unwrap();
-            let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
-            test_to_xpub(extended_public_key, &xpriv);
+            let (_, _, _, _, _, xpriv_serialized, xpub_serialized) = KEYPAIR_TREE_HARDENED[0];
+            let xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            test_to_xpub(xpub_serialized, &xpriv);
         }
 
         #[test]
         fn test_to_xpub_normal() {
-            let (_, seed, _, _, _, _, extended_public_key) = KEYPAIR_TREE_NORMAL[0];
-            let seed_bytes = hex::decode(seed).unwrap();
-            let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
-            test_to_xpub(extended_public_key, &xpriv);
+            let (_, _, _, _, _, xpriv_serialized, xpub_serialized) = KEYPAIR_TREE_NORMAL[0];
+            let xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            test_to_xpub(xpub_serialized, &xpriv);
         }
 
         #[test]
         fn test_ckd_priv_hardened() {
-            let (_, seed, _, _, _, _, _) = KEYPAIR_TREE_HARDENED[0];
-            let seed_bytes = hex::decode(seed).unwrap();
-            let mut parent_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
+            let mut parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             for (i,
                 (
                     _,
@@ -440,9 +437,8 @@ mod tests {
 
         #[test]
         fn test_ckd_priv_normal() {
-            let (_, seed, _, _, _, _, _) = KEYPAIR_TREE_NORMAL[0];
-            let seed_bytes = hex::decode(seed).unwrap();
-            let mut parent_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes);
+            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
+            let mut parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             for (i,
                 (
                     _,
