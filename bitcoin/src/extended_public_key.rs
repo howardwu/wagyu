@@ -12,10 +12,12 @@ use sha2::Sha512;
 use std::fmt;
 use std::io::Cursor;
 use std::str::FromStr;
+use std::ops::AddAssign;
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Bitcoin extended public key
+#[derive(Debug, Clone)]
 pub struct BitcoinExtendedPublicKey {
     /// The Secp256k1 public key associated with a BitcoinExtendedPrivateKey's private_key
     pub public_key: BitcoinPublicKey,
@@ -48,6 +50,36 @@ impl BitcoinExtendedPublicKey {
             child_number: private_key.child_number,
         }
     }
+
+    /// Generates extended public key corresponding to derivation path from the current extended public key
+    pub fn derivation_path(&self, path: &str) -> Self {
+        let mut path_vec: Vec<&str> = path.split("/").collect();
+
+        if path_vec[0] != "m" {
+            panic!("Invalid derivation path")
+        }
+
+        if path_vec.len() == 1 {
+            return self.clone();
+        }
+
+        let mut xpub = self.clone();
+        for (_, child_str) in path_vec[1..].iter_mut().enumerate() {
+            let mut child_num = 0u32;
+
+            // if hardened path return failure
+            if child_str.contains("'") {
+                panic!("Cannot derive hardened child from extended public key")
+            } else {
+                let child_num_u32: u32 = child_str.parse().expect("Error parsing normal child num");
+                child_num.add_assign(child_num_u32);
+            }
+            xpub = xpub.ckd_pub(child_num);
+        }
+
+        xpub
+    }
+
 
     /// Generates a child extended public key at child_number from the current extended private key
     pub fn ckd_pub(&self, child_number: u32) -> Self {
@@ -219,6 +251,21 @@ mod tests {
         child_xpub
     }
 
+    fn test_derivation_path(
+        expected_public_key: &str,
+        expected_chain_code: &str,
+        expected_parent_fingerprint: &str,
+        expected_xpub_serialized: &str,
+        parent_xpub: &BitcoinExtendedPublicKey,
+        path: &str,
+    ) {
+        let derived_xpub = parent_xpub.derivation_path(path);
+        assert_eq!(expected_public_key, derived_xpub.public_key.public_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(derived_xpub.chain_code));
+        assert_eq!(expected_parent_fingerprint, hex::encode(derived_xpub.parent_fingerprint));
+        assert_eq!(expected_xpub_serialized, derived_xpub.to_string());
+    }
+
     mod bip32_default {
         use super::*;
 
@@ -235,10 +282,10 @@ mod tests {
             ),
             (
                 "0x01",
-                "000102030405060708090a0b0c0d0e0f",
+                "m/0'",
                 "035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56",
                 "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141",
-                "0x3442193e",
+                "3442193e",
                 "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7",
                 "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
             )
@@ -257,7 +304,7 @@ mod tests {
             ),
             (
                 "0x01",
-                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
+                "m/0",
                 "02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea",
                 "f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c",
                 "bd16bee5",
@@ -382,6 +429,42 @@ mod tests {
             let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_xpub();
             let _result = parent_xpub.ckd_pub(2_u32.pow(31));
+        }
+
+        #[test]
+        fn test_derivation_path_normal() {
+            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
+            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
+            let parent_xpub = parent_xpriv.to_xpub();
+            for (i,
+                (
+                    _,
+                    path,
+                    public_key,
+                    chain_code,
+                    parent_fingerprint,
+                    _,
+                    xpub
+                )
+            ) in KEYPAIR_TREE_NORMAL[1..].iter_mut().enumerate() {
+                test_derivation_path(
+                    public_key,
+                    chain_code,
+                    parent_fingerprint,
+                    xpub,
+                    &parent_xpub,
+                    path,
+                );
+            }
+        }
+
+        #[test]
+        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        fn test_derivation_path_hardened_panic() {
+            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
+            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            let parent_xpub = parent_xpriv.to_xpub();
+            let _result = parent_xpub.derivation_path("m/0'");
         }
 
     }
