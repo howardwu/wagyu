@@ -1,69 +1,113 @@
-# wagu
-[![Build Status](https://travis-ci.com/ArgusDeveloper/wagu.svg?token=vLs9yE9nZjZuPeG7pEBi&branch=master)](https://travis-ci.com/ArgusDeveloper/wagu)
+<h1 align="center">wagu</h1>
 
-Pronounced like [wagyu](https://en.wikipedia.org/wiki/Wagyu). Wagu is the **wa**llet **g**eneration **u**tility.
+<p align="center">
+    <a href="https://travis-ci.com/ArgusDeveloper/wagu"><img src="https://travis-ci.com/ArgusDeveloper/wagu.svg"></a>
+    <a href="https://crates.io/crates/wagu"><img src="https://img.shields.io/crates/v/wagu.svg"></a>
+    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
+    <a href="./LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
+    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+</p>
 
-Wagu allows users to generate cryptocurrency wallets for the following cryptocurrencies:
-
-- Bitcoin
-- Ethereum
-- Monero
-- Zcash (Transparent Addresses)
-
-## <a name='Install'></a>Install
-
-To install `wagu`, please first install [Rust](https://www.rust-lang.org/en-US/). Then run the following command in your terminal of choice:
-
-```cargo install wagu```
-
-## <a name='QuickUsage'></a>Quick Usage
-
-Create a wallet for any currency like so:
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
-
-The supported currencies are listed above. Detailed examples are found below and in the `docs` folder.
+Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
 
 ## <a name='TableofContents'></a>Table of Contents
 
-* [Table of Contents](#TableofContents)
-* [Documentation](#documentation)
-* [Features](#Features)
-	* [Generate a wallet with default options](#Generateawalletwithdefaultoptions)
-	* [Generate testnet and mainnet wallets](#Generatetestnetandmainnetwallets)
-	* [Generate wallets as JSON object](#GeneratewalletsasJSONobject)
-	* [Generate multiple wallets of the same kind](#Generatemultiplewalletsofthesamekind)
-	* [Generate a P2WPKH_P2SH (SegWit) Wallet](#GenerateaP2WPKHSegWitWallet)
-	* [Generate compressed and uncompressed (default) wallets](#Generatecompressedanduncompresseddefaultwallets)
-* [Help](#Help)
+* [1. Overview](#1-overview)
+* [2. Build Guide](#2-build-guide)
+    * [2.1 Install Rust](#21-install-rust)
+    * [2.2a Build from Crates.io](#22a-build-from-cratesio)
+    * [2.2b Build from Source Code](#22b-build-from-source-code)
+* [3. Features](#3-features)
+	* [3.1 Generate a wallet with default options](#31-generate-a-wallet-with-default-options)
+	* [3.2 Generate a mainnet or testnet wallet](#32-generate-a-mainnet-and-testnet-wallet)
+	* [3.3 Generate a wallet as a JSON object](#33-generate-a-wallet-as-a-json-object)
+	* [3.4 Generate multiple wallets of the same type](#34-generate-multiple-wallets-of-the-same-type)
+	* [3.5 Generate a P2SH_P2WPKH SegWit wallet](#35-generate-a-p2sh_p2wpkh-segwit-wallet)
+* [4. License](#4-license)
 
-## Documentation
+## 1. Overview
 
-* [Bitcoin](./docs/bitcoin.md)
-* [Ethereum](./docs/ethereum.md)
-* [Monero](./docs/monero.md)
-* [Zcash](./docs/zcash.md)
+Wagu enables you to generate a wallet for the following cryptocurrencies:
 
-##  <a name='Features'></a>Features
+* [Bitcoin](docs/bitcoin.md)
+* [Ethereum](docs/ethereum.md)
+* [Monero](docs/monero.md)
+* [Zcash](docs/zcash.md)
+
+Create a cryptocurrency wallet with the CLI as follows:
+
+[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
+
+## 2. Build Guide
+
+### 2.1 Install Rust
+
+We recommend installing Rust using [rustup](https://www.rustup.rs/). You can install `rustup` as follows:
+
+- macOS or Linux:
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+
+- Windows (64-bit):  
+  
+  Download the [Windows 64-bit executable](https://win.rustup.rs/x86_64) and follow the on-screen instructions.
+
+- Windows (32-bit):  
+  
+  Download the [Windows 32-bit executable](https://win.rustup.rs/i686) and follow the on-screen instructions.
+
+### 2.2a Build from Crates.io
+
+We recommend installing `wagu` this way. In your terminal, run:
+
+```bash
+cargo install wagu
+```
+
+Now to use `wagu`, in your terminal, run:
+```bash
+wagu
+```
+ 
+### 2.2b Build from Source Code
+
+Alternatively, you can install `wagu` by building from the source code as follows:
+
+```bash
+# Download the source code
+git clone https://github.com/ArgusDeveloper/wagu
+cd wagu
+
+# Build in release mode
+$ cargo build --release
+```
+
+This will generate an executable under the `./target/release` directory. To use wagu, run the following command:
+```bash
+./target/release/wagu
+```
+
+## 3. Features
 
 The following demonstrates the functionality of `wagu`. All examples are for the Bitcoin blockchain and more specific exampls can be found in the `/docs` folder.
 
-#### <a name='Generateawalletwithdefaultoptions'></a>Generate a wallet with default options
+### 3.1 Generate a wallet with default options
 
-Generate an uncompressed mainnet private key and address with the following command:
+Generate a compressed mainnet private key and address with the following command:
 
 `wagu bitcoin`
 
 ```bash
 ╰─ wagu bitcoin
 
-        Private Key:    5JHwLmRafAxdtRddv3o2urYo2bfFUT2V29LSoDM3QFJPzoUoBJT
-        Address:        1GMmaXUixBA2ZMqw9U1zX4cTCmhWtNhgTB
+        Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
+        Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
         Network:        Mainnet
-        Compressed:     false
+        Compressed:     true
 ```
 
-#### <a name='Generatetestnetandmainnetwallets'></a>Generate testnet and mainnet wallets
+### 3.2 Generate a mainnet and testnet wallet
 
 Generate a testnet private key and address with the following command:
 
@@ -72,15 +116,15 @@ Generate a testnet private key and address with the following command:
 ```bash
 ╰─ wagu bitcoin --network testnet
 
-        Private Key:    92Rk56bU8atxbM9mUyNJtijc8XFyw7UHrDaasyTzcn9iLn4M9Le
-        Address:        myPXYe7NrVpq8oYBugTFtHwamejxB6wNC8
+        Private Key:    cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX,
+        Address:        mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w
         Network:        Testnet
-        Compressed:     false
+        Compressed:     true
 ```
 
-#### <a name='GeneratewalletsasJSONobject'></a>Generate wallets as JSON object
+### 3.3 Generate a wallet as a JSON object
 
-Generate an uncompressed mainnet private key and address with the following command:
+Generate a compressed mainnet private key and address with the following command:
 
 `wagu bitcoin -j` OR `wagu bitcoin --json`
 
@@ -89,12 +133,12 @@ Generate an uncompressed mainnet private key and address with the following comm
 [
   {
     "privateKey": {
-      "wif": "5JZPS2WbS8A5jkZYtSvHibvNQMN6vU2Btht5YqAZze7zEiFtNDd",
+      "wif": "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H",
       "network": "Mainnet",
-      "compressed": false
+      "compressed": true
     },
     "address": {
-      "wif": "1NuPmGDSsCFcSZCuAccq6zJTvXi2vNzRwg",
+      "address": "1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U",
       "network": "Mainnet",
       "address_type": "P2PKH"
     }
@@ -102,34 +146,34 @@ Generate an uncompressed mainnet private key and address with the following comm
 ]
 ```
 
-#### <a name='Generatemultiplewalletsofthesamekind'></a>Generate multiple wallets of the same kind
+### 3.4 Generate multiple wallets of the same type
 
-Generate a multiple wallets with the following command:
+Generates multiple wallets with the following command:
 
 `wagu bitcoin --count 3` OR `wagu bitcoin -n 3`
 
 ```bash
 ╰─ wagu bitcoin -n 3
 
-        Private Key:    5JsktgmsNQh3MbHMcwNWG3gd5awH59dnUa64Uih6rAssCsdjjU9
-        Address:        1N4Ezyuo4K4FFvBnbeyPv5qPA93mBVi5P9
+        Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
+        Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
         Network:        Mainnet
-        Compressed:     false
+        Compressed:     true
 
 
-        Private Key:    5JzxKHZNEqN9zNgxkjJQASnpCYvBj5NQMs6HfEgMRsQ84VXJpyU
-        Address:        1AzoF4Cw8fS7JdFocmsVoKJdv1j4a81Tf9
+        Private Key:    L4uNhZS86VLiKKGZZGNxwP7s67EfYfQ7S9bNnVfVbU9GBVVo2xoD
+        Address:        16sz5SMFeRfwaqY6wKzkiufwPmF1J7RhAx
         Network:        Mainnet
-        Compressed:     false
+        Compressed:     true
 
 
-        Private Key:    5JxRr7Evz4YSKRWvMLzAtg7WZHg7uEfpM6D6TK4w3HUE3aSQbF7
-        Address:        19uxwixdfxdYVJ4HjrLKT31EakWCqrhb1r
+        Private Key:    KyH2BrThuUnzSXxDrDxQbpK277HxZfwPxVaCs5cwbzDEVNno2nts
+        Address:        17QAwDwsLpehmCqSQXdHZb8vpsYVDnX7ic
         Network:        Mainnet
-        Compressed:     false
+        Compressed:     true
 ```
 
-#### <a name='GenerateaP2WPKHSegWitWallet'></a>Generate a P2WPKH_P2SH (SegWit) Wallet
+### 3.5 Generate a P2SH_P2WPKH SegWit wallet
 
 Generate a SegWit mainnet private key and address with the following command:
 
@@ -144,46 +188,12 @@ Generate a SegWit mainnet private key and address with the following command:
         Compressed:     true
 ```
 
-#### <a name='Generatecompressedanduncompresseddefaultwallets'></a>Generate compressed and uncompressed (default) wallets 
+## 4. License
 
-Generate a compressed mainnet private key and address with the following command:
+This work is licensed under either of the following licenses, at your discretion.
 
-`wagu bitcoin --compressed` OR `wagu bitcoin -c`
+- Apache License Version 2.0 (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
 
-```bash
-╰─ wagu bitcoin -c
-
-        Private Key:    KzpvjTPuU7p2GZFki2FRnnTceDn5jdVAYZkVvDBptWrHMcLeGWFn
-        Address:        1G75ZLkSbTr6wBzr4pthM7eV9NzenMyZPC
-        Network:        Mainnet
-        Compressed:     true
-```
-
-## <a name='Help'></a>Help
-
-The cli contains useful help text, displayed below.
-
-```
-wagu v0.6.0
-Argus Developer <team@argus.dev>
-Generate a wallet for any cryptocurrency
-
-Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)
-
-USAGE:
-    wagu [FLAGS] [OPTIONS] <currency>
-
-FLAGS:
-    -c, --compressed    Enabling this flag generates a wallet which corresponds to a compressed public key
-    -h, --help          Prints help information
-    -j, --json          Enabling this flag prints the wallet in JSON format
-        --segwit        Enabling this flag generates a wallet with a SegWit address
-    -V, --version       Prints version information
-
-OPTIONS:
-    -n, --count <count>        Number of wallets to generate
-    -N, --network <network>    Network of wallet(s) to generate (e.g. mainnet, testnet) [values: mainnet, testnet]
-
-ARGS:
-    <currency>    Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)
-```
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you,
+as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

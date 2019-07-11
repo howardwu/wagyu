@@ -1,10 +1,10 @@
 use crate::address::Address;
 use crate::private_key::PrivateKey;
 
-
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    str::FromStr
 };
 
 /// The interface for a generic public key.
@@ -15,6 +15,7 @@ pub trait PublicKey:
     + Clone
     + Debug
     + Display
+    + FromStr
     + Send
     + Sync
     + 'static

@@ -62,9 +62,9 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
         BitcoinFormat::P2PKH
     };
     let zcash_address_type = if matches.is_present("shielded") {
-        ZcashFormat::Shielded
+        ZcashFormat::Sprout
     } else {
-        ZcashFormat::Transparent
+        ZcashFormat::P2PKH
     };
     let testnet = match matches.value_of("network") {
         Some("mainnet") => false,

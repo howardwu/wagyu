@@ -1,3 +1,5 @@
+use crate::address::Format;
+
 use serde::Serialize;
 use std::fmt;
 
@@ -10,10 +12,16 @@ pub enum Network {
 
 impl Network {
     /// Returns the address prefix of the given network.
-    pub fn to_address_prefix(&self) -> [u8; 2] {
-        match self {
-            Network::Mainnet => [0x1C, 0xB8],
-            Network::Testnet => [0x1D, 0x25],
+    pub fn to_address_prefix(&self, format: &Format) -> [u8; 2] {
+        format.to_address_prefix(&self)
+    }
+
+    /// Returns the network of the given address prefix.
+    pub fn from_address_prefix(prefix: &[u8; 2]) -> Result<Self, &'static str> {
+        match prefix {
+            [0x1C, 0xB8] | [0x1C, 0xBD] | [0x16, 0x9A] => Ok(Network::Mainnet),
+            [0x1D, 0x25] | [0x1C, 0xBA] | [0x16, 0xB6] => Ok(Network::Testnet),
+            _ => return Err("invalid address prefix")
         }
     }
 

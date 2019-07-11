@@ -1,7 +1,6 @@
 use crate::address::Address;
 use crate::public_key::PublicKey;
 
-
 use std::{fmt::{Debug, Display}, str::FromStr};
 
 /// The interface for a generic private key.
