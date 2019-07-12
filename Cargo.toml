@@ -32,7 +32,7 @@ travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
 [dependencies]
 bitcoin = { path = "./bitcoin" }
 ethereum = { path = "./ethereum" }
-wagu_model = { path = "./model" }
+wagu-model = { path = "./model" }
 monero = { path = "./monero" }
 zcash = { path = "./zcash" }
 
