@@ -1,7 +1,6 @@
 use model::{PublicKey, crypto::{checksum, hash160}};
 use crate::public_key::EthereumPublicKey;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
-use crate::network::Network;
 
 use base58::{ToBase58, FromBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
@@ -26,9 +25,6 @@ pub struct EthereumExtendedPublicKey {
     /// The chain code associated with a EthereumExtendedPrivateKey
     pub chain_code: [u8; 32],
 
-    /// the network this extended public key can be used on
-    pub network: Network,
-
     /// 0x00 for master nodes, 0x01 for level-1 derived keys, ....
     pub depth: u8,
 
@@ -45,7 +41,6 @@ impl EthereumExtendedPublicKey {
         Self {
             public_key: EthereumPublicKey::from_private_key(&private_key.private_key),
             chain_code: private_key.chain_code,
-            network: private_key.network,
             depth: private_key.depth,
             parent_fingerprint: private_key.parent_fingerprint,
             child_number: private_key.child_number,
@@ -86,7 +81,7 @@ impl EthereumExtendedPublicKey {
     pub fn ckd_pub(&self, child_number: u32) -> Self {
 
         let mut mac = HmacSha512::new_varkey(
-            &self.chain_code).expect("error generating hmac");
+            &self.chain_code).expect("Error generating hmac");
         let public_key_serialized = &self.public_key.public_key.serialize()[..];
 
         // Check whether i ≥ 231 (whether the child is a hardened key).
@@ -109,9 +104,9 @@ impl EthereumExtendedPublicKey {
 
         let secret_key = SecretKey::from_slice(
             &Secp256k1::without_caps(),
-            &result[..32]).expect("error generating secret key");
+            &result[..32]).expect("Error generating secret key");
         let mut public_key = self.public_key.clone();
-        public_key.public_key.add_exp_assign(&Secp256k1::new(), &secret_key).expect("error exp assign");
+        public_key.public_key.add_exp_assign(&Secp256k1::new(), &secret_key).expect("Error adding secret key point");
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -119,7 +114,6 @@ impl EthereumExtendedPublicKey {
         Self {
             public_key,
             chain_code,
-            network: self.network,
             depth: self.depth + 1,
             parent_fingerprint,
             child_number,
@@ -130,16 +124,12 @@ impl EthereumExtendedPublicKey {
 impl FromStr for EthereumExtendedPublicKey {
     type Err = &'static str;
     fn from_str(s: &str) -> Result<Self, &'static str> {
-        let data = s.from_base58().expect("Error decoding base58 extended publicd key string");
+        let data = s.from_base58().expect("Error decoding base58 extended public key string");
         if data.len() != 82 {
             return Err("Invalid extended public key length");
         }
 
-        let network = if &data[0..4] == [0x04u8, 0x88, 0xB2, 0x1E] {
-            Network::Mainnet
-        } else if &data[0..4] == [0x04u8, 0x35, 0x87, 0xCF] {
-            Network::Testnet
-        } else {
+        if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
             return Err("Invalid network version");
         };
 
@@ -155,7 +145,7 @@ impl FromStr for EthereumExtendedPublicKey {
 
         let secp = Secp256k1::new();
         let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&secp,&data[45..78]).expect("Error deriving secp256k1 public key from slice");
-        
+
         let public_key = EthereumPublicKey::from_str(
             &hex::encode(&secp256k1_public_key.serialize_uncompressed()[1..])).expect("Error deriving ethereum public key");
 
@@ -166,7 +156,6 @@ impl FromStr for EthereumExtendedPublicKey {
             true => Ok(Self {
                 public_key,
                 chain_code,
-                network,
                 depth,
                 parent_fingerprint,
                 child_number
@@ -180,10 +169,7 @@ impl fmt::Display for EthereumExtendedPublicKey {
     /// BIP32 serialization format: https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
-        result[0..4].copy_from_slice(&match self.network {
-            Network::Mainnet => [0x04u8, 0x88, 0xB2, 0x1E],
-            Network::Testnet => [0x04u8, 0x35, 0x87, 0xCF],
-        }[..]);
+        result[0..4].copy_from_slice(&[0x04u8, 0x88, 0xB2, 0x1E][..]);
         result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
 

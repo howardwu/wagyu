@@ -1,11 +1,12 @@
 use model::crypto::{checksum, hash160};
 use crate::private_key::EthereumPrivateKey;
 use crate::extended_public_key::EthereumExtendedPublicKey;
-use crate::network::Network;
 
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
+use rand::Rng;
+use rand::rngs::OsRng;
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 
@@ -18,7 +19,6 @@ use std::str::FromStr;
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Ethereum Extended Private Key
-//#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct EthereumExtendedPrivateKey {
     /// The EthereumPrivateKey
@@ -26,9 +26,6 @@ pub struct EthereumExtendedPrivateKey {
 
     /// The chain code corresponding to this extended private key.
     pub chain_code: [u8; 32],
-
-    /// The network this extended private key can be used on.
-    pub network: Network,
 
     /// 0x00 for master nodes, 0x01 for level-1 derived keys, ....
     pub depth: u8,
@@ -42,21 +39,20 @@ pub struct EthereumExtendedPrivateKey {
 
 impl EthereumExtendedPrivateKey {
     /// Generates new extended private key
-    pub fn new(seed: &[u8], network: &Network) -> Self {
-        EthereumExtendedPrivateKey::generate_master(seed, network)
+    pub fn new(seed: &[u8]) -> Self {
+        EthereumExtendedPrivateKey::generate_master(seed)
     }
 
     /// Generates new master extended private key
-    fn generate_master(seed: &[u8], network: &Network) -> Self {
+    fn generate_master(seed: &[u8]) -> Self {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed").expect("Error generating hmac");
         mac.input(seed);
         let result = mac.result().code();
 
-        let (private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result, network);
+        let (private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result);
         Self {
             private_key,
             chain_code,
-            network: *network,
             depth: 0,
             parent_fingerprint: [0; 4],
             child_number: 0x00000000,
@@ -119,7 +115,7 @@ impl EthereumExtendedPrivateKey {
 
         let result = mac.result().code();
 
-        let (mut private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result, &self.network);
+        let (mut private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result);
         private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key).expect("error add assign");
 
         let mut parent_fingerprint = [0u8; 4];
@@ -128,7 +124,6 @@ impl EthereumExtendedPrivateKey {
         Self {
             private_key,
             chain_code,
-            network: self.network,
             depth: self.depth + 1,
             parent_fingerprint,
             child_number,
@@ -141,8 +136,8 @@ impl EthereumExtendedPrivateKey {
         EthereumExtendedPublicKey::from_private(&self)
     }
 
-    /// Generates extended private key from Secp256k1 secret key, chain code, and network
-    pub fn derive_private_key_and_chain_code(result: &[u8], _: &Network) -> (EthereumPrivateKey, [u8; 32]) {
+    /// Generates extended private key from Secp256k1 secret key and chain code
+    pub fn derive_private_key_and_chain_code(result: &[u8]) -> (EthereumPrivateKey, [u8; 32]) {
         let private_key = EthereumPrivateKey::from_secret_key(
             SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32]).expect("error generating secret key"));
 
@@ -153,12 +148,14 @@ impl EthereumExtendedPrivateKey {
     }
 }
 
-//impl Default for EthereumExtendedPrivateKey {
-//    /// Returns a randomly-generated mainnet Ethereum private key.
-//    fn default() -> Self {
-//        Self::new(generate_random_seed)
-//    }
-//}
+impl Default for EthereumExtendedPrivateKey {
+    /// Returns a randomly-generated mainnet Ethereum private key.
+    fn default() -> Self {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
+        Self::new(&random)
+    }
+}
 
 impl FromStr for EthereumExtendedPrivateKey {
     type Err = &'static str;
@@ -168,11 +165,8 @@ impl FromStr for EthereumExtendedPrivateKey {
             return Err("Invalid extended private key string length");
         }
 
-        let network = if &data[0..4] == [0x04u8, 0x88, 0xAD, 0xE4] {
-            Network::Mainnet
-        } else if &data[0..4] == [0x04u8, 0x35, 0x83, 0x94] {
-            Network::Testnet
-        } else {
+        // ethereum xkeys are mainnet only
+        if &data[0..4] != [0x04u8, 0x88, 0xAD, 0xE4] {
             return Err("Invalid network version");
         };
 
@@ -186,9 +180,8 @@ impl FromStr for EthereumExtendedPrivateKey {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let secp = Secp256k1::new();
         let private_key = EthereumPrivateKey::from_secret_key(
-            SecretKey::from_slice(&secp, &data[46..78]).expect("Error decoding secret key string"));
+            SecretKey::from_slice(&Secp256k1::new(), &data[46..78]).expect("Error decoding secret key string"));
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -197,7 +190,6 @@ impl FromStr for EthereumExtendedPrivateKey {
             true => Ok(Self {
                 private_key,
                 chain_code,
-                network,
                 depth,
                 parent_fingerprint,
                 child_number,
@@ -211,10 +203,7 @@ impl Display for EthereumExtendedPrivateKey {
     /// BIP32 serialization format: https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
-        result[0..4].copy_from_slice(&match self.network {
-            Network::Mainnet => [0x04, 0x88, 0xAD, 0xE4],
-            Network::Testnet => [0x04, 0x35, 0x83, 0x94],
-        }[..]);
+        result[0..4].copy_from_slice(&[0x04, 0x88, 0xAD, 0xE4][..]);
         result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
 
@@ -262,7 +251,7 @@ mod tests {
         seed: &str,
     ) {
         let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
-        let xpriv = EthereumExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
+        let xpriv = EthereumExtendedPrivateKey::new(&seed_bytes);
         assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(0, xpriv.depth);
@@ -671,5 +660,17 @@ mod tests {
         }
     }
 
+    mod bip44 {
+        use super::*;
 
+        /// Test case from ethereumjs-wallet https://github.com/ethereumjs/ethereumjs-wallet/blob/master/src/test/hdkey.js
+        #[test]
+        fn test_derivation_path() {
+            let path = "m/44'/0'/0/1";
+            let expected_xpriv = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
+            let master_xpriv = EthereumExtendedPrivateKey::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
+            let xpriv = master_xpriv.derivation_path(path);
+            assert_eq!(expected_xpriv, xpriv.to_string());
+        }
+    }
 }

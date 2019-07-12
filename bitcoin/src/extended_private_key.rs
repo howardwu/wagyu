@@ -6,6 +6,8 @@ use crate::network::Network;
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
+use rand::Rng;
+use rand::rngs::OsRng;
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 
@@ -17,7 +19,6 @@ use std::ops::AddAssign;
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Bitcoin Extended Private Key
-//#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BitcoinExtendedPrivateKey {
     /// The BitcoinPrivateKey
@@ -154,12 +155,14 @@ impl BitcoinExtendedPrivateKey {
     }
 }
 
-//impl Default for BitcoinExtendedPrivateKey {
-//    /// Returns a randomly-generated mainnet Bitcoin private key.
-//    fn default() -> Self {
-//        Self::new(generate_random_seed)
-//    }
-//}
+impl Default for BitcoinExtendedPrivateKey {
+    /// Returns a randomly-generated mainnet Bitcoin private key.
+    fn default() -> Self {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
+        Self::new(&random, &Network::Mainnet)
+    }
+}
 
 impl FromStr for BitcoinExtendedPrivateKey {
     type Err = &'static str;
@@ -187,9 +190,8 @@ impl FromStr for BitcoinExtendedPrivateKey {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let secp = Secp256k1::new();
         let private_key = BitcoinPrivateKey::from_secret_key(
-            SecretKey::from_slice(&secp, &data[46..78]).expect("Error decoding secret key string"),
+            SecretKey::from_slice(&Secp256k1::new(), &data[46..78]).expect("Error decoding secret key string"),
             &network,
             true);
 
@@ -437,6 +439,21 @@ mod tests {
                 )
         ];
 
+        const TEST_VECTOR_3 : [(&str, &str, &str, &str); 2] = [
+            (
+                "m",
+                "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
+                "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6",
+                "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
+            ),
+            (
+                "m/0'",
+                "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
+                "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L",
+                "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+            )
+        ];
+
         #[test]
         fn test_from_str_tv1() {
             let (
@@ -671,6 +688,23 @@ mod tests {
                     path,
                 );
             }
+        }
+
+        #[test]
+        fn test_vector_3() {
+            // this tests for the retention of leading zeros
+            let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[0];
+            let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
+            let master_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
+            assert_eq!(master_xpriv.to_string(), xpriv_serialized);
+            assert_eq!(master_xpriv.derivation_path(path).to_string(), xpriv_serialized);
+            assert_eq!(master_xpriv.to_xpub().to_string(), xpub_serialized);
+
+            let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[1];
+            let child_xpriv = master_xpriv.ckd_priv(2147483648);
+            assert_eq!(child_xpriv.to_string(), xpriv_serialized);
+            assert_eq!(master_xpriv.derivation_path(path).to_string(), xpriv_serialized);
+            assert_eq!(child_xpriv.to_xpub().to_string(), xpub_serialized);
         }
     }
 }
