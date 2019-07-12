@@ -667,10 +667,10 @@ mod tests {
         #[test]
         fn test_derivation_path() {
             let path = "m/44'/0'/0/1";
-            let expected_xpriv = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
+            let expected_xpriv_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
             let master_xpriv = EthereumExtendedPrivateKey::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
             let xpriv = master_xpriv.derivation_path(path);
-            assert_eq!(expected_xpriv, xpriv.to_string());
+            assert_eq!(expected_xpriv_serialized, xpriv.to_string());
         }
     }
 }

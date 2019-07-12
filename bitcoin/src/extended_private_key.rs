@@ -694,17 +694,50 @@ mod tests {
         fn test_vector_3() {
             // this tests for the retention of leading zeros
             let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[0];
-            let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
+            let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
             let master_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
             assert_eq!(master_xpriv.to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.derivation_path(path).to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.to_xpub().to_string(), xpub_serialized);
 
-            let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[1];
+            let (path, _, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[1];
             let child_xpriv = master_xpriv.ckd_priv(2147483648);
             assert_eq!(child_xpriv.to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.derivation_path(path).to_string(), xpriv_serialized);
             assert_eq!(child_xpriv.to_xpub().to_string(), xpub_serialized);
         }
     }
+
+    mod bip44 {
+        use super::*;
+
+        #[test]
+        fn test_derivation_path() {
+            let path = "m/44'/0'/0/1";
+            let expected_xpriv_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
+            let master_xpriv = BitcoinExtendedPrivateKey::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
+            let xpriv = master_xpriv.derivation_path(path);
+            assert_eq!(expected_xpriv_serialized, xpriv.to_string());
+        }
+    }
+
+//    mod bip49 {
+//        use super::*;
+//
+//        #[test]
+//        fn test_bip49() {
+//            let seed = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd";
+//            let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
+//            let master_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
+//            let root_path = "m/49'/1'/0'";
+//            let expected_xpriv_serialized = "tprv8gRrNu65W2Msef2BdBSUgFdRTGzC8EwVXnV7UGS3faeXtuMVtGfEdidVeGbThs4ELEoayCAzZQ4uUji9DUiAs7erdVskqju7hrBcDvDsdbY";
+//            let root_xpriv = master_xpriv.derivation_path(&root_path);
+//            assert_eq!(root_xpriv.to_string(), expected_xpriv_serialized);
+//
+//            let account_path = "m/49'/1'/0'/0/0";
+//            let expected_private_key = "cULrpoZGXiuC19Uhvykx7NugygA3k86b3hmdCeyvHYQZSxojGyXJ";
+//            let account_xpriv = master_xpriv.derivation_path(&account_path);
+//            assert_eq!(account_xpriv.private_key.to_string(), expected_private_key);
+//        }
+//    }
 }
