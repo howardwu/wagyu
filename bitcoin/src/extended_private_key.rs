@@ -80,12 +80,12 @@ impl BitcoinExtendedPrivateKey {
 
             // add 2^31 for hardened paths
             if child_str.contains("'") {
-                let child_num_trimmed: u32 = child_str.trim_end_matches("'").parse().expect("Error parsing hardened child num");
+                let child_num_trimmed: u32 = child_str.trim_end_matches("'").parse().expect("Invalid hardened derivation path digit");
 
                 child_num.add_assign(child_num_trimmed);
                 child_num.add_assign(2u32.pow(31));
             } else {
-                let child_num_u32: u32 = child_str.parse().expect("Error parsing normal child num");
+                let child_num_u32: u32 = child_str.parse().expect("Invalid normal derivation path digit");
                 child_num.add_assign(child_num_u32);
             }
             xpriv = xpriv.ckd_priv(child_num);
@@ -96,6 +96,10 @@ impl BitcoinExtendedPrivateKey {
 
     /// Generates the child extended private key at child_number from the current extended private key
     pub fn ckd_priv(&self, child_number: u32) -> Self {
+        if self.depth >= 255 {
+            panic!("Maximum child derivation depth is reached");
+        }
+
         let mut mac = HmacSha512::new_varkey(
             &self.chain_code).expect("error generating hmac from chain code");
         let public_key_serialized = &PublicKey::from_secret_key(
@@ -119,7 +123,7 @@ impl BitcoinExtendedPrivateKey {
         let result = mac.result().code();
 
         let (mut private_key, chain_code) = BitcoinExtendedPrivateKey::derive_private_key_and_chain_code(&result, &self.network);
-        private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key).expect("error add assign");
+        private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key).expect("Error adding secret key to self");
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -143,7 +147,7 @@ impl BitcoinExtendedPrivateKey {
     /// Generates extended private key from Secp256k1 secret key, chain code, and network
     pub fn derive_private_key_and_chain_code(result: &[u8], network: &Network) -> (BitcoinPrivateKey, [u8; 32]) {
         let private_key = BitcoinPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32]).expect("error generating secret key"),
+            SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32]).expect("Error generating secret key from chain_code"),
             network,
             true,
         );
@@ -177,7 +181,7 @@ impl FromStr for BitcoinExtendedPrivateKey {
         } else if &data[0..4] == [0x04u8, 0x35, 0x83, 0x94] {
             Network::Testnet
         } else {
-            return Err("Invalid network version");
+            return Err("Invalid extended private key network version");
         };
 
         let depth = data[4] as u8;
@@ -191,7 +195,7 @@ impl FromStr for BitcoinExtendedPrivateKey {
         chain_code.copy_from_slice(&data[13..45]);
 
         let private_key = BitcoinPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::new(), &data[46..78]).expect("Error decoding secret key string"),
+            SecretKey::from_slice(&Secp256k1::new(), &data[46..78]).expect("Invalid extended private key secret key string"),
             &network,
             true);
 
@@ -207,7 +211,7 @@ impl FromStr for BitcoinExtendedPrivateKey {
                 parent_fingerprint,
                 child_number,
             }),
-            false => Err("Invalid extended private key")
+            false => Err("Invalid extended private key checksum")
         }
     }
 }
@@ -241,6 +245,7 @@ impl Display for BitcoinExtendedPrivateKey {
 mod tests {
     use super::*;
     use hex;
+    use std::string::String;
 
     fn test_from_str(
         expected_secret_key: &str,
@@ -409,7 +414,7 @@ mod tests {
                 "5a61ff8e",
                 "xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9",
                 "xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a"
-                ),
+            ),
             (
                 "m/0/2147483647'/1",
                 "1",
@@ -418,7 +423,7 @@ mod tests {
                 "d8ab4937",
                 "xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef",
                 "xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon"
-                ),
+            ),
             (
                 "m/0/2147483647'/1/2147483646'",
                 "4294967294",
@@ -427,7 +432,7 @@ mod tests {
                 "78412e3a",
                 "xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc",
                 "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
-                ),
+            ),
             (
                 "m/0/2147483647'/1/2147483646'/2",
                 "2",
@@ -436,10 +441,10 @@ mod tests {
                 "31a507b8",
                 "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j",
                 "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
-                )
+            )
         ];
 
-        const TEST_VECTOR_3 : [(&str, &str, &str, &str); 2] = [
+        const TEST_VECTOR_3: [(&str, &str, &str, &str); 2] = [
             (
                 "m",
                 "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
@@ -740,4 +745,81 @@ mod tests {
 //            assert_eq!(account_xpriv.private_key.to_string(), expected_private_key);
 //        }
 //    }
+
+mod test_invalid {
+    use super::*;
+
+    const INVALID_PATH: &str = "/0";
+    const INVALID_PATH_HARDENED: &str = "m/a'";
+    const INVALID_PATH_NORMAL: &str = "m/a";
+    const INVALID_XPRIV_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
+    const INVALID_XPRIV_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+    const INVALID_XPRIV_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
+    const VALID_XPRIV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+    const VALID_XPRIV_FINAL: &str = "xprvJ9DiCzes6yvKjEy8duXR1Qg6Et6CBmrR4yFJvnburXG4X6VnKbNxoTYhvVdpsxkjdXwX3D2NJHFCAnnN1DdAJCVQitnFbFWv3fL3oB2BFo4";
+
+    #[test]
+    #[should_panic(expected = "Invalid extended private key secret key string")]
+    fn from_str_invalid_secret_key() {
+        let _result = BitcoinExtendedPrivateKey::from_str(INVALID_XPRIV_SECRET_KEY).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid extended private key network version")]
+    fn from_str_invalid_network() {
+        let _result = BitcoinExtendedPrivateKey::from_str(INVALID_XPRIV_NETWORK).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid extended private key checksum")]
+    fn from_str_invalid_checksum() {
+        let _result = BitcoinExtendedPrivateKey::from_str(INVALID_XPRIV_CHECKSUM).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid extended private key string length")]
+    fn from_str_short() {
+        let _result = BitcoinExtendedPrivateKey::from_str(&VALID_XPRIV[1..]).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid extended private key string length")]
+    fn from_str_long() {
+        let mut string = String::from(VALID_XPRIV);
+        string.push('a');
+        let _result = BitcoinExtendedPrivateKey::from_str(&string).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Maximum child derivation depth is reached")]
+    fn ckd_priv_max_depth() {
+        let mut xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
+        for _ in 0..255 {
+            xpriv = xpriv.ckd_priv(0);
+        }
+        assert_eq!(xpriv.to_string(), VALID_XPRIV_FINAL);
+        let _result = xpriv.ckd_priv(0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid derivation path")]
+    fn derivation_path_invalid() {
+        let xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
+        let _result = xpriv.derivation_path(INVALID_PATH);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid normal derivation path digit")]
+    fn derivation_path_invalid_digit_normal() {
+        let xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
+        let _result = xpriv.derivation_path(INVALID_PATH_NORMAL);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid hardened derivation path digit")]
+    fn derivation_path_invalid_digit_hardened() {
+        let xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
+        let _result = xpriv.derivation_path(INVALID_PATH_HARDENED);
+    }
+}
 }
