@@ -17,7 +17,7 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-model = { path = "../model" }
+wagu_model = { path = "../model" }
 
 base58 = "0.1"
 rand = "0.7"

@@ -1,5 +1,5 @@
 [package]
-name = "model"
+name = "wagu_model"
 version = "0.6.0"
 authors = [
     "Collin Chin",
