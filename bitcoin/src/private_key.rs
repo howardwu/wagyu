@@ -1,7 +1,7 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::Network;
 use crate::public_key::BitcoinPublicKey;
-use model::{Address, PrivateKey, PublicKey, crypto::checksum};
+use wagu_model::{Address, PrivateKey, PublicKey, crypto::checksum};
 
 use base58::{FromBase58, ToBase58};
 use rand::Rng;
