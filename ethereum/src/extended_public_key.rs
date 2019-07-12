@@ -1,10 +1,11 @@
 use model::{PublicKey, crypto::{checksum, hash160}};
-use crate::public_key::BitcoinPublicKey;
-use crate::extended_private_key::BitcoinExtendedPrivateKey;
+use crate::public_key::EthereumPublicKey;
+use crate::extended_private_key::EthereumExtendedPrivateKey;
 use crate::network::Network;
 
 use base58::{ToBase58, FromBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
+use hex;
 use hmac::{Hmac, Mac};
 use secp256k1::{Secp256k1, SecretKey, PublicKey as Secp256k1_PublicKey};
 use sha2::Sha512;
@@ -16,13 +17,13 @@ use std::ops::AddAssign;
 
 type HmacSha512 = Hmac<Sha512>;
 
-/// Represents a Bitcoin extended public key
+/// Represents a Ethereum extended public key
 #[derive(Debug, Clone)]
-pub struct BitcoinExtendedPublicKey {
-    /// The Secp256k1 public key associated with a BitcoinExtendedPrivateKey's private_key
-    pub public_key: BitcoinPublicKey,
+pub struct EthereumExtendedPublicKey {
+    /// The Secp256k1 public key associated with a EthereumExtendedPrivateKey's private_key
+    pub public_key: EthereumPublicKey,
 
-    /// The chain code associated with a BitcoinExtendedPrivateKey
+    /// The chain code associated with a EthereumExtendedPrivateKey
     pub chain_code: [u8; 32],
 
     /// the network this extended public key can be used on
@@ -38,11 +39,11 @@ pub struct BitcoinExtendedPublicKey {
     pub child_number: u32,
 }
 
-impl BitcoinExtendedPublicKey {
+impl EthereumExtendedPublicKey {
     /// Returns extended public key given extended private key
-    pub fn from_private(private_key: &BitcoinExtendedPrivateKey) -> Self {
+    pub fn from_private(private_key: &EthereumExtendedPrivateKey) -> Self {
         Self {
-            public_key: BitcoinPublicKey::from_private_key(&private_key.private_key),
+            public_key: EthereumPublicKey::from_private_key(&private_key.private_key),
             chain_code: private_key.chain_code,
             network: private_key.network,
             depth: private_key.depth,
@@ -126,7 +127,7 @@ impl BitcoinExtendedPublicKey {
     }
 }
 
-impl FromStr for BitcoinExtendedPublicKey {
+impl FromStr for EthereumExtendedPublicKey {
     type Err = &'static str;
     fn from_str(s: &str) -> Result<Self, &'static str> {
         let data = s.from_base58().expect("Error decoding base58 extended publicd key string");
@@ -154,7 +155,9 @@ impl FromStr for BitcoinExtendedPublicKey {
 
         let secp = Secp256k1::new();
         let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&secp,&data[45..78]).expect("Error deriving secp256k1 public key from slice");
-        let public_key = BitcoinPublicKey::from_str(&secp256k1_public_key.to_string()).expect("Error deriving bitcoin public key");
+        
+        let public_key = EthereumPublicKey::from_str(
+            &hex::encode(&secp256k1_public_key.serialize_uncompressed()[1..])).expect("Error deriving ethereum public key");
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -173,8 +176,8 @@ impl FromStr for BitcoinExtendedPublicKey {
     }
 }
 
-impl fmt::Display for BitcoinExtendedPublicKey {
-    /// BIP32 serialization format: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
+impl fmt::Display for EthereumExtendedPublicKey {
+    /// BIP32 serialization format: https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
         result[0..4].copy_from_slice(&match self.network {
@@ -209,8 +212,8 @@ mod tests {
         expected_child_number: u32,
         expected_xpub_serialized: &str
     ) {
-        let xpub = BitcoinExtendedPublicKey::from_str(&expected_xpub_serialized).expect("Error generating xpub from string");
-        assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
+        let xpub = EthereumExtendedPublicKey::from_str(&expected_xpub_serialized).expect("Error generating xpub from string");
+        assert_eq!(expected_public_key, xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
         assert_eq!(expected_depth, xpub.depth);
         assert_eq!(expected_parent_fingerprint, hex::encode(xpub.parent_fingerprint));
@@ -225,9 +228,9 @@ mod tests {
         expected_xpub_serialized: &str,
         xpriv_serialized: &str
     ) {
-        let xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-        let xpub = BitcoinExtendedPublicKey::from_private(&xpriv);
-        assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
+        let xpriv = EthereumExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
+        let xpub = EthereumExtendedPublicKey::from_private(&xpriv);
+        assert_eq!(expected_public_key, xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(xpub.parent_fingerprint));
         assert_eq!(expected_xpub_serialized, xpub.to_string());
@@ -238,11 +241,11 @@ mod tests {
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
-        parent_xpub: &BitcoinExtendedPublicKey,
+        parent_xpub: &EthereumExtendedPublicKey,
         child_number: u32,
-    ) -> BitcoinExtendedPublicKey {
+    ) -> EthereumExtendedPublicKey {
         let child_xpub = parent_xpub.ckd_pub(child_number);
-        assert_eq!(expected_public_key, child_xpub.public_key.public_key.to_string());
+        assert_eq!(expected_public_key, child_xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(child_xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(child_xpub.parent_fingerprint));
         assert_eq!(expected_xpub_serialized, child_xpub.to_string());
@@ -256,11 +259,11 @@ mod tests {
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
-        parent_xpub: &BitcoinExtendedPublicKey,
+        parent_xpub: &EthereumExtendedPublicKey,
         path: &str,
     ) {
         let derived_xpub = parent_xpub.derivation_path(path);
-        assert_eq!(expected_public_key, derived_xpub.public_key.public_key.to_string());
+        assert_eq!(expected_public_key, derived_xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(derived_xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(derived_xpub.parent_fingerprint));
         assert_eq!(expected_xpub_serialized, derived_xpub.to_string());
@@ -274,7 +277,7 @@ mod tests {
             (
                 "0x00",
                 "000102030405060708090a0b0c0d0e0f",
-                "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2",
+                "39a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c23cbe7ded0e7ce6a594896b8f62888fdbc5c8821305e2ea42bf01e37300116281",
                 "873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508",
                 "00000000",
                 "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
@@ -296,7 +299,7 @@ mod tests {
             (
                 "0x00",
                 "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
-                "03cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a7",
+                "cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a77bd3305d363c26f82c1e41c667e4b3561c06c60a2104d2b548e6dd059056aa51",
                 "60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689",
                 "00000000",
                 "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U",
@@ -305,7 +308,7 @@ mod tests {
             (
                 "0x01",
                 "m/0",
-                "02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea",
+                "fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea67a50538b6f7d8b5f7a1cc657efd267cde8cc1d8c0451d1340a0fb3642777544",
                 "f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c",
                 "bd16bee5",
                 "xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt",
@@ -398,7 +401,7 @@ mod tests {
         #[test]
         fn test_ckd_pub_normal() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
+            let parent_xpriv = EthereumExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
             let mut parent_xpub = parent_xpriv.to_xpub();
             for (i,
                 (
@@ -426,7 +429,7 @@ mod tests {
         #[should_panic(expected = "Cannot derive hardened child from extended public key")]
         fn test_ckd_pub_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_xpub();
             let _result = parent_xpub.ckd_pub(2_u32.pow(31));
         }
@@ -434,7 +437,7 @@ mod tests {
         #[test]
         fn test_derivation_path_normal() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
+            let parent_xpriv = EthereumExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_xpub();
             for (_,
                 (
@@ -462,7 +465,7 @@ mod tests {
         #[should_panic(expected = "Cannot derive hardened child from extended public key")]
         fn test_derivation_path_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_xpub();
             let _result = parent_xpub.derivation_path("m/0'");
         }
