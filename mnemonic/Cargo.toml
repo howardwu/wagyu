@@ -1,0 +1,23 @@
+[package]
+name = "mnemonic"
+version = "0.6.0"
+authors = [
+    "Collin Chin",
+    "Raymond Chu",
+    "Ali Mousa",
+    "Howard Wu"
+]
+description = "A library for generating mnemonic seed phrases"
+homepage = "https://github.com/ArgusDeveloper/wagu"
+repository = "https://github.com/ArgusDeveloper/wagu"
+categories = ["command-line-utilities"]
+keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+readme = "README.md"
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+[dependencies]
+model = { path = "../model" }
+
+[badges]
+travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
