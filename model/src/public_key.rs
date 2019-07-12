@@ -3,7 +3,6 @@ use crate::private_key::PrivateKey;
 
 use std::{
     fmt::{Debug, Display},
-    hash::Hash,
     str::FromStr
 };
 
@@ -11,8 +10,7 @@ use std::{
 pub trait PublicKey:
 //    ToBytes
 //    + FromBytes
-    Copy
-    + Clone
+    Clone
     + Debug
     + Display
     + FromStr
@@ -21,7 +19,6 @@ pub trait PublicKey:
     + 'static
     + Eq
     + Sized
-    + Hash
 {
     type Address: Address;
     type Format;

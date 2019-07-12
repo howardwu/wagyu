@@ -199,15 +199,13 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
     pub struct Wallet {
         private_key: String,
         address: String,
-        network: String,
-        compressed: bool
+        network: String
     };
 
     let wallet = Wallet {
-        private_key: private_key.wif.clone(),
+        private_key: private_key.to_string(),
         address: address.address,
-        network: private_key.network.to_string(),
-        compressed: private_key.compressed
+        network: private_key.network().to_string()
     };
 
     for _ in 0..count {
@@ -219,12 +217,10 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
         Private Key:    {}
         Address:        {}
         Network:        {}
-        Compressed:     {}
         ",
                 wallet.private_key,
                 wallet.address,
-                wallet.network,
-                wallet.compressed
+                wallet.network
             )
         }
     }

@@ -12,15 +12,19 @@ pub enum Network {
 
 impl Network {
     /// Returns the address prefix of the given network.
-    pub fn to_address_prefix(&self, format: &Format) -> [u8; 2] {
+    pub fn to_address_prefix(&self, format: &Format) -> Vec<u8> {
         format.to_address_prefix(&self)
     }
 
     /// Returns the network of the given address prefix.
-    pub fn from_address_prefix(prefix: &[u8; 2]) -> Result<Self, &'static str> {
-        match prefix {
-            [0x1C, 0xB8] | [0x1C, 0xBD] | [0x16, 0x9A] => Ok(Network::Mainnet),
-            [0x1D, 0x25] | [0x1C, 0xBA] | [0x16, 0xB6] => Ok(Network::Testnet),
+    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, &'static str> {
+        if prefix.len() < 2 {
+            return Err("invalid prefix length")
+        }
+
+        match prefix[1] {
+            0xB8 | 0xBD | 0x9A | 0x73 => Ok(Network::Mainnet),
+            0x25 | 0xBA | 0xB6 | 0x74 => Ok(Network::Testnet),
             _ => return Err("invalid address prefix")
         }
     }

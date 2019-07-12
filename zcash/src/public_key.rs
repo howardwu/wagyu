@@ -1,20 +1,54 @@
-use crate::address::{ZcashAddress, Format};
+use crate::address::{Format, ZcashAddress};
 use crate::network::Network;
-use crate::private_key::ZcashPrivateKey;
+use crate::private_key::{SpendingKey, ZcashPrivateKey};
 use model::{Address, PublicKey};
 
+use pairing::bls12_381::Bls12;
 use secp256k1;
+use std::cmp::{Eq, PartialEq};
 use std::{fmt, fmt::Display};
 use std::str::FromStr;
+use zcash_primitives::{JUBJUB, keys::FullViewingKey};
 
-///Represents a Zcash public key
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ZcashPublicKey {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct P2PKHViewingKey {
     /// The ECDSA public key
     pub public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
-    pub compressed: bool,
+    pub compressed: bool
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct P2SHViewingKey {}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SproutViewingKey {}
+
+#[derive(Debug, Clone)]
+pub struct SaplingViewingKey(pub(crate) FullViewingKey<Bls12>);
+
+impl PartialEq for SaplingViewingKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.vk.ak == other.0.vk.ak && self.0.vk.nk == other.0.vk.nk && self.0.ovk == other.0.ovk
+    }
+}
+impl Eq for SaplingViewingKey {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ViewingKey {
+    /// P2PKH transparent viewing key
+    P2PKH(P2PKHViewingKey),
+    /// P2SH transparent viewing key
+    P2SH(P2SHViewingKey),
+    /// Sprout shielded viewing key
+    Sprout(SproutViewingKey),
+    /// Sapling shielded viewing key
+    Sapling(SaplingViewingKey),
+}
+
+///Represents a Zcash public key
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ZcashPublicKey(pub(crate) ViewingKey);
 
 impl PublicKey for ZcashPublicKey {
     type Address = ZcashAddress;
@@ -24,9 +58,17 @@ impl PublicKey for ZcashPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        let secp = secp256k1::Secp256k1::new();
-        let public_key = secp256k1::PublicKey::from_secret_key(&secp, &private_key.secret_key);
-        Self { public_key, compressed: private_key.compressed }
+        match &private_key.0 {
+            SpendingKey::P2PKH(spending_key) => Self(ViewingKey::P2PKH(P2PKHViewingKey {
+                public_key: secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &spending_key.secret_key),
+                compressed: spending_key.compressed
+            })),
+            SpendingKey::P2SH(spending_key) => Self(ViewingKey::P2SH(P2SHViewingKey {})),
+            SpendingKey::Sprout(spending_key) => Self(ViewingKey::Sprout(SproutViewingKey {})),
+            SpendingKey::Sapling(spending_key) => Self(ViewingKey::Sapling(SaplingViewingKey(
+                FullViewingKey::<Bls12>::from_expanded_spending_key(&spending_key.expanded_spending_key, &JUBJUB)
+            )))
+        }
     }
 
     /// Returns the address of the corresponding private key.
@@ -39,31 +81,36 @@ impl FromStr for ZcashPublicKey {
     type Err = &'static str;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            public_key: match secp256k1::PublicKey::from_str(public_key) {
-                Ok(key) => key,
-                _ => return Err("invalid public key")
-            },
-            compressed: public_key.len() == 66
-        })
+        Ok(Self(ViewingKey::P2PKH(P2PKHViewingKey {
+                public_key: match secp256k1::PublicKey::from_str(public_key) {
+                    Ok(key) => key,
+                    _ => return Err("invalid public key")
+                },
+                compressed: public_key.len() == 66
+            })
+        ))
     }
 }
 
 impl Display for ZcashPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.compressed {
-            for s in &self.public_key.serialize()[..] {
-                write!(f, "{:02x}", s)?;
-            }
-        } else {
-            for s in &self.public_key.serialize_uncompressed()[..] {
-                write!(f, "{:02x}", s)?;
-            }
+        match &self.0 {
+            ViewingKey::P2PKH(p2pkh) => {
+                if p2pkh.compressed {
+                    for s in &p2pkh.public_key.serialize()[..] {
+                        write!(f, "{:02x}", s)?;
+                    }
+                } else {
+                    for s in &p2pkh.public_key.serialize_uncompressed()[..] {
+                        write!(f, "{:02x}", s)?;
+                    }
+                }
+                Ok(())
+            },
+            _ => Ok(())
         }
-        Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -94,7 +141,7 @@ mod tests {
         let public_key = ZcashPublicKey::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(expected_format, expected_network);
         assert_eq!(expected_public_key, public_key.to_string());
-        assert_eq!(expected_compressed, public_key.compressed);
+//        assert_eq!(expected_compressed, public_key.compressed);
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*expected_format, address.format);
     }

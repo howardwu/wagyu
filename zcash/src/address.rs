@@ -1,12 +1,17 @@
 use crate::network::Network;
 use crate::private_key::ZcashPrivateKey;
-use crate::public_key::ZcashPublicKey;
+use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
 use model::{Address, crypto::{checksum, hash160}, PrivateKey};
 
+use bech32::{Bech32, ToBase32};
 use base58::{FromBase58, ToBase58};
+use rand::Rng;
+use rand::rngs::OsRng;
+use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
 use std::fmt;
-use std::str::FromStr;
+use std::{str, str::FromStr};
+use zcash_primitives::JUBJUB;
 
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -17,31 +22,40 @@ pub enum Format {
     P2SH,
     /// Sprout shielded address beginning with "zc" or "zt"
     Sprout,
+    /// Sapling shielded address beginning with "zs" or "ztestsapling"
+    Sapling
 }
 
 impl Format {
     /// Returns the address prefix of the given network.
-    pub fn to_address_prefix(&self, network: &Network) -> [u8; 2] {
+    pub fn to_address_prefix(&self, network: &Network) -> Vec<u8> {
         match network {
             Network::Mainnet => match self {
-                Format::P2PKH => [0x1C, 0xB8],
-                Format::P2SH => [0x1C, 0xBD],
-                Format::Sprout => [0x16, 0x9A]
+                Format::P2PKH => vec![0x1C, 0xB8],
+                Format::P2SH => vec![0x1C, 0xBD],
+                Format::Sprout => vec![0x16, 0x9A],
+                Format::Sapling => "zs".as_bytes().to_vec()
             },
             Network::Testnet => match self {
-                Format::P2PKH => [0x1D, 0x25],
-                Format::P2SH => [0x1C, 0xBA],
-                Format::Sprout => [0x16, 0xB6]
+                Format::P2PKH => vec![0x1D, 0x25],
+                Format::P2SH => vec![0x1C, 0xBA],
+                Format::Sprout => vec![0x16, 0xB6],
+                Format::Sapling => "ztestsapling".as_bytes().to_vec()
             },
         }
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: &[u8; 2]) -> Result<Self, &'static str> {
-        match prefix {
-            [0x1C, 0xB8] | [0x1D, 0x25] => Ok(Format::P2PKH),
-            [0x1C, 0xBD] | [0x1C, 0xBA] => Ok(Format::P2SH),
-            [0x16, 0x9A] | [0x16, 0xB6] => Ok(Format::Sprout),
+    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, &'static str> {
+        if prefix.len() < 2 {
+            return Err("invalid prefix length")
+        }
+
+        match prefix[1] {
+            0xB8 | 0x25 => Ok(Format::P2PKH),
+            0xBD | 0xBA => Ok(Format::P2SH),
+            0x9A | 0xB6 => Ok(Format::Sprout),
+            0x73 | 0x74 => Ok(Format::Sapling),
             _ => return Err("invalid address prefix")
         }
     }
@@ -66,11 +80,11 @@ impl Address for ZcashAddress {
 
     /// Returns the address corresponding to the given Zcash private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
-        let public_key = private_key.to_public_key();
-        match format {
-            Format::P2PKH => Self::p2pkh(&public_key, &private_key.network),
-            Format::P2SH => Self::p2sh( &private_key.network),
-            Format::Sprout => Self::sprout(&public_key, &private_key.network),
+        match private_key.to_public_key().0 {
+            ViewingKey::P2PKH(public_key) => Self::p2pkh(&public_key, &private_key.network()),
+            ViewingKey::P2SH(public_key) => Self::p2sh( &private_key.network()),
+            ViewingKey::Sprout(public_key) => Self::sprout(&public_key, &private_key.network()),
+            ViewingKey::Sapling(public_key) => Self::sapling(&public_key, &private_key.network())
         }
     }
 
@@ -80,34 +94,30 @@ impl Address for ZcashAddress {
         format: &Self::Format,
         network: &Self::Network
     ) -> Self {
-        match format {
-            Format::P2PKH => Self::p2pkh(public_key, network),
-            Format::P2SH => Self::p2sh(network),
-            Format::Sprout => Self::sprout(public_key, network),
+        match &public_key.0 {
+            ViewingKey::P2PKH(public_key) => Self::p2pkh(&public_key, network),
+            ViewingKey::P2SH(public_key) => Self::p2sh(network),
+            ViewingKey::Sprout(public_key) => Self::sprout(&public_key, network),
+            ViewingKey::Sapling(public_key) => Self::sapling(&public_key, network)
         }
     }
 }
 
 impl ZcashAddress {
     /// Returns a transparent address from a given Zcash public key.
-    pub fn p2pkh(public_key: &ZcashPublicKey, network: &Network) -> Self {
-        let public_key = match public_key.compressed {
-            true => public_key.public_key.serialize().to_vec(),
-            false => public_key.public_key.serialize_uncompressed().to_vec()
-        };
+    pub fn p2pkh(public_key: &P2PKHViewingKey, network: &Network) -> Self {
 
         let mut address = [0u8; 26];
         address[0..2].copy_from_slice(&Format::P2PKH.to_address_prefix(network));
-        address[2..22].copy_from_slice(&hash160(&public_key));
+        address[2..22].copy_from_slice(&hash160(&match public_key.compressed {
+            true => public_key.public_key.serialize().to_vec(),
+            false => public_key.public_key.serialize_uncompressed().to_vec()
+        }));
 
         let sum = &checksum(&address[0..22])[0..4];
         address[22..26].copy_from_slice(sum);
 
-        Self {
-            address: address.to_base58(),
-            format: Format::P2PKH,
-            network: network.clone(),
-        }
+        Self { address: address.to_base58(), format: Format::P2PKH, network: *network }
     }
 
     /// Returns a P2SH address.
@@ -118,8 +128,33 @@ impl ZcashAddress {
 
     /// Returns a shielded address from a given Zcash public key.
     // TODO (howardwu): implement address scheme
-    pub fn sprout(_public_key: &ZcashPublicKey, _network: &Network) -> Self {
-        unimplemented!("shielded addresses are unimplemented");
+    pub fn sprout(_public_key: &SproutViewingKey, _network: &Network) -> Self {
+        unimplemented!("sprout addresses are unimplemented");
+    }
+
+    /// Returns a shielded address from a given Zcash public key.
+    pub fn sapling(public_key: &SaplingViewingKey, network: &Network) -> Self {
+        loop {
+            let mut random = [0u8; 11];
+            OsRng.try_fill(&mut random).expect("error generating random bytes for diversifier");
+
+            let diversifier = Diversifier(random);
+            if let Some(address) = public_key.0.vk.into_payment_address(diversifier, &JUBJUB) {
+                let mut checked_data = vec![0; 43];
+                checked_data.get_mut(..11).unwrap().copy_from_slice(&diversifier.0);
+                address.pk_d.write(checked_data.get_mut(11..).unwrap()).expect("Cannot write!");
+//                println!("diversifier: {:?}", hex::encode(diversifier.0));
+                let prefix = network.to_address_prefix(&Format::Sapling);
+
+                return Self {
+                    address: Bech32::new(
+                        String::from(str::from_utf8(&prefix).expect("invalid prefix")),
+                        checked_data.to_base32()).expect("bech32 failed").to_string(),
+                    format: Format::Sapling,
+                    network: *network
+                }
+            }
+        }
     }
 }
 
@@ -136,11 +171,8 @@ impl FromStr for ZcashAddress {
             return Err("invalid byte length");
         }
 
-        let mut prefix = [0u8; 2];
-        prefix.copy_from_slice(&data[0..2]);
-
-        let format = Format::from_address_prefix(&prefix)?;
-        let network = Network::from_address_prefix(&prefix)?;
+        let format = Format::from_address_prefix(&data[0..2].to_vec())?;
+        let network = Network::from_address_prefix(&data[0..2].to_vec())?;
 
         Ok(Self { address: address.into(), format, network })
     }
@@ -216,7 +248,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Mainnet).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -224,7 +256,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Mainnet).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Mainnet);
             });
@@ -275,7 +307,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Mainnet).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -283,7 +315,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Mainnet).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Mainnet);
             });
@@ -334,7 +366,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Testnet).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -342,7 +374,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Testnet).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Testnet);
             });
@@ -393,7 +425,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Testnet).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -401,7 +433,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+                let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Testnet).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH, &Network::Testnet);
             });
@@ -431,7 +463,7 @@ mod tests {
         let private_key = "KxYzZuBPkE3rnEEGCdsB6dCzxN1D4xoY5ogKoxbdUdkxbRzvgbij";
         let expected_address = "t1J8w8EMM1Rs26zJFu3Deo6ougWhNhPXUZt";
 
-        let private_key = ZcashPrivateKey::from_wif(private_key).unwrap();
+        let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Mainnet).unwrap();
         let address = ZcashAddress::from_private_key(&private_key, &Format::P2PKH);
         assert_ne!(expected_address, address.to_string());
 
