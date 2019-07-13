@@ -10,6 +10,8 @@ use std::{fmt, fmt::Display};
 use std::str::FromStr;
 use zcash_primitives::{JUBJUB, keys::FullViewingKey};
 
+use sapling_crypto::jubjub::JubjubBls12;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P2PKHViewingKey {
     /// The ECDSA public key
@@ -32,6 +34,7 @@ impl PartialEq for SaplingViewingKey {
         self.0.vk.ak == other.0.vk.ak && self.0.vk.nk == other.0.vk.nk && self.0.ovk == other.0.ovk
     }
 }
+
 impl Eq for SaplingViewingKey {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,14 +84,21 @@ impl FromStr for ZcashPublicKey {
     type Err = &'static str;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(ViewingKey::P2PKH(P2PKHViewingKey {
+        match public_key.len() {
+            66 | 130 => Ok(Self(ViewingKey::P2PKH(P2PKHViewingKey {
                 public_key: match secp256k1::PublicKey::from_str(public_key) {
                     Ok(key) => key,
                     _ => return Err("invalid public key")
                 },
                 compressed: public_key.len() == 66
-            })
-        ))
+            }))),
+            192 => {
+                let mut data = hex::decode(public_key).expect("error decoding expanded spending key");
+                let fvk = FullViewingKey::read(&data[..], &JubjubBls12::new()).expect("invalid viewing key");
+                Ok(Self(ViewingKey::Sapling(SaplingViewingKey(fvk))))
+            },
+            _ => Err("invalid public key")
+        }
     }
 }
 
@@ -105,10 +115,15 @@ impl Display for ZcashPublicKey {
                         write!(f, "{:02x}", s)?;
                     }
                 }
-                Ok(())
             },
-            _ => Ok(())
+            ViewingKey::Sapling(sapling) => {
+                for s in &sapling.0.to_bytes()[..] {
+                    write!(f, "{:02x}", s)?;
+                }
+            },
+            _ => ()
         }
+        Ok(())
     }
 }
 
@@ -141,7 +156,6 @@ mod tests {
         let public_key = ZcashPublicKey::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(expected_format, expected_network);
         assert_eq!(expected_public_key, public_key.to_string());
-//        assert_eq!(expected_compressed, public_key.compressed);
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*expected_format, address.format);
     }
