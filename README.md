@@ -10,6 +10,8 @@
 
 Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
 
+[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
+
 ## <a name='TableofContents'></a>Table of Contents
 
 * [1. Overview](#1-overview)
@@ -33,10 +35,6 @@ Wagu enables you to generate a wallet for the following cryptocurrencies:
 * [Ethereum](docs/ethereum.md)
 * [Monero](docs/monero.md)
 * [Zcash](docs/zcash.md)
-
-Create a cryptocurrency wallet with the CLI as follows:
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
 
 ## 2. Build Guide
 
