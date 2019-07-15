@@ -4,7 +4,6 @@ use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
 use wagu_model::{Address, PrivateKey, crypto::{checksum, hash160}};
-
 use base58::{FromBase58, ToBase58};
 use serde::Serialize;
 use std::fmt;
