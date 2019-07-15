@@ -19,5 +19,8 @@ edition = "2018"
 [dependencies]
 model = { path = "../model" }
 
+sha2 = "0.7"
+pbkdf2 = { version = "0.2", default-features = false }
+
 [badges]
 travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
