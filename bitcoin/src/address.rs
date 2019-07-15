@@ -2,6 +2,7 @@ use crate::bech32::Bech32;
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
+use crate::witness_program::WitnessProgram;
 use wagu_model::{Address, PrivateKey, crypto::{checksum, hash160}};
 
 use base58::{FromBase58, ToBase58};
@@ -135,11 +136,10 @@ impl BitcoinAddress {
 
     pub fn bech32(public_key: &BitcoinPublicKey, network: &Network) -> Self {
         let redeem_script = BitcoinAddress::create_redeem_script(public_key);
-        let script_pub_key = redeem_script[2..].to_vec();
+        let witness_program = WitnessProgram::new(&redeem_script).unwrap();
         let bech32 = Bech32::from_witness_program(
             String::from_utf8(Format::Bech32.to_address_prefix(network)).unwrap(),
-            redeem_script[0],
-            script_pub_key
+            witness_program
         ).expect("Error creating Bech32 address");
         Self {
             address: bech32.to_string(),
