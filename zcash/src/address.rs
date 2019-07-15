@@ -155,7 +155,7 @@ impl fmt::Display for ZcashAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::public_key::PublicKey;
+    use wagu_model::public_key::PublicKey;
 
     fn test_from_private_key(
         expected_address: &str,
