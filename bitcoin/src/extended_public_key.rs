@@ -1,4 +1,4 @@
-use model::{PublicKey, crypto::{checksum, hash160}};
+use wagu_model::{PublicKey, crypto::{checksum, hash160}};
 use crate::public_key::BitcoinPublicKey;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::network::Network;
