@@ -1,6 +1,6 @@
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use model::{Address, PrivateKey, to_hex_string};
+use wagu_model::{Address, PrivateKey, to_hex_string};
 
 use regex::Regex;
 use serde::Serialize;

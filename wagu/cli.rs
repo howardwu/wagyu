@@ -7,7 +7,7 @@ use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
 use monero::{MoneroAddress, MoneroPrivateKey, Network as MoneroNetwork};
-use model::{Address, PrivateKey};
+use wagu_model::{Address, PrivateKey};
 use zcash::address::Format as ZcashFormat;
 use zcash::{ZcashAddress, ZcashPrivateKey, Network as ZcashNetwork};
 

@@ -17,7 +17,7 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-model = { path = "../model" }
+wagu-model = { path = "../model" }
 
 base58-monero = "0.1.1"
 curve25519-dalek = "1.2.1"

@@ -1,6 +1,6 @@
 use crate::address::EthereumAddress;
 use crate::private_key::EthereumPrivateKey;
-use model::{
+use wagu_model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
     PublicKey,
