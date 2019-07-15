@@ -1,5 +1,9 @@
+//! Bech32
+//! This module contains a representation and utility functions for the Bech32 encoding format
+//! specified in BIP173, compliant with all test vectors in the BIP.
 use std::fmt;
 use std::str::FromStr;
+use crate::witness_program::WitnessProgram;
 
 // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 
@@ -7,21 +11,6 @@ use std::str::FromStr;
 pub struct Bech32 {
     pub hrp: String,
     pub data: Vec<u8>,
-}
-
-pub struct WitnessProgram {
-    pub version: u8,
-    pub program: Vec<u8>
-}
-
-impl WitnessProgram {
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut ret: Vec<u8> = Vec::new();
-        ret.push(self.version);
-        ret.extend_from_slice(&self.program);
-
-        ret
-    }
 }
 
 /// Error types for Bech32 encoding / decoding
@@ -64,38 +53,25 @@ const CHARSET_REV: [i8; 128] = [
 const GEN: [u32; 5] = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 
 impl Bech32 {
+    /// Returns a segwit witness program from the bech32 address
     pub fn to_witness_program(&self) -> Result<WitnessProgram, &'static str> {
         let (v, data) = self.data.split_at(1);
         let mut program = match Bech32::convert_bits(data, 5, 8, false) {
             Ok(prog) => prog,
             Err(_) => return Err("Error converting data")
         };
+        program.insert(0, program.len() as u8);
+        program.insert(0, v[0]);
 
-        // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Decoding
-        let version = match v[0] {
-            0x00 => 0x00,
-            _ => v[0] + 0x50
-        };
-
-        // P2SH_P2WPKH start with 0x0014
-        // P2SH_P2WSH starts with 0x0020
-        // https://bitcoincore.org/en/segwit_wallet_dev/#creation-of-p2sh-p2wpkh-address
-        let prog_len = program.len();
-        if version == 0x00 && !(prog_len == 32 || prog_len == 20) {
-            return Err("Invalid program length for witness version 0")
-        }
-        else if prog_len > 40 {
-            return Err("Invalid program length (more than 40 bytes)")
-        }
-        else {
-            program.insert(0, program.len() as u8);
-        }
-
-        Ok(WitnessProgram { version , program })
+        WitnessProgram::new(&program)
     }
 
-    pub fn from_witness_program(hrp: String, version: u8, program: Vec<u8>) -> Result<Self, CodingError> {
-        let grouped_data: Vec<u8> = match Bech32::convert_bits(&program, 8, 5, true) {
+    /// Returns a Bech32 object from a segwit witness program
+    pub fn from_witness_program(hrp: String, witness_program: WitnessProgram) -> Result<Self, CodingError> {
+        let version= witness_program.version;
+        // Ignore the program size when creating the address
+        let program = &witness_program.program;
+        let grouped_data: Vec<u8> = match Bech32::convert_bits(program, 8, 5, true) {
             Ok(data) => data,
             Err(_) => return Err(CodingError::InvalidData)
         };
@@ -106,6 +82,7 @@ impl Bech32 {
         Ok(Bech32 { hrp, data })
     }
 
+    /// Creates a Bech32 checksum
     pub fn create_checksum(hrp: &Vec<u8>, data: &Vec<u8>) -> Vec<u8> {
         let mut values: Vec<u8> = Bech32::hrp_expand(hrp);
         values.extend_from_slice(data);
@@ -119,7 +96,7 @@ impl Bech32 {
         checksum
     }
 
-
+    /// Verifies a Bech32 checksum
     pub fn verify_checksum(hrp: &Vec<u8>, data: &Vec<u8>) -> bool {
         let mut exp = Bech32::hrp_expand(&hrp);
         exp.extend_from_slice(data);
@@ -153,6 +130,7 @@ impl Bech32 {
         v
     }
 
+    // Take hrp and data bytes and convert to a Bech32 object
     fn from_bytes(hrp: Vec<u8>, data: Vec<u8>) -> Result<Self, CodingError> {
         let mut has_lower = false;
         let mut has_upper = false;
@@ -252,6 +230,7 @@ impl Bech32 {
 impl FromStr for Bech32 {
     type Err = CodingError;
 
+    /// Creates a Bech32 object from a bech32 encoded string
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let len = s.len();
         if len < 8 || len > 90 {
@@ -299,6 +278,7 @@ mod tests {
     use super::Bech32;
     use super::CodingError;
     use std::str::FromStr;
+    use crate::witness_program::WitnessProgram;
 
     fn test_from_str_is_ok(bech32_str: &str) {
         let bech32_result = Bech32::from_str(bech32_str);
@@ -410,11 +390,21 @@ mod tests {
     ];
 
     #[test]
-    fn bip173_tests() {
-        ADDRESS_SCRIPT_PUB_KEY_PAIRS.iter().for_each(|(address, script_pub_key)| {
+    fn from_address_bip173_tests() {
+        ADDRESS_SCRIPT_PUB_KEY_PAIRS.iter().for_each(|(address, witness_program)| {
             let bech32 = Bech32::from_str(address).unwrap();
-            let witness_program = bech32.to_witness_program().unwrap();
-            assert_eq!(script_pub_key.to_owned(), hex::encode(&witness_program.to_vec()));
+            let wit_prog = bech32.to_witness_program().unwrap();
+            assert_eq!(witness_program.to_owned(), wit_prog.to_string());
+        });
+    }
+
+    #[test]
+    fn to_address_bip173_tests() {
+        ADDRESS_SCRIPT_PUB_KEY_PAIRS.iter().for_each(|(address, witness_program)| {
+            let wit_prog = WitnessProgram::from_str(witness_program).unwrap();
+            let (hrp, _) = address.split_at(2);
+            let bech32 = Bech32::from_witness_program(hrp.to_owned().to_lowercase(), wit_prog).unwrap();
+            assert_eq!(address.to_owned().to_lowercase(), bech32.to_string());
         });
     }
 }
