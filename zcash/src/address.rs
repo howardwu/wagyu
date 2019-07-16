@@ -82,7 +82,7 @@ impl Address for ZcashAddress {
     fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
         match private_key.to_public_key().0 {
             ViewingKey::P2PKH(public_key) => Self::p2pkh(&public_key, &private_key.network()),
-            ViewingKey::P2SH(public_key) => Self::p2sh( &private_key.network()),
+            ViewingKey::P2SH(_) => Self::p2sh( &private_key.network()),
             ViewingKey::Sprout(public_key) => Self::sprout(&public_key, &private_key.network()),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format, &private_key.network())
         }
@@ -96,7 +96,7 @@ impl Address for ZcashAddress {
     ) -> Self {
         match &public_key.0 {
             ViewingKey::P2PKH(public_key) => Self::p2pkh(&public_key, network),
-            ViewingKey::P2SH(public_key) => Self::p2sh(network),
+            ViewingKey::P2SH(_) => Self::p2sh(network),
             ViewingKey::Sprout(public_key) => Self::sprout(&public_key, network),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format, network)
         }
@@ -151,7 +151,7 @@ impl ZcashAddress {
                 let mut diversifier = [0u8; 11];
                 loop {
                     OsRng.try_fill(&mut diversifier).expect("error generating random bytes for diversifier");
-                    if let Some(address) = public_key.0.vk.into_payment_address(Diversifier(diversifier), &JUBJUB) {
+                    if let Some(_) = public_key.0.vk.into_payment_address(Diversifier(diversifier), &JUBJUB) {
                         break;
                     }
                 }

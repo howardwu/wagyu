@@ -86,7 +86,7 @@ impl Display for SaplingSpendingKey {
             }
         } else {
             let mut buffer = vec![0; 96];
-            self.expanded_spending_key.write(buffer.as_mut_slice());
+            self.expanded_spending_key.write(buffer.as_mut_slice()).expect("invalid expanded spending key");
             for s in &buffer[..] {
                 write!(f, "{:02x}", s)?;
             }
@@ -222,7 +222,7 @@ impl ZcashPrivateKey {
 
     /// Returns a Sapling private key from a given expanded spending key.
     fn sapling_expanded(expanded_spending_key: &str, network: &Network) -> Result<Self, &'static str> {
-        let mut data = hex::decode(expanded_spending_key).expect("invalid expanded spending key hex");
+        let data = hex::decode(expanded_spending_key).expect("invalid expanded spending key hex");
         if data.len() != 96 {
             return Err("invalid expanded spending key length");
         }
@@ -685,7 +685,6 @@ mod tests {
         use super::*;
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
-            // [144, 132, 191, 34, 80, 199, 89, 239, 237, 161, 206] 9084bf2250c759efeda1ce
             (
                 "49110debf1fac0086a2fabd60aab413d0281732b6e51a03dd6ec4f334469ef9f",
                 "35d5cf61a3d8cf3078112693c1839a14307179008ea5f0902810d03e4a05d8bd194129f2b82ded4a973ad24aa3e4d8e49a10e039f5060616981511d6a888ca8eca66a812697612fc31fa4e0928ac144a3938d5793beda10f7513e15a6f95ad80",
@@ -775,25 +774,4 @@ mod tests {
         assert!(ZcashPrivateKey::from_str(private_key).is_err());
 
     }
-
-//    #[test]
-//    fn test_sapling() {
-//        use rand::Rng;
-//        use rand::rngs::OsRng;
-//
-//        let mut random = [0u8; 32];
-//        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
-//
-//        let seed = hex::encode(random);
-//        println!("private_key: {}", seed);
-//
-//        let private_key = ZcashPrivateKey::from(seed.as_str(), &Format::Sapling(None), &Network::Mainnet).unwrap();
-//
-//        let public_key = ZcashPublicKey::from_private_key(&private_key);
-//        println!("public_key: {}", public_key);
-//
-//        let address = private_key.to_address(&Format::Sapling(None));
-//
-//        println!("address: {}", address.to_string());
-//    }
 }
