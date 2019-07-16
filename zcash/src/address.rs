@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use model::{Address, crypto::{checksum, hash160}, PrivateKey};
+use wagu_model::{Address, crypto::{checksum, hash160}, PrivateKey};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use base58::{FromBase58, ToBase58};
@@ -256,7 +256,7 @@ impl fmt::Display for ZcashAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::public_key::PublicKey;
+    use wagu_model::public_key::PublicKey;
 
     fn test_from_private_key(
         expected_address: &str,

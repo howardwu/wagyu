@@ -1,6 +1,51 @@
-[workspace]
+[package]
+name = "wagu"
+version = "0.6.0"
+authors = [
+    "Collin Chin",
+    "Raymond Chu",
+    "Ali Mousa",
+    "Howard Wu"
+]
+description = "A command-line tool to generate cryptocurrency wallets"
+homepage = "https://github.com/ArgusHQ/wagu"
+repository = "https://github.com/ArgusHQ/wagu"
+categories = ["command-line-utilities"]
+keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+readme = "README.md"
+license = "MIT/Apache-2.0"
+edition = "2018"
 
-members = [ "bitcoin", "cli", "ethereum", "model", "monero", "zcash" ]
+[lib]
+path = "wagu/lib.rs"
+
+[[bin]]
+name = "wagu"
+path = "wagu/cli.rs"
+
+[workspace]
+members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
+
+[badges]
+travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
+
+[dependencies]
+bitcoin = { path = "./bitcoin" }
+ethereum = { path = "./ethereum" }
+wagu-model = { path = "./model" }
+monero = { path = "./monero" }
+zcash = { path = "./zcash" }
+
+arrayvec = "0.4.7"
+base58 = "0.1"
+clap = "~2.27.0"
+digest = "0.7.5"
+either = "1.5.0"
+lazy_static = "1.1.0"
+safemem = "0.3.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tiny-keccak = "1.4"
 
 [profile.release]
 opt-level = 3

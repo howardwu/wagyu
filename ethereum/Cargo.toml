@@ -8,8 +8,8 @@ authors = [
     "Howard Wu"
 ]
 description = "A library for generating Ethereum wallets"
-homepage = "https://github.com/ArgusDeveloper/wagu"
-repository = "https://github.com/ArgusDeveloper/wagu"
+homepage = "https://github.com/ArgusHQ/wagu"
+repository = "https://github.com/ArgusHQ/wagu"
 categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 readme = "README.md"
@@ -17,15 +17,19 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-model = { path = "../model" }
+wagu-model = { path = "../model" }
 
+base58 = "0.1"
+byteorder = { version = "1.2" }
 hex = "0.3.2"
+hmac = "0.7.0"
 rand = "0.7"
 regex = "1"
 secp256k1 = "0.11.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = "0.8"
 tiny-keccak = "1.4"
 
 [badges]
-travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }

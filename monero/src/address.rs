@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use model::{Address, PrivateKey};
+use wagu_model::{Address, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
@@ -162,7 +162,7 @@ impl fmt::Display for MoneroAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::public_key::PublicKey;
+    use wagu_model::public_key::PublicKey;
 
     fn test_from_private_key(
         expected_address: &str,

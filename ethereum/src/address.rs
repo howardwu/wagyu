@@ -1,6 +1,6 @@
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use model::{Address, PrivateKey, to_hex_string};
+use wagu_model::{Address, PrivateKey, to_hex_string};
 
 use regex::Regex;
 use serde::Serialize;
@@ -88,7 +88,7 @@ impl fmt::Display for EthereumAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::public_key::PublicKey;
+    use wagu_model::public_key::PublicKey;
 
     fn test_from_private_key(
         expected_address: &str,

@@ -1,7 +1,7 @@
 <h1 align="center">wagu</h1>
 
 <p align="center">
-    <a href="https://travis-ci.com/ArgusDeveloper/wagu"><img src="https://travis-ci.com/ArgusDeveloper/wagu.svg"></a>
+    <a href="https://travis-ci.com/ArgusHQ/wagu"><img src="https://travis-ci.com/ArgusHQ/wagu.svg"></a>
     <a href="https://crates.io/crates/wagu"><img src="https://img.shields.io/crates/v/wagu.svg"></a>
     <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
     <a href="./LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
@@ -9,6 +9,8 @@
 </p>
 
 Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
+
+[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -33,10 +35,6 @@ Wagu enables you to generate a wallet for the following cryptocurrencies:
 * [Ethereum](docs/ethereum.md)
 * [Monero](docs/monero.md)
 * [Zcash](docs/zcash.md)
-
-Create a cryptocurrency wallet with the CLI as follows:
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
 
 ## 2. Build Guide
 
@@ -76,7 +74,7 @@ Alternatively, you can install `wagu` by building from the source code as follow
 
 ```bash
 # Download the source code
-git clone https://github.com/ArgusDeveloper/wagu
+git clone https://github.com/ArgusHQ/wagu
 cd wagu
 
 # Build in release mode

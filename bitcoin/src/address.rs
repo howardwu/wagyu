@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use model::{Address, PrivateKey, crypto::{checksum, hash160}};
+use wagu_model::{Address, PrivateKey, crypto::{checksum, hash160}};
 
 use base58::{FromBase58, ToBase58};
 use serde::Serialize;
@@ -154,7 +154,7 @@ impl fmt::Display for BitcoinAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::public_key::PublicKey;
+    use wagu_model::public_key::PublicKey;
 
     fn test_from_private_key(
         expected_address: &str,
