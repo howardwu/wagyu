@@ -163,23 +163,38 @@ impl FromStr for BitcoinAddress {
             return Err("invalid address length");
         }
 
-        let is_bech32 = match Format::from_address_prefix(&address.as_bytes()[0..2]) {
+        let lowercase_address = address.to_lowercase();
+        let prefix_bytes = &lowercase_address.as_bytes()[0..2];
+        let is_bech32 = match Format::from_address_prefix(prefix_bytes) {
             Ok(format) => format == Format::Bech32,
             _ => false
         };
         if is_bech32 {
-            return Ok(Self {
-                address: address.to_owned(),
-                format: Format::Bech32,
-                network: Network::from_address_prefix(&address.as_bytes()[0..2])?
-            });
+            return match Bech32::from_str(address) {
+                Ok(bech32) => {
+                    if bech32.to_witness_program().is_ok() {
+                        Ok(Self {
+                            address: address.to_owned(),
+                            format: Format::Bech32,
+                            network: Network::from_address_prefix(prefix_bytes)?
+                        })
+                    }
+                    else {
+                        Err("Invalid Witness Program from Bech32 Address")
+                    }
+                },
+                Err(_) => Err("Invalid Bech32 Address")
+            }
         }
 
         if address.len() > 50 {
             return Err("invalid character length");
         }
 
-        let data = address.from_base58().expect("invalid base58 format");
+        let data = match address.from_base58() {
+            Ok(data) => data,
+            Err(_) => return Err("Invalid address format")
+        };
         if data.len() != 25 {
             return Err("invalid byte length");
         }
@@ -683,6 +698,24 @@ mod tests {
             )
         ];
 
+        const INVALID: [&str; 7] = [
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5", // invalid checksum
+            "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", // invalid witness version
+            "bc1rw5uspcuh", // invalid program length
+            "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90", // invalid program length
+            "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", //Invalid program length for witness version 0 (per BIP141)
+            "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du", // invalid padding
+            "bc1gmk9yu" // empty data section
+        ];
+
+        #[test]
+        fn from_invalid_address() {
+            INVALID.iter().for_each(|invalid_bech32| {
+                println!("{}", invalid_bech32);
+                assert_eq!(true, BitcoinAddress::from_str(invalid_bech32).is_err());
+            });
+        }
+
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
@@ -741,6 +774,19 @@ mod tests {
                 "tb1qwnh7hu5qfrjsk9pyn3vvmzr48v4l8kp4ug0txn"
             )
         ];
+
+        const INVALID: [&str; 3] = [
+            "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty", // invalid hrp
+            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7", // Mixed case
+            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv"
+        ];
+
+        #[test]
+        fn from_invalid_address() {
+            INVALID.iter().for_each(|invalid_bech32| {
+               assert_eq!(true, BitcoinAddress::from_str(invalid_bech32).is_err());
+            });
+        }
 
         #[test]
         fn from_private_key() {
