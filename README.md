@@ -31,10 +31,13 @@ Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet 
 
 Wagu enables you to generate a wallet for the following cryptocurrencies:
 
-* [Bitcoin](docs/bitcoin.md)
-* [Ethereum](docs/ethereum.md)
-* [Monero](docs/monero.md)
-* [Zcash](docs/zcash.md)
+
+| Cryptocurrency | Doc                       | Address Format                                                        | HD Wallet                                   | Network                                                         |
+|----------------|---------------------------|-----------------------------------------------------------------------|---------------------------------------------|-----------------------------------------------------------------|
+| Bitcoin        | [View](docs/bitcoin.md)   | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+| Ethereum       | [View](docs/ethereum.md)  | <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>All</li></ul>                                      |
+| Monero         | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>                       | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
+| Zcash          | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32 (in progress)</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
 
 ## 2. Build Guide
 
