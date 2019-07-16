@@ -1,12 +1,10 @@
-<h1 align="center">wagu</h1>
+# wagu
 
-<p align="center">
-    <a href="https://travis-ci.com/ArgusHQ/wagu"><img src="https://travis-ci.com/ArgusHQ/wagu.svg"></a>
-    <a href="https://crates.io/crates/wagu"><img src="https://img.shields.io/crates/v/wagu.svg"></a>
-    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
-    <a href="./LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-</p>
+[![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
+[![Travis (.com)](https://travis-ci.com/ArgusHQ/wagu.svg)](https://travis-ci.com/ArgusHQ/wagu)
+[![Codecov](https://img.shields.io/codecov/c/github/ArgusHQ/wagu.svg)](https://codecov.io/gh/ArgusHQ/wagu)
+[![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
+[![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
 
 Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
 
