@@ -8,8 +8,8 @@ authors = [
     "Howard Wu"
 ]
 description = "A command-line tool to generate cryptocurrency wallets"
-homepage = "https://github.com/ArgusDeveloper/wagu"
-repository = "https://github.com/ArgusDeveloper/wagu"
+homepage = "https://github.com/ArgusHQ/wagu"
+repository = "https://github.com/ArgusHQ/wagu"
 categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 readme = "README.md"
@@ -27,7 +27,7 @@ path = "wagu/cli.rs"
 members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
 
 [badges]
-travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
 
 [dependencies]
 bitcoin = { path = "./bitcoin" }
