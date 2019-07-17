@@ -175,35 +175,31 @@ impl Mnemonic {
     pub fn check_valid(phrase: &str, language: Language) -> bool {
         let mnemonic: Vec<&str> = phrase.split(" ").collect();
         let entropy_length = match mnemonic.len() {
-            12 => 16,
-            15 => 20,
-            18 => 24,
-            21 => 28,
-            24 => 32,
+            12 => 128,
+            15 => 160,
+            18 => 192,
+            21 => 224,
+            24 => 256,
             _ => return false
         };
 
         let mut entropy: BitVec<BigEndian> = BitVec::new();
         mnemonic.iter().for_each(|word| {
             // get index of word in dictionary
-            // turn u11 index into entropy bytes
             let index = get_wordlist_index(word, &language).map_err(|_err| {
                 return false; });
 
+            // turn u11 index into entropy bytes
             let mut buf = [0; 2];
             ByteOrder_BigEndian::write_u16(&mut buf, index.unwrap() as u16);
-            println!("{:?}", buf);
             let mut index_bitvector = BitVec::<BigEndian>::from_bitslice(
-                &BitVec::<BigEndian>::from_slice(&buf)[3..]);
+                &BitVec::<BigEndian>::from_slice(&buf)[5..]);
 
             entropy.append(&mut index_bitvector);
 
         });
-
-        println!("{:?}", entropy);
-//        let cs: usize = entropy_length.div(3);
-//        let sha256_slice = &entropy[-4..];
-        // compute sha256 hash of entropy bytes
+        let entropy_extracted: Vec<u8> = Vec::from(entropy[..entropy_length].as_slice());
+        let mnemonic_extracted = Mnemonic::from_entropy(&entropy_extracted, language);
 
         /// Returns position of word in word list if it exists
         fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, &'static str> {
@@ -219,7 +215,7 @@ impl Mnemonic {
             }
         }
 
-        true
+        phrase == mnemonic_extracted.phrase
     }
 }
 
@@ -240,8 +236,7 @@ mod tests {
     }
 
     fn test_check_valid(phrase: &str, language: Language) {
-        let result = Mnemonic::check_valid(phrase, language);
-        println!("{:?}", result);
+        assert!(Mnemonic::check_valid(phrase, language));
     }
 
     mod english {
