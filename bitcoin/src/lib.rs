@@ -22,5 +22,5 @@ pub use self::extended_private_key::*;
 pub mod extended_public_key;
 pub use self::extended_public_key::*;
 
-pub mod transactions;
-pub use self::transactions::*;
+pub mod transaction;
+pub use self::transaction::*;
