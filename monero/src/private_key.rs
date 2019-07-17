@@ -1,7 +1,7 @@
 use crate::address::{Format, MoneroAddress};
 use crate::network::Network;
 use crate::public_key::MoneroPublicKey;
-use model::{Address, PrivateKey, PublicKey};
+use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use curve25519_dalek::{scalar::Scalar};
 use hex;
@@ -29,10 +29,10 @@ impl PrivateKey for MoneroPrivateKey {
     type PublicKey = MoneroPublicKey;
 
     /// Returns a randomly-generated Monero private key.
-    fn new(network: &Self::Network) -> Self {
+    fn new(network: &Self::Network) -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
-        Self::from_seed(hex::encode(random).as_str(), network).unwrap()
+        OsRng.try_fill(&mut random)?;
+        Self::from_seed(hex::encode(random).as_str(), network)
     }
 
     /// Returns the public key of the corresponding Monero private key.
@@ -41,17 +41,17 @@ impl PrivateKey for MoneroPrivateKey {
     }
 
     /// Returns the address of the corresponding Monero private key.
-    fn to_address(&self, format: &Self::Format) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         MoneroAddress::from_private_key(self, format)
     }
 }
 
 impl MoneroPrivateKey {
     /// Returns a private key given seed bytes.
-    pub fn from_seed(seed: &str, network: &Network) -> Result<Self, &'static str> {
-        let seed = hex::decode(seed).expect("error decoding seed");
+    pub fn from_seed(seed: &str, network: &Network) -> Result<Self, PrivateKeyError> {
+        let seed = hex::decode(seed)?;
         if seed.len() != 32 {
-            return Err("invalid seed length");
+            return Err(PrivateKeyError::InvalidByteLength(seed.len()))
         }
 
         let mut s = [0u8; 32];
@@ -66,10 +66,13 @@ impl MoneroPrivateKey {
     }
 
     /// Returns a private key given a private spend key.
-    pub fn from_private_spend_key(private_spend_key: &str, network: &Network) -> Result<Self, &'static str> {
-        let key = hex::decode(private_spend_key).expect("error decoding private spend key");
+    pub fn from_private_spend_key(
+        private_spend_key: &str,
+        network: &Network
+    ) -> Result<Self, PrivateKeyError> {
+        let key = hex::decode(private_spend_key)?;
         if key.len() != 32 {
-            return Err("invalid private spend key length");
+            return Err(PrivateKeyError::InvalidByteLength(key.len()))
         }
 
         let mut spend_key = [0u8; 32];
@@ -83,17 +86,10 @@ impl MoneroPrivateKey {
     }
 }
 
-impl Default for MoneroPrivateKey {
-    /// Returns a randomly-generated mainnet Monero private key.
-    fn default() -> Self {
-        Self::new(&Network::Mainnet)
-    }
-}
-
 impl FromStr for MoneroPrivateKey {
-    type Err = &'static str;
+    type Err = PrivateKeyError;
     // TODO (howardwu): Add parsing of mainnet or testnet as an option.
-    fn from_str(seed: &str) -> Result<Self, &'static str> {
+    fn from_str(seed: &str) -> Result<Self, PrivateKeyError> {
         Self::from_seed(seed, &Network::Mainnet)
     }
 }
@@ -123,7 +119,7 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &MoneroAddress, expected_format: &Format, private_key: &MoneroPrivateKey) {
-        let address = private_key.to_address(expected_format);
+        let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -139,7 +135,7 @@ mod tests {
         assert_eq!(expected_private_spend_key, hex::encode(private_key.spend_key));
         assert_eq!(expected_private_view_key, hex::encode(private_key.view_key));
         assert_eq!(*network, private_key.network);
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_from_private_spend_key(
@@ -153,7 +149,7 @@ mod tests {
         assert_eq!(private_spend_key, hex::encode(private_key.spend_key));
         assert_eq!(expected_private_view_key, hex::encode(private_key.view_key));
         assert_eq!(*network, private_key.network);
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_to_str(

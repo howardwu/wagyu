@@ -1,14 +1,14 @@
-<h1 align="center">wagu</h1>
+# wagu
 
-<p align="center">
-    <a href="https://travis-ci.com/ArgusDeveloper/wagu"><img src="https://travis-ci.com/ArgusDeveloper/wagu.svg"></a>
-    <a href="https://crates.io/crates/wagu"><img src="https://img.shields.io/crates/v/wagu.svg"></a>
-    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
-    <a href="./LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-</p>
+[![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
+[![Travis (.com)](https://travis-ci.com/ArgusHQ/wagu.svg)](https://travis-ci.com/ArgusHQ/wagu)
+[![Codecov](https://img.shields.io/codecov/c/github/ArgusHQ/wagu.svg)](https://codecov.io/gh/ArgusHQ/wagu)
+[![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
+[![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
 
 Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
+
+[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -29,14 +29,13 @@ Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet 
 
 Wagu enables you to generate a wallet for the following cryptocurrencies:
 
-* [Bitcoin](docs/bitcoin.md)
-* [Ethereum](docs/ethereum.md)
-* [Monero](docs/monero.md)
-* [Zcash](docs/zcash.md)
 
-Create a cryptocurrency wallet with the CLI as follows:
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
+| Cryptocurrency | Doc                       | Address Format                                                        | HD Wallet                                   | Network                                                         |
+|----------------|---------------------------|-----------------------------------------------------------------------|---------------------------------------------|-----------------------------------------------------------------|
+| Bitcoin        | [View](docs/bitcoin.md)   | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+| Ethereum       | [View](docs/ethereum.md)  | <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>All</li></ul>                                      |
+| Monero         | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>                       | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
+| Zcash          | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32 (in progress)</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
 
 ## 2. Build Guide
 
@@ -76,7 +75,7 @@ Alternatively, you can install `wagu` by building from the source code as follow
 
 ```bash
 # Download the source code
-git clone https://github.com/ArgusDeveloper/wagu
+git clone https://github.com/ArgusHQ/wagu
 cd wagu
 
 # Build in release mode

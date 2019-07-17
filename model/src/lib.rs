@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 
 extern crate byteorder;
+#[macro_use] extern crate failure;
 extern crate ripemd160;
 extern crate sha2;
 

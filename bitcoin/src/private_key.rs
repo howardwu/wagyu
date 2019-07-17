@@ -1,7 +1,7 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::Network;
 use crate::public_key::BitcoinPublicKey;
-use model::{Address, PrivateKey, PublicKey, crypto::checksum};
+use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey, crypto::checksum};
 
 use base58::{FromBase58, ToBase58};
 use rand::Rng;
@@ -32,7 +32,7 @@ impl PrivateKey for BitcoinPrivateKey {
     type PublicKey = BitcoinPublicKey;
 
     /// Returns a randomly-generated compressed Bitcoin private key.
-    fn new(network: &Self::Network) -> Self {
+    fn new(network: &Self::Network) -> Result<Self, PrivateKeyError> {
         Self::build(network, true)
     }
 
@@ -42,58 +42,66 @@ impl PrivateKey for BitcoinPrivateKey {
     }
 
     /// Returns the address of the corresponding Bitcoin private key.
-    fn to_address(&self, format: &Self::Format) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         BitcoinAddress::from_private_key(self, format)
     }
 }
 
 impl BitcoinPrivateKey {
     /// Returns either a Bitcoin private key struct or errors.
-    pub fn from_wif(wif: &str) -> Result<Self, &'static str> {
-        let data = wif.from_base58().expect("Error decoding base58 wif");
+    pub fn from_wif(wif: &str) -> Result<Self, PrivateKeyError> {
+        let data = wif.from_base58()?;
         let len = data.len();
         if len != 37 && len != 38 {
-            return Err("invalid wif length")
+            return Err(PrivateKeyError::InvalidByteLength(len))
         }
 
         let expected = &data[len - 4..len];
         let checksum = &checksum(&data[0..len - 4])[0..4];
-
-        match *expected == *checksum {
-            true => Ok(Self {
-                secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])
-                    .expect("Error creating secret key from slice"),
-                wif: wif.to_string(),
-                network: Network::from_wif_prefix(data[0])?,
-                compressed: len == 38,
-            }),
-            false => Err("Invalid wif")
+        if *expected != *checksum {
+            let expected = expected.to_base58();
+            let found = checksum.to_base58();
+            return Err(PrivateKeyError::InvalidChecksum(expected, found))
         }
+
+        Ok(Self {
+            secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])?,
+            wif: wif.to_string(),
+            network: Network::from_wif_prefix(data[0])?,
+            compressed: len == 38,
+        })
     }
 
     /// Returns a private key given a secp256k1 secret key
-    pub fn from_secret_key(secret_key: secp256k1::SecretKey, network: &Network, compressed: bool) -> Self {
+    pub fn from_secret_key(
+        secret_key: secp256k1::SecretKey,
+        network: &Network,
+        compressed: bool
+    ) -> Self {
         let wif = Self::secret_key_to_wif(&secret_key, &network, compressed);
         Self { secret_key, wif, network: *network, compressed }
     }
 
     /// Returns a randomly-generated Bitcoin private key.
-    fn build(network: &Network, compressed: bool) -> Self {
-        let secret_key = Self::random_secret_key();
+    fn build(network: &Network, compressed: bool) -> Result<Self, PrivateKeyError> {
+        let secret_key = Self::random_secret_key()?;
         let wif = Self::secret_key_to_wif(&secret_key, network, compressed);
-        Self { secret_key, wif, network: *network, compressed }
+        Ok(Self { secret_key, wif, network: *network, compressed })
     }
 
     /// Returns a randomly-generated secp256k1 secret key.
-    fn random_secret_key() -> secp256k1::SecretKey {
+    fn random_secret_key() -> Result<secp256k1::SecretKey, PrivateKeyError> {
         let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
-        secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)
-            .expect("Error creating secret key from byte slice")
+        OsRng.try_fill(&mut random)?;
+        Ok(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?)
     }
 
     /// Returns a WIF string given a secp256k1 secret key.
-    fn secret_key_to_wif(secret_key: &secp256k1::SecretKey, network: &Network, compressed: bool) -> String {
+    fn secret_key_to_wif(
+        secret_key: &secp256k1::SecretKey,
+        network: &Network,
+        compressed: bool
+    ) -> String {
         let mut wif = [0u8; 38];
         wif[0] = network.to_wif_prefix();
         wif[1..33].copy_from_slice(&secret_key[..]);
@@ -108,13 +116,6 @@ impl BitcoinPrivateKey {
             wif[33..37].copy_from_slice(sum);
             wif[..37].to_base58()
         }
-    }
-}
-
-impl Default for BitcoinPrivateKey {
-    /// Returns a randomly-generated mainnet Bitcoin private key.
-    fn default() -> Self {
-        Self::new(&Network::Mainnet)
     }
 }
 
@@ -138,8 +139,9 @@ impl Default for BitcoinPrivateKey {
 //}
 
 impl FromStr for BitcoinPrivateKey {
-    type Err = &'static str;
-    fn from_str(s: &str) -> Result<Self, &'static str> {
+    type Err = PrivateKeyError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_wif(s)
     }
 }
@@ -160,7 +162,7 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &BitcoinAddress, expected_format: &Format, private_key: &BitcoinPrivateKey) {
-        let address = private_key.to_address(expected_format);
+        let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -179,7 +181,7 @@ mod tests {
         assert_eq!(*expected_network, private_key.network);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_from_secret_key(
@@ -199,7 +201,7 @@ mod tests {
         assert_eq!(*expected_network, private_key.network);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_to_str(expected_private_key: &str, private_key: &BitcoinPrivateKey) {

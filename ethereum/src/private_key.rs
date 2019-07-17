@@ -1,9 +1,11 @@
 use crate::address::EthereumAddress;
 use crate::public_key::EthereumPublicKey;
-use model::{
+use wagu_model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
+    AddressError,
     PrivateKey,
+    PrivateKeyError,
     PublicKey,
 };
 
@@ -11,17 +13,13 @@ use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
 use secp256k1::Secp256k1;
-//use std::io::{Read, Result as IoResult, Write};
 use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EthereumPrivateKey {
-    /// The ECDSA private key
-    pub secret_key: secp256k1::SecretKey,
-}
+pub struct EthereumPrivateKey(pub(crate) secp256k1::SecretKey);
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
@@ -30,7 +28,7 @@ impl PrivateKey for EthereumPrivateKey {
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
-    fn new(_network: &Self::Network) -> Self {
+    fn new(_network: &Self::Network) -> Result<Self, PrivateKeyError> {
         Self::build()
     }
 
@@ -40,48 +38,32 @@ impl PrivateKey for EthereumPrivateKey {
     }
 
     /// Returns the address of the corresponding Ethereum private key.
-    fn to_address(&self, _: &Self::Format) -> Self::Address {
+    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
         EthereumAddress::from_private_key(self, &PhantomData)
     }
 }
 
 impl EthereumPrivateKey {
     /// Returns either a Ethereum private key struct or errors.
-    pub fn from(private_key: &str) -> Result<Self, &'static str> {
+    pub fn from(private_key: &str) -> Result<Self, PrivateKeyError> {
         if private_key.len() != 64 {
-            return Err("invalid length")
+            return Err(PrivateKeyError::InvalidCharacterLength(private_key.len()))
         }
-        let secret_key = hex::decode(private_key).expect("invalid hex string");
-        Ok(Self {
-            secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::new(), &secret_key)
-                .expect("Error converting byte slice to secret key")
-        })
+
+        let secret_key = hex::decode(private_key)?;
+        Ok(Self(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &secret_key)?))
     }
 
     /// Returns a private key given a secp256k1 secret key
     pub fn from_secret_key(secret_key: secp256k1::SecretKey) -> Self {
-        Self { secret_key }
+        Self(secret_key)
     }
 
     /// Returns a randomly-generated Ethereum private key.
-    fn build() -> Self {
-        let secret_key = Self::random_secret_key();
-        Self { secret_key }
-    }
-
-    /// Returns a randomly-generated secp256k1 secret key.
-    fn random_secret_key() -> secp256k1::SecretKey {
+    fn build() -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
-        secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)
-            .expect("Error creating secret key from byte slice")
-    }
-}
-
-impl Default for EthereumPrivateKey {
-    /// Returns a randomly-generated Ethereum private key.
-    fn default() -> Self {
-        Self::new(&PhantomData)
+        OsRng.try_fill(&mut random)?;
+        Ok(Self(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?))
     }
 }
 
@@ -105,8 +87,9 @@ impl Default for EthereumPrivateKey {
 //}
 
 impl FromStr for EthereumPrivateKey {
-    type Err = &'static str;
-    fn from_str(s: &str) -> Result<Self, &'static str> {
+    type Err = PrivateKeyError;
+
+    fn from_str(s: &str) -> Result<Self, PrivateKeyError> {
         Self::from(s)
     }
 }
@@ -114,7 +97,7 @@ impl FromStr for EthereumPrivateKey {
 impl Display for EthereumPrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut private_key = [0u8; 32];
-        private_key.copy_from_slice(&self.secret_key[..]);
+        private_key.copy_from_slice(&self.0[..]);
         write!(f, "{}", hex::encode(private_key).to_string())
     }
 }
@@ -129,7 +112,7 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &EthereumAddress, private_key: &EthereumPrivateKey) {
-        let address = private_key.to_address(&PhantomData);
+        let address = private_key.to_address(&PhantomData).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -140,9 +123,9 @@ mod tests {
         private_key: &str
     ) {
         let private_key = EthereumPrivateKey::from(private_key).unwrap();
-        assert_eq!(*expected_secret_key, private_key.secret_key);
+        assert_eq!(*expected_secret_key, private_key.0);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(&PhantomData).to_string());
+        assert_eq!(expected_address, private_key.to_address(&PhantomData).unwrap().to_string());
     }
 
     fn test_from_secret_key(
@@ -152,10 +135,10 @@ mod tests {
         secret_key: secp256k1::SecretKey,
     ) {
         let private_key = EthereumPrivateKey::from_secret_key(secret_key);
-        assert_eq!(secret_key, private_key.secret_key);
+        assert_eq!(secret_key, private_key.0);
         assert_eq!(expected_private_key, private_key.to_string());
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(&PhantomData).to_string());
+        assert_eq!(expected_address, private_key.to_address(&PhantomData).unwrap().to_string());
     }
 
     fn test_to_str(expected_private_key: &str, private_key: &EthereumPrivateKey) {
@@ -216,7 +199,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
                 let expected_private_key = EthereumPrivateKey::from_str(&private_key).unwrap();
                 test_from(
-                    &expected_private_key.secret_key,
+                    &expected_private_key.0,
                     expected_public_key,
                     expected_address,
                     &private_key);
@@ -231,7 +214,7 @@ mod tests {
                     expected_private_key,
                     expected_public_key,
                     expected_address,
-                    private_key.secret_key);
+                    private_key.0);
             });
         }
 
