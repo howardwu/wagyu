@@ -22,5 +22,4 @@ pub use self::private_key::*;
 pub mod public_key;
 pub use self::public_key::*;
 
-pub mod witness_program;
-pub use self::witness_program::*;
+mod witness_program;

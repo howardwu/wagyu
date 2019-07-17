@@ -66,6 +66,7 @@ impl WitnessProgram {
     }
 
     /// Returns a byte vector representing a witness program
+    #[allow(dead_code)]
     pub fn to_vec(&self) -> Vec<u8> {
         let mut ret: Vec<u8> = Vec::new();
         let version = WitnessProgram::convert_version(self.version);
