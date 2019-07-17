@@ -1,4 +1,4 @@
-use crate::address::Address;
+use crate::address::{Address, AddressError};
 use crate::public_key::PublicKey;
 
 use std::{fmt::{Debug, Display}, str::FromStr};
@@ -92,5 +92,5 @@ pub trait PrivateKey:
     fn to_public_key(&self) -> Self::PublicKey;
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: &Self::Format) -> Self::Address;
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }

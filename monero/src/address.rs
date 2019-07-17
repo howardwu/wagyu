@@ -85,7 +85,10 @@ impl Address for MoneroAddress {
     type PublicKey = MoneroPublicKey;
 
     /// Returns the address corresponding to the given Monero private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&private_key.to_public_key(), format, &private_key.network)
     }
 
@@ -94,8 +97,8 @@ impl Address for MoneroAddress {
         public_key: &Self::PublicKey,
         format: &Self::Format,
         network: &Self::Network,
-    ) -> Self {
-        Self::generate_address(&public_key, format, network).unwrap()
+    ) -> Result<Self, AddressError> {
+        Self::generate_address(&public_key, format, network)
     }
 }
 
@@ -171,7 +174,7 @@ mod tests {
         private_key: &MoneroPrivateKey,
         format: &Format
     ) {
-        let address = MoneroAddress::from_private_key(private_key, format);
+        let address = MoneroAddress::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -181,7 +184,7 @@ mod tests {
         format: &Format,
         network: &Network
     ) {
-        let address = MoneroAddress::from_public_key(public_key, format, network);
+        let address = MoneroAddress::from_public_key(public_key, format, network).unwrap();
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*format, address.format);
         assert_eq!(*network, address.network);

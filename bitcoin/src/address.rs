@@ -61,11 +61,14 @@ impl Address for BitcoinAddress {
     type PublicKey = BitcoinPublicKey;
 
     /// Returns the address corresponding to the given Bitcoin private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError> {
         let public_key = private_key.to_public_key();
         match format {
-            Format::P2PKH => Self::p2pkh(&public_key, &private_key.network),
-            Format::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key, &private_key.network),
+            Format::P2PKH => Ok(Self::p2pkh(&public_key, &private_key.network)),
+            Format::P2SH_P2WPKH => Ok(Self::p2sh_p2wpkh(&public_key, &private_key.network)),
         }
     }
 
@@ -74,10 +77,10 @@ impl Address for BitcoinAddress {
         public_key: &Self::PublicKey,
         format: &Self::Format,
         network: &Self::Network
-    ) -> Self {
+    ) -> Result<Self, AddressError> {
         match format {
-            Format::P2PKH => Self::p2pkh(public_key, &network),
-            Format::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key, &network),
+            Format::P2PKH => Ok(Self::p2pkh(public_key, &network)),
+            Format::P2SH_P2WPKH => Ok(Self::p2sh_p2wpkh(public_key, &network)),
         }
     }
 }
@@ -161,7 +164,7 @@ mod tests {
         private_key: &BitcoinPrivateKey,
         format: &Format,
     ) {
-        let address = BitcoinAddress::from_private_key(private_key, format);
+        let address = BitcoinAddress::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -171,7 +174,7 @@ mod tests {
         format: &Format,
         network: &Network,
     ) {
-        let address = BitcoinAddress::from_public_key(public_key, format, network);
+        let address = BitcoinAddress::from_public_key(public_key, format, network).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -549,11 +552,11 @@ mod tests {
         let expected_address = "12WMrNLRosydPNNYM96dwk9jDv8rDRom3J";
 
         let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2PKH);
+        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2PKH).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = BitcoinPublicKey::from_private_key(&private_key);
-        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2PKH, &Network::Mainnet);
+        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2PKH, &Network::Mainnet).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length
@@ -584,11 +587,11 @@ mod tests {
         let expected_address = "3Pai7Ly86pddxxwZ7rUhXjRJwog4oKqNYK";
 
         let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2SH_P2WPKH);
+        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2SH_P2WPKH).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = BitcoinPublicKey::from_private_key(&private_key);
-        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2SH_P2WPKH, &Network::Mainnet);
+        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2SH_P2WPKH, &Network::Mainnet).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length

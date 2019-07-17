@@ -1,7 +1,7 @@
 use crate::address::{Format, MoneroAddress};
 use crate::network::Network;
 use crate::private_key::MoneroPrivateKey;
-use wagu_model::{Address, PublicKey, PublicKeyError};
+use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use std::{fmt, fmt::Display};
@@ -30,7 +30,11 @@ impl PublicKey for MoneroPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: &Self::Format, network: &Self::Network) -> Self::Address {
+    fn to_address(
+        &self,
+        format: &Self::Format,
+        network: &Self::Network
+    ) -> Result<Self::Address, AddressError> {
         MoneroAddress::from_public_key(self, format, network)
     }
 }
@@ -113,7 +117,7 @@ mod tests {
         expected_network: &Network,
         public_key: &MoneroPublicKey
     ) {
-        let address = public_key.to_address(expected_format, expected_network);
+        let address = public_key.to_address(expected_format, expected_network).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -125,7 +129,7 @@ mod tests {
         expected_network: &Network
     ) {
         let public_key = MoneroPublicKey::from(expected_public_spend_key, expected_public_view_key).unwrap();
-        let address = public_key.to_address(expected_format, expected_network);
+        let address = public_key.to_address(expected_format, expected_network).unwrap();
         assert_eq!(expected_public_spend_key, hex::encode(public_key.spend_key));
         assert_eq!(expected_public_view_key, hex::encode(public_key.view_key));
         assert_eq!(expected_address, address.to_string());

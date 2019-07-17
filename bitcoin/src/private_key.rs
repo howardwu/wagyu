@@ -1,7 +1,7 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::Network;
 use crate::public_key::BitcoinPublicKey;
-use wagu_model::{Address, PrivateKey, PrivateKeyError, PublicKey, crypto::checksum};
+use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey, crypto::checksum};
 
 use base58::{FromBase58, ToBase58};
 use rand::Rng;
@@ -42,7 +42,7 @@ impl PrivateKey for BitcoinPrivateKey {
     }
 
     /// Returns the address of the corresponding Bitcoin private key.
-    fn to_address(&self, format: &Self::Format) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         BitcoinAddress::from_private_key(self, format)
     }
 }
@@ -162,7 +162,7 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &BitcoinAddress, expected_format: &Format, private_key: &BitcoinPrivateKey) {
-        let address = private_key.to_address(expected_format);
+        let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -181,7 +181,7 @@ mod tests {
         assert_eq!(*expected_network, private_key.network);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_from_secret_key(
@@ -201,7 +201,7 @@ mod tests {
         assert_eq!(*expected_network, private_key.network);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_to_str(expected_private_key: &str, private_key: &BitcoinPrivateKey) {

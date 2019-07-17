@@ -3,6 +3,7 @@ use crate::private_key::EthereumPrivateKey;
 use wagu_model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
+    AddressError,
     PublicKey,
     PublicKeyError
 };
@@ -28,7 +29,11 @@ impl PublicKey for EthereumPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, _: &Self::Format, _: &Self::Network) -> Self::Address {
+    fn to_address(
+        &self,
+        _: &Self::Format,
+        _: &Self::Network
+    ) -> Result<Self::Address, AddressError> {
         EthereumAddress::from_public_key(self, &PhantomData, &PhantomData)
     }
 }
@@ -91,7 +96,7 @@ mod tests {
         expected_address: &EthereumAddress,
         public_key: &EthereumPublicKey
     ) {
-        let address = public_key.to_address(&PhantomData, &PhantomData);
+        let address = public_key.to_address(&PhantomData, &PhantomData).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -100,7 +105,7 @@ mod tests {
         expected_address: &str
     ) {
         let public_key = EthereumPublicKey::from_str(expected_public_key).unwrap();
-        let address = public_key.to_address(&PhantomData, &PhantomData);
+        let address = public_key.to_address(&PhantomData, &PhantomData).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_address, address.to_string());
     }

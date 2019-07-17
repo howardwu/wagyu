@@ -1,4 +1,4 @@
-use crate::address::Address;
+use crate::address::{Address, AddressError};
 use crate::private_key::PrivateKey;
 
 use std::{
@@ -59,5 +59,9 @@ pub trait PublicKey:
     fn from_private_key(private_key: &Self::PrivateKey) -> Self;
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: &Self::Format, network: &Self::Network) -> Self::Address;
+    fn to_address(
+        &self,
+        format: &Self::Format,
+        network: &Self::Network
+    ) -> Result<Self::Address, AddressError>;
 }

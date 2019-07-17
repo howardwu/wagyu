@@ -69,6 +69,24 @@ impl From<bech32::Error> for AddressError {
     }
 }
 
+impl From<rand_core::Error> for AddressError {
+    fn from(error: rand_core::Error) -> Self {
+        AddressError::Crate("rand", format!("{:?}", error))
+    }
+}
+
+impl From<std::io::Error> for AddressError {
+    fn from(error: std::io::Error) -> Self {
+        AddressError::Crate("std::io", format!("{:?}", error))
+    }
+}
+
+impl From<std::str::Utf8Error> for AddressError {
+    fn from(error: std::str::Utf8Error) -> Self {
+        AddressError::Crate("std::str", format!("{:?}", error))
+    }
+}
+
 /// The interface for a generic address.
 pub trait Address:
     Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash
@@ -79,12 +97,15 @@ pub trait Address:
     type PublicKey: PublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self;
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError>;
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(
         public_key: &Self::PublicKey,
         format: &Self::Format,
         network: &Self::Network
-    ) -> Self;
+    ) -> Result<Self, AddressError>;
 }

@@ -3,6 +3,7 @@ use crate::public_key::EthereumPublicKey;
 use wagu_model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
+    AddressError,
     PrivateKey,
     PrivateKeyError,
     PublicKey,
@@ -37,7 +38,7 @@ impl PrivateKey for EthereumPrivateKey {
     }
 
     /// Returns the address of the corresponding Ethereum private key.
-    fn to_address(&self, _: &Self::Format) -> Self::Address {
+    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
         EthereumAddress::from_private_key(self, &PhantomData)
     }
 }
@@ -111,7 +112,7 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &EthereumAddress, private_key: &EthereumPrivateKey) {
-        let address = private_key.to_address(&PhantomData);
+        let address = private_key.to_address(&PhantomData).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -124,7 +125,7 @@ mod tests {
         let private_key = EthereumPrivateKey::from(private_key).unwrap();
         assert_eq!(*expected_secret_key, private_key.0);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(&PhantomData).to_string());
+        assert_eq!(expected_address, private_key.to_address(&PhantomData).unwrap().to_string());
     }
 
     fn test_from_secret_key(
@@ -137,7 +138,7 @@ mod tests {
         assert_eq!(secret_key, private_key.0);
         assert_eq!(expected_private_key, private_key.to_string());
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(&PhantomData).to_string());
+        assert_eq!(expected_address, private_key.to_address(&PhantomData).unwrap().to_string());
     }
 
     fn test_to_str(expected_private_key: &str, private_key: &EthereumPrivateKey) {

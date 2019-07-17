@@ -1,7 +1,7 @@
 use crate::address::{ZcashAddress, Format};
 use crate::network::Network;
 use crate::public_key::ZcashPublicKey;
-use wagu_model::{Address, PrivateKey, PrivateKeyError, PublicKey, crypto::checksum};
+use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey, crypto::checksum};
 
 use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;
@@ -156,7 +156,7 @@ impl PrivateKey for ZcashPrivateKey {
     }
 
     /// Returns the address of the corresponding Zcash private key.
-    fn to_address(&self, format: &Self::Format) -> Self::Address {
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         ZcashAddress::from_private_key(self, format)
     }
 }
@@ -303,7 +303,7 @@ mod tests {
         expected_format: &Format,
         private_key: &ZcashPrivateKey
     ) {
-        let address = private_key.to_address(expected_format);
+        let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -319,7 +319,7 @@ mod tests {
         assert_eq!(*expected_spending_key, private_key.0);
         assert_eq!(*expected_network, private_key.network());
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(expected_format).to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
     fn test_to_str(expected_private_key: &str, private_key: &ZcashPrivateKey) {
