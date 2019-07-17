@@ -28,6 +28,7 @@ serde_json = "1.0"
 sha2 = "0.7"
 tiny-keccak = "1.4"
 hex = "0.3.2"
+bech32 = "0.6.0"
 
 [badges]
 travis-ci = { repository = "ArgusDeveloper/wagu", branch = "master" }

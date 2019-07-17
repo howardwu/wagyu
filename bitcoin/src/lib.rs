@@ -7,9 +7,6 @@
 pub mod address;
 pub use self::address::*;
 
-pub mod bech32;
-pub use self::bech32::*;
-
 pub mod network;
 pub use self::network::*;
 

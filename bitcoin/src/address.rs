@@ -1,13 +1,13 @@
-use crate::bech32::Bech32;
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use crate::witness_program::WitnessProgram;
 use wagu_model::{Address, PrivateKey, crypto::{checksum, hash160}};
 use base58::{FromBase58, ToBase58};
+use bech32::{Bech32,ToBase32,FromBase32,u5};
 use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
+use crate::witness_program::WitnessProgram;
 
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -135,10 +135,13 @@ impl BitcoinAddress {
 
     pub fn bech32(public_key: &BitcoinPublicKey, network: &Network) -> Self {
         let redeem_script = BitcoinAddress::create_redeem_script(public_key);
-        let witness_program = WitnessProgram::new(&redeem_script).unwrap();
-        let bech32 = Bech32::from_witness_program(
+        let version = u5::try_from_u8(redeem_script[0]).unwrap();
+        let mut data = vec![version];
+        data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
+
+        let bech32 = Bech32::new(
             String::from_utf8(Format::Bech32.to_address_prefix(network)).unwrap(),
-            witness_program
+            data
         ).expect("Error creating Bech32 address");
         Self {
             address: bech32.to_string(),
@@ -165,25 +168,42 @@ impl FromStr for BitcoinAddress {
 
         let lowercase_address = address.to_lowercase();
         let prefix_bytes = &lowercase_address.as_bytes()[0..2];
-        let is_bech32 = match Format::from_address_prefix(prefix_bytes) {
-            Ok(format) => format == Format::Bech32,
-            _ => false
+        let is_bech32 = if let Ok(format) = Format::from_address_prefix(prefix_bytes) {
+            format == Format::Bech32
+        }
+        else {
+            false
         };
         if is_bech32 {
             return match Bech32::from_str(address) {
                 Ok(bech32) => {
-                    if bech32.to_witness_program().is_ok() {
-                        Ok(Self {
-                            address: address.to_owned(),
-                            format: Format::Bech32,
-                            network: Network::from_address_prefix(prefix_bytes)?
-                        })
-                    }
-                    else {
-                        Err("Invalid Witness Program from Bech32 Address")
-                    }
+                    let wit_prog = {
+                        if bech32.data().len() < 1 {
+                            return Err("invalid Bech32 Address")
+                        }
+                        let (v, program) = bech32.data().split_at(1);
+                        let program_u8 = match Vec::from_base32(program) {
+                            Ok(prog) => prog,
+                            Err(_) => return Err("invalid Bech32 Address")
+                        };
+
+                        let version = v[0].to_u8();
+                        let mut prog_bytes = vec![version, program_u8.len() as u8];
+                        prog_bytes.extend_from_slice(&program_u8);
+                        WitnessProgram::new(prog_bytes.as_slice())
+                    };
+
+                    if let Err(e) = wit_prog {
+                        return Err(e);
+                    };
+
+                    Ok(Self {
+                        address: address.to_owned(),
+                        format: Format::Bech32,
+                        network: Network::from_address_prefix(prefix_bytes)?
+                    })
                 },
-                Err(_) => Err("Invalid Bech32 Address")
+                Err(_) => Err("invalid Bech32 Address")
             }
         }
 

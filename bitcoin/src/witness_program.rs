@@ -20,10 +20,6 @@ impl WitnessProgram {
         let mut program: Vec<u8> = Vec::new();
         program.extend_from_slice(&prog_bytes[2..]);
 
-        if program.len() > 40 || program.len() < 2 {
-            return Err("Invalid program length");
-        }
-
         // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Decoding
         let program_length = prog_bytes[1];
 
@@ -32,7 +28,28 @@ impl WitnessProgram {
         }
 
         let mut version = prog_bytes[0];
-        if version > 0x50 {
+        if version > 0x50 && version <= 0x60 {
+            version -= 0x50;
+        }
+        else if version != 0x00 {
+            return Err("Invalid witness version")
+        }
+
+        let new_program = WitnessProgram { version, program };
+        match new_program.validate() {
+            Ok(()) => Ok(new_program),
+            Err(e) => Err(e)
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.program.len() > 40 || self.program.len() < 2 {
+            return Err("Invalid program length");
+        }
+
+        // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Decoding
+        let mut version = self.version;
+        if version > 0 {
             version -= 0x50;
         }
 
@@ -42,11 +59,10 @@ impl WitnessProgram {
         if version > 16 {
             return Err("Invalid version");
         }
-        if version == 0 && !(program.len() == 20 || program.len() == 32) {
+        if version == 0 && !(self.program.len() == 20 || self.program.len() == 32) {
             return Err("Invalid program length for witness version 0");
         }
-
-        Ok(WitnessProgram { version, program })
+        Ok(())
     }
 
     /// Returns a byte vector representing a witness program
