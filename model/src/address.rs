@@ -1,11 +1,73 @@
 use crate::private_key::PrivateKey;
-use crate::public_key::PublicKey;
+use crate::public_key::{PublicKey, PublicKeyError};
 
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     str::FromStr
 };
+
+#[derive(Debug, Fail)]
+pub enum AddressError {
+
+    #[fail(display = "{}: {}", _0, _1)]
+    Crate(&'static str, String),
+
+    #[fail(display = "invalid address: {}", _0)]
+    InvalidAddress(String),
+
+    #[fail(display = "invalid byte length: {}", _0)]
+    InvalidByteLength(usize),
+
+    #[fail(display = "invalid character length: {}", _0)]
+    InvalidCharacterLength(usize),
+
+    #[fail(display = "invalid address checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    InvalidChecksum(String, String),
+
+    #[fail(display = "invalid address prefix: {:?}", _0)]
+    InvalidPrefix(Vec<u8>),
+
+    #[fail(display = "invalid address prefix length: {:?}", _0)]
+    InvalidPrefixLength(usize),
+
+    #[fail(display = "{}", _0)]
+    Message(String),
+
+    #[fail(display = "{}", _0)]
+    PublicKeyError(PublicKeyError),
+
+}
+
+impl From<&'static str> for AddressError {
+    fn from(msg: &'static str) -> Self {
+        AddressError::Message(msg.into())
+    }
+}
+
+impl From<PublicKeyError> for AddressError {
+    fn from(error: PublicKeyError) -> Self {
+        AddressError::PublicKeyError(error)
+    }
+}
+
+impl From<base58::FromBase58Error> for AddressError {
+    fn from(error: base58::FromBase58Error) -> Self {
+        AddressError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<base58_monero::base58::Error> for AddressError {
+    fn from(error: base58_monero::base58::Error) -> Self {
+        AddressError::Crate("base58_monero", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for AddressError {
+    fn from(error: bech32::Error) -> Self {
+        AddressError::Crate("bech32", format!("{:?}", error))
+    }
+}
 
 /// The interface for a generic address.
 pub trait Address:

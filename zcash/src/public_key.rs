@@ -1,7 +1,7 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::Network;
 use crate::private_key::{SpendingKey, ZcashPrivateKey};
-use wagu_model::{Address, PublicKey};
+use wagu_model::{Address, PublicKey, PublicKeyError};
 
 use pairing::bls12_381::Bls12;
 use secp256k1;
@@ -81,23 +81,20 @@ impl PublicKey for ZcashPublicKey {
 }
 
 impl FromStr for ZcashPublicKey {
-    type Err = &'static str;
+    type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         match public_key.len() {
             66 | 130 => Ok(Self(ViewingKey::P2PKH(P2PKHViewingKey {
-                public_key: match secp256k1::PublicKey::from_str(public_key) {
-                    Ok(key) => key,
-                    _ => return Err("invalid public key")
-                },
+                public_key: secp256k1::PublicKey::from_str(public_key)?,
                 compressed: public_key.len() == 66
             }))),
             192 => {
-                let data = hex::decode(public_key).expect("error decoding expanded spending key");
-                let fvk = FullViewingKey::read(&data[..], &JubjubBls12::new()).expect("invalid viewing key");
+                let data = hex::decode(public_key)?;
+                let fvk = FullViewingKey::read(&data[..], &JubjubBls12::new())?;
                 Ok(Self(ViewingKey::Sapling(SaplingViewingKey(fvk))))
             },
-            _ => Err("invalid public key")
+            _ => Err(PublicKeyError::InvalidCharacterLength(public_key.len()))
         }
     }
 }
@@ -484,7 +481,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))), &Network::Mainnet, &public_key);
+                test_to_address(&expected_address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())), &Network::Mainnet, &public_key);
             });
         }
 
@@ -494,7 +491,7 @@ mod tests {
                 test_from_str(
                     expected_public_key,
                     expected_address,
-                    &Format::Sapling(Some(ZcashAddress::get_diversifier(expected_address))),
+                    &Format::Sapling(Some(ZcashAddress::get_diversifier(expected_address).unwrap())),
                     &Network::Mainnet);
             });
         }
@@ -553,7 +550,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))), &Network::Testnet, &public_key);
+                test_to_address(&expected_address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())), &Network::Testnet, &public_key);
             });
         }
 
@@ -563,7 +560,7 @@ mod tests {
                 test_from_str(
                     expected_public_key,
                     expected_address,
-                    &Format::Sapling(Some(ZcashAddress::get_diversifier(expected_address))),
+                    &Format::Sapling(Some(ZcashAddress::get_diversifier(expected_address).unwrap())),
                     &Network::Testnet);
             });
         }

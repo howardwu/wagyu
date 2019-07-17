@@ -4,20 +4,17 @@ use wagu_model::{
     //    bytes::{FromBytes, ToBytes},
     Address,
     PublicKey,
+    PublicKeyError
 };
 
 use secp256k1;
-//use std::io::{Read, Result as IoResult, Write};
 use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
 /// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EthereumPublicKey {
-    /// The ECDSA public key
-    pub public_key: secp256k1::PublicKey,
-}
+pub struct EthereumPublicKey(pub(crate) secp256k1::PublicKey);
 
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
@@ -27,9 +24,7 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        let secp = secp256k1::Secp256k1::new();
-        let public_key = secp256k1::PublicKey::from_secret_key(&secp, &private_key.secret_key);
-        Self { public_key }
+        Self(secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &private_key.0))
     }
 
     /// Returns the address of the corresponding private key.
@@ -67,21 +62,16 @@ impl PublicKey for EthereumPublicKey {
 //}
 
 impl FromStr for EthereumPublicKey {
-    type Err = &'static str;
+    type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            public_key: match secp256k1::PublicKey::from_str(format!("04{}", public_key).as_str()) {
-                Ok(key) => key,
-                _ => return Err("invalid public key")
-            }
-        })
+        Ok(Self(secp256k1::PublicKey::from_str(format!("04{}", public_key).as_str())?))
     }
 }
 
 impl Display for EthereumPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for s in &self.public_key.serialize_uncompressed()[1..] {
+        for s in &self.0.serialize_uncompressed()[1..] {
             write!(f, "{:02x}", s)?;
         }
         Ok(())

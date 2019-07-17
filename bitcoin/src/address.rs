@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use wagu_model::{Address, PrivateKey, crypto::{checksum, hash160}};
+use wagu_model::{Address, AddressError, PrivateKey, crypto::{checksum, hash160}};
 
 use base58::{FromBase58, ToBase58};
 use serde::Serialize;
@@ -34,11 +34,11 @@ impl Format {
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: u8) -> Result<Self, &'static str> {
+    pub fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
         match prefix {
             0x00 | 0x6F => Ok(Format::P2PKH),
             0x05 | 0xC4 => Ok(Format::P2SH_P2WPKH),
-            _ => return Err("invalid address prefix")
+            _ => Err(AddressError::InvalidPrefix(vec![prefix]))
         }
     }
 }
@@ -126,16 +126,16 @@ impl BitcoinAddress {
 }
 
 impl FromStr for BitcoinAddress {
-    type Err = &'static str;
+    type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
         if address.len() > 50 {
-            return Err("invalid character length");
+            return Err(AddressError::InvalidCharacterLength(address.len()))
         }
 
-        let data = address.from_base58().expect("invalid base58 format");
+        let data = address.from_base58()?;
         if data.len() != 25 {
-            return Err("invalid byte length");
+            return Err(AddressError::InvalidByteLength(data.len()))
         }
 
         let format = Format::from_address_prefix(data[0])?;

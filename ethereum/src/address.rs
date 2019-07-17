@@ -1,6 +1,6 @@
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{Address, PrivateKey, to_hex_string};
+use wagu_model::{Address, AddressError, PrivateKey, to_hex_string};
 
 use regex::Regex;
 use serde::Serialize;
@@ -36,7 +36,7 @@ impl EthereumAddress {
     /// Returns the checksum address given a public key.
     /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
     pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {
-        let hash = keccak256(&public_key.public_key.serialize_uncompressed()[1..]);
+        let hash = keccak256(&public_key.0.serialize_uncompressed()[1..]);
         let address = to_hex_string(&hash[12..]).to_lowercase();
 
         let hash = to_hex_string(&keccak256(address.as_bytes()));
@@ -54,7 +54,7 @@ impl EthereumAddress {
 }
 
 impl FromStr for EthereumAddress {
-    type Err = &'static str;
+    type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
         let regex = Regex::new(r"^0x").unwrap();
@@ -62,7 +62,7 @@ impl FromStr for EthereumAddress {
         let address = regex.replace_all(&address, "").to_string();
 
         if address.len() != 40 {
-            return Err("invalid character length");
+            return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
         let hash = to_hex_string(&keccak256(address.as_bytes()));

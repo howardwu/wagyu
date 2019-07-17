@@ -1,7 +1,7 @@
 use crate::address::{Format, MoneroAddress};
 use crate::network::Network;
 use crate::private_key::MoneroPrivateKey;
-use wagu_model::{Address, PublicKey};
+use wagu_model::{Address, PublicKey, PublicKeyError};
 
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use std::{fmt, fmt::Display};
@@ -37,16 +37,16 @@ impl PublicKey for MoneroPublicKey {
 
 impl MoneroPublicKey {
     /// Returns a Monero public key given a public spend key and public view key.
-    pub fn from(public_spend_key: &str, public_view_key: &str) -> Result<Self, &'static str> {
+    pub fn from(public_spend_key: &str, public_view_key: &str) -> Result<Self, PublicKeyError> {
 
-        let public_spend_key = hex::decode(public_spend_key).expect("invalid public spend key string");
+        let public_spend_key = hex::decode(public_spend_key)?;
         if public_spend_key.len() != 32 {
-            return Err("invalid public spend key length");
+            return Err(PublicKeyError::InvalidByteLength(public_spend_key.len()))
         }
 
-        let public_view_key = hex::decode(public_view_key).expect("invalid public view key string");
+        let public_view_key = hex::decode(public_view_key)?;
         if public_view_key.len() != 32 {
-            return Err("invalid public view key length");
+            return Err(PublicKeyError::InvalidByteLength(public_view_key.len()))
         }
 
         let mut spend_key = [0u8; 32];
@@ -66,13 +66,13 @@ impl MoneroPublicKey {
 }
 
 impl FromStr for MoneroPublicKey {
-    type Err = &'static str;
+    type Err = PublicKeyError;
 
     /// Returns a Monero public key from a concatenated public spend key and public view key.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = hex::decode(s).expect("invalid public key string");
+        let bytes = hex::decode(s)?;
         if bytes.len() != 64 {
-            return Err("invalid public key length")
+            return Err(PublicKeyError::InvalidByteLength(bytes.len()))
         }
 
         let (spend_key, view_key) = bytes.split_at(32);

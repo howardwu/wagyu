@@ -1,11 +1,10 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
-use wagu_model::{Address, PublicKey};
+use wagu_model::{Address, PublicKey, PublicKeyError};
 
 use secp256k1;
 use std::{fmt, fmt::Display};
-//use std::io::{Write};
 use std::str::FromStr;
 
 /// Represents a Bitcoin public key
@@ -67,14 +66,11 @@ impl PublicKey for BitcoinPublicKey {
 //}
 
 impl FromStr for BitcoinPublicKey {
-    type Err = &'static str;
+    type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            public_key: match secp256k1::PublicKey::from_str(public_key) {
-                Ok(key) => key,
-                _ => return Err("invalid public key")
-            },
+            public_key: secp256k1::PublicKey::from_str(public_key)?,
             compressed: public_key.len() == 66
         })
     }

@@ -85,7 +85,7 @@ impl EthereumExtendedPublicKey {
 
         let mut mac = HmacSha512::new_varkey(
             &self.chain_code).expect("Error generating hmac");
-        let public_key_serialized = &self.public_key.public_key.serialize()[..];
+        let public_key_serialized = &self.public_key.0.serialize()[..];
 
         // Check whether i ≥ 231 (whether the child is a hardened key).
         // If so (hardened child): return failure
@@ -109,7 +109,7 @@ impl EthereumExtendedPublicKey {
             &Secp256k1::without_caps(),
             &result[..32]).expect("Error generating secret key");
         let mut public_key = self.public_key.clone();
-        public_key.public_key.add_exp_assign(&Secp256k1::new(), &secret_key).expect("Error adding secret key point");
+        public_key.0.add_exp_assign(&Secp256k1::new(), &secret_key).expect("Error adding secret key point");
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -179,7 +179,7 @@ impl fmt::Display for EthereumExtendedPublicKey {
         BigEndian::write_u32(&mut result[9..13], u32::from(self.child_number));
 
         result[13..45].copy_from_slice(&self.chain_code[..]);
-        result[45..78].copy_from_slice(&self.public_key.public_key.serialize()[..]);
+        result[45..78].copy_from_slice(&self.public_key.0.serialize()[..]);
 
         let sum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(sum);

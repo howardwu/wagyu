@@ -1,3 +1,5 @@
+use wagu_model::AddressError;
+
 use serde::Serialize;
 use std::fmt;
 
@@ -21,12 +23,12 @@ impl Network {
     }
 
     /// Returns the network of the given address prefix.
-    pub fn from_address_prefix(prefix: u8) -> Result<Self, &'static str> {
+    pub fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
         match prefix {
             18 | 19 | 42 => Ok(Network::Mainnet),
             24 | 25 | 36 => Ok(Network::Testnet),
             53 | 54 | 63 => Ok(Network::Stagenet),
-            _ => return Err("invalid address prefix")
+            _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::address::{Format, MoneroAddress};
 use crate::network::Network;
 use crate::public_key::MoneroPublicKey;
-use wagu_model::{Address, PrivateKey, PublicKey};
+use wagu_model::{Address, PrivateKey, PrivateKeyError, PublicKey};
 
 use curve25519_dalek::{scalar::Scalar};
 use hex;
@@ -29,10 +29,10 @@ impl PrivateKey for MoneroPrivateKey {
     type PublicKey = MoneroPublicKey;
 
     /// Returns a randomly-generated Monero private key.
-    fn new(network: &Self::Network) -> Self {
+    fn new(network: &Self::Network) -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
-        Self::from_seed(hex::encode(random).as_str(), network).unwrap()
+        OsRng.try_fill(&mut random)?;
+        Self::from_seed(hex::encode(random).as_str(), network)
     }
 
     /// Returns the public key of the corresponding Monero private key.
@@ -48,10 +48,10 @@ impl PrivateKey for MoneroPrivateKey {
 
 impl MoneroPrivateKey {
     /// Returns a private key given seed bytes.
-    pub fn from_seed(seed: &str, network: &Network) -> Result<Self, &'static str> {
-        let seed = hex::decode(seed).expect("error decoding seed");
+    pub fn from_seed(seed: &str, network: &Network) -> Result<Self, PrivateKeyError> {
+        let seed = hex::decode(seed)?;
         if seed.len() != 32 {
-            return Err("invalid seed length");
+            return Err(PrivateKeyError::InvalidByteLength(seed.len()))
         }
 
         let mut s = [0u8; 32];
@@ -66,10 +66,13 @@ impl MoneroPrivateKey {
     }
 
     /// Returns a private key given a private spend key.
-    pub fn from_private_spend_key(private_spend_key: &str, network: &Network) -> Result<Self, &'static str> {
-        let key = hex::decode(private_spend_key).expect("error decoding private spend key");
+    pub fn from_private_spend_key(
+        private_spend_key: &str,
+        network: &Network
+    ) -> Result<Self, PrivateKeyError> {
+        let key = hex::decode(private_spend_key)?;
         if key.len() != 32 {
-            return Err("invalid private spend key length");
+            return Err(PrivateKeyError::InvalidByteLength(key.len()))
         }
 
         let mut spend_key = [0u8; 32];
@@ -83,17 +86,10 @@ impl MoneroPrivateKey {
     }
 }
 
-impl Default for MoneroPrivateKey {
-    /// Returns a randomly-generated mainnet Monero private key.
-    fn default() -> Self {
-        Self::new(&Network::Mainnet)
-    }
-}
-
 impl FromStr for MoneroPrivateKey {
-    type Err = &'static str;
+    type Err = PrivateKeyError;
     // TODO (howardwu): Add parsing of mainnet or testnet as an option.
-    fn from_str(seed: &str) -> Result<Self, &'static str> {
+    fn from_str(seed: &str) -> Result<Self, PrivateKeyError> {
         Self::from_seed(seed, &Network::Mainnet)
     }
 }

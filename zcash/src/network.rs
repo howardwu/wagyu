@@ -1,4 +1,5 @@
 use crate::address::Format;
+use wagu_model::{AddressError, PrivateKeyError};
 
 use serde::Serialize;
 use std::fmt;
@@ -17,15 +18,15 @@ impl Network {
     }
 
     /// Returns the network of the given address prefix.
-    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, &'static str> {
+    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, AddressError> {
         if prefix.len() < 2 {
-            return Err("invalid prefix length")
+            return Err(AddressError::InvalidPrefixLength(prefix.len()))
         }
 
         match prefix[1] {
             0xB8 | 0xBD | 0x9A | 0x73 => Ok(Network::Mainnet),
             0x25 | 0xBA | 0xB6 | 0x74 => Ok(Network::Testnet),
-            _ => return Err("invalid address prefix")
+            _ => return Err(AddressError::InvalidPrefix(prefix.clone()))
         }
     }
 
@@ -38,11 +39,11 @@ impl Network {
     }
 
     /// Returns the network of the given wif prefix.
-    pub fn from_wif_prefix(prefix: u8) -> Result<Self, &'static str> {
+    pub fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0x80 => Ok(Network::Mainnet),
             0xEF => Ok(Network::Testnet),
-            _ => return Err("invalid wif prefix")
+            _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix]))
         }
     }
 }
