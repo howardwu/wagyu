@@ -1,4 +1,5 @@
 use bitvec::prelude::*;
+use byteorder::{ByteOrder, BigEndian as ByteOrder_BigEndian};
 use hmac::Hmac;
 use rand::Rng;
 use rand::rngs::OsRng;
@@ -7,6 +8,7 @@ use std::str;
 
 use std::fs;
 use std::ops::{AddAssign, Div};
+use bitvec::cursor::BigEndian;
 
 
 const PBKDF2_ROUNDS: usize = 2048;
@@ -179,8 +181,55 @@ impl Mnemonic {
         seed
     }
 
-//    /// returns whether or not mnemonic phrase is valid
-//    pub fn check_valid(phrase: &str, language: &Language) -> bool { }
+    /// returns whether or not mnemonic phrase is valid
+    pub fn check_valid(phrase: &str, language: Language) -> bool {
+        let mnemonic: Vec<&str> = phrase.split(" ").collect();
+        let entropy_length = match mnemonic.len() {
+            12 => 16,
+            15 => 20,
+            18 => 24,
+            21 => 28,
+            24 => 32,
+            _ => return false
+        };
+
+        let mut entropy: BitVec<BigEndian> = BitVec::new();
+        mnemonic.iter().for_each(|word| {
+            // get index of word in dictionary
+            // turn u11 index into entropy bytes
+            let index = get_wordlist_index(word, &language).map_err(|_err| {
+                return false; });
+
+            let mut buf = [0; 2];
+            ByteOrder_BigEndian::write_u16(&mut buf, index.unwrap() as u16);
+            println!("{:?}", buf);
+            let mut index_bv = BitVec::<BigEndian>::from_slice(&buf);
+
+            entropy.append(&mut index_bv);
+
+        });
+
+        println!("{:?}", entropy);
+//        let cs: usize = entropy_length.div(3);
+//        let sha256_slice = &entropy[-4..];
+        // compute sha256 hash of entropy bytes
+
+        /// Returns position of word in word list if it exists
+        fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, &'static str> {
+            let word_string = match language {
+                Language::ENGLISH => fs::read_to_string("src/languages/english.txt").expect("Error reading file"),
+                _ => panic!("Invalid language")
+            };
+
+            let index = word_string.lines().position(|x| x == word);
+            match index {
+                Some(usize) => Ok(index.unwrap()),
+                None => Err("Word not found in word list")
+            }
+        }
+
+        true
+    }
 }
 
 #[cfg(test)]
@@ -197,6 +246,11 @@ mod tests {
     fn test_new(word_count: u8, language: Language) {
         let result = Mnemonic::new(word_count, language);
         test_from_entropy(&result.entropy, &result.phrase, result.language);
+    }
+
+    fn test_check_valid(phrase: &str, language: Language) {
+        let result = Mnemonic::check_valid(phrase, language);
+        println!("{:?}", result);
     }
 
     mod english {
@@ -234,10 +288,17 @@ mod tests {
         fn to_seed() {
             KEYPAIRS.iter().for_each(|(entropy_str, _, expected_seed)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                let result = Mnemonic::from_entropy(&entropy, Language::ENGLISH);
+                let result = Mnemonic::from_entropy(&entropy, LANGUAGE);
 //                println!("{:?}", hex::encode(result.to_seed(None)));
 //                println!("{:?}", hex::encode(result.to_seed(Some(PASSWORD))));
 //                assert_eq!(expected_seed, &hex::encode(result.to_seed(Some(PASSWORD))))
+            });
+        }
+
+        #[test]
+        fn check_valid() {
+            KEYPAIRS.iter().for_each(|(_, phrase, _)| {
+                test_check_valid(phrase, LANGUAGE);
             });
         }
     }
