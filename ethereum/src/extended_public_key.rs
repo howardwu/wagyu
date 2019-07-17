@@ -1,6 +1,12 @@
-use wagu_model::{PublicKey, crypto::{checksum, hash160}};
-use crate::public_key::EthereumPublicKey;
+use crate::address::EthereumAddress;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
+use crate::public_key::EthereumPublicKey;
+use wagu_model::{
+    AddressError,
+    ExtendedPublicKey,
+    ExtendedPublicKeyError,
+    PublicKey,
+    crypto::{checksum, hash160}};
 
 use base58::{ToBase58, FromBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
@@ -8,36 +14,38 @@ use hex;
 use hmac::{Hmac, Mac};
 use secp256k1::{Secp256k1, SecretKey, PublicKey as Secp256k1_PublicKey};
 use sha2::Sha512;
-
 use std::fmt;
 use std::io::Cursor;
 use std::str::FromStr;
 use std::ops::AddAssign;
+use serde::export::PhantomData;
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Ethereum extended public key
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EthereumExtendedPublicKey {
     /// The Secp256k1 public key associated with a EthereumExtendedPrivateKey's private_key
     pub public_key: EthereumPublicKey,
-
     /// The chain code associated with a EthereumExtendedPrivateKey
     pub chain_code: [u8; 32],
-
     /// 0x00 for master nodes, 0x01 for level-1 derived keys, ....
     pub depth: u8,
-
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
     pub parent_fingerprint: [u8; 4],
-
     /// This is ser32(i) for i in xi = xpar/i, with xi the key being serialized. (0x00000000 if master key)
     pub child_number: u32,
 }
 
-impl EthereumExtendedPublicKey {
+impl ExtendedPublicKey for EthereumExtendedPublicKey {
+    type Address = EthereumAddress;
+    type ExtendedPrivateKey = EthereumExtendedPrivateKey;
+    type Format = PhantomData<u8>;
+    type Network = PhantomData<u8>;
+    type PublicKey = EthereumPublicKey;
+
     /// Returns extended public key given extended private key
-    pub fn from_private(private_key: &EthereumExtendedPrivateKey) -> Self {
+    fn from_extended_private_key(private_key: &EthereumExtendedPrivateKey) -> Self {
         Self {
             public_key: EthereumPublicKey::from_private_key(&private_key.private_key),
             chain_code: private_key.chain_code,
@@ -47,44 +55,58 @@ impl EthereumExtendedPublicKey {
         }
     }
 
-    /// Generates extended public key corresponding to derivation path from the current extended public key
-    pub fn derivation_path(&self, path: &str) -> Self {
+    /// Returns the public key of the corresponding extended public key.
+    fn to_public_key(&self) -> Self::PublicKey {
+        self.public_key
+    }
+
+    /// Returns the address of the corresponding extended public key.
+    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
+        self.public_key.to_address(&PhantomData, &PhantomData)
+    }
+}
+
+impl EthereumExtendedPublicKey {
+    /// Returns the extended public key for the given derivation path.
+    pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPublicKeyError> {
         let mut path_vec: Vec<&str> = path.split("/").collect();
 
         if path_vec[0] != "m" {
-            panic!("Invalid derivation path")
+            return Err(ExtendedPublicKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()));
         }
 
         if path_vec.len() == 1 {
-            return self.clone();
+            return Ok(self.clone());
         }
 
         let mut xpub = self.clone();
-        for (_, child_str) in path_vec[1..].iter_mut().enumerate() {
+        for (i, child_str) in path_vec[1..].iter_mut().enumerate() {
             let mut child_num = 0u32;
 
             // if hardened path return failure
             if child_str.contains("'") {
                 panic!("Cannot derive hardened child from extended public key")
             } else {
-                let child_num_u32: u32 = child_str.parse().expect("Invalid normal derivation path digit");
+                let child_num_u32: u32 = match child_str.parse() {
+                    Ok(num) => num,
+                    Err(_) => return Err(ExtendedPublicKeyError::InvalidDerivationPath("number".into(), path_vec[i + 1].into()))
+                };
                 child_num.add_assign(child_num_u32);
             }
-            xpub = xpub.ckd_pub(child_num);
+            xpub = xpub.ckd_pub(child_num)?;
         }
 
-        xpub
+        Ok(xpub)
     }
 
 
     /// Generates a child extended public key at child_number from the current extended private key
-    pub fn ckd_pub(&self, child_number: u32) -> Self {
+    pub fn ckd_pub(&self, child_number: u32) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth >= 255 {
-            panic!("Maximum child derivation depth is reached");
+            return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth));
         }
 
-        let mut mac = HmacSha512::new_varkey(
-            &self.chain_code).expect("Error generating hmac");
+        let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
         let public_key_serialized = &self.public_key.0.serialize()[..];
 
         // Check whether i ≥ 231 (whether the child is a hardened key).
@@ -105,35 +127,34 @@ impl EthereumExtendedPublicKey {
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
 
-        let secret_key = SecretKey::from_slice(
-            &Secp256k1::without_caps(),
-            &result[..32]).expect("Error generating secret key");
+        let secret_key = SecretKey::from_slice(&Secp256k1::without_caps(), &result[..32])?;
         let mut public_key = self.public_key.clone();
-        public_key.0.add_exp_assign(&Secp256k1::new(), &secret_key).expect("Error adding secret key point");
+        public_key.0.add_exp_assign(&Secp256k1::new(), &secret_key)?;
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
-        Self {
+        Ok(Self {
             public_key,
             chain_code,
             depth: self.depth + 1,
             parent_fingerprint,
             child_number,
-        }
+        })
     }
 }
 
 impl FromStr for EthereumExtendedPublicKey {
-    type Err = &'static str;
-    fn from_str(s: &str) -> Result<Self, &'static str> {
+    type Err = ExtendedPublicKeyError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let data = s.from_base58().expect("Error decoding base58 extended public key string");
         if data.len() != 82 {
-            return Err("Invalid extended public key string length");
+            return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()));
         }
 
         if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
-            return Err("Invalid extended public key network version");
+            return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()));
         };
 
         let depth = data[4] as u8;
@@ -147,24 +168,26 @@ impl FromStr for EthereumExtendedPublicKey {
         chain_code.copy_from_slice(&data[13..45]);
 
         let secp = Secp256k1::new();
-        let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&secp,&data[45..78]).expect("Invalid extended public key secp256k1 public key");
+        let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&secp, &data[45..78])?;
 
         let public_key = EthereumPublicKey::from_str(
-            &hex::encode(&secp256k1_public_key.serialize_uncompressed()[1..])).expect("Error deriving ethereum public key");
+            &hex::encode(&secp256k1_public_key.serialize_uncompressed()[1..]))?;
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
-
-        match *expected == *checksum {
-            true => Ok(Self {
-                public_key,
-                chain_code,
-                depth,
-                parent_fingerprint,
-                child_number
-            }),
-            false => Err("Invalid extended public key checksum")
+        if *expected != *checksum {
+            let expected = expected.to_base58();
+            let found = checksum.to_base58();
+            return Err(ExtendedPublicKeyError::InvalidChecksum(expected, found));
         }
+
+        Ok(Self {
+            public_key,
+            chain_code,
+            depth,
+            parent_fingerprint,
+            child_number,
+        })
     }
 }
 
@@ -199,7 +222,7 @@ mod tests {
         expected_depth: u8,
         expected_parent_fingerprint: &str,
         expected_child_number: u32,
-        expected_xpub_serialized: &str
+        expected_xpub_serialized: &str,
     ) {
         let xpub = EthereumExtendedPublicKey::from_str(&expected_xpub_serialized).expect("Error generating xpub from string");
         assert_eq!(expected_public_key, xpub.public_key.to_string());
@@ -215,10 +238,10 @@ mod tests {
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
-        xpriv_serialized: &str
+        xpriv_serialized: &str,
     ) {
         let xpriv = EthereumExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-        let xpub = EthereumExtendedPublicKey::from_private(&xpriv);
+        let xpub = EthereumExtendedPublicKey::from_extended_private_key(&xpriv);
         assert_eq!(expected_public_key, xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(xpub.parent_fingerprint));
@@ -233,7 +256,7 @@ mod tests {
         parent_xpub: &EthereumExtendedPublicKey,
         child_number: u32,
     ) -> EthereumExtendedPublicKey {
-        let child_xpub = parent_xpub.ckd_pub(child_number);
+        let child_xpub = parent_xpub.ckd_pub(child_number).expect("error generating child key");
         assert_eq!(expected_public_key, child_xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(child_xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(child_xpub.parent_fingerprint));
@@ -251,7 +274,7 @@ mod tests {
         parent_xpub: &EthereumExtendedPublicKey,
         path: &str,
     ) {
-        let derived_xpub = parent_xpub.derivation_path(path);
+        let derived_xpub = parent_xpub.derivation_path(path).expect("error deriving key from path");
         assert_eq!(expected_public_key, derived_xpub.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(derived_xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(derived_xpub.parent_fingerprint));
@@ -260,6 +283,7 @@ mod tests {
 
     mod bip32_default {
         use super::*;
+        use wagu_model::ExtendedPrivateKey;
 
         // (depth, master_seed, public_key, chain_code, parent_fingerprint, xpriv_serialized, xpub_serialized)
         const KEYPAIR_TREE_HARDENED: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
@@ -322,7 +346,7 @@ mod tests {
                 0,
                 parent_fingerprint,
                 0,
-                xpub
+                xpub,
             );
         }
 
@@ -343,7 +367,7 @@ mod tests {
                 0,
                 parent_fingerprint,
                 0,
-                xpub
+                xpub,
             );
         }
 
@@ -363,7 +387,7 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 xpub,
-                xpriv
+                xpriv,
             );
         }
 
@@ -383,7 +407,7 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 xpub,
-                xpriv
+                xpriv,
             );
         }
 
@@ -391,7 +415,7 @@ mod tests {
         fn test_ckd_pub_normal() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-            let mut parent_xpub = parent_xpriv.to_xpub();
+            let mut parent_xpub = parent_xpriv.to_extended_public_key();
             for (i,
                 (
                     _,
@@ -419,7 +443,7 @@ mod tests {
         fn test_ckd_pub_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            let parent_xpub = parent_xpriv.to_xpub();
+            let parent_xpub = parent_xpriv.to_extended_public_key();
             let _result = parent_xpub.ckd_pub(2_u32.pow(31));
         }
 
@@ -427,7 +451,7 @@ mod tests {
         fn test_derivation_path_normal() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-            let parent_xpub = parent_xpriv.to_xpub();
+            let parent_xpub = parent_xpriv.to_extended_public_key();
             for (_,
                 (
                     _,
@@ -455,7 +479,7 @@ mod tests {
         fn test_derivation_path_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            let parent_xpub = parent_xpriv.to_xpub();
+            let parent_xpub = parent_xpriv.to_extended_public_key();
             let _result = parent_xpub.derivation_path("m/0'");
         }
     }
@@ -473,31 +497,31 @@ mod tests {
         const VALID_XPUB_FINAL: &str = "xpubEND4cWBkwMUcwj3bjw4RNYcpnuvgbEaGSCAujB1XQro3Ptpvs8hDMFsBmk1mhfz9sGc3k4XPpueGAcR66Kb7HMXwfnKKBaV3i7YyMxLuwKh";
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key secp256k1 public key")]
+        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
             let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_PUBLIC_KEY).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key network version")]
+        #[should_panic(expected = "InvalidNetworkBytes([4, 136, 178, 29])")]
         fn from_str_invalid_network() {
             let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_NETWORK).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key checksum")]
+        #[should_panic(expected = "InvalidChecksum(\"5Nvot3\", \"5Nvot4\")")]
         fn from_str_invalid_checksum() {
             let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_CHECKSUM).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key string length")]
+        #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
             let _result = EthereumExtendedPublicKey::from_str(&VALID_XPUB[1..]).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key string length")]
+        #[should_panic(expected = "InvalidByteLength(83)")]
         fn from_str_long() {
             let mut string = String::from(VALID_XPUB);
             string.push('a');
@@ -505,28 +529,28 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Maximum child derivation depth is reached")]
+        #[should_panic(expected = "MaximumChildDepthReached(255)")]
         fn ckd_pub_max_depth() {
             let mut xpub = EthereumExtendedPublicKey::from_str(VALID_XPUB).unwrap();
             for _ in 0..255 {
-                xpub = xpub.ckd_pub(0);
+                xpub = xpub.ckd_pub(0).expect("Error deriving child key");
             }
             assert_eq!(xpub.to_string(), VALID_XPUB_FINAL);
-            let _result = xpub.ckd_pub(0);
+            let _result = xpub.ckd_pub(0).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid derivation path")]
+        #[should_panic(expected = "InvalidDerivationPath(\"m\", \"\")")]
         fn derivation_path_invalid() {
             let xpub = EthereumExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH);
+            let _result = xpub.derivation_path(INVALID_PATH).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid normal derivation path digit")]
+        #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\")")]
         fn derivation_path_invalid_digit_normal() {
             let xpub = EthereumExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_NORMAL);
+            let _result = xpub.derivation_path(INVALID_PATH_NORMAL).unwrap();
         }
 
         #[test]
