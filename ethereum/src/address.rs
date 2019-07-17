@@ -1,6 +1,6 @@
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{Address, PrivateKey, to_hex_string};
+use wagu_model::{Address, AddressError, PrivateKey, to_hex_string};
 
 use regex::Regex;
 use serde::Serialize;
@@ -22,13 +22,20 @@ impl Address for EthereumAddress {
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey, _: &Self::Format) -> Self {
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        _: &Self::Format
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&private_key.to_public_key(), &PhantomData, &PhantomData)
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format, _: &Self::Network) -> Self {
-        Self::checksum_address(public_key)
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        _: &Self::Format,
+        _: &Self::Network
+    ) -> Result<Self, AddressError> {
+        Ok(Self::checksum_address(public_key))
     }
 }
 
@@ -36,7 +43,7 @@ impl EthereumAddress {
     /// Returns the checksum address given a public key.
     /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
     pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {
-        let hash = keccak256(&public_key.public_key.serialize_uncompressed()[1..]);
+        let hash = keccak256(&public_key.0.serialize_uncompressed()[1..]);
         let address = to_hex_string(&hash[12..]).to_lowercase();
 
         let hash = to_hex_string(&keccak256(address.as_bytes()));
@@ -54,7 +61,7 @@ impl EthereumAddress {
 }
 
 impl FromStr for EthereumAddress {
-    type Err = &'static str;
+    type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
         let regex = Regex::new(r"^0x").unwrap();
@@ -62,7 +69,7 @@ impl FromStr for EthereumAddress {
         let address = regex.replace_all(&address, "").to_string();
 
         if address.len() != 40 {
-            return Err("invalid character length");
+            return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
         let hash = to_hex_string(&keccak256(address.as_bytes()));
@@ -94,7 +101,7 @@ mod tests {
         expected_address: &str,
         private_key: &EthereumPrivateKey
     ) {
-        let address = EthereumAddress::from_private_key(private_key, &PhantomData);
+        let address = EthereumAddress::from_private_key(private_key, &PhantomData).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -102,7 +109,7 @@ mod tests {
         expected_address: &str,
         public_key: &EthereumPublicKey,
     ) {
-        let address = EthereumAddress::from_public_key(public_key, &PhantomData, &PhantomData);
+        let address = EthereumAddress::from_public_key(public_key, &PhantomData, &PhantomData).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -183,11 +190,11 @@ mod tests {
         let expected_address = "0xF9001e6AEE6EA439D713fBbF960EbA76f4770E2B";
 
         let private_key = EthereumPrivateKey::from_str(private_key).unwrap();
-        let address = EthereumAddress::from_private_key(&private_key, &PhantomData);
+        let address = EthereumAddress::from_private_key(&private_key, &PhantomData).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = EthereumPublicKey::from_private_key(&private_key);
-        let address = EthereumAddress::from_public_key(&public_key, &PhantomData, &PhantomData);
+        let address = EthereumAddress::from_public_key(&public_key, &PhantomData, &PhantomData).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length

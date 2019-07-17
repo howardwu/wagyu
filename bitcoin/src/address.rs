@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use wagu_model::{Address, PrivateKey, crypto::{checksum, hash160}};
+use wagu_model::{Address, AddressError, PrivateKey, crypto::{checksum, hash160}};
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32,ToBase32,FromBase32,u5};
 use serde::Serialize;
@@ -39,15 +39,15 @@ impl Format {
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: &[u8]) -> Result<Self, &'static str> {
+    pub fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         if prefix.len() < 2 {
-            return Err("invalid address prefix")
+            return Err(AddressError::InvalidPrefix(prefix.to_vec()))
         }
         match (prefix[0],prefix[1]) {
             (0x00,_) | (0x6F,_) => Ok(Format::P2PKH),
             (0x05,_) | (0xC4,_) => Ok(Format::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(Format::Bech32),
-            _ => return Err("invalid address prefix")
+            _ => return Err(AddressError::InvalidPrefix(prefix.to_vec()))
         }
     }
 }
@@ -70,7 +70,7 @@ impl Address for BitcoinAddress {
     type PublicKey = BitcoinPublicKey;
 
     /// Returns the address corresponding to the given Bitcoin private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
+    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Result<Self, AddressError> {
         let public_key = private_key.to_public_key();
         match format {
             Format::P2PKH => Self::p2pkh(&public_key, &private_key.network),
@@ -84,7 +84,7 @@ impl Address for BitcoinAddress {
         public_key: &Self::PublicKey,
         format: &Self::Format,
         network: &Self::Network
-    ) -> Self {
+    ) -> Result<Self, AddressError> {
         match format {
             Format::P2PKH => Self::p2pkh(public_key, &network),
             Format::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key, &network),
@@ -95,7 +95,7 @@ impl Address for BitcoinAddress {
 
 impl BitcoinAddress {
     /// Returns a P2PKH address from a given Bitcoin public key.
-    pub fn p2pkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+    pub fn p2pkh(public_key: &BitcoinPublicKey, network: &Network) -> Result<Self, AddressError> {
         let public_key = match public_key.compressed {
             true => public_key.public_key.serialize().to_vec(),
             false => public_key.public_key.serialize_uncompressed().to_vec()
@@ -108,15 +108,15 @@ impl BitcoinAddress {
         let sum = &checksum(&address[0..21])[0..4];
         address[21..25].copy_from_slice(sum);
 
-        Self {
+        Ok(Self {
             address: address.to_base58(),
             format: Format::P2PKH,
             network: network.clone(),
-        }
+        })
     }
 
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
-    pub fn p2sh_p2wpkh(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+    pub fn p2sh_p2wpkh(public_key: &BitcoinPublicKey, network: &Network) -> Result<Self, AddressError> {
         let redeem = BitcoinAddress::create_redeem_script(public_key);
 
         let mut address = [0u8; 25];
@@ -126,28 +126,31 @@ impl BitcoinAddress {
         let sum = &checksum(&address[0..21])[0..4];
         address[21..25].copy_from_slice(sum);
 
-        Self {
+        Ok(Self {
             address: address.to_base58(),
             format: Format::P2SH_P2WPKH,
             network: network.clone(),
-        }
+        })
     }
 
-    pub fn bech32(public_key: &BitcoinPublicKey, network: &Network) -> Self {
+    pub fn bech32(public_key: &BitcoinPublicKey, network: &Network) -> Result<Self, AddressError> {
         let redeem_script = BitcoinAddress::create_redeem_script(public_key);
         let version = u5::try_from_u8(redeem_script[0]).unwrap();
         let mut data = vec![version];
         data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
 
-        let bech32 = Bech32::new(
-            String::from_utf8(Format::Bech32.to_address_prefix(network)).unwrap(),
+        let bech32 = match Bech32::new(
+            String::from_utf8(Format::Bech32.to_address_prefix(network)).expect("Format::Bech32 to_address_prefix is improperly implemented"),
             data
-        ).expect("Error creating Bech32 address");
-        Self {
+        ) {
+            Ok(b32) => b32,
+            Err(_) => return Err(AddressError::Message("Error converting bitcoin public key to bech32 address".to_owned()))
+        };
+        Ok(Self {
             address: bech32.to_string(),
             format: Format::Bech32,
             network: network.clone()
-        }
+        })
     }
 
     fn create_redeem_script(public_key: &BitcoinPublicKey) -> [u8; 22] {
@@ -159,11 +162,11 @@ impl BitcoinAddress {
 }
 
 impl FromStr for BitcoinAddress {
-    type Err = &'static str;
+    type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
         if address.len() < 2 {
-            return Err("invalid address length");
+            return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
         let lowercase_address = address.to_lowercase();
@@ -179,12 +182,12 @@ impl FromStr for BitcoinAddress {
                 Ok(bech32) => {
                     let wit_prog = {
                         if bech32.data().len() < 1 {
-                            return Err("invalid Bech32 Address")
+                            return Err(AddressError::InvalidAddress(address.to_owned()))
                         }
                         let (v, program) = bech32.data().split_at(1);
                         let program_u8 = match Vec::from_base32(program) {
                             Ok(prog) => prog,
-                            Err(_) => return Err("invalid Bech32 Address")
+                            Err(_) => return Err(AddressError::InvalidAddress(address.to_owned()))
                         };
 
                         let version = v[0].to_u8();
@@ -193,8 +196,8 @@ impl FromStr for BitcoinAddress {
                         WitnessProgram::new(prog_bytes.as_slice())
                     };
 
-                    if let Err(e) = wit_prog {
-                        return Err(e);
+                    if let Err(_) = wit_prog {
+                        return Err(AddressError::InvalidAddress(address.to_owned()));
                     };
 
                     Ok(Self {
@@ -203,20 +206,20 @@ impl FromStr for BitcoinAddress {
                         network: Network::from_address_prefix(prefix_bytes)?
                     })
                 },
-                Err(_) => Err("invalid Bech32 Address")
+                Err(_) => Err(AddressError::InvalidAddress(address.to_owned()))
             }
         }
 
         if address.len() > 50 {
-            return Err("invalid character length");
+            return Err(AddressError::InvalidCharacterLength(address.len()))
         }
 
         let data = match address.from_base58() {
             Ok(data) => data,
-            Err(_) => return Err("Invalid address format")
+            Err(_) => return Err(AddressError::InvalidAddress(address.to_owned()))
         };
         if data.len() != 25 {
-            return Err("invalid byte length");
+            return Err(AddressError::InvalidByteLength(data.len()))
         }
 
         let format = Format::from_address_prefix(&data[0..2])?;
@@ -242,7 +245,7 @@ mod tests {
         private_key: &BitcoinPrivateKey,
         format: &Format,
     ) {
-        let address = BitcoinAddress::from_private_key(private_key, format);
+        let address = BitcoinAddress::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -252,7 +255,7 @@ mod tests {
         format: &Format,
         network: &Network,
     ) {
-        let address = BitcoinAddress::from_public_key(public_key, format, network);
+        let address = BitcoinAddress::from_public_key(public_key, format, network).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -630,11 +633,11 @@ mod tests {
         let expected_address = "12WMrNLRosydPNNYM96dwk9jDv8rDRom3J";
 
         let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2PKH);
+        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2PKH).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = BitcoinPublicKey::from_private_key(&private_key);
-        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2PKH, &Network::Mainnet);
+        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2PKH, &Network::Mainnet).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length
@@ -665,11 +668,11 @@ mod tests {
         let expected_address = "3Pai7Ly86pddxxwZ7rUhXjRJwog4oKqNYK";
 
         let private_key = BitcoinPrivateKey::from_wif(private_key).unwrap();
-        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2SH_P2WPKH);
+        let address = BitcoinAddress::from_private_key(&private_key, &Format::P2SH_P2WPKH).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = BitcoinPublicKey::from_private_key(&private_key);
-        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2SH_P2WPKH, &Network::Mainnet);
+        let address = BitcoinAddress::from_public_key(&public_key, &Format::P2SH_P2WPKH, &Network::Mainnet).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length
