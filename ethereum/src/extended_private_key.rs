@@ -1,6 +1,6 @@
-use wagu_model::crypto::{checksum, hash160};
-use crate::private_key::EthereumPrivateKey;
 use crate::extended_public_key::EthereumExtendedPublicKey;
+use crate::private_key::EthereumPrivateKey;
+use wagu_model::{ExtendedPrivateKey, crypto::{checksum, hash160}};
 
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
@@ -19,19 +19,15 @@ type HmacSha512 = Hmac<Sha512>;
 /// Represents a Ethereum Extended Private Key
 #[derive(Debug, Clone)]
 pub struct EthereumExtendedPrivateKey {
-    /// The EthereumPrivateKey
+    /// The Ethereum private key
     pub private_key: EthereumPrivateKey,
-
-    /// The chain code corresponding to this extended private key.
+    /// The chain code for this extended private key
     pub chain_code: [u8; 32],
-
-    /// 0x00 for master nodes, 0x01 for level-1 derived keys, ....
+    /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub depth: u8,
-
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
     pub parent_fingerprint: [u8; 4],
-
-    /// This is ser32(i) for i in xi = xpar/i, with xi the key being serialized. (0x00000000 if master key)
+    /// This is ser32(i) for i in x_i = x_par/i, with x_i the key being serialized. (0x00000000 if master key)
     pub child_number: u32,
 }
 
@@ -147,15 +143,6 @@ impl EthereumExtendedPrivateKey {
         chain_code[0..32].copy_from_slice(&result[32..]);
 
         return (private_key, chain_code);
-    }
-}
-
-impl Default for EthereumExtendedPrivateKey {
-    /// Returns a randomly-generated mainnet Ethereum private key.
-    fn default() -> Self {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random).expect("Error generating random bytes for private key");
-        Self::new(&random)
     }
 }
 
