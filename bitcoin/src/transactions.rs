@@ -525,3 +525,323 @@ impl BitcoinTransactionOutput {
         serialized_output
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_p2sh_p2wpkh_to_segwit_address_transaction() {
+        // Based on https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#p2sh-p2wpkh
+
+        // Specify transaction variables
+
+        let version: u32 = 1;
+        let lock_time: u32 = 1170;
+
+        // Specify transaction inputs
+
+        let transaction_id1 = hex::decode("77541aeb3c4dac9260b68f74f44c973081a9d4cb2ebe8038b2d70faa201b6bdb").unwrap();
+        let index1: u32 = 1;
+        let redeem_script1 = Some(hex::decode("001479091972186c449eb1ded22b78e40d009bdf0089").unwrap());
+        let script_pub_key1 = Some(hex::decode("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387").unwrap());
+        let utxo_amount1: Option<u64> = Some(1000000000);
+        let sequence1 = Some(vec![0xfe, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+
+        input_vec.push(input1);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 199996600;
+        let output_pub_key1 = "1Fyxts6r24DpEieygQiNnWxUdb18ANa5p7";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1);
+
+        let output_value2: u64 = 800000000;
+        let output_pub_key2 = "1Q5YjKVj5yQWHBBsyEBamkfph3cA6G9KK8";
+        let output2 = BitcoinTransactionOutput::new(output_value2, output_pub_key2);
+
+        output_vec.push(output1);
+        output_vec.push(output2);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        let raw_transaction_string = hex::encode(&transaction.serialize_transaction(true));
+        let unsigned_transaction = "0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000";
+        assert_eq!(unsigned_transaction, raw_transaction_string);
+
+        let private_key1 = BitcoinPrivateKey::from_wif("5Kbxro1cmUF9mTJ8fDrTfNB6URTBsFMUG52jzzumP2p9C94uKCh").unwrap();
+        transaction.sign_raw_transaction(private_key1, 0);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "01000000000101db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a5477010000001716001479091972186c449eb1ded22b78e40d009bdf0089feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac02473044022047ac8e878352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae903c713331d877c1f64677e3622ad4010726870540656fe9dcb012103ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+
+    #[test]
+    fn test_p2sh_p2wpkh_to_p2pkh_address_transaction() {
+        // Specify transaction variables
+
+        let version: u32 = 2;
+        let lock_time: u32 = 140;
+
+        // Specify transaction inputs
+
+        let transaction_id1 = hex::decode("375e1622b2690e395df21b33192bad06d2706c139692d43ea84d38df3d183313").unwrap();
+        let index1: u32 = 0;
+        let redeem_script1 = Some(hex::decode("0014b93f973eb2bf0b614bddc0f47286788c98c535b4").unwrap());
+        let script_pub_key1 = Some(hex::decode("160014b93f973eb2bf0b614bddc0f47286788c98c535b4").unwrap());
+        let utxo_amount1: Option<u64> = Some(1000000000);
+        let sequence1 = Some(vec![0xfe, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+
+        input_vec.push(input1);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 100000000;
+        let output_pub_key1 = "3H3Kc7aSPP4THLX68k4mQMyf1gvL6AtmDm";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1);
+
+        let output_value2: u64 = 899990000;
+        let output_pub_key2 = "3MSu6Ak7L6RY5HdghczUcXzGaVVCusAeYj";
+        let output2 = BitcoinTransactionOutput::new(output_value2, output_pub_key2);
+
+        output_vec.push(output1);
+        output_vec.push(output2);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        let raw_transaction_string = hex::encode(&transaction.serialize_transaction(true));
+        let unsigned_transaction = "02000000011333183ddf384da83ed49296136c70d206ad2b19331bf25d390e69b222165e370000000000feffffff0200e1f5050000000017a914a860f76561c85551594c18eecceffaee8c4822d787f0c1a4350000000017a914d8b6fcc85a383261df05423ddf068a8987bf0287878c000000";
+        assert_eq!(unsigned_transaction, raw_transaction_string);
+
+        let private_key1 = BitcoinPrivateKey::from_wif("KwtetKxofS1Lhp7idNJzb5B5WninBRfELdwkjvTMZZGME4G72kMz").unwrap();
+        transaction.sign_raw_transaction(private_key1, 0);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "020000000001011333183ddf384da83ed49296136c70d206ad2b19331bf25d390e69b222165e370000000017160014b93f973eb2bf0b614bddc0f47286788c98c535b4feffffff0200e1f5050000000017a914a860f76561c85551594c18eecceffaee8c4822d787f0c1a4350000000017a914d8b6fcc85a383261df05423ddf068a8987bf0287870247304402206214bf6096f0050f8442be6107448f89983a7399974f7160ba02e80f96383a3f02207b2a169fed3f48433850f39599396f8c8237260a57462795a83b85cceff5b1aa012102e1a2ba641bbad8399bf6e16a7824faf9175d246aef205599364cc5b4ad64962f8c000000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+
+    #[test]
+    fn test_bitcoin_js_1_to_1_transaction() {
+        // https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+        // Specify transaction variables
+
+        let version: u32 = 1;
+        let lock_time: u32 = 0;
+
+        // Specify transaction inputs
+
+        let private_key1 = BitcoinPrivateKey::from_wif("L1uyy5qTuGrVXrmrsvHWHgVzW9kKdrp27wBC7Vs6nZDTF2BRUVwy").unwrap();
+        let address_1 = private_key1.to_address(&Format::P2PKH);
+        let transaction_id1 = hex::decode("61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d").unwrap();
+        let index1: u32 = 0;
+        let redeem_script1 = None;
+        let script_pub_key1 = Some(generate_script_pub_key(&address_1.to_string()).unwrap().script);
+        let utxo_amount1: Option<u64> = None;
+        let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+
+        input_vec.push(input1);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 12000;
+        let output_pub_key1 = "1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1);
+
+        output_vec.push(output1);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        transaction.sign_raw_transaction(private_key1, 0);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "01000000019d344070eac3fe6e394a16d06d7704a7d5c0a10eb2a2c16bc98842b7cc20d561000000006b48304502210088828c0bdfcdca68d8ae0caeb6ec62cd3fd5f9b2191848edae33feb533df35d302202e0beadd35e17e7f83a733f5277028a9b453d525553e3f5d2d7a7aa8010a81d60121029f50f51d63b345039a290c94bffd3180c99ed659ff6ea6b1242bca47eb93b59fffffffff01e02e0000000000001976a91406afd46bcdfd22ef94ac122aa11f241244a37ecc88ac00000000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+
+    #[test]
+    fn test_bitcoin_js_2_to_2_transaction() {
+        // https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+        // Specify transaction variables
+
+        let version: u32 = 1;
+        let lock_time: u32 = 0;
+
+        // Specify transaction inputs
+
+        let private_key1 = BitcoinPrivateKey::from_wif("L1Knwj9W3qK3qMKdTvmg3VfzUs3ij2LETTFhxza9LfD5dngnoLG1").unwrap();
+        let address_1 = private_key1.to_address(&Format::P2PKH);
+        let transaction_id1 = hex::decode("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
+        let index1: u32 = 6;
+        let redeem_script1 = None;
+        let script_pub_key1 = Some(generate_script_pub_key(&address_1.to_string()).unwrap().script);
+        let utxo_amount1: Option<u64> = None;
+        let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let private_key2 = BitcoinPrivateKey::from_wif("KwcN2pT3wnRAurhy7qMczzbkpY5nXMW2ubh696UBc1bcwctTx26z").unwrap();
+        let address_2 = private_key2.to_address(&Format::P2PKH);
+        let transaction_id2 = hex::decode("7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730").unwrap();
+        let index2: u32 = 0;
+        let redeem_script2 = None;
+        let script_pub_key2 = Some(generate_script_pub_key(&address_2.to_string()).unwrap().script);
+        let utxo_amount2: Option<u64> = None;
+        let sequence2 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code2 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+        let input2 = BitcoinTransactionInput::new(transaction_id2, index2, utxo_amount2, redeem_script2, script_pub_key2, sequence2, sig_hash_code2).unwrap();
+
+        input_vec.push(input1);
+        input_vec.push(input2);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 180000;
+        let output_pub_key1 = "1CUNEBjYrCn2y1SdiUMohaKUi4wpP326Lb";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1);
+
+        let output_value2: u64 = 170000;
+        let output_pub_key2 = "1JtK9CQw1syfWj1WtFMWomrYdV3W2tWBF9";
+        let output2 = BitcoinTransactionOutput::new(output_value2, output_pub_key2);
+
+        output_vec.push(output1);
+        output_vec.push(output2);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        transaction.sign_raw_transaction(private_key1, 0);
+        transaction.sign_raw_transaction(private_key2, 1);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "01000000024c94e48a870b85f41228d33cf25213dfcc8dd796e7211ed6b1f9a014809dbbb5060000006a473044022041450c258ce7cac7da97316bf2ea1ce66d88967c4df94f3e91f4c2a30f5d08cb02203674d516e6bb2b0afd084c3551614bd9cec3c2945231245e891b145f2d6951f0012103e05ce435e462ec503143305feb6c00e06a3ad52fbf939e85c65f3a765bb7baacffffffff3077d9de049574c3af9bc9c09a7c9db80f2d94caaf63988c9166249b955e867d000000006b483045022100aeb5f1332c79c446d3f906e4499b2e678500580a3f90329edf1ba502eec9402e022072c8b863f8c8d6c26f4c691ac9a6610aa4200edc697306648ee844cfbc089d7a012103df7940ee7cddd2f97763f67e1fb13488da3fbdd7f9c68ec5ef0864074745a289ffffffff0220bf0200000000001976a9147dd65592d0ab2fe0d0257d571abf032cd9db93dc88ac10980200000000001976a914c42e7ef92fdb603af844d064faad95db9bcdfd3d88ac00000000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+
+    #[test]
+    fn test_bitcoin_p2sh_p2wsh_testnet() {
+        // Using script from: https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+        // Specify transaction variables
+
+        let version: u32 = 2;
+        let lock_time: u32 = 0;
+
+        // Specify transaction inputs
+
+        let private_key1 = BitcoinPrivateKey::from_wif("cNdMBCLMUt7jK8LynAWz7rAC8VTMMcZLozDzwg8e4aTWGRcQ4exR").unwrap();
+        let address_1 = private_key1.to_address(&Format::P2SH_P2WPKH);
+        let transaction_id1 = hex::decode("80d9a1dc460da39c0fbbc0415c7cebf305cea2aa2d1de1a64d0bf4e4e541e513").unwrap();
+        let index1: u32 = 1;
+        let redeem_script1 = Some(hex::decode("0014e709f020a951e483eb6628e0ee9abce30da49ffb").unwrap());
+        let script_pub_key1 = None;
+        let utxo_amount1: Option<u64> = Some(50000);
+        let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+
+        input_vec.push(input1);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 20000;
+        let output_pub_key1 = "1CUQeVjoMynT4dpgcv6g5A57rBXZ7sdL7w";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1);
+
+        output_vec.push(output1);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        transaction.sign_raw_transaction(private_key1, 0);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "0200000000010113e541e5e4f40b4da6e11d2daaa2ce05f3eb7c5c41c0bb0f9ca30d46dca1d9800100000017160014e709f020a951e483eb6628e0ee9abce30da49ffbffffffff01204e0000000000001976a9147dd85a8a421b256394532b7a2aaeb00347080c7888ac0247304402202178e5eb537b086efdef5fb6ee0e1848168a853187b7b9db9de299b5afe7ef0f02205ecfb092874babd3dac021c46854a3c43962c156770d3f420d00b09c1c2be13c012103fae6ce0d2a2920e7fbae4f32ace11c6fa9470115887171d0f98ef40d03a4ab4000000000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+
+    #[test]
+    fn test_bitcoin_p2sh_p2wsh() {
+        // Using script from: https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+        // Specify transaction variables
+
+        let version: u32 = 2;
+        let lock_time: u32 = 0;
+
+        // Specify transaction inputs
+
+        let private_key1 = BitcoinPrivateKey::from_wif("Kxxkik2L9KgrGgvdkEvYSkgAxaY4qPGfvxe1M1KBVBB7Ls3xDD8o").unwrap();
+        let address_1 = private_key1.to_address(&Format::P2SH_P2WPKH);
+        let transaction_id1 = hex::decode("7c95424e4c86467eaea85b878985fa77d191bad2b9c5cac5a0cb98f760616afa").unwrap();
+        let index1: u32 = 55;
+        let redeem_script1 = Some(hex::decode("00143d295b6276ff8e4579f3350873db3e839e230f41").unwrap());
+        let script_pub_key1 = None;
+        let utxo_amount1: Option<u64> = Some(2000000);
+        let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+
+        input_vec.push(input1);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 30000;
+        let output_pub_key1 = "3DTGFEmobt8BaJpfPe62HvCQKp2iGsnYqD";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1);
+
+        let output_value2: u64 = 2000000;
+        let output_pub_key2 = "1NxCpkhj6n8orGdhPpxCD3B52WvoR4CS7S";
+        let output2 = BitcoinTransactionOutput::new(output_value2, output_pub_key2);
+
+        output_vec.push(output1);
+        output_vec.push(output2);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        transaction.sign_raw_transaction(private_key1, 0);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "02000000000101fa6a6160f798cba0c5cac5b9d2ba91d177fa8589875ba8ae7e46864c4e42957c37000000171600143d295b6276ff8e4579f3350873db3e839e230f41ffffffff02307500000000000017a9148107a4409368488413295580eb88cbf7609cce658780841e00000000001976a914f0cb63944bcbbeb75c26492196939ae419c515a988ac024730440220243435ca67a713f6715d14d761b5ab073e88b30559a02f8b1add1aee8082f1c902207dfea838a2e815132999035245d9ebf51b4c740cbe4d95c609c7012ba9beb86301210324804353b8e10ce351d073da432fb046a4d13edf22052577a6e09cf9a5090cda00000000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+}
