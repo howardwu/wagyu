@@ -452,6 +452,21 @@ mod tests {
             )
         ];
 
+        const TEST_VECTOR_3: [(&str, &str, &str, &str); 2] = [
+            (
+                "m",
+                "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
+                "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6",
+                "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
+            ),
+            (
+                "m/0'",
+                "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
+                "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L",
+                "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+            )
+        ];
+
         #[test]
         fn test_from_str_tv1() {
             let (
@@ -686,6 +701,23 @@ mod tests {
                     path,
                 );
             }
+        }
+
+        #[test]
+        fn test_vector_3() {
+            // this tests for the retention of leading zeros
+            let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[0];
+            let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
+            let master_xpriv = EthereumExtendedPrivateKey::new(&seed_bytes, &PhantomData).unwrap();
+            assert_eq!(master_xpriv.to_string(), xpriv_serialized);
+            assert_eq!(master_xpriv.derivation_path(path).unwrap().to_string(), xpriv_serialized);
+            assert_eq!(master_xpriv.to_extended_public_key().to_string(), xpub_serialized);
+
+            let (path, _, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[1];
+            let child_xpriv = master_xpriv.ckd_priv(2147483648).unwrap();
+            assert_eq!(child_xpriv.to_string(), xpriv_serialized);
+            assert_eq!(master_xpriv.derivation_path(path).unwrap().to_string(), xpriv_serialized);
+            assert_eq!(child_xpriv.to_extended_public_key().to_string(), xpub_serialized);
         }
     }
 

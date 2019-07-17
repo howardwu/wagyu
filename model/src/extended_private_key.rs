@@ -5,7 +5,7 @@ use crate::public_key::PublicKey;
 
 use crypto_mac;
 use std::{fmt::{Debug, Display}, str::FromStr};
-use crate::PrivateKeyError;
+//use crate::PrivateKeyError;
 
 #[derive(Debug, Fail)]
 pub enum ExtendedPrivateKeyError {

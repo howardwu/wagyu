@@ -15,8 +15,8 @@ use wagu_model::{
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
-use rand::Rng;
-use rand::rngs::OsRng;
+//use rand::Rng;
+//use rand::rngs::OsRng;
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 use std::{fmt, fmt::Display};
@@ -96,27 +96,33 @@ impl BitcoinExtendedPrivateKey {
 
     /// Returns the extended private key of the given derivation path.
     pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut path: Vec<&str> = path.split("/").collect();
+        let mut path_vec: Vec<&str> = path.split("/").collect();
 
-        if path[0] != "m" {
-            return Err(ExtendedPrivateKeyError::InvalidDerivationPath("m".into(), path[0].into()))
+        if path_vec[0] != "m" {
+            return Err(ExtendedPrivateKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()))
         }
 
-        if path.len() == 1 {
+        if path_vec.len() == 1 {
             return Ok(self.clone())
         }
 
         let mut xpriv = self.clone();
-        for (_, child_str) in path[1..].iter_mut().enumerate() {
+        for (i, child_str) in path_vec[1..].iter_mut().enumerate() {
             let mut child_num = 0u32;
 
             // Add 2^31 for hardened paths
             if child_str.contains("'") {
-                let child_num_trimmed: u32 = child_str.trim_end_matches("'").parse()?;
+                let child_num_trimmed: u32 = match child_str.trim_end_matches("'").parse() {
+                    Ok(num) => num,
+                    Err(_) => return Err(ExtendedPrivateKeyError::InvalidDerivationPath("number".into(), path_vec[i+1].into()))
+                };
                 child_num.add_assign(child_num_trimmed);
                 child_num.add_assign(2u32.pow(31));
             } else {
-                let child_num_u32: u32 = child_str.parse()?;
+                let child_num_u32: u32 = match child_str.parse() {
+                    Ok(num) => num,
+                    Err(_) => return Err(ExtendedPrivateKeyError::InvalidDerivationPath("number".into(), path_vec[i+1].into()))
+                };
                 child_num.add_assign(child_num_u32);
             }
             xpriv = xpriv.ckd_priv(child_num)?;
@@ -811,35 +817,35 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Maximum child derivation depth is reached")]
+        #[should_panic(expected = "MaximumChildDepthReached(255)")]
         fn ckd_priv_max_depth() {
             let mut xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
             for _ in 0..255 {
                 xpriv = xpriv.ckd_priv(0).unwrap();
             }
             assert_eq!(xpriv.to_string(), VALID_XPRIV_FINAL);
-            let _result = xpriv.ckd_priv(0);
+            let _result = xpriv.ckd_priv(0).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"m\", \"\")")]
         fn derivation_path_invalid() {
             let xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            let _result = xpriv.derivation_path(INVALID_PATH);
+            let _result = xpriv.derivation_path(INVALID_PATH).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid normal derivation path digit")]
+        #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\")")]
         fn derivation_path_invalid_digit_normal() {
             let xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            let _result = xpriv.derivation_path(INVALID_PATH_NORMAL);
+            let _result = xpriv.derivation_path(INVALID_PATH_NORMAL).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid hardened derivation path digit")]
+        #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\\'\")")]
         fn derivation_path_invalid_digit_hardened() {
             let xpriv = BitcoinExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            let _result = xpriv.derivation_path(INVALID_PATH_HARDENED);
+            let _result = xpriv.derivation_path(INVALID_PATH_HARDENED).unwrap() ;
         }
     }
 }

@@ -72,25 +72,28 @@ impl ExtendedPublicKey for BitcoinExtendedPublicKey {
 impl BitcoinExtendedPublicKey {
     /// Returns the extended public key for the given derivation path.
     pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPublicKeyError> {
-        let mut path: Vec<&str> = path.split("/").collect();
+        let mut path_vec: Vec<&str> = path.split("/").collect();
 
-        if path[0] != "m" {
-            return Err(ExtendedPublicKeyError::InvalidDerivationPath("m".into(), path[0].into()))
+        if path_vec[0] != "m" {
+            return Err(ExtendedPublicKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()))
         }
 
-        if path.len() == 1 {
+        if path_vec.len() == 1 {
             return Ok(self.clone())
         }
 
         let mut xpub = self.clone();
-        for (_, child_str) in path[1..].iter_mut().enumerate() {
+        for (i, child_str) in path_vec[1..].iter_mut().enumerate() {
             let mut child_num = 0u32;
 
             // if hardened path return failure
             if child_str.contains("'") {
                 panic!("Cannot derive hardened child from extended public key")
             } else {
-                let child_num_u32: u32 = child_str.parse()?;
+                let child_num_u32: u32 = match child_str.parse() {
+                    Ok(num) => num,
+                    Err(_) => return Err(ExtendedPublicKeyError::InvalidDerivationPath("number".into(), path_vec[i + 1].into()))
+                };
                 child_num.add_assign(child_num_u32);
             }
             xpub = xpub.ckd_pub(child_num)?;
@@ -180,7 +183,7 @@ impl FromStr for BitcoinExtendedPublicKey {
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
-        if *expected == *checksum {
+        if *expected != *checksum {
             let expected = expected.to_base58();
             let found = checksum.to_base58();
             return Err(ExtendedPublicKeyError::InvalidChecksum(expected, found))
@@ -513,25 +516,25 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key network version")]
+        #[should_panic(expected = "InvalidNetworkBytes([4, 136, 178, 29])")]
         fn from_str_invalid_network() {
             let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_NETWORK).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key checksum")]
+        #[should_panic(expected = "InvalidChecksum(\"5Nvot3\", \"5Nvot4\")")]
         fn from_str_invalid_checksum() {
             let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_CHECKSUM).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key string length")]
+        #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
             let _result = BitcoinExtendedPublicKey::from_str(&VALID_XPUB[1..]).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid extended public key string length")]
+        #[should_panic(expected = "InvalidByteLength(83)")]
         fn from_str_long() {
             let mut string = String::from(VALID_XPUB);
             string.push('a');
@@ -539,28 +542,28 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Maximum child derivation depth is reached")]
+        #[should_panic(expected = "MaximumChildDepthReached(255)")]
         fn ckd_pub_max_depth() {
             let mut xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
             for _ in 0..255 {
                 xpub = xpub.ckd_pub(0).unwrap();
             }
             assert_eq!(xpub.to_string(), VALID_XPUB_FINAL);
-            let _result = xpub.ckd_pub(0);
+            let _result = xpub.ckd_pub(0).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid derivation path")]
+        #[should_panic(expected = "InvalidDerivationPath(\"m\", \"\")")]
         fn derivation_path_invalid() {
             let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH);
+            let _result = xpub.derivation_path(INVALID_PATH).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "Invalid normal derivation path digit")]
+        #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\")")]
         fn derivation_path_invalid_digit_normal() {
             let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_NORMAL);
+            let _result = xpub.derivation_path(INVALID_PATH_NORMAL).unwrap();
         }
 
         #[test]
