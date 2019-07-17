@@ -6,6 +6,7 @@ use base58::{FromBase58};
 use secp256k1::Secp256k1;
 use sha2::{Digest, Sha256};
 use wagu_model::PrivateKey;
+use core::fmt::Display;
 
 /// Represents a raw Bitcoin transaction
 pub struct BitcoinTransaction {
@@ -13,10 +14,13 @@ pub struct BitcoinTransaction {
     pub version : u32,
     // Optional 2 bytes to indicate segwit transactions
     pub segwit_flag : bool,
-    // Variable integer length input size
+    // Number of inputs - variable integer length
     pub input_count: Vec<u8>,
+    // Transaction inputs included in the transaction
     pub inputs: Vec<BitcoinTransactionInput>,
+    // Number of outputs - variable integer length
     pub output_count: Vec<u8>,
+    // Transaction outputs included in the transaction
     pub outputs: Vec<BitcoinTransactionOutput>,
     // Lock time - 4 bytes
     pub lock_time: u32
@@ -32,12 +36,14 @@ pub struct BitcoinTransactionInput {
     pub sequence: Vec<u8>,
     // SIGHASH Code - 4 Bytes (used in signing raw transaction only)
     pub sig_hash_code: SigHashCode,
+    // Number of witnesses - variable integer length
     pub witness_count: Option<Vec<u8>>,
+    // Witnesses used in segwit transactions
     pub witnesses: Vec<BitcoinTransactionWitness>,
 }
 
 pub struct BitcoinTransactionOutput {
-    // Transfer value in Satoshis
+    // Transfer value in Satoshi
     pub value: u64,
     // Output public key script
     pub script_public_key: Script
@@ -51,7 +57,7 @@ pub struct OutPoint {
     pub amount: Option<u64>,
     // Script pub key asssociated with claiming this particular input UTXO
     pub script_pub_key: Option<Vec<u8>>,
-    // Optional redeem script for scriptsig's
+    // Optional redeem script
     pub redeem_script: Option<Vec<u8>>,
     // Type of address the outpoint is associated with
     pub address_type: Format
@@ -75,7 +81,7 @@ pub enum SigHashCode {
     SIGHASH_ALL = 1,
     SIGHASH_NONE = 2,
     SIGHASH_SINGLE = 3,
-    SIGHASH_ANYONECANPAY = 0x80,
+    SIGHASH_ANYONECANPAY = 128,
 }
 
 impl SigHashCode {
@@ -180,15 +186,14 @@ impl BitcoinTransaction {
 
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
         let message = secp256k1::Message::from_slice(&transaction_hash).unwrap();
-
         let sign = Secp256k1::signing_only();
         let signing_key = private_key.secret_key;
         let mut signature =  sign.sign(&message, &signing_key).serialize_der(&sign).to_vec();
-
         let sig_hash_code_bytes = u32_to_bytes(input.sig_hash_code.value());
         signature.extend(vec![sig_hash_code_bytes[0]]); // Add the SIG_HASH ALL TO THE END OF THE signature
-
         let signature_length = variable_integer_length(signature.len() as u64 );
+
+        // Public Key must always be compressed - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#restrictions-on-public-key-type
         let pub_key = private_key.to_public_key().public_key.serialize().to_vec();
         let mut pub_key_length: Vec<u8> = Vec::new();
         pub_key_length.write_u8(pub_key.len() as u8).unwrap();
@@ -200,7 +205,7 @@ impl BitcoinTransaction {
             final_script.extend(pub_key);
 
             self.inputs[input_index].create_script_sig(final_script);
-        } else if self.inputs[input_index].out_point.address_type == Format::P2SH_P2WPKH {
+        } else if input.out_point.address_type == Format::P2SH_P2WPKH {
             self.segwit_flag = true;
 
             let input_script = input.out_point.redeem_script.clone().unwrap();
@@ -230,16 +235,17 @@ impl BitcoinTransaction {
 
     // Generate the hash preimage of the raw transaction
     pub fn generate_p2pkh_hash_preimage(&self, input_index: usize, sig_hash_code: SigHashCode) -> Vec<u8> {
+        let version_bytes = u32_to_bytes(self.version);
+        let lock_time_bytes = u32_to_bytes(self.lock_time);
+        let sig_hash_code_bytes = u32_to_bytes(sig_hash_code.value());
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
 
-        let version_bytes = u32_to_bytes(self.version);
         transaction_hash_preimage.extend(version_bytes);
         transaction_hash_preimage.extend(&self.input_count);
 
         for index in 0..self.inputs.len() {
-            let input = &self.inputs[index];
             let raw = index != input_index;
-            transaction_hash_preimage.extend(input.serialize(raw));
+            transaction_hash_preimage.extend(&self.inputs[index].serialize(raw));
         }
 
         transaction_hash_preimage.extend(&self.output_count);
@@ -247,9 +253,7 @@ impl BitcoinTransaction {
             transaction_hash_preimage.extend(output.serialize());
         }
 
-        let lock_time_bytes = u32_to_bytes(self.lock_time);
         transaction_hash_preimage.extend(lock_time_bytes);
-        let sig_hash_code_bytes = u32_to_bytes(sig_hash_code.value());
         transaction_hash_preimage.extend(sig_hash_code_bytes);
 
         transaction_hash_preimage
@@ -313,6 +317,87 @@ impl BitcoinTransaction {
     }
 }
 
+impl BitcoinTransactionInput {
+    // Create a new Bitcoin Transaction input without the script
+    pub fn new(
+        transaction_id: Vec<u8>,
+        index: u32, amount: Option<u64>,
+        redeem_script: Option<Vec<u8>>,
+        script_pub_key: Option<Vec<u8>>,
+        sequence: Option<Vec<u8>>,
+        sig_hash_code: SigHashCode
+    ) -> Result<Self,  &'static str> {
+        if amount.is_none() && redeem_script.is_none() && script_pub_key.is_none() {
+            return Err("insufficient information to craft transaction input");
+        }
+
+        let default_sequence_number: Vec<u8> = vec![0xff, 0xff, 0xff, 0xff];
+        let sequence = match sequence {
+            None => default_sequence_number,
+            Some(sequence) => sequence
+        };
+
+        // Bitcoin uses reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
+        let mut reverse_transaction_id = transaction_id;
+        reverse_transaction_id.reverse();
+
+        let address_type: Format = find_address_type(redeem_script.clone(), script_pub_key.clone())?;
+        let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address_type };
+
+        Ok(Self { out_point, script: None, sequence, sig_hash_code, witness_count: None,  witnesses: vec![] })
+    }
+
+    // Create a full script_sig using the given script
+    pub fn create_script_sig(&mut self, script: Vec<u8>) {
+        let script_size_bytes: u64 = script.len() as u64;
+        let script_length = variable_integer_length(script_size_bytes);
+        self.script = Some(Script { script_length, script });
+    }
+
+    // Serialize the transaction input
+    pub fn serialize(&self, raw: bool) -> Vec<u8> {
+        let mut serialized_input: Vec<u8> = Vec::new();
+        serialized_input.extend(&self.out_point.reverse_transaction_id);
+        serialized_input.extend(u32_to_bytes(self.out_point.index));
+        if raw {
+            serialized_input.extend(vec![0x00]);
+        } else {
+            match &self.script {
+                None => {
+                    let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
+                    let script_pub_key_length = variable_integer_length(script_pub_key.len() as u64);
+                    serialized_input.extend(script_pub_key_length);
+                    serialized_input.extend(script_pub_key);
+
+                },
+                Some(script) => {
+                    serialized_input.extend(&script.script_length);
+                    serialized_input.extend(&script.script);
+                }
+            }
+        }
+        serialized_input.extend(&self.sequence);
+        serialized_input
+    }
+}
+
+impl BitcoinTransactionOutput {
+    // Create a new Bitcoin transaction output
+    pub fn new(value: u64, bitcoin_address: &str) -> Result<Self, &'static str> {
+        let script_public_key = generate_script_pub_key(bitcoin_address);
+        Ok(Self { value, script_public_key: script_public_key? })
+    }
+
+    // Serialize the transaction output
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut serialized_output: Vec<u8> = Vec::new();
+        serialized_output.write_u64::<LittleEndian>(self.value).unwrap();
+        serialized_output.extend( &self.script_public_key.script_length);
+        serialized_output.extend(&self.script_public_key.script);
+        serialized_output
+    }
+}
+
 // Write a u32 into a 4 byte vector
 pub fn u32_to_bytes(num: u32) -> Vec<u8> {
     let mut num_vec: Vec<u8> = Vec::new();
@@ -335,7 +420,6 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script,  &'stati
         return Err("invalid/unsupported bitcoin address")
     }
     let bitcoin_address = bitcoin_address.unwrap();
-
     let mut script: Vec<u8> = Vec::new();
     let format = bitcoin_address.format;
     match format {
@@ -423,90 +507,6 @@ pub fn variable_integer_length (size: u64) -> Vec<u8> {
         v8.write_u64::<LittleEndian>(size).unwrap();
         result.append(&mut v8);
         result
-    }
-}
-
-
-impl BitcoinTransactionInput {
-    // Create a new Bitcoin Transaction input without the script
-    pub fn new(transaction_id: Vec<u8>, index: u32, amount: Option<u64>, redeem_script: Option<Vec<u8>>, script_pub_key: Option<Vec<u8>>, seq: Option<Vec<u8>>, sig_hash_code: SigHashCode, ) -> Result<Self,  &'static str> {
-
-        if amount.is_none() && redeem_script.is_none() && script_pub_key.is_none() {
-            return Err("insufficient information to craft transaction input");
-        }
-
-        let default_sequence_number: Vec<u8> = vec![0xff, 0xff, 0xff, 0xff];
-        let sequence = match seq {
-            None => default_sequence_number,
-            Some(seq) => seq
-        };
-
-        let mut reverse_transaction_id = transaction_id; // Bitcoin uses reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
-        reverse_transaction_id.reverse();
-
-        let address_type: Format = find_address_type(redeem_script.clone(), script_pub_key.clone()).unwrap();
-        let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address_type };
-
-        Ok(Self { out_point, script: None, sequence, sig_hash_code, witness_count: None,  witnesses: vec![] })
-    }
-
-    // Create a full script_sig using the given script
-    pub fn create_script_sig(&mut self, script: Vec<u8>) {
-        let script_size_bytes: u64 = script.len() as u64;
-        let script_length = variable_integer_length(script_size_bytes);
-        self.script = Some(Script { script_length, script });
-    }
-
-    // Serialize the transaction input
-    pub fn serialize(&self, raw: bool) -> Vec<u8> {
-        let mut serialized_input: Vec<u8> = Vec::new();
-        serialized_input.extend(&self.out_point.reverse_transaction_id);
-        serialized_input.extend(u32_to_bytes(self.out_point.index));
-        match &self.script {
-            None => {
-                if raw { // For raw transaction signing
-                    serialized_input.extend(vec![0x00]);
-                } else {
-                    let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
-                    let script_pub_key_length = variable_integer_length(script_pub_key.len() as u64);
-                    serialized_input.extend(script_pub_key_length);
-                    serialized_input.extend(script_pub_key);
-                }
-            },
-            Some(script) => {
-                if raw { // For raw transaction signing
-                    serialized_input.extend(vec![0x00]);
-                } else {
-                    serialized_input.extend(&script.script_length);
-                    serialized_input.extend(&script.script);
-                }
-            }
-        }
-        serialized_input.extend(&self.sequence);
-        serialized_input
-    }
-}
-
-impl BitcoinTransactionOutput {
-    // Create a new Bitcoin transaction output
-    pub fn new(value: u64, bitcoin_address: &str) -> Result<Self, &'static str> {
-
-        let script_public_key = generate_script_pub_key(bitcoin_address);
-        if script_public_key.is_err() {
-            return Err("invalid address");
-        }
-        Ok(Self { value, script_public_key: script_public_key.unwrap() })
-    }
-
-    // Serialize the transaction output
-    pub fn serialize(&self) -> Vec<u8> {
-        let mut value_vec: Vec<u8> = Vec::new();
-        value_vec.write_u64::<LittleEndian>(self.value).unwrap();
-
-        let mut serialized_output = value_vec;
-        serialized_output.extend( &self.script_public_key.script_length);
-        serialized_output.extend(&self.script_public_key.script);
-        serialized_output
     }
 }
 
@@ -637,7 +637,7 @@ mod tests {
         let transaction_id1 = hex::decode("61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d").unwrap();
         let index1: u32 = 0;
         let redeem_script1 = None;
-        let script_pub_key1 = Some(generate_script_pub_key(&address1.to_string()).unwrap().script);
+        let script_pub_key1 = Some(generate_script_pub_key(&address1.unwrap().to_string()).unwrap().script);
         let utxo_amount1: Option<u64> = None;
         let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
         let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
@@ -683,17 +683,17 @@ mod tests {
         let transaction_id1 = hex::decode("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
         let index1: u32 = 6;
         let redeem_script1 = None;
-        let script_pub_key1 = Some(generate_script_pub_key(&address1.to_string()).unwrap().script);
+        let script_pub_key1 = Some(generate_script_pub_key(&address1.unwrap().to_string()).unwrap().script);
         let utxo_amount1: Option<u64> = None;
         let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
         let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
 
         let private_key2 = BitcoinPrivateKey::from_wif("KwcN2pT3wnRAurhy7qMczzbkpY5nXMW2ubh696UBc1bcwctTx26z").unwrap();
-        let address_2 = private_key2.to_address(&Format::P2PKH);
+        let address2 = private_key2.to_address(&Format::P2PKH);
         let transaction_id2 = hex::decode("7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730").unwrap();
         let index2: u32 = 0;
         let redeem_script2 = None;
-        let script_pub_key2 = Some(generate_script_pub_key(&address_2.to_string()).unwrap().script);
+        let script_pub_key2 = Some(generate_script_pub_key(&address2.unwrap().to_string()).unwrap().script);
         let utxo_amount2: Option<u64> = None;
         let sequence2 = Some(vec![0xff, 0xff, 0xff, 0xff]);
         let sig_hash_code2 = SigHashCode::SIGHASH_ALL; //Default
@@ -827,6 +827,69 @@ mod tests {
 
         let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
         let signed_transaction = "02000000000101fa6a6160f798cba0c5cac5b9d2ba91d177fa8589875ba8ae7e46864c4e42957c37000000171600143d295b6276ff8e4579f3350873db3e839e230f41ffffffff02307500000000000017a9148107a4409368488413295580eb88cbf7609cce658780841e00000000001976a914f0cb63944bcbbeb75c26492196939ae419c515a988ac024730440220243435ca67a713f6715d14d761b5ab073e88b30559a02f8b1add1aee8082f1c902207dfea838a2e815132999035245d9ebf51b4c740cbe4d95c609c7012ba9beb86301210324804353b8e10ce351d073da432fb046a4d13edf22052577a6e09cf9a5090cda00000000";
+        assert_eq!(signed_transaction, final_transaction_string);
+    }
+
+    #[test]
+    fn test_p2sh_p2wsh_and_uncompressed_p2pkh_to_multiple_address_types() {
+        // Using scripts from: https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+        // Specify transaction variables
+
+        let version: u32 = 2;
+        let lock_time: u32 = 0;
+
+        // Specify transaction inputs
+
+        let private_key1 = BitcoinPrivateKey::from_wif("L3EEWFaodvuDcH7yeTtugQDvNxnBs8Fkzerqf8tgmHYKQ4QkQJDE").unwrap();
+        let address1 = private_key1.to_address(&Format::P2PKH);
+        let transaction_id1 = hex::decode("6b88c087247aa2f07ee1c5956b8e1a9f4c7f892a70e324f1bb3d161e05ca107b").unwrap();
+        let index1: u32 = 0;
+        let redeem_script1 = None;
+        let script_pub_key1 = Some(generate_script_pub_key(&address1.unwrap().to_string()).unwrap().script);
+        let utxo_amount1: Option<u64> = None;
+        let sequence1 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code1 = SigHashCode::SIGHASH_ALL; //Default
+
+        let private_key2 = BitcoinPrivateKey::from_wif("KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq").unwrap();
+        let transaction_id2 = hex::decode("93ca92c0653260994680a4caa40cfc7b0aac02a077c4f022b007813d6416c70d").unwrap();
+        let index2: u32 = 1;
+        let redeem_script2 = Some(hex::decode("00142b654d833c287e239f73ba8165bbadf4dee3c00e").unwrap());
+        let script_pub_key2 = None;
+        let utxo_amount2: Option<u64> = Some(100000);
+        let sequence2 = Some(vec![0xff, 0xff, 0xff, 0xff]);
+        let sig_hash_code2 = SigHashCode::SIGHASH_ALL; //Default
+
+        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let input1 = BitcoinTransactionInput::new(transaction_id1, index1, utxo_amount1, redeem_script1, script_pub_key1, sequence1, sig_hash_code1).unwrap();
+        let input2 = BitcoinTransactionInput::new(transaction_id2, index2, utxo_amount2, redeem_script2, script_pub_key2, sequence2, sig_hash_code2).unwrap();
+
+        input_vec.push(input1);
+        input_vec.push(input2);
+
+        // Specify transaction outputs
+
+        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+
+        let output_value1: u64 = 50000;
+        let output_pub_key1 = "36NCSwdvrL7XpiRSsfYWY99azC4xWgtL3X";
+        let output1 = BitcoinTransactionOutput::new(output_value1, output_pub_key1).unwrap();
+
+        let output_value2: u64 = 123456;
+        let output_pub_key2 = "17rB37JzbUVmFuKMx8fexrHjdWBtDurpuL";
+        let output2 = BitcoinTransactionOutput::new(output_value2, output_pub_key2).unwrap();
+
+        output_vec.push(output1);
+        output_vec.push(output2);
+
+        // Build raw serialized transaction to sign
+
+        let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
+
+        transaction.sign_raw_transaction(private_key1, 0);
+        transaction.sign_raw_transaction(private_key2, 1);
+
+        let final_transaction_string = hex::encode(transaction.serialize_transaction(false));
+        let signed_transaction = "020000000001027b10ca051e163dbbf124e3702a897f4c9f1a8e6b95c5e17ef0a27a2487c0886b000000006b483045022100b15c1d8e7de7c1d77612f80ab49c48c3d0c23467a0becaa86fcd98009d2dff6002200f3b2341a591889f38e629dc4b938faf9165aecedc4e3be768b13ef491cbb37001210264174f4ff6006a98be258fe1c371b635b097b000ce714c6a2842d5c269dbf2e9ffffffff0dc716643d8107b022f0c477a002ac0a7bfc0ca4caa4804699603265c092ca9301000000171600142b654d833c287e239f73ba8165bbadf4dee3c00effffffff0250c300000000000017a914334982bfd308f92f8ea5d22e9f7ee52f2265543b8740e20100000000001976a9144b1d83c75928642a41f2945c8a3be48550822a9a88ac0002483045022100a37e7aeb82332d5dc65d1582bb917acbf2d56a90f5a792a932cfec3c09f7a534022033baa11aa0f3ad4ba9723c703e65dce724ccb79c00838e09b96892087e43f1c8012102d9c6aaa344ee7cc41466e4705780020deb70720bef8ddb9b4e83e75df02e1d8600000000";
         assert_eq!(signed_transaction, final_transaction_string);
     }
 }
