@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagu_model::{Address, crypto::{checksum, hash160}, PrivateKey};
+use wagu_model::{Address, AddressError, PrivateKey, crypto::{checksum, hash160}};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use base58::{FromBase58, ToBase58};
@@ -46,9 +46,9 @@ impl Format {
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, &'static str> {
+    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, AddressError> {
         if prefix.len() < 2 {
-            return Err("invalid prefix length")
+            return Err(AddressError::InvalidPrefixLength(prefix.len()))
         }
 
         match prefix[1] {
@@ -56,7 +56,7 @@ impl Format {
             0xBD | 0xBA => Ok(Format::P2SH),
             0x9A | 0xB6 => Ok(Format::Sprout),
             0x73 | 0x74 => Ok(Format::Sapling(None)),
-            _ => return Err("invalid address prefix")
+            _ => return Err(AddressError::InvalidPrefix(prefix.clone()))
         }
     }
 }
@@ -79,11 +79,14 @@ impl Address for ZcashAddress {
     type PublicKey = ZcashPublicKey;
 
     /// Returns the address corresponding to the given Zcash private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError> {
         match private_key.to_public_key().0 {
-            ViewingKey::P2PKH(public_key) => Self::p2pkh(&public_key, &private_key.network()),
-            ViewingKey::P2SH(_) => Self::p2sh( &private_key.network()),
-            ViewingKey::Sprout(public_key) => Self::sprout(&public_key, &private_key.network()),
+            ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key, &private_key.network())),
+            ViewingKey::P2SH(_) => Ok(Self::p2sh( &private_key.network())),
+            ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key, &private_key.network())),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format, &private_key.network())
         }
     }
@@ -93,11 +96,11 @@ impl Address for ZcashAddress {
         public_key: &Self::PublicKey,
         format: &Self::Format,
         network: &Self::Network
-    ) -> Self {
+    ) -> Result<Self, AddressError> {
         match &public_key.0 {
-            ViewingKey::P2PKH(public_key) => Self::p2pkh(&public_key, network),
-            ViewingKey::P2SH(_) => Self::p2sh(network),
-            ViewingKey::Sprout(public_key) => Self::sprout(&public_key, network),
+            ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key, network)),
+            ViewingKey::P2SH(_) => Ok(Self::p2sh(network)),
+            ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key, network)),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format, network)
         }
     }
@@ -133,73 +136,64 @@ impl ZcashAddress {
     }
 
     /// Returns a shielded address from a given Zcash public key.
-    pub fn sapling(public_key: &SaplingViewingKey, format: &Format, network: &Network) -> Self {
-        let diversifier = match format {
-            Format::Sapling(diversifier) => match diversifier {
-                Some(diversifier) => match public_key.0.vk.into_payment_address(Diversifier(*diversifier), &JUBJUB) {
-                    Some(_) => Some(diversifier),
-                    None => None
-                },
-                None => None
-            },
-            _ => None
+    pub fn sapling(public_key: &SaplingViewingKey, format: &Format, network: &Network) -> Result<Self, AddressError> {
+        let data = match format {
+            Format::Sapling(data) => data.unwrap_or([0u8; 11]),
+            _ => [0u8; 11]
         };
 
-        let diversifier = match diversifier {
-            Some(diversifier) => *diversifier,
-            None => {
-                let mut diversifier = [0u8; 11];
-                loop {
-                    OsRng.try_fill(&mut diversifier).expect("error generating random bytes for diversifier");
-                    if let Some(_) = public_key.0.vk.into_payment_address(Diversifier(diversifier), &JUBJUB) {
-                        break;
-                    }
-                }
-                diversifier
+        let address;
+        let diversifier;
+        loop {
+            if let Some(output) = public_key.0.vk.into_payment_address(Diversifier(data), &JUBJUB) {
+                address = output;
+                diversifier = data;
+                break;
             }
-        };
+            let mut data = [0u8; 11];
+            OsRng.try_fill(&mut data)?;
+        }
 
         let mut checked_data = vec![0; 43];
-        checked_data.get_mut(..11).unwrap().copy_from_slice(&diversifier);
+        checked_data[..11].copy_from_slice(&diversifier);
+        address.pk_d.write(checked_data[11..].as_mut())?;
 
-        let address = public_key.0.vk.into_payment_address(Diversifier(diversifier), &JUBJUB).expect("invalid payment address");
-        address.pk_d.write(checked_data.get_mut(11..).unwrap()).expect("invalid write");
+        let format = Format::Sapling(Some(diversifier));
+        let prefix = network.to_address_prefix(&format);
 
-        let prefix = network.to_address_prefix(&Format::Sapling(Some(diversifier)));
-
-        return Self {
+        Ok(Self {
             address: Bech32::new(
-                String::from(str::from_utf8(&prefix).expect("invalid prefix")),
-                checked_data.to_base32()).expect("bech32 failed").to_string(),
+                String::from(str::from_utf8(&prefix)?),
+                checked_data.to_base32())?.to_string(),
             format: Format::Sapling(Some(diversifier)),
             network: *network
-        }
+        })
     }
 
-    pub fn get_diversifier(address: &str) -> [u8; 11] {
-        let address = Bech32::from_str(address).expect("invalid bech32 address");
-        let buffer: Vec<u8> = FromBase32::from_base32(address.data()).expect("invalid base32 encoding");
+    pub fn get_diversifier(address: &str) -> Result<[u8; 11], AddressError> {
+        let address = Bech32::from_str(address)?;
+        let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
         let mut diversifier = [0u8; 11];
         diversifier.copy_from_slice(&buffer[0..11]);
-        diversifier
+        Ok(diversifier)
     }
 }
 
 impl FromStr for ZcashAddress {
-    type Err = &'static str;
+    type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
         if address.len() < 2 {
-            return Err("invalid address length");
+            return Err(AddressError::InvalidCharacterLength(address.len()))
         }
 
         // Transparent
         if &address[0..=0] == "t" && address.len() < 40 {
             match &address[1..=1] {
                 "1" | "m" => {
-                    let data = address.from_base58().expect("invalid base58 format");
+                    let data = address.from_base58()?;
                     if data.len() != 26 {
-                        return Err("invalid byte length");
+                        return Err(AddressError::InvalidByteLength(data.len()));
                     }
 
                     let format = Format::from_address_prefix(&data[0..2].to_vec())?;
@@ -210,7 +204,7 @@ impl FromStr for ZcashAddress {
                 "3" | "2" => {
                     unimplemented!("");
                 },
-                _ => return Err("invalid address prefix")
+                _ => return Err(AddressError::InvalidAddress(address.into()))
             }
         }
 
@@ -218,13 +212,13 @@ impl FromStr for ZcashAddress {
         if &address[0..=0] == "z" && address.len() > 77 {
             if &address[0..12] == "ztestsapling" && address.len() > 87 {
 
-                let format = Format::Sapling(Some(Self::get_diversifier(address)));
+                let format = Format::Sapling(Some(Self::get_diversifier(address)?));
                 let network = Network::Testnet;
                 return Ok(Self { address: address.into(), format, network });
 
             } else if &address[0..2] == "zs" && address.len() > 77 {
 
-                let format = Format::Sapling(Some(Self::get_diversifier(address)));
+                let format = Format::Sapling(Some(Self::get_diversifier(address)?));
                 let network = Network::Mainnet;
                 return Ok(Self { address: address.into(), format, network });
 
@@ -243,7 +237,7 @@ impl FromStr for ZcashAddress {
             }
         }
 
-        Err("invalid address string")
+        Err(AddressError::InvalidAddress(address.into()))
     }
 }
 
@@ -263,7 +257,7 @@ mod tests {
         private_key: &ZcashPrivateKey,
         format: &Format,
     ) {
-        let address = ZcashAddress::from_private_key(private_key, format);
+        let address = ZcashAddress::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -273,7 +267,7 @@ mod tests {
         format: &Format,
         network: &Network,
     ) {
-        let address = ZcashAddress::from_public_key(public_key, format, network);
+        let address = ZcashAddress::from_public_key(public_key, format, network).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -554,7 +548,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = ZcashPrivateKey::from(private_key, &Format::Sapling(None), &Network::Mainnet).unwrap();
-                test_from_private_key(address, &private_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))));
+                test_from_private_key(address, &private_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())));
             });
         }
 
@@ -563,14 +557,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = ZcashPrivateKey::from(private_key, &Format::Sapling(None), &Network::Mainnet).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))), &Network::Mainnet);
+                test_from_public_key(address, &public_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())), &Network::Mainnet);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str(address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))), &Network::Mainnet);
+                test_from_str(address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())), &Network::Mainnet);
             });
         }
 
@@ -613,7 +607,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = ZcashPrivateKey::from(private_key, &Format::Sapling(None), &Network::Testnet).unwrap();
-                test_from_private_key(address, &private_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))));
+                test_from_private_key(address, &private_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())));
             });
         }
 
@@ -622,14 +616,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = ZcashPrivateKey::from(private_key, &Format::Sapling(None), &Network::Testnet).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))), &Network::Testnet);
+                test_from_public_key(address, &public_key, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())), &Network::Testnet);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str(address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address))), &Network::Testnet);
+                test_from_str(address, &Format::Sapling(Some(ZcashAddress::get_diversifier(address).unwrap())), &Network::Testnet);
             });
         }
 
@@ -651,11 +645,11 @@ mod tests {
         let expected_address = "t1J8w8EMM1Rs26zJFu3Deo6ougWhNhPXUZt";
 
         let private_key = ZcashPrivateKey::from(private_key, &Format::P2PKH, &Network::Mainnet).unwrap();
-        let address = ZcashAddress::from_private_key(&private_key, &Format::P2PKH);
+        let address = ZcashAddress::from_private_key(&private_key, &Format::P2PKH).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = ZcashPublicKey::from_private_key(&private_key);
-        let address = ZcashAddress::from_public_key(&public_key, &Format::P2PKH, &Network::Mainnet);
+        let address = ZcashAddress::from_public_key(&public_key, &Format::P2PKH, &Network::Mainnet).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length

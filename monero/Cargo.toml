@@ -19,7 +19,7 @@ edition = "2018"
 [dependencies]
 wagu-model = { path = "../model" }
 
-base58-monero = "0.1.1"
+base58-monero = { version = "0.1.1" }
 curve25519-dalek = "1.2.1"
 hex = "0.3.2"
 rand = "0.7"

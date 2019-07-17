@@ -9,8 +9,6 @@ use rand::Rng;
 use rand::rngs::OsRng;
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
-
-
 use std::{fmt, fmt::Display};
 use std::io::Cursor;
 use std::ops::AddAssign;
@@ -100,14 +98,14 @@ impl EthereumExtendedPrivateKey {
         let mut mac = HmacSha512::new_varkey(
             &self.chain_code).expect("error generating hmac from chain code");
         let public_key_serialized = &PublicKey::from_secret_key(
-            &Secp256k1::new(), &self.private_key.secret_key).serialize()[..];
+            &Secp256k1::new(), &self.private_key.0).serialize()[..];
 
         // Check whether i ≥ 2^31 (whether the child is a hardened key).
         // If so (hardened child): let I = HMAC-SHA512(Key = cpar, Data = 0x00 || ser256(kpar) || ser32(i)). (Note: The 0x00 pads the private key to make it 33 bytes long.)
         // If not (normal child): let I = HMAC-SHA512(Key = cpar, Data = serP(point(kpar)) || ser32(i)).
         if child_number >= 2_u32.pow(31) {
             let mut private_key_bytes = [0u8; 33];
-            private_key_bytes[1..33].copy_from_slice(&self.private_key.secret_key[..]);
+            private_key_bytes[1..33].copy_from_slice(&self.private_key.0[..]);
             mac.input(&private_key_bytes[..]);
         } else {
             mac.input(public_key_serialized);
@@ -120,7 +118,7 @@ impl EthereumExtendedPrivateKey {
         let result = mac.result().code();
 
         let (mut private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result);
-        private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key).expect("Error adding secret key to self");
+        private_key.0.add_assign(&Secp256k1::new(), &self.private_key.0).expect("Error adding secret key to self");
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -215,7 +213,7 @@ impl Display for EthereumExtendedPrivateKey {
 
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45] = 0;
-        result[46..78].copy_from_slice(&self.private_key.secret_key[..]);
+        result[46..78].copy_from_slice(&self.private_key.0[..]);
 
         let checksum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(&checksum);
@@ -239,7 +237,7 @@ mod tests {
         expected_xpriv_serialized: &str,
     ) {
         let xpriv = EthereumExtendedPrivateKey::from_str(&expected_xpriv_serialized).expect("error generating xpriv object");
-        assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_secret_key, xpriv.private_key.0.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(expected_depth, xpriv.depth);
         assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
@@ -256,7 +254,7 @@ mod tests {
     ) {
         let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
         let xpriv = EthereumExtendedPrivateKey::new(&seed_bytes);
-        assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_secret_key, xpriv.private_key.0.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(0, xpriv.depth);
         assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
@@ -279,7 +277,7 @@ mod tests {
         child_number: u32,
     ) -> EthereumExtendedPrivateKey {
         let child_xpriv = parent_xpriv.ckd_priv(child_number);
-        assert_eq!(expected_secret_key, child_xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_secret_key, child_xpriv.private_key.0.to_string());
         assert_eq!(expected_chain_code, hex::encode(child_xpriv.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(child_xpriv.parent_fingerprint));
         assert_eq!(expected_xpriv_serialized, child_xpriv.to_string());
@@ -300,7 +298,7 @@ mod tests {
         path: &str,
     ) {
         let derived_xpriv = master_xpriv.derivation_path(path);
-        assert_eq!(expected_secret_key, derived_xpriv.private_key.secret_key.to_string());
+        assert_eq!(expected_secret_key, derived_xpriv.private_key.0.to_string());
         assert_eq!(expected_chain_code, hex::encode(derived_xpriv.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(derived_xpriv.parent_fingerprint));
         assert_eq!(expected_child_number, derived_xpriv.child_number);

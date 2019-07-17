@@ -87,8 +87,8 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
         false => BitcoinNetwork::Mainnet,
     };
 
-    let private_key = BitcoinPrivateKey::new(&network);
-    let address = BitcoinAddress::from_private_key(&private_key, &format);
+    let private_key = BitcoinPrivateKey::new(&network).unwrap();
+    let address = BitcoinAddress::from_private_key(&private_key, &format).unwrap();
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
@@ -123,8 +123,8 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
 }
 
 fn print_ethereum_wallet(count: usize, json: bool) {
-    let private_key = EthereumPrivateKey::new(&PhantomData);
-    let address = EthereumAddress::from_private_key(&private_key, &PhantomData);
+    let private_key = EthereumPrivateKey::new(&PhantomData).unwrap();
+    let address = EthereumAddress::from_private_key(&private_key, &PhantomData).unwrap();
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
@@ -157,8 +157,8 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
         true => MoneroNetwork::Testnet,
         false => MoneroNetwork::Mainnet,
     };
-    let private_key = MoneroPrivateKey::new(&network);
-    let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard);
+    let private_key = MoneroPrivateKey::new(&network).unwrap();
+    let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {
@@ -192,8 +192,8 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
         false => ZcashNetwork::Mainnet
     };
 
-    let private_key = ZcashPrivateKey::new(&network);
-    let address = ZcashAddress::from_private_key(&private_key, &format);
+    let private_key = ZcashPrivateKey::new(&network).unwrap();
+    let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
 
     #[derive(Serialize, Debug)]
     pub struct Wallet {

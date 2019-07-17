@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use wagu_model::{Address, PrivateKey};
+use wagu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
@@ -43,25 +43,25 @@ impl Format {
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: u8, network: &Network) -> Result<Self, &'static str> {
+    pub fn from_address_prefix(prefix: u8, network: &Network) -> Result<Self, AddressError> {
         match network {
             Network::Mainnet => match prefix {
                 18 => Ok(Format::Standard),
                 19 => Ok(Format::Integrated),
                 42 => Ok(Format::Subaddress),
-                _ => return Err("invalid address prefix")
+                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
             },
             Network::Testnet => match prefix {
                 24 => Ok(Format::Standard),
                 25 => Ok(Format::Integrated),
                 36 => Ok(Format::Subaddress),
-                _ => return Err("invalid address prefix")
+                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
             },
             Network::Stagenet => match prefix {
                 53 => Ok(Format::Standard),
                 54 => Ok(Format::Integrated),
                 63 => Ok(Format::Subaddress),
-                _ => return Err("invalid address prefix")
+                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
             }
         }
     }
@@ -85,7 +85,10 @@ impl Address for MoneroAddress {
     type PublicKey = MoneroPublicKey;
 
     /// Returns the address corresponding to the given Monero private key.
-    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Self {
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&private_key.to_public_key(), format, &private_key.network)
     }
 
@@ -94,8 +97,8 @@ impl Address for MoneroAddress {
         public_key: &Self::PublicKey,
         format: &Self::Format,
         network: &Self::Network,
-    ) -> Self {
-        MoneroAddress::generate_address(&public_key, format, network).unwrap()
+    ) -> Result<Self, AddressError> {
+        Self::generate_address(&public_key, format, network)
     }
 }
 
@@ -105,7 +108,7 @@ impl MoneroAddress {
         public_key: &MoneroPublicKey,
         format: &Format,
         network: &Network
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, AddressError> {
         let mut bytes = vec![format.to_address_prefix(network)];
         bytes.extend_from_slice(&public_key.spend_key);
         bytes.extend_from_slice(&public_key.view_key);
@@ -118,19 +121,19 @@ impl MoneroAddress {
         let checksum = &keccak256(checksum_bytes);
         bytes.extend_from_slice(&checksum[0..4]);
 
-        let address = base58::encode(bytes.as_slice()).expect("invalid byte encoding");
+        let address = base58::encode(bytes.as_slice())?;
         Ok(Self { address, format: format.clone(), network: *network })
     }
 }
 
 impl FromStr for MoneroAddress {
-    type Err = &'static str;
+    type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
         if address.len() != 95 && address.len() != 106 {
-            return Err("invalid character length");
+            return Err(AddressError::InvalidCharacterLength(address.len()))
         }
-        let bytes = base58::decode(address).expect("invalid address base58 string");
+        let bytes = base58::decode(address)?;
 
         let network = Network::from_address_prefix(bytes[0])?;
         let format = Format::from_address_prefix(bytes[0], &network)?;
@@ -142,7 +145,9 @@ impl FromStr for MoneroAddress {
 
         let verify_checksum = &keccak256(checksum_bytes);
         if &verify_checksum[0..4] != checksum {
-            return Err("invalid checksum");
+            let expected = base58::encode(&verify_checksum[0..4])?;
+            let found = base58::encode(checksum)?;
+            return Err(AddressError::InvalidChecksum(expected, found))
         }
 
         let public_spend_key = hex::encode(&bytes[1..33]);
@@ -169,7 +174,7 @@ mod tests {
         private_key: &MoneroPrivateKey,
         format: &Format
     ) {
-        let address = MoneroAddress::from_private_key(private_key, format);
+        let address = MoneroAddress::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -179,7 +184,7 @@ mod tests {
         format: &Format,
         network: &Network
     ) {
-        let address = MoneroAddress::from_public_key(public_key, format, network);
+        let address = MoneroAddress::from_public_key(public_key, format, network).unwrap();
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*format, address.format);
         assert_eq!(*network, address.network);
