@@ -27,13 +27,7 @@ impl WitnessProgram {
             return Err("Mismatched program length");
         }
 
-        let mut version = prog_bytes[0];
-        if version > 0x50 && version <= 0x60 {
-            version -= 0x50;
-        }
-        else if version != 0x00 {
-            return Err("Invalid witness version")
-        }
+        let version = prog_bytes[0];
 
         let new_program = WitnessProgram { version, program };
         match new_program.validate() {
@@ -47,19 +41,14 @@ impl WitnessProgram {
             return Err("Invalid program length");
         }
 
-        // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Decoding
-        let mut version = self.version;
-        if version > 0 {
-            version -= 0x50;
+        if  self.version > 16 {
+            return Err("Invalid version");
         }
 
         // P2SH_P2WPKH start with 0x0014
         // P2SH_P2WSH starts with 0x0020
         // https://bitcoincore.org/en/segwit_wallet_dev/#creation-of-p2sh-p2wpkh-address
-        if version > 16 {
-            return Err("Invalid version");
-        }
-        if version == 0 && !(self.program.len() == 20 || self.program.len() == 32) {
+        if self.version == 0 && !(self.program.len() == 20 || self.program.len() == 32) {
             return Err("Invalid program length for witness version 0");
         }
         Ok(())
@@ -78,7 +67,7 @@ impl WitnessProgram {
     }
 
     /// A BIP173 version conversion utility function.
-    /// Converts given version to a value between 0 and 16
+    /// Convert a given version to a value between 0 and 16 or OP_1 through OP_16
     pub fn convert_version(version: u8) -> u8 {
         if version > 0x00 && version <= 0x10 { // encode OP_1 through OP_16
             version + 0x50
