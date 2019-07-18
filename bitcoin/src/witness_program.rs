@@ -57,7 +57,7 @@ impl WitnessProgram {
             return Err("Invalid program length");
         }
 
-        if  self.version > 16 {
+        if self.version > 16 {
             return Err("Invalid version");
         }
 
@@ -80,7 +80,7 @@ impl WitnessProgram {
     }
 
     /// A BIP173 version conversion utility function.
-    /// Convert a given version to a value between 0 and 16 or OP_1 through OP_16
+    /// Convert a given version to a value between 0 and 16 or OP_1 through OP_16.
     pub fn convert_version(version: u8) -> u8 {
         if version > 0x00 && version <= 0x10 { // encode OP_1 through OP_16
             version + 0x50
