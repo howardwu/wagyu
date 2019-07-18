@@ -884,4 +884,134 @@ mod tests {
                 });
         }
     }
+
+    mod test_invalid_transactions {
+        use super::*;
+
+        const INVALID_INPUTS: [Input; 6] = [
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2PKH,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2PKH,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: None,
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "7dabce",
+                index: 0,
+                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "7dabce588a8a57786790",
+                index: 0,
+                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "7dabce588a8a57786790d27810514f5ffccff4148a8105894da57c985d02cdbb7dabce",
+                index: 0,
+                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            INPUT_FILLER
+        ];
+
+        const INVALID_OUTPUTS: [Output; 5] = [
+            Output {
+                address: "ABCD",
+                amount: 100
+            },
+            Output {
+                address: "INVALID ADDRESS",
+                amount: 12345
+            },
+            Output {
+                address: "0xE345828db876E265Dc2cea04c6b16F62021841A1",
+                amount: 100000
+            },
+            Output {
+                address: "1PhyG9uGuEAne9BUjtDkBr8pcPGHtdZ",
+                amount: 5
+            },
+            OUTPUT_FILLER
+        ];
+
+        #[test]
+        fn test_invalid_inputs() {
+
+            // Not enough information to craft a bitcoin transaction input
+
+            for input in INVALID_INPUTS.iter() {
+                let transaction_id = hex::decode(input.transaction_id).unwrap();
+                let redeem_script = match input.redeem_script {
+                    None => None,
+                    Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
+                };
+                let script_pub_key = match input.script_pub_key {
+                    None => None,
+                    Some (script) => Some(hex::decode(script).unwrap())
+                };
+
+                let sequence = match input.sequence {
+                    None => None,
+                    Some(seq) => Some(seq.to_vec())
+                };
+                let invalid_input = BitcoinTransactionInput::new(
+                    transaction_id,
+                    input.index,
+                    input.utxo_amount,
+                    redeem_script,
+                    script_pub_key,
+                    sequence,
+                    input.sig_hash_code
+                );
+                assert!(invalid_input.is_err());
+            }
+        }
+
+        #[test]
+        fn test_invalid_outputs() {
+
+            // Invalid output address
+
+            for output in INVALID_OUTPUTS.iter() {
+                let invalid_output = BitcoinTransactionOutput::new(
+                    output.address,
+                    output.amount
+                );
+                assert!(invalid_output.is_err());
+            }
+        }
+    }
 }
