@@ -104,9 +104,11 @@ impl PartialEq for SaplingSpendingKey {
         if self.network != other.network {
             return false
         }
-        if self.spending_key.is_some() && other.spending_key.is_some() {
-            if self.spending_key.unwrap() != other.spending_key.unwrap() {
-                return false
+        if let Some(this) = self.spending_key {
+            if let Some(that) = other.spending_key {
+                if this != that {
+                    return false
+                }
             }
         }
         self.expanded_spending_key.ask == other.expanded_spending_key.ask
@@ -624,9 +626,9 @@ mod tests {
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
-                "7be697adb66f36d37b12dcdbdea38fbaec8340402de43bfe016f3c10b6a7220e",
-                "1ac13265a8948db61e1614c50a71bc0af2fee7e9814d041b4c8a6a6a5bcfc9cc64b5eb4632e433a0eccc9db485121625345950693c90244e656faf2b1a356f0eb04548d7772c9be13301a71c497afc8d46f805ebce5066371a5548db109611e3",
-                "zs1vvdj0st065ngdruymdcdy63duuavjeww3a2yyeu5tsqj2azhvwgkcaw9ngggfas6h4z4whnkpwz"
+                "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbcf3a0127b15b73cb7237a48da0bafc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
                 "0c9f5d70eaac46862150ae3f2a4eecc68753a72567eb66210df8e18a91425adf",
@@ -758,48 +760,76 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_p2pkh_invalid() {
+    mod p2pkh_invalid {
+        use super::*;
 
-        // Invalid spending key length
+        #[test]
+        fn spending_key_length() {
 
-        let private_key = "L";
-        assert!(ZcashPrivateKey::from_str(private_key).is_err());
+            let private_key = "L";
+            assert!(ZcashPrivateKey::from_str(private_key).is_err());
 
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReq";
-        assert!(ZcashPrivateKey::from_str(private_key).is_err());
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReq";
+            assert!(ZcashPrivateKey::from_str(private_key).is_err());
 
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42";
-        assert!(ZcashPrivateKey::from_str(private_key).is_err());
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42";
+            assert!(ZcashPrivateKey::from_str(private_key).is_err());
 
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQ";
-        assert!(ZcashPrivateKey::from_str(private_key).is_err());
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQ";
+            assert!(ZcashPrivateKey::from_str(private_key).is_err());
 
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H";
-        assert!(ZcashPrivateKey::from_str(private_key).is_err());
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H";
+            assert!(ZcashPrivateKey::from_str(private_key).is_err());
 
+        }
     }
 
+    mod sapling_invalid {
+        use super::*;
 
-    #[test]
-    fn test_sapling_invalid() {
+        #[test]
+        fn spending_key_length() {
 
-        // Invalid spending key length
+            // Sapling
 
-        let private_key = "b";
-        assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
+            let private_key = "";
+            assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
 
-        let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3";
-        assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
+            let private_key = "b";
+            assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
 
-        let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aade";
-        assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
+            let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3";
+            assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
 
-        let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadefbb69cdb5e70e2bbd24f771cd15a18ad58";
-        assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
+            let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aade";
+            assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
 
-        let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadefbb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadef";
-        assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
+            let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadefbb69cdb5e70e2bbd24f771cd15a18ad58";
+            assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
 
+            let private_key = "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadefbb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadef";
+            assert!(ZcashPrivateKey::sapling(private_key, &Network::Mainnet).is_err());
+
+            // Sapling expanded
+
+            let private_key = "";
+            assert!(ZcashPrivateKey::sapling_expanded(private_key, &Network::Mainnet).is_err());
+
+            let private_key = "2";
+            assert!(ZcashPrivateKey::sapling_expanded(private_key, &Network::Mainnet).is_err());
+
+            let private_key = "275043030be0d6106d40077090821249cb94";
+            assert!(ZcashPrivateKey::sapling_expanded(private_key, &Network::Mainnet).is_err());
+
+            let private_key = "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbc";
+            assert!(ZcashPrivateKey::sapling_expanded(private_key, &Network::Mainnet).is_err());
+
+            let private_key = "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbcf3a0127b15b73cb7237a48da0bafc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21df";
+            assert!(ZcashPrivateKey::sapling_expanded(private_key, &Network::Mainnet).is_err());
+
+            let private_key = "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbcf3a0127b15b73cb7237a48da0bafc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dfff";
+            assert!(ZcashPrivateKey::sapling_expanded(private_key, &Network::Mainnet).is_err());
+
+        }
     }
 }
