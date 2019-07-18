@@ -36,9 +36,9 @@ impl Network {
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Network::Mainnet => write!(f, "Mainnet"),
-            Network::Testnet => write!(f, "Testnet"),
-            Network::Stagenet => write!(f, "Stagenet"),
+            Network::Mainnet => write!(f, "mainnet"),
+            Network::Testnet => write!(f, "testnet"),
+            Network::Stagenet => write!(f, "stagenet"),
         }
     }
 }

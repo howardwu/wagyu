@@ -102,7 +102,7 @@ Generate a compressed mainnet private key and address with the following command
 
         Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
         Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 
@@ -117,7 +117,7 @@ Generate a testnet private key and address with the following command:
 
         Private Key:    cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX,
         Address:        mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w
-        Network:        Testnet
+        Network:        testnet
         Compressed:     true
 ```
 
@@ -133,12 +133,12 @@ Generate a compressed mainnet private key and address with the following command
   {
     "privateKey": {
       "wif": "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H",
-      "network": "Mainnet",
+      "network": "mainnet",
       "compressed": true
     },
     "address": {
       "address": "1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U",
-      "network": "Mainnet",
+      "network": "mainnet",
       "address_type": "P2PKH"
     }
   }
@@ -156,19 +156,19 @@ Generates multiple wallets with the following command:
 
         Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
         Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 
 
         Private Key:    L4uNhZS86VLiKKGZZGNxwP7s67EfYfQ7S9bNnVfVbU9GBVVo2xoD
         Address:        16sz5SMFeRfwaqY6wKzkiufwPmF1J7RhAx
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 
 
         Private Key:    KyH2BrThuUnzSXxDrDxQbpK277HxZfwPxVaCs5cwbzDEVNno2nts
         Address:        17QAwDwsLpehmCqSQXdHZb8vpsYVDnX7ic
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 
@@ -183,7 +183,7 @@ Generate a SegWit mainnet private key and address with the following command:
 
         Private Key:    L13EzQBa7izHyXHdhAwBzApAPL1Q8rdVRpY7CASWXyFPyHTuPJxs
         Address:        3Qz5gtJ4GKoeSHHErF8Nvs9bDp5TQDw89o
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 
