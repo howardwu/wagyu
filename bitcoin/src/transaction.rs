@@ -6,6 +6,8 @@ use base58::{FromBase58};
 use secp256k1::Secp256k1;
 use sha2::{Digest, Sha256};
 use wagu_model::{PrivateKey, AddressError};
+use bech32::{Bech32,ToBase32,FromBase32,u5};
+use crate::witness_program::WitnessProgram;
 
 /// Represents a Bitcoin transaction
 pub struct BitcoinTransaction {
@@ -182,7 +184,8 @@ impl BitcoinTransaction {
     /// Signs the raw transaction, updates the transaction, and returns the signature
     pub fn sign_raw_transaction(&mut self,
                                 private_key: BitcoinPrivateKey,
-                                input_index: usize
+                                input_index: usize,
+                                address_format: Format
     ) -> Result<Vec<u8>, std::io::Error> {
         let input = &self.inputs[input_index];
 
@@ -200,17 +203,24 @@ impl BitcoinTransaction {
         let sig_hash_code_bytes = u32_to_bytes(input.sig_hash_code.value());
         signature.extend(vec![sig_hash_code_bytes?[0]]); // Add the SIG_HASH ALL TO THE END OF THE signature
         let signature_length = variable_integer_length(signature.len() as u64 );
+        let public_key = private_key.to_public_key();
+        let mut public_key_vec: Vec<u8> = Vec::new();
 
-        // Public Key must always be compressed - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#restrictions-on-public-key-type
-        let public_key = private_key.to_public_key().public_key.serialize().to_vec();
+        if address_format == Format::P2PKH && !public_key.compressed {
+            public_key_vec.extend(public_key.public_key.serialize_uncompressed().to_vec());
+        } else {
+            // Public Key must always be compressed for segwit- https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#restrictions-on-public-key-type
+            public_key_vec.extend(public_key.public_key.serialize().to_vec());
+        }
+
         let mut public_key_length: Vec<u8> = Vec::new();
-        public_key_length.write_u8(public_key.len() as u8).unwrap();
+        public_key_length.write_u8(public_key_vec.len() as u8).unwrap();
 
         if input.out_point.address_type == Format::P2PKH {
             let mut final_script = signature_length;
             final_script.extend(&signature);
             final_script.extend(public_key_length);
-            final_script.extend(public_key);
+            final_script.extend(public_key_vec);
 
             self.inputs[input_index].create_script_sig(final_script);
         } else if input.out_point.address_type == Format::P2SH_P2WPKH {
@@ -224,7 +234,7 @@ impl BitcoinTransaction {
             let mut witness_public_key = public_key_length;
 
             witness_sig.extend(&signature);
-            witness_public_key.extend(public_key);
+            witness_public_key.extend(public_key_vec);
 
             let mut full_witness: Vec<BitcoinTransactionWitness> = vec![
                 BitcoinTransactionWitness { witness: witness_sig },
@@ -428,8 +438,6 @@ pub fn address_to_pub_key_or_script_hash(address: String) -> Vec<u8> {
 /// Generate the script_pub_key of a corresponding address
 pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressError> {
     let bitcoin_address = BitcoinAddress::from_str(bitcoin_address)?;
-
-    let bitcoin_address = bitcoin_address;
     let mut script: Vec<u8> = Vec::new();
     let format = bitcoin_address.format;
     match format {
@@ -459,10 +467,18 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressE
             script.extend(script_hash);
             script.extend(op_equal);
         },
-//            Format::Bech32 => { // Bech 32 implementation for P2SH_P2WPKH and P2SH_P2WSH
-//
-//                // Add witness program here for script_pub_key
-//            }
+        Format::Bech32 => { // Bech 32 implementation for P2SH_P2WPKH and P2SH_P2WSH
+            let bech32 = Bech32::from_str(&bitcoin_address.address).unwrap();
+            let (v, program) = bech32.data().split_at(1);
+            let mut version_u8 =  v[0].to_u8();
+            let program_u8 = Vec::from_base32(program).unwrap();
+            let bytes_to_push: Vec<u8> = variable_integer_length(program_u8.len() as u64);
+            version_u8 = WitnessProgram::convert_version(version_u8);
+
+            script.push(version_u8);
+            script.extend(bytes_to_push);
+            script.extend(program_u8);
+        }
     }
     let script_length = variable_integer_length(script.len() as u64);
 
@@ -597,9 +613,9 @@ mod tests {
         }
 
         let mut transaction = BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time);
-        for index in 0..inputs.len() {
-            let private_key = BitcoinPrivateKey::from_wif(inputs[index].private_key).unwrap();
-            transaction.sign_raw_transaction(private_key, index).unwrap();
+        for (index, input) in inputs.iter().enumerate() {
+            let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
+            transaction.sign_raw_transaction(private_key, index, input.address_format.clone()).unwrap();
         }
 
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
@@ -616,7 +632,7 @@ mod tests {
             [Input; 4],
             [Output; 4],
             &str
-        ); 7] = [
+        ); 9] = [
             ( // p2pkh to p2pkh - based on https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
               1,
               0,
@@ -861,7 +877,73 @@ mod tests {
                   OUTPUT_FILLER
               ],
               "020000000001027b10ca051e163dbbf124e3702a897f4c9f1a8e6b95c5e17ef0a27a2487c0886b000000006b483045022100b15c1d8e7de7c1d77612f80ab49c48c3d0c23467a0becaa86fcd98009d2dff6002200f3b2341a591889f38e629dc4b938faf9165aecedc4e3be768b13ef491cbb37001210264174f4ff6006a98be258fe1c371b635b097b000ce714c6a2842d5c269dbf2e9ffffffff0dc716643d8107b022f0c477a002ac0a7bfc0ca4caa4804699603265c092ca9301000000171600142b654d833c287e239f73ba8165bbadf4dee3c00effffffff0250c300000000000017a914334982bfd308f92f8ea5d22e9f7ee52f2265543b8740e20100000000001976a9144b1d83c75928642a41f2945c8a3be48550822a9a88ac0002483045022100a37e7aeb82332d5dc65d1582bb917acbf2d56a90f5a792a932cfec3c09f7a534022033baa11aa0f3ad4ba9723c703e65dce724ccb79c00838e09b96892087e43f1c8012102d9c6aaa344ee7cc41466e4705780020deb70720bef8ddb9b4e83e75df02e1d8600000000"
-            )
+            ),
+            ( // p2pkh to bech32
+              2,
+              0,
+              [
+                  Input {
+                      private_key: "5JsX1A2JNjqVmLFUUhUJuDsVjFH2yfoVdV5qtFQpWhLkYzamKKy",
+                      address_format: Format::P2PKH,
+                      transaction_id: "bda2ebcbf0bd6bc4ee1c330a64a9ff95e839cc2d25c593a01e704996bc1e869c",
+                      index: 0,
+                      redeem_script: None,
+                      script_pub_key: None,
+                      utxo_amount: None,
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER,
+                  INPUT_FILLER,
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+                      amount: 1234
+                  },
+                  Output {
+                      address: "bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9",
+                      amount: 111
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "02000000019c861ebc9649701ea093c5252dcc39e895ffa9640a331ceec46bbdf0cbeba2bd000000008a473044022077be9faa83fc2289bb59eb7538c3801f513d3640466a48cea9845f3b26f14cd802207b80fda8836610c487e8b59105e682d1c438f98f6324d1ea74cdec5d2d74ef04014104cc58298806e4e233ad1acb81feeb90368e05ad79a1d4b3698156dc4766ca077f39fbb47f52cbd5282c15a8a9fb08401e678acb9ef2fd28e043164723e9f29bb2ffffffff02d204000000000000160014e8df018c7e326cc253faac7e46cdc51e68542c426f00000000000000220020c7a1f1a4d6b4c1802a59631966a18359de779e8a6a65973735a3ccdfdabc407d00000000"
+            ),
+            ( // p2sh-p2wpkh to bech32
+              2,
+              0,
+              [
+                  Input {
+                      private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq",
+                      address_format: Format::P2SH_P2WPKH,
+                      transaction_id: "1a2290470e0aa7549ab1e04b2453274374149ffee517a57715e5206e4142c233",
+                      index: 1,
+                      redeem_script: Some("00142b654d833c287e239f73ba8165bbadf4dee3c00e"),
+                      script_pub_key: None,
+                      utxo_amount: Some(1000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER,
+                  INPUT_FILLER,
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx", // witness version 1
+                      amount: 100000000
+                  },
+                  Output {
+                      address: "bc1qquxqz4f7wzen367stgwt25tf640gp4vud5vez0",
+                      amount: 42500001
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "0200000000010133c242416e20e51577a517e5fe9f1474432753244be0b19a54a70a0e4790221a01000000171600142b654d833c287e239f73ba8165bbadf4dee3c00effffffff0200e1f505000000002a5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6a17f880200000000160014070c01553e70b338ebd05a1cb55169d55e80d59c0247304402207824c944124be6d7bb91489f3329abdf27f9d2dbd204a207b26175c5b7d17e6e02205de742dfe096e3146faa772d99b220ac549d5a271a093a871e388bffec074bc0012102d9c6aaa344ee7cc41466e4705780020deb70720bef8ddb9b4e83e75df02e1d8600000000"
+            ),
         ];
 
         #[test]
