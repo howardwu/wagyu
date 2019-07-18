@@ -18,6 +18,8 @@ edition = "2018"
 
 [dependencies]
 wagu-model = { path = "../model" }
+bitcoin = { path = "../bitcoin" }
+ethereum = { path = "../ethereum" }
 
 bitvec = "0.14.0"
 byteorder = "1.3.2"
