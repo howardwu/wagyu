@@ -88,7 +88,7 @@ impl BitcoinExtendedPublicKey {
 
             // if hardened path return failure
             if child_str.contains("'") {
-                panic!("Cannot derive hardened child from extended public key")
+                return Err(ExtendedPublicKeyError::InvalidDerivationPath("".into(), "'".into()))
             } else {
                 let child_num_u32: u32 = match child_str.parse() {
                     Ok(num) => num,
@@ -102,7 +102,7 @@ impl BitcoinExtendedPublicKey {
         Ok(xpub)
     }
 
-    /// Generates a child extended public key at child_number from the current extended private key
+    /// Returns the child extended public key for the given child number.
     pub fn ckd_pub(&self, child_number: u32) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth == 255 {
             return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth))
@@ -111,13 +111,13 @@ impl BitcoinExtendedPublicKey {
         let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
         let public_key_serialized = &self.public_key.public_key.serialize()[..];
 
-        // Check whether i ≥ 231 (whether the child is a hardened key).
+        // Check whether i ≥ 2^31 (whether the child is a hardened key).
         //
         // If so (hardened child): return failure
         // If not (normal child): let I = HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i)).
         //
         if child_number >= 2_u32.pow(31) {
-            panic!("Cannot derive hardened child from extended public key")
+            return Err(ExtendedPublicKeyError::InvalidChildNumber(2_u32.pow(31), child_number))
         } else {
             mac.input(public_key_serialized);
         }
@@ -238,7 +238,7 @@ mod tests {
         expected_child_number: u32,
         expected_xpub_serialized: &str
     ) {
-        let xpub = BitcoinExtendedPublicKey::from_str(&expected_xpub_serialized).expect("Error generating xpub from string");
+        let xpub = BitcoinExtendedPublicKey::from_str(&expected_xpub_serialized).unwrap();
         assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
         assert_eq!(expected_depth, xpub.depth);
@@ -452,12 +452,12 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidChildNumber(2147483648, 2147483648)")]
         fn test_ckd_pub_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.ckd_pub(2_u32.pow(31));
+            let _result = parent_xpub.ckd_pub(2_u32.pow(31)).unwrap();
         }
 
         #[test]
@@ -488,12 +488,12 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn test_derivation_path_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.derivation_path("m/0'");
+            let _result = parent_xpub.derivation_path("m/0'").unwrap();
         }
     }
 
@@ -567,10 +567,10 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn derivation_path_invalid_digit_hardened() {
             let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_HARDENED);
+            let _result = xpub.derivation_path(INVALID_PATH_HARDENED).unwrap();
         }
     }
 }

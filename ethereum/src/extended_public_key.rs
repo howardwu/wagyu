@@ -72,11 +72,11 @@ impl EthereumExtendedPublicKey {
         let mut path_vec: Vec<&str> = path.split("/").collect();
 
         if path_vec[0] != "m" {
-            return Err(ExtendedPublicKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()));
+            return Err(ExtendedPublicKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()))
         }
 
         if path_vec.len() == 1 {
-            return Ok(self.clone());
+            return Ok(self.clone())
         }
 
         let mut xpub = self.clone();
@@ -85,7 +85,7 @@ impl EthereumExtendedPublicKey {
 
             // if hardened path return failure
             if child_str.contains("'") {
-                panic!("Cannot derive hardened child from extended public key")
+                return Err(ExtendedPublicKeyError::InvalidDerivationPath("".into(), "'".into()))
             } else {
                 let child_num_u32: u32 = match child_str.parse() {
                     Ok(num) => num,
@@ -100,20 +100,22 @@ impl EthereumExtendedPublicKey {
     }
 
 
-    /// Generates a child extended public key at child_number from the current extended private key
+    /// Returns the child extended public key for the given child number.
     pub fn ckd_pub(&self, child_number: u32) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth >= 255 {
-            return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth));
+            return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth))
         }
 
         let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
         let public_key_serialized = &self.public_key.0.serialize()[..];
 
-        // Check whether i ≥ 231 (whether the child is a hardened key).
+        // Check whether i ≥ 2^31 (whether the child is a hardened key).
+        //
         // If so (hardened child): return failure
         // If not (normal child): let I = HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i)).
+        //
         if child_number >= 2_u32.pow(31) {
-            panic!("Cannot derive hardened child from extended public key")
+            return Err(ExtendedPublicKeyError::InvalidChildNumber(2_u32.pow(31), child_number))
         } else {
             mac.input(public_key_serialized);
         }
@@ -148,13 +150,13 @@ impl FromStr for EthereumExtendedPublicKey {
     type Err = ExtendedPublicKeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let data = s.from_base58().expect("Error decoding base58 extended public key string");
+        let data = s.from_base58()?;
         if data.len() != 82 {
-            return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()));
+            return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()))
         }
 
         if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
-            return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()));
+            return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
         };
 
         let depth = data[4] as u8;
@@ -178,7 +180,7 @@ impl FromStr for EthereumExtendedPublicKey {
         if *expected != *checksum {
             let expected = expected.to_base58();
             let found = checksum.to_base58();
-            return Err(ExtendedPublicKeyError::InvalidChecksum(expected, found));
+            return Err(ExtendedPublicKeyError::InvalidChecksum(expected, found))
         }
 
         Ok(Self {
@@ -192,7 +194,8 @@ impl FromStr for EthereumExtendedPublicKey {
 }
 
 impl fmt::Display for EthereumExtendedPublicKey {
-    /// BIP32 serialization format: https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
+    /// BIP32 serialization format
+    /// https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
         result[0..4].copy_from_slice(&[0x04u8, 0x88, 0xB2, 0x1E][..]);
@@ -439,12 +442,12 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidChildNumber(2147483648, 2147483648)")]
         fn test_ckd_pub_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.ckd_pub(2_u32.pow(31));
+            let _result = parent_xpub.ckd_pub(2_u32.pow(31)).unwrap();
         }
 
         #[test]
@@ -475,12 +478,12 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn test_derivation_path_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.derivation_path("m/0'");
+            let _result = parent_xpub.derivation_path("m/0'").unwrap();
         }
     }
 
@@ -554,10 +557,10 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn derivation_path_invalid_digit_hardened() {
             let xpub = EthereumExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_HARDENED);
+            let _result = xpub.derivation_path(INVALID_PATH_HARDENED).unwrap();
         }
     }
 }
