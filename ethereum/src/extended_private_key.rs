@@ -13,8 +13,6 @@ use wagu_model::{
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
-//use rand::Rng;
-//use rand::rngs::OsRng;
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 use std::{fmt, fmt::Display};
@@ -50,7 +48,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 
     /// Generates new Ethereum extended private key
     fn new(seed: &[u8], _network: &Self::Network) -> Result<Self, ExtendedPrivateKeyError> {
-        EthereumExtendedPrivateKey::generate_master(seed)
+        EthereumExtendedPrivateKey::new_master(seed)
     }
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -75,8 +73,8 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 }
 
 impl EthereumExtendedPrivateKey {
-    /// Generates new master extended private key
-    fn generate_master(seed: &[u8]) -> Result<Self, ExtendedPrivateKeyError> {
+    /// Returns a new Bitcoin extended master private key.
+    fn new_master(seed: &[u8]) -> Result<Self, ExtendedPrivateKeyError> {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
         mac.input(seed);
         let result = mac.result().code();
@@ -91,7 +89,7 @@ impl EthereumExtendedPrivateKey {
         })
     }
 
-    /// Generates extended private key corresponding to derivation path from the current extended private key
+    /// Returns the extended private key of the given derivation path.
     pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPrivateKeyError> {
         let mut path_vec: Vec<&str> = path.split("/").collect();
         if path_vec[0] != "m" {
@@ -106,7 +104,7 @@ impl EthereumExtendedPrivateKey {
         for (i, child_str) in path_vec[1..].iter_mut().enumerate() {
             let mut child_num = 0u32;
 
-            // add 2^31 for hardened paths
+            // Add 2^31 for hardened paths
             if child_str.contains("'") {
                 let child_num_trimmed: u32 =  match child_str.trim_end_matches("'").parse() {
                     Ok(num) => num,
@@ -128,10 +126,10 @@ impl EthereumExtendedPrivateKey {
         Ok(xpriv)
     }
 
-    /// Generates the child extended private key at child_number from the current extended private key
+    /// Returns the child extended private key for the given child number.
     pub fn ckd_priv(&self, child_number: u32) -> Result<Self, ExtendedPrivateKeyError> {
         if self.depth >= 255 {
-            return Err(ExtendedPrivateKeyError::MaximumChildDepthReached(self.depth));
+            return Err(ExtendedPrivateKeyError::MaximumChildDepthReached(self.depth))
         }
 
         let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
@@ -139,8 +137,13 @@ impl EthereumExtendedPrivateKey {
             &Secp256k1::new(), &self.private_key.0).serialize()[..];
 
         // Check whether i ≥ 2^31 (whether the child is a hardened key).
-        // If so (hardened child): let I = HMAC-SHA512(Key = cpar, Data = 0x00 || ser256(kpar) || ser32(i)). (Note: The 0x00 pads the private key to make it 33 bytes long.)
-        // If not (normal child): let I = HMAC-SHA512(Key = cpar, Data = serP(point(kpar)) || ser32(i)).
+        //
+        // If so (hardened child):
+        //     let I = HMAC-SHA512(Key = cpar, Data = 0x00 || ser256(kpar) || ser32(i)).
+        //     (Note: The 0x00 pads the private key to make it 33 bytes long.)
+        // If not (normal child):
+        //     let I = HMAC-SHA512(Key = cpar, Data = serP(point(kpar)) || ser32(i)).
+        //
         if child_number >= 2_u32.pow(31) {
             let mut private_key_bytes = [0u8; 33];
             private_key_bytes[1..33].copy_from_slice(&self.private_key.0[..]);
@@ -170,8 +173,9 @@ impl EthereumExtendedPrivateKey {
         })
     }
 
-    /// Generates extended private key from Secp256k1 secret key and chain code
-    pub fn derive_private_key_and_chain_code(result: &[u8]
+    /// Returns the extended private key and chain code.
+    pub fn derive_private_key_and_chain_code(
+        result: &[u8]
     ) -> Result<(EthereumPrivateKey, [u8; 32]), ExtendedPrivateKeyError> {
         let private_key = EthereumPrivateKey::from_secret_key(
             SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32])?);
@@ -192,7 +196,7 @@ impl FromStr for EthereumExtendedPrivateKey {
             return Err(ExtendedPrivateKeyError::InvalidByteLength(data.len()))
         }
 
-        // ethereum xkeys are mainnet only
+        // Ethereum xkeys are mainnet only
         if &data[0..4] != [0x04u8, 0x88, 0xAD, 0xE4] {
             return Err(ExtendedPrivateKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
         };
@@ -248,7 +252,6 @@ impl Display for EthereumExtendedPrivateKey {
         fmt.write_str(&result.to_base58())
     }
 }
-
 
 #[cfg(test)]
 mod tests {

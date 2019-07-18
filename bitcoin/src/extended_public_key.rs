@@ -88,7 +88,7 @@ impl BitcoinExtendedPublicKey {
 
             // if hardened path return failure
             if child_str.contains("'") {
-                panic!("Cannot derive hardened child from extended public key")
+                return Err(ExtendedPublicKeyError::InvalidDerivationPath("".into(), "'".into()))
             } else {
                 let child_num_u32: u32 = match child_str.parse() {
                     Ok(num) => num,
@@ -102,7 +102,7 @@ impl BitcoinExtendedPublicKey {
         Ok(xpub)
     }
 
-    /// Generates a child extended public key at child_number from the current extended private key
+    /// Returns the child extended public key for the given child number.
     pub fn ckd_pub(&self, child_number: u32) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth == 255 {
             return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth))
@@ -111,13 +111,13 @@ impl BitcoinExtendedPublicKey {
         let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
         let public_key_serialized = &self.public_key.public_key.serialize()[..];
 
-        // Check whether i ≥ 231 (whether the child is a hardened key).
+        // Check whether i ≥ 2^31 (whether the child is a hardened key).
         //
         // If so (hardened child): return failure
         // If not (normal child): let I = HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i)).
         //
         if child_number >= 2_u32.pow(31) {
-            panic!("Cannot derive hardened child from extended public key")
+            return Err(ExtendedPublicKeyError::InvalidChildNumber(2_u32.pow(31), child_number))
         } else {
             mac.input(public_key_serialized);
         }
