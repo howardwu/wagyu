@@ -11,7 +11,6 @@ use bitvec::cursor::BigEndian;
 use std::fs;
 use std::ops::{AddAssign, Div};
 
-
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
 
@@ -33,16 +32,14 @@ pub enum Language {
 pub struct Mnemonic {
     /// Initial entropy for generating the mnemonic. Must be a multiple of 32 bits.
     pub entropy: Vec<u8>,
-
     /// Language of mnemnoic words
     pub language: Language,
-
     /// Mnemonic phrase
     pub phrase: String,
 }
 
 impl Mnemonic {
-    /// generates a new mnemonic with word_count words
+    /// Returns a random mnemonic with the given word count and language.
     pub fn new(word_count: u8, language: &Language) -> Result<Self, MnemonicError> {
         let entropy_length: usize = match word_count {
             12 => 16,
@@ -60,9 +57,8 @@ impl Mnemonic {
         Ok(Mnemonic::from_entropy(&entropy, language)?)
     }
 
-    /// derives a mnemonic from entropy
+    /// Returns the mnemonic for the given entropy and language.
     pub fn from_entropy(entropy: &Vec<u8>, language: &Language) -> Result<Self, MnemonicError> {
-
         // The allowed size of ENT is 128-256 bits.
         let word_count: i32 = match entropy.len() {
             16 => 12,
@@ -75,7 +71,7 @@ impl Mnemonic {
 
         let word_string = match language {
             Language::ENGLISH => fs::read_to_string("src/languages/english.txt")?,
-            _ => panic!("Invalid language")
+            _ => return Err(MnemonicError::InvalidLanguage)
         };
         let word_list: Vec<&str> = word_string.lines().collect();
 
@@ -111,30 +107,13 @@ impl Mnemonic {
                 false => word_bits.push(0)
             }
             if word_bits.len() == 11 {
-//                print!("{:?} ", word_bits);
-//                print!("{:?} ", get_u11_index(&word_bits));
-//                println!("{:?}", word_list[get_u11_index(&word_bits)]);
-
-                phrase.push_str(&word_list[get_u11_index(&word_bits)]);
+                phrase.push_str(&word_list[Mnemonic::to_u11(&word_bits)]);
                 phrase.push(' ');
                 word_bits = Vec::new();
             }
         });
         // removes trailing space
         phrase.pop();
-
-        /// Returns wordlist index 0-2047 given bit vector in BigEndian form
-        fn get_u11_index(bits: &Vec<u8>) -> usize {
-            let mut number = 0u16;
-            for x in 0..11 {
-                if bits[x] == 1 {
-                    let exp = (10 - x) as u32;
-                    number.add_assign(2u16.pow(exp));
-                }
-            }
-
-            number as usize
-        }
 
         Ok(Self {
             entropy: entropy.clone(),
@@ -143,16 +122,16 @@ impl Mnemonic {
         })
     }
 
-    /// derives a mnemonic from seed phrase
+    /// Returns the mnemonic for the given phrase and language.
     pub fn from_phrase(phrase: &str, language: &Language) -> Result<Self, MnemonicError> {
         Ok(Self {
             entropy: Mnemonic::to_entropy(phrase, language)?,
             language: language.clone(),
-            phrase: String::from(phrase)
+            phrase: String::from(phrase),
         })
     }
 
-    /// returns whether or not mnemonic phrase is valid
+    /// Compares the given phrase against the phrase extracted from its entropy
     pub fn verify_phrase(phrase: &str, language: &Language) -> bool {
         match Mnemonic::to_entropy(phrase, language) {
             Ok(_) => true,
@@ -160,7 +139,7 @@ impl Mnemonic {
         }
     }
 
-    /// derives entropy from seed phrase
+    /// Returns the entropy bytes for the given phrase and language
     pub fn to_entropy(phrase: &str, language: &Language) -> Result<Vec<u8>, MnemonicError> {
         let mnemonic: Vec<&str> = phrase.split(" ").collect();
         let entropy_length = match mnemonic.len() {
@@ -172,37 +151,60 @@ impl Mnemonic {
             wc => return Err(MnemonicError::InvalidWordCount(wc as u8))
         };
 
-
         let mut entropy: BitVec<BigEndian> = BitVec::new();
-        mnemonic.iter().for_each(|word| {
-            // get index of word in dictionary
-            let index = Mnemonic::get_wordlist_index(word, language).map_err( |err| {
-                return err
-            });
 
-            // turn u11 index into entropy bytes
+        mnemonic.iter().for_each(|word| {
+            let index = Mnemonic::get_wordlist_index(word, language)
+                .map_err(|err| { return err; });
+
             let mut buf = [0; 2];
             ByteOrder_BigEndian::write_u16(&mut buf, index.unwrap() as u16);
             let mut index_bitvector = BitVec::<BigEndian>::from_bitslice(
                 &BitVec::<BigEndian>::from_slice(&buf)[5..]);
 
             entropy.append(&mut index_bitvector);
-
         });
+
         let entropy_extracted: Vec<u8> = Vec::from(entropy[..entropy_length].as_slice());
         let mnemonic_extracted = Mnemonic::from_entropy(&entropy_extracted, language)?;
 
         return match phrase == mnemonic_extracted.phrase {
             true => Ok(entropy_extracted),
-            false => Err(MnemonicError::InvalidPhrase(mnemonic_extracted.phrase))
-        }
+            false => Err(MnemonicError::InvalidPhrase(String::from(phrase)))
+        };
     }
 
-    /// Returns position of word in word list if it exists
+    /// Returns a seed using the given password and mnemonic
+    pub fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
+        let mut salt = String::from("mnemonic");
+
+        let pass = password.unwrap_or_else(|| "");
+        salt.push_str(pass);
+
+        let mut seed = vec![0u8; PBKDF2_BYTES];
+        pbkdf2::pbkdf2::<Hmac<Sha512>>(&self.phrase.as_bytes(), salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
+
+        Ok(seed)
+    }
+
+    /// Returns the u11 representation of a given a bit vector in BigEndian form
+    fn to_u11(bits: &Vec<u8>) -> usize {
+        let mut number = 0u16;
+        for x in 0..11 {
+            if bits[x] == 1 {
+                let exp = (10 - x) as u32;
+                number.add_assign(2u16.pow(exp));
+            }
+        }
+
+        number as usize
+    }
+
+    /// Returns the index of the given word in the language's word list
     fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, MnemonicError> {
         let word_string = match language {
             Language::ENGLISH => fs::read_to_string("src/languages/english.txt")?,
-            _ => panic!("Invalid language")
+            _ => return Err(MnemonicError::InvalidLanguage)
         };
 
         let index = word_string.lines().position(|x| x == word);
@@ -210,24 +212,7 @@ impl Mnemonic {
         return match index {
             Some(_) => Ok(index.unwrap()),
             None => Err(MnemonicError::InvalidWord(String::from(word)))
-        }
-    }
-
-    /// Generates seed bytes from mnemonic
-    pub fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
-        let mut salt = String::from("mnemonic");
-        let pass = password.unwrap_or_else(|| "");
-//        match password {
-//            Some(&str) => salt.push_str(password.unwrap()),
-//            None => ()
-//        };
-        salt.push_str(pass);
-//        println!("{:?}", &self.entropy);
-
-        let mut seed = vec![0u8; PBKDF2_BYTES];
-        pbkdf2::pbkdf2::<Hmac<Sha512>>(&self.entropy, salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
-
-        Ok(seed)
+        };
     }
 }
 
@@ -246,16 +231,19 @@ mod tests {
         assert_eq!(expected_phrase, result.phrase);
     }
 
+    fn test_from_phrase(expected_entropy: &Vec<u8>, phrase: &str, language: &Language) {
+        let result = Mnemonic::from_phrase(phrase, language).unwrap();
+        assert_eq!(&expected_entropy[..], &result.entropy[..]);
+        assert_eq!(phrase, result.phrase);
+    }
+
     fn test_to_entropy(expected_entropy: &Vec<u8>, phrase: &str, language: &Language) {
         let result = Mnemonic::to_entropy(phrase, language).unwrap();
         assert_eq!(&expected_entropy[..], &result[..]);
     }
 
-    fn test_from_phrase(expected_entropy: &Vec<u8>, phrase: &str, language: &Language) {
-        let result = Mnemonic::from_phrase(phrase, language).unwrap();
-        assert_eq!(&expected_entropy[..], &result.entropy[..]);
-        assert_eq!(phrase, result.phrase);
-//        assert_eq!(language, result.language);
+    fn test_to_seed(expected_seed: &str, password: Option<&str>, mnemonic: Mnemonic) {
+        assert_eq!(expected_seed, &hex::encode(mnemonic.to_seed(password).unwrap()))
     }
 
     fn test_verify_phrase(phrase: &str, language: &Language) {
@@ -267,7 +255,7 @@ mod tests {
 
         const PASSWORD: &str = "TREZOR";
         const LANGUAGE: &Language = &Language::ENGLISH;
-
+        const NO_PASSWORD_STR: &str = "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
 
         const KEYPAIRS: [(&str, &str, &str); 1] = [
             (
@@ -316,10 +304,16 @@ mod tests {
             KEYPAIRS.iter().for_each(|(entropy_str, _, expected_seed)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
                 let result = Mnemonic::from_entropy(&entropy, LANGUAGE).unwrap();
-//                println!("{:?}", hex::encode(result.to_seed(None)));
-//                println!("{:?}", hex::encode(result.to_seed(Some(PASSWORD))));
-//                assert_eq!(expected_seed, &hex::encode(result.to_seed(Some(PASSWORD))))
+                test_to_seed(expected_seed, Some(PASSWORD), result);
             });
+        }
+
+        #[test]
+        fn to_seed_no_password() {
+            let (entropy_str, _, _) = KEYPAIRS[0];
+            let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
+            let result = Mnemonic::from_entropy(&entropy, LANGUAGE).unwrap();
+            test_to_seed(NO_PASSWORD_STR, None, result);
         }
 
         #[test]
@@ -366,7 +360,7 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\")")]
+        #[should_panic(expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon\")")]
         fn to_entropy_invalid_checksum() {
             let _result = Mnemonic::to_entropy(INVALID_PHRASE_CHECKSUM, &Language::ENGLISH).unwrap();
         }

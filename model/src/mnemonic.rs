@@ -17,6 +17,9 @@ pub enum MnemonicError {
     #[fail(display = "Invalid word not found in dictionary: {}", _0)]
     InvalidWord(String),
 
+    #[fail(display = "Invalid language")]
+    InvalidLanguage,
+
 }
 
 impl From<rand_core::Error> for MnemonicError {
