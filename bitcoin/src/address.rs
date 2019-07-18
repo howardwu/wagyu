@@ -734,7 +734,6 @@ mod tests {
         #[test]
         fn from_invalid_address() {
             INVALID.iter().for_each(|invalid_bech32| {
-                println!("{}", invalid_bech32);
                 assert_eq!(true, BitcoinAddress::from_str(invalid_bech32).is_err());
             });
         }
