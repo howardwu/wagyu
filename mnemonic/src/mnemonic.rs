@@ -53,7 +53,7 @@ impl Mnemonic {
             wc => return Err(MnemonicError::InvalidWordCount(wc))
         };
         let mut entropy_slice_max = [0u8; 32];
-        OsRng.try_fill(&mut entropy_slice_max).expect("Error generating random bytes for entropy");
+        OsRng.try_fill(&mut entropy_slice_max)?;
         let entropy_slice_exact = &entropy_slice_max[0..entropy_length];
         let entropy: Vec<u8> = Vec::from(entropy_slice_exact);
 
@@ -74,7 +74,7 @@ impl Mnemonic {
         };
 
         let word_string = match language {
-            Language::ENGLISH => fs::read_to_string("src/languages/english.txt").expect("Error reading file"),
+            Language::ENGLISH => fs::read_to_string("src/languages/english.txt")?,
             _ => panic!("Invalid language")
         };
         let word_list: Vec<&str> = word_string.lines().collect();
@@ -152,6 +152,14 @@ impl Mnemonic {
         })
     }
 
+    /// returns whether or not mnemonic phrase is valid
+    pub fn verify_phrase(phrase: &str, language: &Language) -> bool {
+        match Mnemonic::to_entropy(phrase, language) {
+            Ok(_) => true,
+            Err(_) => false
+        }
+    }
+
     /// derives entropy from seed phrase
     pub fn to_entropy(phrase: &str, language: &Language) -> Result<Vec<u8>, MnemonicError> {
         let mnemonic: Vec<&str> = phrase.split(" ").collect();
@@ -193,7 +201,7 @@ impl Mnemonic {
     /// Returns position of word in word list if it exists
     fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, MnemonicError> {
         let word_string = match language {
-            Language::ENGLISH => fs::read_to_string("src/languages/english.txt").expect("Error reading file"),
+            Language::ENGLISH => fs::read_to_string("src/languages/english.txt")?,
             _ => panic!("Invalid language")
         };
 
@@ -220,14 +228,6 @@ impl Mnemonic {
         pbkdf2::pbkdf2::<Hmac<Sha512>>(&self.entropy, salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
 
         Ok(seed)
-    }
-
-    /// returns whether or not mnemonic phrase is valid
-    pub fn check_valid(phrase: &str, language: &Language) -> bool {
-        match Mnemonic::to_entropy(phrase, language) {
-            Ok(_) => true,
-            Err(_) => false
-        }
     }
 }
 
@@ -258,8 +258,8 @@ mod tests {
 //        assert_eq!(language, result.language);
     }
 
-    fn test_check_valid(phrase: &str, language: &Language) {
-        assert!(Mnemonic::check_valid(phrase, language));
+    fn test_verify_phrase(phrase: &str, language: &Language) {
+        assert!(Mnemonic::verify_phrase(phrase, language));
     }
 
     mod english {
@@ -323,10 +323,52 @@ mod tests {
         }
 
         #[test]
-        fn check_valid() {
+        fn verify_phrase() {
             KEYPAIRS.iter().for_each(|(_, phrase, _)| {
-                test_check_valid(phrase, LANGUAGE);
+                test_verify_phrase(phrase, LANGUAGE);
             });
+        }
+    }
+
+    mod test_invalid {
+        use super::*;
+
+        const INVALID_WORD_COUNT: u8 = 11;
+        const INVALID_ENTROPY_STR: &str = "000000000000000000000000000000000000";
+        const INVALID_PHRASE_LENGTH: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        const INVALID_PHRASE_WORD: &str = "abandoz abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        const INVALID_PHRASE_CHECKSUM: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
+
+
+        #[test]
+        #[should_panic(expected = "InvalidWordCount(11)")]
+        fn new_invalid_word_count() {
+            let _result = Mnemonic::new(INVALID_WORD_COUNT, &Language::ENGLISH).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidEntropyLength(18)")]
+        fn from_entropy_invalid_entropy() {
+            let invalid_entropy: Vec<u8> = Vec::from(hex::decode(INVALID_ENTROPY_STR).unwrap());
+            let _result = Mnemonic::from_entropy(&invalid_entropy, &Language::ENGLISH).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidWordCount(13)")]
+        fn to_entropy_invalid_length() {
+            let _result = Mnemonic::to_entropy(INVALID_PHRASE_LENGTH, &Language::ENGLISH).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidWord(\"abandoz\")")]
+        fn to_entropy_invalid_word() {
+            let _result = Mnemonic::to_entropy(INVALID_PHRASE_WORD, &Language::ENGLISH).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\")")]
+        fn to_entropy_invalid_checksum() {
+            let _result = Mnemonic::to_entropy(INVALID_PHRASE_CHECKSUM, &Language::ENGLISH).unwrap();
         }
     }
 }

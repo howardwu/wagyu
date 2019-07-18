@@ -18,3 +18,15 @@ pub enum MnemonicError {
     InvalidWord(String),
 
 }
+
+impl From<rand_core::Error> for MnemonicError {
+    fn from(error: rand_core::Error) -> Self {
+        MnemonicError::Crate("rand", format!("{:?}", error))
+    }
+}
+
+impl From<std::io::Error> for MnemonicError {
+    fn from(error: std::io::Error) -> Self {
+        MnemonicError::Crate("std::io", format!("{:?}", error))
+    }
+}
