@@ -20,8 +20,8 @@ impl Network {
     /// Returns the network of the given address prefix.
     pub fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0],prefix[1]) {
-            (0x00,_) | (0x05,_) | (0x62, 0x63) => Ok(Network::Mainnet),
-            (0x6F,_) | (0xC4,_) | (0x74, 0x62) => Ok(Network::Testnet),
+            (0x00, _) | (0x05, _) | (0x62, 0x63) => Ok(Network::Mainnet),
+            (0x6F, _) | (0xC4, _) | (0x74, 0x62) => Ok(Network::Testnet),
             _ => return Err(AddressError::InvalidPrefix(prefix.to_owned()))
         }
     }

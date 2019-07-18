@@ -1,13 +1,14 @@
 use crate::network::Network;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
+use crate::witness_program::WitnessProgram;
 use wagu_model::{Address, AddressError, PrivateKey, crypto::{checksum, hash160}};
+
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32,ToBase32,FromBase32,u5};
 use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
-use crate::witness_program::WitnessProgram;
 
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -44,8 +45,8 @@ impl Format {
             return Err(AddressError::InvalidPrefix(prefix.to_vec()))
         }
         match (prefix[0],prefix[1]) {
-            (0x00,_) | (0x6F,_) => Ok(Format::P2PKH),
-            (0x05,_) | (0xC4,_) => Ok(Format::P2SH_P2WPKH),
+            (0x00, _) | (0x6F, _) => Ok(Format::P2PKH),
+            (0x05, _) | (0xC4, _) => Ok(Format::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(Format::Bech32),
             _ => return Err(AddressError::InvalidPrefix(prefix.to_vec()))
         }

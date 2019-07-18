@@ -9,7 +9,6 @@ use rand::rngs::OsRng;
 use secp256k1;
 use secp256k1::Secp256k1;
 use std::{fmt, fmt::Display};
-//use std::io::{Write};
 use std::str::FromStr;
 
 /// Represents a Bitcoin private key
