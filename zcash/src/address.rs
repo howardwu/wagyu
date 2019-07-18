@@ -136,7 +136,11 @@ impl ZcashAddress {
     }
 
     /// Returns a shielded address from a given Zcash public key.
-    pub fn sapling(public_key: &SaplingViewingKey, format: &Format, network: &Network) -> Result<Self, AddressError> {
+    pub fn sapling(
+        public_key: &SaplingViewingKey,
+        format: &Format,
+        network: &Network
+    ) -> Result<Self, AddressError> {
         let data = match format {
             Format::Sapling(data) => data.unwrap_or([0u8; 11]),
             _ => [0u8; 11]
