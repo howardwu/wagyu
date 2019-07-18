@@ -7,6 +7,12 @@
 pub mod address;
 pub use self::address::*;
 
+pub mod extended_private_key;
+pub use self::extended_private_key::*;
+
+pub mod extended_public_key;
+pub use self::extended_public_key::*;
+
 pub mod network;
 pub use self::network::*;
 
@@ -16,11 +22,8 @@ pub use self::private_key::*;
 pub mod public_key;
 pub use self::public_key::*;
 
-pub mod extended_private_key;
-pub use self::extended_private_key::*;
-
-pub mod extended_public_key;
-pub use self::extended_public_key::*;
-
 pub mod transaction;
 pub use self::transaction::*;
+
+mod witness_program;
+

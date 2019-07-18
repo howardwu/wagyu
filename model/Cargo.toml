@@ -21,6 +21,7 @@ base58 = { version = "0.1" }
 base58-monero = { version = "0.1.1" }
 bech32 = { version = "0.6" }
 byteorder = { version = "1" }
+crypto-mac = { version = "0.7.0" }
 failure = { version = "0.1.5" }
 hex = { version = "0.3.2" }
 rand_core = { version = "0.5.0" }
