@@ -191,7 +191,7 @@ impl BitcoinExtendedPrivateKey {
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
 
-        return Ok((private_key, chain_code));
+        return Ok((private_key, chain_code))
     }
 }
 

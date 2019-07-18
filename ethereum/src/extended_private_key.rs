@@ -93,11 +93,11 @@ impl EthereumExtendedPrivateKey {
     pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPrivateKeyError> {
         let mut path_vec: Vec<&str> = path.split("/").collect();
         if path_vec[0] != "m" {
-            return Err(ExtendedPrivateKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()));
+            return Err(ExtendedPrivateKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()))
         }
 
         if path_vec.len() == 1 {
-            return Ok(self.clone());
+            return Ok(self.clone())
         }
 
         let mut xpriv = self.clone();
@@ -183,7 +183,7 @@ impl EthereumExtendedPrivateKey {
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
 
-        return Ok((private_key, chain_code));
+        return Ok((private_key, chain_code))
     }
 }
 
