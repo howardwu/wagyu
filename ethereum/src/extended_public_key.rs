@@ -442,12 +442,12 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidChildNumber(2147483648, 2147483648)")]
         fn test_ckd_pub_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.ckd_pub(2_u32.pow(31));
+            let _result = parent_xpub.ckd_pub(2_u32.pow(31)).unwrap();
         }
 
         #[test]
@@ -478,12 +478,12 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "Cannot derive hardened child from extended public key")]
+        #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn test_derivation_path_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
             let parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.derivation_path("m/0'");
+            let _result = parent_xpub.derivation_path("m/0'").unwrap();
         }
     }
 
@@ -557,10 +557,10 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "InvalidDerivationPath(\"\", \"'\")")]
+        #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn derivation_path_invalid_digit_hardened() {
             let xpub = EthereumExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_HARDENED);
+            let _result = xpub.derivation_path(INVALID_PATH_HARDENED).unwrap();
         }
     }
 }
