@@ -38,8 +38,6 @@ impl WitnessProgram {
             return Err("Invalid program");
         }
 
-        let version = program[0];
-
         // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Decoding
         let data_size = program[1] as usize;
         let data = program[2..].to_vec();
@@ -47,7 +45,7 @@ impl WitnessProgram {
             return Err("Mismatched program length");
         }
 
-        let program = WitnessProgram { version, program: data };
+        let program = WitnessProgram { version: program[0], program: data };
         match program.validate() {
             Ok(()) => Ok(program),
             Err(e) => Err(e)
