@@ -20,7 +20,6 @@ pub struct EthereumPublicKey(pub(crate) secp256k1::PublicKey);
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
     type Format = PhantomData<u8>;
-    type Network = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
 
     /// Returns the address corresponding to the given public key.
@@ -29,12 +28,8 @@ impl PublicKey for EthereumPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(
-        &self,
-        _: &Self::Format,
-        _: &Self::Network
-    ) -> Result<Self::Address, AddressError> {
-        EthereumAddress::from_public_key(self, &PhantomData, &PhantomData)
+    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
+        EthereumAddress::from_public_key(self, &PhantomData)
     }
 }
 
@@ -96,7 +91,7 @@ mod tests {
         expected_address: &EthereumAddress,
         public_key: &EthereumPublicKey
     ) {
-        let address = public_key.to_address(&PhantomData, &PhantomData).unwrap();
+        let address = public_key.to_address(&PhantomData).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -105,7 +100,7 @@ mod tests {
         expected_address: &str
     ) {
         let public_key = EthereumPublicKey::from_str(expected_public_key).unwrap();
-        let address = public_key.to_address(&PhantomData, &PhantomData).unwrap();
+        let address = public_key.to_address(&PhantomData).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_address, address.to_string());
     }
