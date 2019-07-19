@@ -1,4 +1,4 @@
-use crate::language::{Language};
+use crate::language::Language;
 
 use bitvec::prelude::*;
 use hmac::Hmac;
@@ -217,7 +217,7 @@ mod tests {
         const NO_PASSWORD_STR: &str = "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
 
         // (entropy, phrase, seed, extended private key)
-        const KEYPAIRS: [(&str, &str, &str, &str); 24] = [
+        const KEYPAIRS: [(&str, &str, &str, &str); 26] = [
             (
                 "00000000000000000000000000000000",
                 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
@@ -349,19 +349,31 @@ mod tests {
                 "vessel ladder alter error federal sibling chat ability sun glass valve picture",
                 "2aaa9242daafcee6aa9d7269f17d4efe271e1b9a529178d7dc139cd18747090bf9d60295d0ce74309a78852a9caadf0af48aae1c6253839624076224374bc63f",
                 "xprv9s21ZrQH143K2QWV9Wn8Vvs6jbqfF1YbTCdURQW9dLFKDovpKaKrqS3SEWsXCu6ZNky9PSAENg6c9AQYHcg4PjopRGGKmdD313ZHszymnps"
-                ),
+            ),
             (
                 "c10ec20dc3cd9f652c7fac2f1230f7a3c828389a14392f05",
                 "scissors invite lock maple supreme raw rapid void congress muscle digital elegant little brisk hair mango congress clump",
                 "7b4a10be9d98e6cba265566db7f136718e1398c71cb581e1b2f464cac1ceedf4f3e274dc270003c670ad8d02c4558b2f8e39edea2775c9e232c7cb798b069e88",
                 "xprv9s21ZrQH143K4aERa2bq7559eMCCEs2QmmqVjUuzfy5eAeDX4mqZffkYwpzGQRE2YEEeLVRoH4CSHxianrFaVnMN2RYaPUZJhJx8S5j6puX"
-                ),
+            ),
             (
                 "f585c11aec520db57dd353c69554b21a89b20fb0650966fa0a9d6f74fd989d8f",
                 "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing screen patrol group space point ten exist slush involve unfold",
                 "01f5bced59dec48e362f2c45b5de68b9fd6c92c6634f44d6d40aab69056506f0e35524a518034ddc1192e1dacd32c1ed3eaa3c3b131c88ed8e7e54c49a5d0998",
                 "xprv9s21ZrQH143K39rnQJknpH1WEPFJrzmAqqasiDcVrNuk926oizzJDDQkdiTvNPr2FYDYzWgiMiC63YmfPAa2oPyNB23r2g7d1yiK6WpqaQS"
-                )
+            ),
+            (
+                "d292b36884b647974ff2167649e8255c8226a942",
+                "spoon night surface annual good slight divert drift iron exercise announce ribbon carbon feed answer",
+                "1c662e030a65b8e943a7f7fb304a1ecf415dcd1c99bfd587efae245ca9270058e853df0070abe61af152756c63a0b67ed74bf6e916b112289499e6052ccacc19",
+                "xprv9s21ZrQH143K3pskpuVw5DMEBZ1hWZnVxwTpPc4QqjCPHbinjx5dyosHqPubQbGRoKdPci6hYRdr2QNDc2GwhCpSEAtKMrsjiBbYJJLfFj9"
+            ),
+            (
+                "608945c274e181d9376c651255db6481ccb525532554eaea611cbbd1",
+                "gauge enforce identify truth blossom uncle tank million banner put summer adjust slender naive erode pride turtle fantasy elbow jeans bar",
+                "79da8e9aaeea7b28f9045fb0e4763fef5a7aae300b34c9f32aa8bb9a4aacd99896943beb22bbf9b50646658fd72cdf993b16a7cb5b7a77d1b443cf41f5183067",
+                "xprv9s21ZrQH143K2Cy1ePyrB2tRcm97F6YFMzDZkhy9QS6PeCDtiDuZLrtt9WBfWhXEz8W5KbSnF7nWBKFzStfs8UPeyzbrCPPbHLC25HB8aFe"
+            )
         ];
 
         #[test]
@@ -441,6 +453,7 @@ mod tests {
     mod test_invalid {
         use super::*;
 
+        const LANGUAGE: &Language = &Language::ENGLISH;
         const INVALID_WORD_COUNT: u8 = 11;
         const INVALID_ENTROPY_STR: &str = "000000000000000000000000000000000000";
         const INVALID_PHRASE_LENGTH: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -451,32 +464,37 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidWordCount(11)")]
         fn new_invalid_word_count() {
-            let _result = Mnemonic::new(INVALID_WORD_COUNT, &Language::ENGLISH).unwrap();
+            let _result = Mnemonic::new(INVALID_WORD_COUNT, LANGUAGE).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidEntropyLength(18)")]
         fn from_entropy_invalid_entropy() {
             let invalid_entropy: Vec<u8> = Vec::from(hex::decode(INVALID_ENTROPY_STR).unwrap());
-            let _result = Mnemonic::from_entropy(&invalid_entropy, &Language::ENGLISH).unwrap();
+            let _result = Mnemonic::from_entropy(&invalid_entropy, LANGUAGE).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidWordCount(13)")]
         fn to_entropy_invalid_length() {
-            let _result = Mnemonic::to_entropy(INVALID_PHRASE_LENGTH, &Language::ENGLISH).unwrap();
+            let _result = Mnemonic::to_entropy(INVALID_PHRASE_LENGTH, LANGUAGE).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidWord(\"abandoz\")")]
         fn to_entropy_invalid_word() {
-            let _result = Mnemonic::to_entropy(INVALID_PHRASE_WORD, &Language::ENGLISH).unwrap();
+            let _result = Mnemonic::to_entropy(INVALID_PHRASE_WORD, LANGUAGE).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon\")")]
         fn to_entropy_invalid_checksum() {
-            let _result = Mnemonic::to_entropy(INVALID_PHRASE_CHECKSUM, &Language::ENGLISH).unwrap();
+            let _result = Mnemonic::to_entropy(INVALID_PHRASE_CHECKSUM, LANGUAGE).unwrap();
+        }
+
+        #[test]
+        fn verify_invalid_phrase() {
+            assert!(!Mnemonic::verify_phrase(INVALID_PHRASE_LENGTH, LANGUAGE));
         }
     }
 }
