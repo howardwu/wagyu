@@ -22,12 +22,10 @@ bitcoin = { path = "../bitcoin" }
 ethereum = { path = "../ethereum" }
 
 bitvec = "0.14.0"
-byteorder = "1.3.2"
 hmac = "0.7.1"
 rand = "0.7"
 sha2 = "0.8"
 pbkdf2 = { version = "0.3.0", features=["parallel"], default-features = false }
-ux = "0.1.3"
 
 [dev-dependencies]
 hex = "0.3.2"

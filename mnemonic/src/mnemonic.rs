@@ -1,7 +1,6 @@
 use crate::language::{Language};
 
 use bitvec::prelude::*;
-use byteorder::{ByteOrder, BigEndian as ByteOrder_BigEndian};
 use hmac::Hmac;
 use rand::Rng;
 use rand::rngs::OsRng;
@@ -59,7 +58,6 @@ impl Mnemonic {
         let word_list_str = Language::get_wordlist(language)?;
         let word_list: Vec<&str> = word_list_str.lines().collect();
 
-
         // Compute the checksum by taking the first ENT / 32 bits of the SHA256 hash
         let mut hasher = Sha256::new();
         hasher.input(entropy.as_slice());
@@ -69,18 +67,9 @@ impl Mnemonic {
         let checksum_bit_slice: &BitSlice = &hash_result[0].as_bitslice::<BigEndian>()[..cs];
         let mut checksum_bit_vector = BitVec::from_bitslice(checksum_bit_slice);
 
-
         // Convert the entropy bytes into bits and append the checksum
-        let mut encoding_vec: BitVec<BigEndian> = BitVec::new();
-
-        entropy.iter().for_each(|byte| {
-            let byte_bit_slice = byte.as_bitslice::<BigEndian>();
-            let mut byte_bit_vector = BitVec::from_bitslice(&byte_bit_slice);
-
-            encoding_vec.append(&mut byte_bit_vector);
-        });
+        let mut encoding_vec = BitVec::<BigEndian, u8>::from_vec(entropy.clone());
         encoding_vec.append(&mut checksum_bit_vector);
-
 
         // Compute the phrase in 11 bit chunks which encode an index into the wordlist
         let mut phrase = String::new();
@@ -141,12 +130,12 @@ impl Mnemonic {
             let index = Language::get_wordlist_index(word, language)
                 .map_err(|err| { return err; });
 
-            let mut buf = [0; 2];
-            ByteOrder_BigEndian::write_u16(&mut buf, index.unwrap() as u16);
-            let mut index_bitvector = BitVec::<BigEndian>::from_bitslice(
-                &BitVec::<BigEndian>::from_slice(&buf)[5..]);
+            let index_u16 = index.unwrap() as u16;
+            let index_u8_slice: [u8; 2] = index_u16.to_be_bytes();
+            let index_11_bits = &BitVec::<BigEndian, u8>::from_slice(&index_u8_slice)[5..];
+            let mut index_bit_vector = BitVec::<BigEndian, u8>::from_bitslice(index_11_bits);
 
-            entropy.append(&mut index_bitvector);
+            entropy.append(&mut index_bit_vector);
         });
 
         let entropy_extracted: Vec<u8> = Vec::from(entropy[..entropy_length].as_slice());
