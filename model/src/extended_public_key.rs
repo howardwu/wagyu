@@ -16,6 +16,9 @@ pub enum ExtendedPublicKeyError {
     #[fail(display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidChecksum(String, String),
 
+    #[fail(display = "invalid child number: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    InvalidChildNumber(u32, u32),
+
     #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidDerivationPath(String, String),
 
@@ -25,13 +28,6 @@ pub enum ExtendedPublicKeyError {
     #[fail(display = "maximum child depth reached: {}", _0)]
     MaximumChildDepthReached(u8),
 
-
-//    #[fail(display = "invalid network: {{ expected: {:?}, found: {:?} }}", _0, _1)]
-//    InvalidNetwork(String, String),
-//
-//    #[fail(display = "invalid private key prefix: {:?}", _0)]
-//    InvalidPrefix(Vec<u8>),
-//
     #[fail(display = "{}", _0)]
     Message(String),
 
@@ -58,18 +54,6 @@ impl From<crypto_mac::InvalidKeyLength> for ExtendedPublicKeyError {
     }
 }
 
-//impl From<hex::FromHexError> for PrivateKeyError {
-//    fn from(error: hex::FromHexError) -> Self {
-//        PrivateKeyError::Crate("hex", format!("{:?}", error))
-//    }
-//}
-//
-//impl From<rand_core::Error> for PrivateKeyError {
-//    fn from(error: rand_core::Error) -> Self {
-//        PrivateKeyError::Crate("rand", format!("{:?}", error))
-//    }
-//}
-//
 impl From<secp256k1::Error> for ExtendedPublicKeyError {
     fn from(error: secp256k1::Error) -> Self {
         ExtendedPublicKeyError::Crate("secp256k1", format!("{:?}", error))

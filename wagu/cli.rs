@@ -49,6 +49,10 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
             .long("segwit")
             .conflicts_with("network")
             .help("Enabling this flag generates a wallet with a SegWit address"))
+        .arg(Arg::with_name("bech32")
+            .long("bech32")
+            .conflicts_with("segwit")
+            .help("Enabling this flag generates a wallet with a Bech32 (SegWit enabled) address"))
        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
@@ -58,6 +62,8 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     let bitcoin_address_type = if matches.is_present("segwit") {
 //        compressed = true;
         BitcoinFormat::P2SH_P2WPKH
+    } else if matches.is_present("bech32") {
+        BitcoinFormat::Bech32
     } else {
         BitcoinFormat::P2PKH
     };

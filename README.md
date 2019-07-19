@@ -1,7 +1,7 @@
 # wagu
 
 [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
-[![Travis (.com)](https://travis-ci.com/ArgusHQ/wagu.svg)](https://travis-ci.com/ArgusHQ/wagu)
+![Travis (.com) branch](https://img.shields.io/travis/com/ArgusHQ/wagu/v0.6.0.svg)
 [![Codecov](https://img.shields.io/codecov/c/github/ArgusHQ/wagu.svg)](https://codecov.io/gh/ArgusHQ/wagu)
 [![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
 [![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
@@ -27,15 +27,27 @@ Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet 
 
 ## 1. Overview
 
-Wagu enables you to generate a wallet for the following cryptocurrencies:
+Wagu is a lightweight command-line utility to generate a cryptocurrency wallet.
 
+| Library        | Crate                                                                                              | Cryptocurrency                                                                     | Address     | Public Key   | Private Key   | HD Wallet   |
+|:--------------:|:--------------------------------------------------------------------------------------------------:|------------------------------------------------------------------------------------|:-----------:|:------------:|:-------------:|:-----------:|
+| [**wagu**](.)  | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu) | <br/><ul><li>Bitcoin</li><li>Ethereum</li><li>Monero</li><li>Zcash</li></ul>       | Yes         | Yes          | Yes           | Yes         |
 
-| Cryptocurrency | Doc                       | Address Format                                                        | HD Wallet                                   | Network                                                         |
-|----------------|---------------------------|-----------------------------------------------------------------------|---------------------------------------------|-----------------------------------------------------------------|
-| Bitcoin        | [View](docs/bitcoin.md)   | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
-| Ethereum       | [View](docs/ethereum.md)  | <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>All</li></ul>                                      |
-| Monero         | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>                       | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
-| Zcash          | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32 (in progress)</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+Wagu enables developers to build their own cryptocurrency application using the following modules.
+
+| Library                         | Crate                                                                                                   | Doc                       | Address Format                                                        | HD Wallet                                   | Network                                                         |
+|:-------------------------------:|---------------------------------------------------------------------------------------------------------|---------------------------|-----------------------------------------------------------------------|---------------------------------------------|-----------------------------------------------------------------|
+| [**wagu-bitcoin**](./bitcoin)   | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/bitcoin.md)   | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+| [**wagu-ethereum**](./ethereum) | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/ethereum.md)  | <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>All</li></ul>                                      |
+| [**wagu-monero**](./monero)     | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>                       | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
+| [**wagu-zcash**](./zcash)       | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32 (in progress)</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+
+Wagu can support new cryptocurrencies by implementing the model as outlined in this module.
+
+| Library                    | Crate                                                                                              | Standard Wallet                                                                                                                                                | HD Wallet                                                                                                                                             | Network                                                   |
+|:--------------------------:|:--------------------------------------------------------------------------------------------------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
+| [**wagu_model**](./model)  | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu) | <br/><ul><li>[Address](./model/src/address.rs)</li><li>[Public Key](./model/src/public_key.rs)</li><li>[Private Key](./model/src/private_key.rs)</li></ul>     | <br/><ul><li>[Extended Public Key](./model/src/extended_public_key.rs)</li><li>[Extended Private Key](./model/src/extended_private_key.rs)</li></ul>  | <br/><ul><li>[Network](./model/src/network.rs)</li></ul>  |
+
 
 ## 2. Build Guide
 
@@ -102,7 +114,7 @@ Generate a compressed mainnet private key and address with the following command
 
         Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
         Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 
@@ -117,7 +129,7 @@ Generate a testnet private key and address with the following command:
 
         Private Key:    cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX,
         Address:        mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w
-        Network:        Testnet
+        Network:        testnet
         Compressed:     true
 ```
 
@@ -133,12 +145,12 @@ Generate a compressed mainnet private key and address with the following command
   {
     "privateKey": {
       "wif": "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H",
-      "network": "Mainnet",
+      "network": "mainnet",
       "compressed": true
     },
     "address": {
       "address": "1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U",
-      "network": "Mainnet",
+      "network": "mainnet",
       "address_type": "P2PKH"
     }
   }
@@ -156,19 +168,19 @@ Generates multiple wallets with the following command:
 
         Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
         Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 
 
         Private Key:    L4uNhZS86VLiKKGZZGNxwP7s67EfYfQ7S9bNnVfVbU9GBVVo2xoD
         Address:        16sz5SMFeRfwaqY6wKzkiufwPmF1J7RhAx
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 
 
         Private Key:    KyH2BrThuUnzSXxDrDxQbpK277HxZfwPxVaCs5cwbzDEVNno2nts
         Address:        17QAwDwsLpehmCqSQXdHZb8vpsYVDnX7ic
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 
@@ -183,7 +195,7 @@ Generate a SegWit mainnet private key and address with the following command:
 
         Private Key:    L13EzQBa7izHyXHdhAwBzApAPL1Q8rdVRpY7CASWXyFPyHTuPJxs
         Address:        3Qz5gtJ4GKoeSHHErF8Nvs9bDp5TQDw89o
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 

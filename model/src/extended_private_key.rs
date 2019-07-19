@@ -79,8 +79,8 @@ pub trait ExtendedPrivateKey:
     type ExtendedPublicKey: ExtendedPublicKey;
     type Format;
     type Network;
-    type PublicKey: PublicKey;
     type PrivateKey: PrivateKey;
+    type PublicKey: PublicKey;
 
     /// Returns a new extended private key.
     fn new(seed: &[u8], network: &Self::Network) -> Result<Self, ExtendedPrivateKeyError>;

@@ -15,8 +15,6 @@ use wagu_model::{
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
-//use rand::Rng;
-//use rand::rngs::OsRng;
 use secp256k1::{Secp256k1, SecretKey, PublicKey};
 use sha2::Sha512;
 use std::{fmt, fmt::Display};
@@ -193,7 +191,7 @@ impl BitcoinExtendedPrivateKey {
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
 
-        return Ok((private_key, chain_code));
+        return Ok((private_key, chain_code))
     }
 }
 
