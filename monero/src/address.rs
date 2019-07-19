@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
 
-/// Represents the format of a Bitcoin address
+/// Represents the format of a Monero address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
     /// Standard address
@@ -23,47 +23,17 @@ pub enum Format {
 
 impl Format {
     /// Returns the address prefix of the given network.
-    pub fn to_address_prefix(&self, network: &Network) -> u8 {
-        match network {
-            Network::Mainnet => match self {
-                Format::Standard => 18,
-                Format::Integrated => 19,
-                Format::Subaddress => 42
-            },
-            Network::Testnet => match self {
-                Format::Standard => 24,
-                Format::Integrated => 25,
-                Format::Subaddress => 36
-            },
-            Network::Stagenet => match self {
-                Format::Standard => 53,
-                Format::Integrated => 54,
-                Format::Subaddress => 63
-            }
-        }
+    pub fn to_address_prefix<N: MoneroNetwork>(&self) -> u8 {
+        N::to_address_prefix(self)
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: u8, network: &Network) -> Result<Self, AddressError> {
-        match network {
-            Network::Mainnet => match prefix {
-                18 => Ok(Format::Standard),
-                19 => Ok(Format::Integrated),
-                42 => Ok(Format::Subaddress),
-                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
-            },
-            Network::Testnet => match prefix {
-                24 => Ok(Format::Standard),
-                25 => Ok(Format::Integrated),
-                36 => Ok(Format::Subaddress),
-                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
-            },
-            Network::Stagenet => match prefix {
-                53 => Ok(Format::Standard),
-                54 => Ok(Format::Integrated),
-                63 => Ok(Format::Subaddress),
-                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
-            }
+    pub fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
+        match prefix {
+            18 | 24 | 53 => Ok(Format::Standard),
+            19 | 25 | 54 => Ok(Format::Integrated),
+            42 | 36 | 63 => Ok(Format::Subaddress),
+            _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
         }
     }
 }
@@ -104,10 +74,10 @@ impl <N: MoneroNetwork> Address for MoneroAddress<N> {
 impl <N: MoneroNetwork> MoneroAddress<N> {
     /// Returns a Monero address given the public spend key and public view key.
     pub fn generate_address(
-        public_key: &MoneroPublicKey,
+        public_key: &MoneroPublicKey<N>,
         format: &Format
     ) -> Result<Self, AddressError> {
-        let mut bytes = vec![format.to_address_prefix(network)];
+        let mut bytes = vec![format.to_address_prefix::<N>()];
         bytes.extend_from_slice(&public_key.spend_key);
         bytes.extend_from_slice(&public_key.view_key);
 
@@ -133,8 +103,9 @@ impl <N: MoneroNetwork> FromStr for MoneroAddress<N> {
         }
         let bytes = base58::decode(address)?;
 
-        let network = Network::from_address_prefix(bytes[0])?;
-        let format = Format::from_address_prefix(bytes[0], &network)?;
+        // Check that the network byte correspond with the correct network.
+        let _ = N::from_address_prefix(bytes[0])?;
+        let format = Format::from_address_prefix(bytes[0])?;
 
         let (checksum_bytes, checksum) = match format {
             Format::Standard | Format::Subaddress => (&bytes[0..65], &bytes[65..69]),
@@ -165,6 +136,7 @@ impl <N: MoneroNetwork> fmt::Display for MoneroAddress<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
     use wagu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: MoneroNetwork>(
@@ -199,6 +171,8 @@ mod tests {
     mod standard_mainnet {
         use super::*;
 
+        type N = Mainnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "f6aceb9caa1d04bb3a6a3d5614a731dd58d24da957f33448fa50600c3d928404",
@@ -225,7 +199,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, address)| {
-                let private_key = MoneroPrivateKey::from_seed(seed).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 test_from_private_key(address, &private_key, &Format::Standard);
             });
         }
@@ -233,8 +207,8 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(seed, address)| {
-                let private_key = MoneroPrivateKey::from_seed(seed).unwrap();
-                let public_key = MoneroPublicKey::from_private_key(&private_key);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
+                let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::Standard);
             });
         }
@@ -242,14 +216,14 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str(address, &Format::Standard);
+                test_from_str::<N>(address, &Format::Standard);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_address)| {
-                let address = MoneroAddress::from_str(expected_address).unwrap();
+                let address = MoneroAddress::<N>::from_str(expected_address).unwrap();
                 test_to_str(expected_address, &address);
             });
         }
