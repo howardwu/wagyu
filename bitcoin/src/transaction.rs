@@ -154,11 +154,7 @@ impl BitcoinTransaction {
             if input.witness_count.is_some() && input.witnesses.len() > 0 {
                 has_witness = true;
             }
-            if input.out_point.address.format == Format::Bech32 {
-                serialized_transaction.extend(input.serialize(true)?);
-            } else {
-                serialized_transaction.extend(input.serialize(raw)?);
-            }
+            serialized_transaction.extend(input.serialize(raw)?);
         }
 
         serialized_transaction.extend(&self.output_count);
@@ -182,6 +178,7 @@ impl BitcoinTransaction {
 
         let lock_time_bytes = u32_to_bytes(self.lock_time)?;
         serialized_transaction.extend(lock_time_bytes);
+
         Ok(serialized_transaction)
     }
 
@@ -192,18 +189,16 @@ impl BitcoinTransaction {
                                 address_format: Format
     ) -> Result<Vec<u8>, std::io::Error> {
         let input = &self.inputs[input_index];
-        let transaction_hash_preimage  = if input.out_point.address.format == Format::P2PKH {
-            self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?
-        } else {
-            self.generate_segwit_hash_preimage(input_index, input.sig_hash_code.clone())?
+        let transaction_hash_preimage = match input.out_point.address.format {
+            Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?,
+            _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code.clone())?
         };
-
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
         let message = secp256k1::Message::from_slice(&transaction_hash).unwrap();
         let sign = Secp256k1::signing_only();
         let signing_key = private_key.secret_key;
         let mut signature =  sign.sign(&message, &signing_key).serialize_der(&sign).to_vec();
-        let sig_hash_code_bytes = u32_to_bytes(input.sig_hash_code.value());
+        let sig_hash_code_bytes = u32_to_bytes(input.sig_hash_code as u32);
         signature.extend(vec![sig_hash_code_bytes?[0]]); // Add the SIG_HASH ALL TO THE END OF THE signature
         let signature_length = variable_integer_length(signature.len() as u64 );
         let public_key = private_key.to_public_key();
@@ -258,7 +253,7 @@ impl BitcoinTransaction {
     pub fn generate_p2pkh_hash_preimage(&self, input_index: usize, sig_hash_code: SigHashCode) -> Result<Vec<u8>, std::io::Error> {
         let version_bytes = u32_to_bytes(self.version)?;
         let lock_time_bytes = u32_to_bytes(self.lock_time)?;
-        let sig_hash_code_bytes = u32_to_bytes(sig_hash_code.value())?;
+        let sig_hash_code_bytes = u32_to_bytes(sig_hash_code as u32)?;
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
 
         transaction_hash_preimage.extend(version_bytes);
@@ -304,25 +299,19 @@ impl BitcoinTransaction {
 
         let version_bytes = u32_to_bytes(self.version)?;
         let mut total_utxo_amount: Vec<u8> = Vec::new();
-        let mut script_code: Vec<u8> = Vec::new();
-        let mut script = if input.out_point.address.format == Format::Bech32 {
-            input.out_point.script_pub_key.clone().unwrap()
-        } else {
-            input.out_point.redeem_script.clone().unwrap()
-        };
         total_utxo_amount.write_u64::<LittleEndian>(input.out_point.amount.unwrap())?;
+        let mut script = match input.out_point.address.format {
+            Format::Bech32 => input.out_point.script_pub_key.clone().unwrap(),
+            _ => input.out_point.redeem_script.clone().unwrap()
+        };
         script = script[1..].to_vec();
 
-        let op_dup: Vec<u8> = vec![OPCodes::OP_DUP as u8];
-        let op_hash160: Vec<u8> = vec![OPCodes::OP_HASH160 as u8];
-        let op_equal_verify: Vec<u8> = vec![OPCodes::OP_EQUALVERIFY as u8];
-        let op_checksig: Vec<u8> = vec![OPCodes::OP_CHECKSIG as u8];
-
-        script_code.extend(op_dup);
-        script_code.extend(op_hash160);
+        let mut script_code: Vec<u8> = Vec::new();
+        script_code.push(OPCodes::OP_DUP as u8);
+        script_code.push(OPCodes::OP_HASH160 as u8);
         script_code.extend(script);
-        script_code.extend(op_equal_verify);
-        script_code.extend(op_checksig);
+        script_code.push(OPCodes::OP_EQUALVERIFY as u8);
+        script_code.push(OPCodes::OP_CHECKSIG as u8);
 
         let mut script_code_with_length = variable_integer_length(script_code.len() as u64);
         script_code_with_length.extend(&script_code);
@@ -337,7 +326,7 @@ impl BitcoinTransaction {
         transaction_hash_preimage.extend(&input.sequence);
         transaction_hash_preimage.extend(hash_outputs);
         transaction_hash_preimage.extend(u32_to_bytes(self.lock_time)?);
-        transaction_hash_preimage.extend(u32_to_bytes(sig_hash_code.value())?);
+        transaction_hash_preimage.extend(u32_to_bytes(sig_hash_code as u32)?);
 
         Ok(transaction_hash_preimage)
     }
@@ -400,11 +389,14 @@ impl BitcoinTransactionInput {
         } else {
             match &self.script {
                 None => {
-                    let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
-                    let script_pub_key_length = variable_integer_length(script_pub_key.len() as u64);
-                    serialized_input.extend(script_pub_key_length);
-                    serialized_input.extend(script_pub_key);
-
+                    if self.out_point.address.format == Format::Bech32 {
+                        serialized_input.extend(vec![0x00]);
+                    } else {
+                        let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
+                        let script_pub_key_length = variable_integer_length(script_pub_key.len() as u64);
+                        serialized_input.extend(script_pub_key_length);
+                        serialized_input.extend(script_pub_key);
+                    }
                 },
                 Some(script) => {
                     serialized_input.extend(&script.script_length);
