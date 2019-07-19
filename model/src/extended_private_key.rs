@@ -21,12 +21,11 @@ pub trait ExtendedPrivateKey:
     type Address: Address;
     type ExtendedPublicKey: ExtendedPublicKey;
     type Format;
-    type Network;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 
     /// Returns a new extended private key.
-    fn new(seed: &[u8], network: &Self::Network) -> Result<Self, ExtendedPrivateKeyError>;
+    fn new(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
@@ -56,14 +55,17 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidDerivationPath(String, String),
 
-    #[fail(display = "invalid network bytes: {:?}", _0)]
-    InvalidNetworkBytes(Vec<u8>),
+    #[fail(display = "invalid version bytes: {:?}", _0)]
+    InvalidVersionBytes(Vec<u8>),
 
     #[fail(display = "maximum child depth reached: {}", _0)]
     MaximumChildDepthReached(u8),
 
     #[fail(display = "{}", _0)]
     Message(String),
+
+    #[fail(display = "unsupported format: {}", _0)]
+    UnsupportedFormat(String)
 }
 
 impl From<base58::FromBase58Error> for ExtendedPrivateKeyError {

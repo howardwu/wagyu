@@ -2,7 +2,14 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
-use wagu_model::{Address, AddressError, PrivateKey, crypto::{checksum, hash160}};
+use wagu_model::{
+    Address,
+    AddressError,
+    ExtendedPrivateKeyError,
+    ExtendedPublicKeyError,
+    PrivateKey,
+    crypto::{checksum, hash160}
+};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32,ToBase32,FromBase32,u5};
@@ -34,11 +41,41 @@ impl Format {
         if prefix.len() < 2 {
             return Err(AddressError::InvalidPrefix(prefix.to_vec()))
         }
-        match (prefix[0],prefix[1]) {
+        match (prefix[0], prefix[1]) {
             (0x00, _) | (0x6F, _) => Ok(Format::P2PKH),
             (0x05, _) | (0xC4, _) => Ok(Format::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(Format::Bech32),
             _ => return Err(AddressError::InvalidPrefix(prefix.to_vec()))
+        }
+    }
+
+    /// Returns the network of the given extended private key version bytes.
+    /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
+    pub fn from_extended_private_key_version_bytes(prefix: &[u8]) -> Result<Self, ExtendedPrivateKeyError> {
+        match prefix[0..4] {
+            [0x04, 0x88, 0xAD, 0xE4] | [0x04, 0x35, 0x83, 0x94] => Ok(Format::P2PKH),
+            [0x04, 0x9D, 0x78, 0x78] | [0x04, 0x4A, 0x4E, 0x28] => Ok(Format::P2SH_P2WPKH),
+            _ => Err(ExtendedPrivateKeyError::InvalidVersionBytes(prefix.to_vec()))
+        }
+    }
+
+    /// Returns the network of the given extended public key version bytes.
+    /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
+    pub fn from_extended_public_key_version_bytes(prefix: &[u8]) -> Result<Self, ExtendedPublicKeyError> {
+        match prefix[0..4] {
+            [0x04, 0x88, 0xB2, 0x1E] | [0x04, 0x35, 0x87, 0xCF] => Ok(Format::P2PKH),
+            [0x04, 0x9D, 0x7C, 0xB2] | [0x04, 0x4A, 0x52, 0x62] => Ok(Format::P2SH_P2WPKH),
+            _ => Err(ExtendedPublicKeyError::InvalidVersionBytes(prefix.to_vec()))
+        }
+    }
+}
+
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Format::P2PKH => write!(f, "P2PKH"),
+            Format::P2SH_P2WPKH => write!(f, "P2SH_P2WPKH"),
+            Format::Bech32 => write!(f, "Bech32")
         }
     }
 }
@@ -51,7 +88,7 @@ pub struct BitcoinAddress<N: BitcoinNetwork> {
     /// The format of the address
     pub format: Format,
     /// PhantomData
-    pub _network: PhantomData<N>,
+    _network: PhantomData<N>,
 }
 
 impl <N: BitcoinNetwork> Address for BitcoinAddress<N> {
@@ -130,6 +167,7 @@ impl <N: BitcoinNetwork> BitcoinAddress<N> {
         Ok(Self { address: bech32.to_string(), format: Format::Bech32, _network: PhantomData })
     }
 
+    /// Returns a redeem script for a given Bitcoin public key.
     fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
         let mut redeem = [0u8; 22];
         redeem[1] = 0x14;

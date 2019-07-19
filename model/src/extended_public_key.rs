@@ -1,8 +1,8 @@
 use crate::address::{Address, AddressError};
 use crate::public_key::{PublicKey, PublicKeyError};
+use crate::extended_private_key::ExtendedPrivateKey;
 
 use std::{fmt::{Debug, Display}, str::FromStr};
-use crate::ExtendedPrivateKey;
 
 /// The interface for a generic extended public key.
 pub trait ExtendedPublicKey:
@@ -19,7 +19,6 @@ pub trait ExtendedPublicKey:
     type Address: Address;
     type ExtendedPrivateKey: ExtendedPrivateKey;
     type Format;
-    type Network;
     type PublicKey: PublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -50,8 +49,8 @@ pub enum ExtendedPublicKeyError {
     #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidDerivationPath(String, String),
 
-    #[fail(display = "invalid network bytes: {:?}", _0)]
-    InvalidNetworkBytes(Vec<u8>),
+    #[fail(display = "invalid version bytes: {:?}", _0)]
+    InvalidVersionBytes(Vec<u8>),
 
     #[fail(display = "maximum child depth reached: {}", _0)]
     MaximumChildDepthReached(u8),
@@ -61,6 +60,9 @@ pub enum ExtendedPublicKeyError {
 
     #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
+
+    #[fail(display = "unsupported format: {}", _0)]
+    UnsupportedFormat(String)
 }
 
 impl From<PublicKeyError> for ExtendedPublicKeyError {

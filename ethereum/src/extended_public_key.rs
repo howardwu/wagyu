@@ -156,7 +156,7 @@ impl FromStr for EthereumExtendedPublicKey {
         }
 
         if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
-            return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
+            return Err(ExtendedPublicKeyError::InvalidVersionBytes(data[0..4].to_vec()))
         };
 
         let depth = data[4] as u8;

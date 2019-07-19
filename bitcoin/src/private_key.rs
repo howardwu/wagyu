@@ -22,7 +22,7 @@ pub struct BitcoinPrivateKey<N: BitcoinNetwork> {
     /// If true, the private key is serialized in compressed form
     pub compressed: bool,
     /// PhantomData
-    pub _network: PhantomData<N>,
+    _network: PhantomData<N>,
 }
 
 impl <N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {

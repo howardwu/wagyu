@@ -17,44 +17,47 @@ use secp256k1::{Secp256k1, SecretKey, PublicKey as Secp256k1_PublicKey};
 use sha2::Sha512;
 use std::fmt;
 use std::io::Cursor;
-use std::str::FromStr;
+use std::marker::PhantomData;
 use std::ops::AddAssign;
+use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Bitcoin extended public key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BitcoinExtendedPublicKey {
-    /// The Bitcoin public key
-    pub public_key: BitcoinPublicKey,
-    /// The chain code from the extended private key
-    pub chain_code: [u8; 32],
-    /// The network of this extended public key
-    pub network: BitcoinNetwork,
+pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
+    /// The address format
+    pub format: Format,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
     pub parent_fingerprint: [u8; 4],
     /// This is ser32(i) for i in x_i = x_par/i, with x_i the key being serialized. (0x00000000 if master key)
     pub child_number: u32,
+    /// The chain code from the extended private key
+    pub chain_code: [u8; 32],
+    /// The Bitcoin public key
+    pub public_key: BitcoinPublicKey<N>,
+    /// PhantomData
+    _network: PhantomData<N>
 }
 
-impl ExtendedPublicKey for BitcoinExtendedPublicKey {
-    type Address = BitcoinAddress;
-    type ExtendedPrivateKey = BitcoinExtendedPrivateKey;
+impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
+    type Address = BitcoinAddress<N>;
+    type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
     type Format = Format;
-    type Network = BitcoinNetwork;
-    type PublicKey = BitcoinPublicKey;
+    type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn from_extended_private_key(private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
-            public_key: BitcoinPublicKey::from_private_key(&private_key.private_key),
-            chain_code: private_key.chain_code,
-            network: private_key.network,
+            format: private_key.format.clone(),
             depth: private_key.depth,
             parent_fingerprint: private_key.parent_fingerprint,
             child_number: private_key.child_number,
+            chain_code: private_key.chain_code,
+            public_key: BitcoinPublicKey::<N>::from_private_key(&private_key.private_key),
+            _network: PhantomData
         }
     }
 
@@ -65,11 +68,11 @@ impl ExtendedPublicKey for BitcoinExtendedPublicKey {
 
     /// Returns the address of the corresponding extended public key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.public_key.to_address(format, &self.network)
+        self.public_key.to_address(format)
     }
 }
 
-impl BitcoinExtendedPublicKey {
+impl <N: BitcoinNetwork> BitcoinExtendedPublicKey<N> {
     /// Returns the extended public key for the given derivation path.
     pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPublicKeyError> {
         let mut path_vec: Vec<&str> = path.split("/").collect();
@@ -139,17 +142,18 @@ impl BitcoinExtendedPublicKey {
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
         Ok(Self {
-            public_key,
-            chain_code,
-            network: self.network,
+            format: self.format.clone(),
             depth: self.depth + 1,
             parent_fingerprint,
             child_number,
+            chain_code,
+            public_key,
+            _network: PhantomData
         })
     }
 }
 
-impl FromStr for BitcoinExtendedPublicKey {
+impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
     type Err = ExtendedPublicKeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -158,14 +162,12 @@ impl FromStr for BitcoinExtendedPublicKey {
             return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()))
         }
 
-        // TODO (howardwu): Move this to network.rs
-        let network = if &data[0..4] == [0x04u8, 0x88, 0xB2, 0x1E] {
-            BitcoinNetwork::Mainnet
-        } else if &data[0..4] == [0x04u8, 0x35, 0x87, 0xCF] {
-            BitcoinNetwork::Testnet
-        } else {
-            return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
-        };
+        // Check that the version bytes correspond with the correct network.
+        let _ = N::from_extended_public_key_version_bytes(&data[0..4])?;
+        let format = Format::from_extended_public_key_version_bytes(&data[0..4])?;
+
+        let mut version = [0u8; 4];
+        version.copy_from_slice(&data[0..4]);
 
         let depth = data[4];
 
@@ -179,7 +181,7 @@ impl FromStr for BitcoinExtendedPublicKey {
 
         let secp = Secp256k1::new();
         let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&secp,&data[45..78])?;
-        let public_key = BitcoinPublicKey::from_str(&secp256k1_public_key.to_string())?;
+        let public_key = BitcoinPublicKey::<N>::from_str(&secp256k1_public_key.to_string())?;
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -190,25 +192,26 @@ impl FromStr for BitcoinExtendedPublicKey {
         }
 
         Ok(Self {
-            public_key,
-            chain_code,
-            network,
+            format,
             depth,
             parent_fingerprint,
-            child_number
+            child_number,
+            chain_code,
+            public_key,
+            _network: PhantomData
         })
     }
 }
 
-impl fmt::Display for BitcoinExtendedPublicKey {
+impl <N: BitcoinNetwork> fmt::Display for BitcoinExtendedPublicKey<N> {
     /// BIP32 serialization format
     /// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
-        result[0..4].copy_from_slice(&match self.network {
-            BitcoinNetwork::Mainnet => [0x04u8, 0x88, 0xB2, 0x1E],
-            BitcoinNetwork::Testnet => [0x04u8, 0x35, 0x87, 0xCF],
-        }[..]);
+        result[0..4].copy_from_slice(match &N::to_extended_public_key_version_bytes(&self.format) {
+            Ok(version) => version,
+            Err(_) => return Err(fmt::Error)
+        });
         result[4] = self.depth;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
 
@@ -227,10 +230,12 @@ impl fmt::Display for BitcoinExtendedPublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
     use wagu_model::ExtendedPrivateKey;
+
     use hex;
 
-    fn test_from_str(
+    fn test_from_str<N: BitcoinNetwork>(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_depth: u8,
@@ -238,7 +243,7 @@ mod tests {
         expected_child_number: u32,
         expected_xpub_serialized: &str
     ) {
-        let xpub = BitcoinExtendedPublicKey::from_str(&expected_xpub_serialized).unwrap();
+        let xpub = BitcoinExtendedPublicKey::<N>::from_str(&expected_xpub_serialized).unwrap();
         assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
         assert_eq!(expected_depth, xpub.depth);
@@ -247,45 +252,44 @@ mod tests {
         assert_eq!(expected_xpub_serialized, xpub.to_string());
     }
 
-    fn test_from_private(
+    fn test_from_private<N: BitcoinNetwork>(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
         xpriv_serialized: &str
     ) {
-        let xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-        let xpub = BitcoinExtendedPublicKey::from_extended_private_key(&xpriv);
+        let xpriv = BitcoinExtendedPrivateKey::<N>::from_str(xpriv_serialized).unwrap();
+        let xpub = BitcoinExtendedPublicKey::<N>::from_extended_private_key(&xpriv);
         assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(xpub.parent_fingerprint));
         assert_eq!(expected_xpub_serialized, xpub.to_string());
     }
 
-    fn test_ckd_pub(
+    fn test_ckd_pub<N: BitcoinNetwork>(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
-        parent_xpub: &BitcoinExtendedPublicKey,
+        parent_xpub: &BitcoinExtendedPublicKey<N>,
         child_number: u32,
-    ) -> BitcoinExtendedPublicKey {
+    ) -> BitcoinExtendedPublicKey<N> {
         let child_xpub = parent_xpub.ckd_pub(child_number).unwrap();
         assert_eq!(expected_public_key, child_xpub.public_key.public_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(child_xpub.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(child_xpub.parent_fingerprint));
         assert_eq!(expected_xpub_serialized, child_xpub.to_string());
         assert_eq!(child_number, child_xpub.child_number);
-
         child_xpub
     }
 
-    fn test_derivation_path(
+    fn test_derivation_path<N: BitcoinNetwork>(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
         expected_xpub_serialized: &str,
-        parent_xpub: &BitcoinExtendedPublicKey,
+        parent_xpub: &BitcoinExtendedPublicKey<N>,
         path: &str,
     ) {
         let derived_xpub = parent_xpub.derivation_path(path).unwrap();
@@ -297,6 +301,8 @@ mod tests {
 
     mod bip32_default {
         use super::*;
+
+        type N = Mainnet;
 
         // (depth, master_seed, public_key, chain_code, parent_fingerprint, xpriv_serialized, xpub_serialized)
         const KEYPAIR_TREE_HARDENED: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
@@ -353,7 +359,7 @@ mod tests {
                 _,
                 xpub
             ) = KEYPAIR_TREE_HARDENED[0];
-            test_from_str(
+            test_from_str::<N>(
                 public_key,
                 chain_code,
                 0,
@@ -374,7 +380,7 @@ mod tests {
                 _,
                 xpub
             ) = KEYPAIR_TREE_NORMAL[0];
-            test_from_str(
+            test_from_str::<N>(
                 public_key,
                 chain_code,
                 0,
@@ -395,7 +401,7 @@ mod tests {
                 xpriv,
                 xpub
             ) = KEYPAIR_TREE_HARDENED[0];
-            test_from_private(
+            test_from_private::<N>(
                 public_key,
                 chain_code,
                 parent_fingerprint,
@@ -415,7 +421,7 @@ mod tests {
                 xpriv,
                 xpub
             ) = KEYPAIR_TREE_NORMAL[0];
-            test_from_private(
+            test_from_private::<N>(
                 public_key,
                 chain_code,
                 parent_fingerprint,
@@ -427,7 +433,7 @@ mod tests {
         #[test]
         fn test_ckd_pub_normal() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
+            let parent_xpriv = BitcoinExtendedPrivateKey::<N>::from_str(xpriv_serialized).unwrap();
             let mut parent_xpub = parent_xpriv.to_extended_public_key();
             for (i,
                 (
@@ -455,7 +461,7 @@ mod tests {
         #[should_panic(expected = "InvalidChildNumber(2147483648, 2147483648)")]
         fn test_ckd_pub_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            let parent_xpriv = BitcoinExtendedPrivateKey::<N>::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
             let _result = parent_xpub.ckd_pub(2_u32.pow(31)).unwrap();
         }
@@ -463,7 +469,7 @@ mod tests {
         #[test]
         fn test_derivation_path_normal() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
+            let parent_xpriv = BitcoinExtendedPrivateKey::<N>::from_str(xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
             for (_,
                 (
@@ -491,7 +497,7 @@ mod tests {
         #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn test_derivation_path_hardened_panic() {
             let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
+            let parent_xpriv = BitcoinExtendedPrivateKey::<N>::from_str(&xpriv_serialized).unwrap();
             let parent_xpub = parent_xpriv.to_extended_public_key();
             let _result = parent_xpub.derivation_path("m/0'").unwrap();
         }
@@ -499,6 +505,8 @@ mod tests {
 
     mod test_invalid {
         use super::*;
+
+        type N = Mainnet;
 
         const INVALID_PATH: &str = "/0";
         const INVALID_PATH_HARDENED: &str = "m/a'";
@@ -512,25 +520,25 @@ mod tests {
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_PUBLIC_KEY).unwrap();
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(INVALID_XPUB_PUBLIC_KEY).unwrap();
         }
 
         #[test]
-        #[should_panic(expected = "InvalidNetworkBytes([4, 136, 178, 29])")]
-        fn from_str_invalid_network() {
-            let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_NETWORK).unwrap();
+        #[should_panic(expected = "InvalidVersionBytes([4, 136, 178, 29])")]
+        fn from_str_invalid_version() {
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(INVALID_XPUB_NETWORK).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidChecksum(\"5Nvot3\", \"5Nvot4\")")]
         fn from_str_invalid_checksum() {
-            let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_CHECKSUM).unwrap();
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(INVALID_XPUB_CHECKSUM).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
-            let _result = BitcoinExtendedPublicKey::from_str(&VALID_XPUB[1..]).unwrap();
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(&VALID_XPUB[1..]).unwrap();
         }
 
         #[test]
@@ -538,13 +546,13 @@ mod tests {
         fn from_str_long() {
             let mut string = String::from(VALID_XPUB);
             string.push('a');
-            let _result = BitcoinExtendedPublicKey::from_str(&string).unwrap();
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(&string).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "MaximumChildDepthReached(255)")]
         fn ckd_pub_max_depth() {
-            let mut xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
+            let mut xpub = BitcoinExtendedPublicKey::<N>::from_str(VALID_XPUB).unwrap();
             for _ in 0..255 {
                 xpub = xpub.ckd_pub(0).unwrap();
             }
@@ -555,21 +563,21 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"m\", \"\")")]
         fn derivation_path_invalid() {
-            let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
+            let xpub = BitcoinExtendedPublicKey::<N>::from_str(VALID_XPUB).unwrap();
             let _result = xpub.derivation_path(INVALID_PATH).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\")")]
         fn derivation_path_invalid_digit_normal() {
-            let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
+            let xpub = BitcoinExtendedPublicKey::<N>::from_str(VALID_XPUB).unwrap();
             let _result = xpub.derivation_path(INVALID_PATH_NORMAL).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn derivation_path_invalid_digit_hardened() {
-            let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
+            let xpub = BitcoinExtendedPublicKey::<N>::from_str(VALID_XPUB).unwrap();
             let _result = xpub.derivation_path(INVALID_PATH_HARDENED).unwrap();
         }
     }

@@ -198,7 +198,7 @@ impl FromStr for EthereumExtendedPrivateKey {
 
         // Ethereum xkeys are mainnet only
         if &data[0..4] != [0x04u8, 0x88, 0xAD, 0xE4] {
-            return Err(ExtendedPrivateKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
+            return Err(ExtendedPrivateKeyError::InvalidVersionBytes(data[0..4].to_vec()))
         };
 
         let depth = data[4] as u8;
