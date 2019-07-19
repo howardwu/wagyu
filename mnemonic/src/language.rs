@@ -49,15 +49,56 @@ impl Language {
 mod tests {
     use super::*;
 
+    const VALID_WORD: &str = "abandon";
+    const INVALID_WORD: &str = "abandoz";
+
     #[test]
-    fn get_all_wordlists() {
+    fn get_wordlist_chinese_simplified() {
         assert!(Language::get_wordlist(&Language::CHINESE_SIMPLIFIED).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_chinese_traditional() {
         assert!(Language::get_wordlist(&Language::CHINESE_TRADITIONAL).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_english() {
         assert!(Language::get_wordlist(&Language::ENGLISH).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_french() {
         assert!(Language::get_wordlist(&Language::FRENCH).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_italian() {
         assert!(Language::get_wordlist(&Language::ITALIAN).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_japanese() {
         assert!(Language::get_wordlist(&Language::JAPANESE).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_korean() {
         assert!(Language::get_wordlist(&Language::KOREAN).is_ok());
+    }
+
+    #[test]
+    fn get_wordlist_spanish() {
         assert!(Language::get_wordlist(&Language::SPANISH).is_ok());
+    }
+
+    #[test]
+    fn get_valid_word() {
+        assert!(Language::get_wordlist_index(VALID_WORD, &Language::ENGLISH).is_ok());
+    }
+
+    #[test]
+    fn get_invalid_word() {
+        assert!(Language::get_wordlist_index(INVALID_WORD, &Language::ENGLISH).is_err());
     }
 }
