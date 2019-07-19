@@ -64,8 +64,8 @@ pub struct OutPoint {
     pub script_pub_key: Option<Vec<u8>>,
     /// Optional redeem script - for segwit transactions
     pub redeem_script: Option<Vec<u8>>,
-    /// Type of address the outpoint is associated with
-    pub address_format: Format
+    /// Address of the outpoint
+    pub address: BitcoinAddress
 }
 
 /// Represents a generic script (e.g. script_sig or script_pub_key)
@@ -154,7 +154,7 @@ impl BitcoinTransaction {
             if input.witness_count.is_some() && input.witnesses.len() > 0 {
                 has_witness = true;
             }
-            if input.out_point.address_format == Format::Bech32 {
+            if input.out_point.address.format == Format::Bech32 {
                 serialized_transaction.extend(input.serialize(true)?);
             } else {
                 serialized_transaction.extend(input.serialize(raw)?);
@@ -193,7 +193,7 @@ impl BitcoinTransaction {
     ) -> Result<Vec<u8>, std::io::Error> {
         let input = &self.inputs[input_index];
 
-        let transaction_hash_preimage  = if input.out_point.address_format == Format::P2PKH {
+        let transaction_hash_preimage  = if input.out_point.address.format == Format::P2PKH {
             self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?
         } else {
             self.generate_segwit_hash_preimage(input_index, input.sig_hash_code.clone())?
@@ -220,7 +220,7 @@ impl BitcoinTransaction {
         let mut public_key_length: Vec<u8> = Vec::new();
         public_key_length.write_u8(public_key_vec.len() as u8).unwrap();
 
-        if input.out_point.address_format == Format::P2PKH {
+        if input.out_point.address.format == Format::P2PKH {
             let mut final_script = signature_length;
             final_script.extend(&signature);
             final_script.extend(public_key_length);
@@ -231,7 +231,7 @@ impl BitcoinTransaction {
             self.segwit_flag = true;
 
             // Bech32 P2WPKH doesnt require an input script
-            if input.out_point.address_format == Format::P2SH_P2WPKH {
+            if input.out_point.address.format == Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone().unwrap();
                 let mut new_script = variable_integer_length(input_script.len() as u64);
                 new_script.extend(input_script);
@@ -306,7 +306,7 @@ impl BitcoinTransaction {
         let version_bytes = u32_to_bytes(self.version)?;
         let mut total_utxo_amount: Vec<u8> = Vec::new();
         let mut script_code: Vec<u8> = Vec::new();
-        let mut script = if input.out_point.address_format == Format::Bech32 {
+        let mut script = if input.out_point.address.format == Format::Bech32 {
             input.out_point.script_pub_key.clone().unwrap()
         } else {
             input.out_point.redeem_script.clone().unwrap()
@@ -349,7 +349,7 @@ impl BitcoinTransactionInput {
 
     /// Create a new Bitcoin Transaction input without the script
     pub fn new(
-        address_format: Format,
+        address: BitcoinAddress,
         transaction_id: Vec<u8>,
         index: u32,
         amount: Option<u64>,
@@ -371,8 +371,8 @@ impl BitcoinTransactionInput {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        valiate_address_format(address_format.clone(), redeem_script.clone(), script_pub_key.clone(), amount)?;
-        let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address_format };
+        valiate_address_format(address.format.clone(), redeem_script.clone(), script_pub_key.clone(), amount)?;
+        let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address };
 
         Ok(Self { out_point, script: None, sequence, sig_hash_code, witness_count: None,  witnesses: vec![] })
     }
@@ -572,7 +572,7 @@ mod tests {
 
     const INPUT_FILLER: Input =
         Input {
-            private_key: "",
+            private_key: "L5QDKPT7t5S4biznTohoGqRmeHSzQrZzqHq9rfMJijuUtsvZksbj",
             address_format: Format::P2PKH,
             transaction_id: "",
             index: 0,
@@ -595,6 +595,7 @@ mod tests {
         let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
         for input in &inputs {
             let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
+            let address = private_key.to_address(&input.address_format).unwrap();
             let transaction_id = hex::decode(input.transaction_id).unwrap();
 
             let redeem_script = match input.redeem_script {
@@ -611,9 +612,7 @@ mod tests {
             };
             let script_pub_key = match input.script_pub_key {
                 None => {
-
-                    let address = private_key.to_address(&input.address_format);
-                    Some(generate_script_pub_key(&address.unwrap().to_string()).unwrap().script)
+                    Some(generate_script_pub_key(&address.address).unwrap().script)
                 }
                 Some (script) => Some(hex::decode(script).unwrap())
             };
@@ -624,7 +623,7 @@ mod tests {
             };
 
             let transaction_input = BitcoinTransactionInput::new(
-                input.address_format.clone(),
+                address,
                 transaction_id, input.index,
                 input.utxo_amount,
                 redeem_script,
@@ -1047,7 +1046,7 @@ mod tests {
 
         const INVALID_INPUTS: [Input; 6] = [
             Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                private_key: "5Jw9jJvvzjQGoQq2TDQau1EGu8hegDqy3TdWeFc33wNFQANYzoh",
                 address_format: Format::P2PKH,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
@@ -1059,7 +1058,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2PKH,
+                address_format: Format::P2SH_P2WPKH,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
                 redeem_script: None,
@@ -1131,6 +1130,7 @@ mod tests {
 
             for input in INVALID_INPUTS.iter() {
                 let transaction_id = hex::decode(input.transaction_id).unwrap();
+
                 let redeem_script = match input.redeem_script {
                     None => None,
                     Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
@@ -1144,8 +1144,11 @@ mod tests {
                     None => None,
                     Some(seq) => Some(seq.to_vec())
                 };
+
+                let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
+                let address = private_key.to_address(&input.address_format).unwrap();
                 let invalid_input = BitcoinTransactionInput::new(
-                    input.address_format.clone(),
+                    address,
                     transaction_id,
                     input.index,
                     input.utxo_amount,
