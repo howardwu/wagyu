@@ -7,9 +7,30 @@ use std::{
     str::FromStr
 };
 
+/// The interface for a generic address.
+pub trait Address:
+    Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash
+{
+    type Format;
+    type PrivateKey: PrivateKey;
+    type PublicKey: PublicKey;
+
+    /// Returns the address corresponding to the given private key.
+    fn from_private_key(
+        private_key: &Self::PrivateKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError>;
+
+    /// Returns the address corresponding to the given public key.
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        format: &Self::Format
+    ) -> Result<Self, AddressError>;
+}
+
 #[derive(Debug, Fail)]
 pub enum AddressError {
-
+    
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -25,6 +46,9 @@ pub enum AddressError {
     #[fail(display = "invalid address checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidChecksum(String, String),
 
+    #[fail(display = "invalid network: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    InvalidNetwork(String, String),
+
     #[fail(display = "invalid address prefix: {:?}", _0)]
     InvalidPrefix(Vec<u8>),
 
@@ -36,7 +60,6 @@ pub enum AddressError {
 
     #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
-
 }
 
 impl From<&'static str> for AddressError {
@@ -85,27 +108,4 @@ impl From<std::str::Utf8Error> for AddressError {
     fn from(error: std::str::Utf8Error) -> Self {
         AddressError::Crate("std::str", format!("{:?}", error))
     }
-}
-
-/// The interface for a generic address.
-pub trait Address:
-    Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash
-{
-    type Format;
-    type Network;
-    type PrivateKey: PrivateKey;
-    type PublicKey: PublicKey;
-
-    /// Returns the address corresponding to the given private key.
-    fn from_private_key(
-        private_key: &Self::PrivateKey,
-        format: &Self::Format
-    ) -> Result<Self, AddressError>;
-
-    /// Returns the address corresponding to the given public key.
-    fn from_public_key(
-        public_key: &Self::PublicKey,
-        format: &Self::Format,
-        network: &Self::Network
-    ) -> Result<Self, AddressError>;
 }

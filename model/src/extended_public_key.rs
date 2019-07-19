@@ -4,6 +4,34 @@ use crate::public_key::{PublicKey, PublicKeyError};
 use std::{fmt::{Debug, Display}, str::FromStr};
 use crate::ExtendedPrivateKey;
 
+/// The interface for a generic extended public key.
+pub trait ExtendedPublicKey:
+    Clone
+    + Debug
+    + Display
+    + FromStr
+    + Send
+    + Sync
+    + 'static
+    + Eq
+    + Sized
+{
+    type Address: Address;
+    type ExtendedPrivateKey: ExtendedPrivateKey;
+    type Format;
+    type Network;
+    type PublicKey: PublicKey;
+
+    /// Returns the extended public key of the corresponding extended private key.
+    fn from_extended_private_key(private_key: &Self::ExtendedPrivateKey) -> Self;
+
+    /// Returns the public key of the corresponding extended public key.
+    fn to_public_key(&self) -> Self::PublicKey;
+
+    /// Returns the address of the corresponding extended public key.
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
+}
+
 #[derive(Debug, Fail)]
 pub enum ExtendedPublicKeyError {
 
@@ -33,7 +61,6 @@ pub enum ExtendedPublicKeyError {
 
     #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
-
 }
 
 impl From<PublicKeyError> for ExtendedPublicKeyError {
@@ -70,32 +97,4 @@ impl From<std::num::ParseIntError> for ExtendedPublicKeyError {
     fn from(error: std::num::ParseIntError) -> Self {
         ExtendedPublicKeyError::Crate("std::num", format!("{:?}", error))
     }
-}
-
-/// The interface for a generic extended public key.
-pub trait ExtendedPublicKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
-    type Address: Address;
-    type ExtendedPrivateKey: ExtendedPrivateKey;
-    type Format;
-    type Network;
-    type PublicKey: PublicKey;
-
-    /// Returns the extended public key of the corresponding extended private key.
-    fn from_extended_private_key(private_key: &Self::ExtendedPrivateKey) -> Self;
-
-    /// Returns the public key of the corresponding extended public key.
-    fn to_public_key(&self) -> Self::PublicKey;
-
-    /// Returns the address of the corresponding extended public key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
