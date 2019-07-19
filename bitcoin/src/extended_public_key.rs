@@ -1,6 +1,6 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
-use crate::network::Network;
+use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagu_model::{
     AddressError,
@@ -30,7 +30,7 @@ pub struct BitcoinExtendedPublicKey {
     /// The chain code from the extended private key
     pub chain_code: [u8; 32],
     /// The network of this extended public key
-    pub network: Network,
+    pub network: BitcoinNetwork,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -43,7 +43,7 @@ impl ExtendedPublicKey for BitcoinExtendedPublicKey {
     type Address = BitcoinAddress;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey;
     type Format = Format;
-    type Network = Network;
+    type Network = BitcoinNetwork;
     type PublicKey = BitcoinPublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -160,9 +160,9 @@ impl FromStr for BitcoinExtendedPublicKey {
 
         // TODO (howardwu): Move this to network.rs
         let network = if &data[0..4] == [0x04u8, 0x88, 0xB2, 0x1E] {
-            Network::Mainnet
+            BitcoinNetwork::Mainnet
         } else if &data[0..4] == [0x04u8, 0x35, 0x87, 0xCF] {
-            Network::Testnet
+            BitcoinNetwork::Testnet
         } else {
             return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
         };
@@ -206,8 +206,8 @@ impl fmt::Display for BitcoinExtendedPublicKey {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
         result[0..4].copy_from_slice(&match self.network {
-            Network::Mainnet => [0x04u8, 0x88, 0xB2, 0x1E],
-            Network::Testnet => [0x04u8, 0x35, 0x87, 0xCF],
+            BitcoinNetwork::Mainnet => [0x04u8, 0x88, 0xB2, 0x1E],
+            BitcoinNetwork::Testnet => [0x04u8, 0x35, 0x87, 0xCF],
         }[..]);
         result[4] = self.depth;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);

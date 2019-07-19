@@ -109,3 +109,9 @@ impl From<std::str::Utf8Error> for AddressError {
         AddressError::Crate("std::str", format!("{:?}", error))
     }
 }
+
+impl From<std::string::FromUtf8Error> for AddressError {
+    fn from(error: std::string::FromUtf8Error) -> Self {
+        AddressError::Crate("std::string", format!("{:?}", error))
+    }
+}

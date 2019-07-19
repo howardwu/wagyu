@@ -3,7 +3,7 @@
 //! A command-line tool to generate cryptocurrency wallets.
 
 use bitcoin::address::Format as BitcoinFormat;
-use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
+use bitcoin::{BitcoinAddress, BitcoinPrivateKey, BitcoinNetwork as BitcoinNetwork};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
 use monero::{MoneroAddress, MoneroPrivateKey, Network as MoneroNetwork};

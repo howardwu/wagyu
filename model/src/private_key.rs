@@ -17,11 +17,10 @@ pub trait PrivateKey:
 {
     type Address: Address;
     type Format;
-    type Network;
     type PublicKey: PublicKey;
 
     /// Returns a randomly-generated private key.
-    fn new(network: &Self::Network) -> Result<Self, PrivateKeyError>;
+    fn new() -> Result<Self, PrivateKeyError>;
 
     /// Returns the public key of the corresponding private key.
     fn to_public_key(&self) -> Self::PublicKey;

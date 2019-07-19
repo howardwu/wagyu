@@ -1,6 +1,6 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::extended_public_key::BitcoinExtendedPublicKey;
-use crate::network::Network;
+use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use wagu_model::{
@@ -32,7 +32,7 @@ pub struct BitcoinExtendedPrivateKey {
     /// The chain code for this extended private key
     pub chain_code: [u8; 32],
     /// The network of this extended private key
-    pub network: Network,
+    pub network: BitcoinNetwork,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -45,12 +45,12 @@ impl ExtendedPrivateKey for BitcoinExtendedPrivateKey {
     type Address = BitcoinAddress;
     type ExtendedPublicKey = BitcoinExtendedPublicKey;
     type Format = Format;
-    type Network = Network;
+    type Network = BitcoinNetwork;
     type PrivateKey = BitcoinPrivateKey;
     type PublicKey = BitcoinPublicKey;
 
     /// Returns a new Bitcoin extended private key.
-    fn new(seed: &[u8], network: &Network) -> Result<Self, ExtendedPrivateKeyError> {
+    fn new(seed: &[u8], network: &BitcoinNetwork) -> Result<Self, ExtendedPrivateKeyError> {
         BitcoinExtendedPrivateKey::new_master(seed, network)
     }
 
@@ -77,7 +77,7 @@ impl ExtendedPrivateKey for BitcoinExtendedPrivateKey {
 
 impl BitcoinExtendedPrivateKey {
     /// Returns a new Bitcoin extended master private key.
-    fn new_master(seed: &[u8], network: &Network) -> Result<Self, ExtendedPrivateKeyError> {
+    fn new_master(seed: &[u8], network: &BitcoinNetwork) -> Result<Self, ExtendedPrivateKeyError> {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
         mac.input(seed);
         let result = mac.result().code();
@@ -180,7 +180,7 @@ impl BitcoinExtendedPrivateKey {
     /// Returns the extended private key and chain code.
     pub fn derive_private_key_and_chain_code(
         result: &[u8],
-        network: &Network
+        network: &BitcoinNetwork
     ) -> Result<(BitcoinPrivateKey, [u8; 32]), ExtendedPrivateKeyError> {
         let private_key = BitcoinPrivateKey::from_secret_key(
             SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32])?,
@@ -206,9 +206,9 @@ impl FromStr for BitcoinExtendedPrivateKey {
 
         // TODO (howardwu): Move this to network.rs
         let network = if &data[0..4] == [0x04u8, 0x88, 0xAD, 0xE4] {
-            Network::Mainnet
+            BitcoinNetwork::Mainnet
         } else if &data[0..4] == [0x04u8, 0x35, 0x83, 0x94] {
-            Network::Testnet
+            BitcoinNetwork::Testnet
         } else {
             return Err(ExtendedPrivateKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
         };
@@ -246,8 +246,8 @@ impl Display for BitcoinExtendedPrivateKey {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
         result[0..4].copy_from_slice(&match self.network {
-            Network::Mainnet => [0x04, 0x88, 0xAD, 0xE4],
-            Network::Testnet => [0x04, 0x35, 0x83, 0x94],
+            BitcoinNetwork::Mainnet => [0x04, 0x88, 0xAD, 0xE4],
+            BitcoinNetwork::Testnet => [0x04, 0x35, 0x83, 0x94],
         }[..]);
         result[4] = self.depth;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
@@ -296,7 +296,7 @@ mod tests {
         seed: &str,
     ) {
         let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
-        let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet).unwrap();
+        let xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &BitcoinNetwork::Mainnet).unwrap();
         assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(0, xpriv.depth);
@@ -724,7 +724,7 @@ mod tests {
             // this tests for the retention of leading zeros
             let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[0];
             let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
-            let master_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet).unwrap();
+            let master_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &BitcoinNetwork::Mainnet).unwrap();
             assert_eq!(master_xpriv.to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.derivation_path(path).unwrap().to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.to_extended_public_key().to_string(), xpub_serialized);

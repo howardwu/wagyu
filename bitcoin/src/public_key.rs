@@ -1,86 +1,58 @@
 use crate::address::{BitcoinAddress, Format};
-use crate::network::Network;
+use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
 use std::str::FromStr;
 
 /// Represents a Bitcoin public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BitcoinPublicKey {
+pub struct BitcoinPublicKey<N: BitcoinNetwork> {
     /// The ECDSA public key
     pub public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
     pub compressed: bool,
+    /// PhantomData
+    pub _network: PhantomData<N>,
 }
 
-impl PublicKey for BitcoinPublicKey {
-    type Address = BitcoinAddress;
+impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
+    type Address = BitcoinAddress<N>;
     type Format = Format;
-    type Network = Network;
-    type PrivateKey = BitcoinPrivateKey;
+    type PrivateKey = BitcoinPrivateKey<N>;
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         let secp = secp256k1::Secp256k1::new();
         Self {
             public_key: secp256k1::PublicKey::from_secret_key(&secp, &private_key.secret_key),
-            compressed: private_key.compressed
+            compressed: private_key.compressed,
+            _network: PhantomData
         }
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(
-        &self,
-        format: &Self::Format,
-        network: &Self::Network
-    ) -> Result<Self::Address, AddressError> {
-        BitcoinAddress::from_public_key(self, format, network)
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
+        BitcoinAddress::<N>::from_public_key(self, format)
     }
 }
 
-//impl FromBytes for BitcoinPublicKey {
-//    #[inline]
-//    fn read<R: Read>(reader: R) -> IoResult<Self> {
-//        let mut f = reader;
-//        let mut buffer = Vec::new();
-//        f.read_to_end(&mut buffer)?;
-//
-//        let compressed: bool = match buffer.len() {
-//            33 => true,
-//            65 => false,
-//            len =>  { return Err(String::from_usize(len)); },
-//        };
-//
-//        let secp = secp256k1::Secp256k1::new();
-//        let public_key = secp256k1::PublicKey::from_slice(&secp, buffer.as_slice())?;
-//        Ok(Self { public_key, compressed })
-//    }
-//}
-//
-//impl ToBytes for BitcoinPublicKey {
-//    #[inline]
-//    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
-//        let mut buf = Vec::new();
-//        self.write_into(&mut buf);
-//        buf
-//    }
-//}
-
-impl FromStr for BitcoinPublicKey {
+impl <N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         Ok(Self {
             public_key: secp256k1::PublicKey::from_str(public_key)?,
-            compressed: public_key.len() == 66
+            compressed: public_key.len() == 66,
+            _network: PhantomData
         })
     }
 }
 
-impl Display for BitcoinPublicKey {
+impl <N: BitcoinNetwork> Display for BitcoinPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.compressed {
             for s in &self.public_key.serialize()[..] {
@@ -98,44 +70,47 @@ impl Display for BitcoinPublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
 
-    fn test_from_private_key(expected_public_key: &BitcoinPublicKey, private_key: &BitcoinPrivateKey) {
+    fn test_from_private_key<N: BitcoinNetwork>(
+        expected_public_key: &BitcoinPublicKey<N>,
+        private_key: &BitcoinPrivateKey<N>
+    ) {
         let public_key = BitcoinPublicKey::from_private_key(private_key);
         assert_eq!(*expected_public_key, public_key);
     }
 
-    fn test_to_address(
-        expected_address: &BitcoinAddress,
+    fn test_to_address<N: BitcoinNetwork>(
+        expected_address: &BitcoinAddress<N>,
         expected_format: &Format,
-        expected_network: &Network,
-        public_key: &BitcoinPublicKey
+        public_key: &BitcoinPublicKey<N>
     ) {
-        let address = public_key.to_address(expected_format, expected_network).unwrap();
+        let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str(
+    fn test_from_str<N: BitcoinNetwork>(
         expected_public_key: &str,
         expected_address: &str,
         expected_compressed: bool,
         expected_format: &Format,
-        expected_network: &Network
     ) {
-        let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
-        let address = public_key.to_address(expected_format, expected_network).unwrap();
+        let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
+        let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_compressed, public_key.compressed);
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*expected_format, address.format);
     }
 
-    fn test_to_str(expected_public_key: &str, public_key: &BitcoinPublicKey) {
+    fn test_to_str<N: BitcoinNetwork>(expected_public_key: &str, public_key: &BitcoinPublicKey<N>) {
         assert_eq!(expected_public_key, public_key.to_string());
     }
 
     mod p2pkh_mainnet_compressed {
         use super::*;
 
+        type N = Mainnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H",
@@ -167,8 +142,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(public_key).unwrap();
-                let private_key = BitcoinPrivateKey::from_str(&private_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -176,28 +151,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = BitcoinAddress::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &Network::Mainnet, &public_key);
+                let address = BitcoinAddress::<N>::from_str(address).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                test_to_address(&address, &Format::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
+                test_from_str::<N>(
                     expected_public_key,
                     expected_address,
                     true,
-                    &Format::P2PKH,
-                    &Network::Mainnet);
+                    &Format::P2PKH);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -206,6 +180,7 @@ mod tests {
     mod p2pkh_mainnet_uncompressed {
         use super::*;
 
+        type N = Mainnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "5KV26gjX4sYAkXvDnqZZuEyFUh1DKjgZ8wTKL7Fpm4ppJ8kpZQu",
@@ -237,8 +212,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(public_key).unwrap();
-                let private_key = BitcoinPrivateKey::from_str(&private_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -246,28 +221,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = BitcoinAddress::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &Network::Mainnet, &public_key);
+                let address = BitcoinAddress::<N>::from_str(address).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                test_to_address(&address, &Format::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
+                test_from_str::<N>(
                     expected_public_key,
                     expected_address,
                     false,
-                    &Format::P2PKH,
-                    &Network::Mainnet);
+                    &Format::P2PKH);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -276,6 +250,7 @@ mod tests {
     mod p2pkh_testnet_compressed {
         use super::*;
 
+        type N = Testnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "cNB6GpygWSZNRG5hotKjdAaNfgrzx984QYb2uj9rHpaCDkyy2aAz",
@@ -307,8 +282,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(public_key).unwrap();
-                let private_key = BitcoinPrivateKey::from_str(&private_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -316,28 +291,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = BitcoinAddress::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &Network::Testnet, &public_key);
+                let address = BitcoinAddress::<N>::from_str(address).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                test_to_address(&address, &Format::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
+                test_from_str::<N>(
                     expected_public_key,
                     expected_address,
                     true,
-                    &Format::P2PKH,
-                    &Network::Testnet);
+                    &Format::P2PKH);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -346,6 +320,7 @@ mod tests {
     mod p2pkh_testnet_uncompressed {
         use super::*;
 
+        type N = Testnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "93W1kMkD1kAfevtDQ3LWortt8zjKqSSqonLxPvWFqg57arcwUru",
@@ -377,8 +352,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(public_key).unwrap();
-                let private_key = BitcoinPrivateKey::from_str(&private_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -386,28 +361,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = BitcoinAddress::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &Network::Testnet, &public_key);
+                let address = BitcoinAddress::<N>::from_str(address).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                test_to_address(&address, &Format::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
+                test_from_str::<N>(
                     expected_public_key,
                     expected_address,
                     false,
-                    &Format::P2PKH,
-                    &Network::Testnet);
+                    &Format::P2PKH);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -416,6 +390,7 @@ mod tests {
     mod p2sh_p2wpkh_mainnet {
         use super::*;
 
+        type N = Mainnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJN",
@@ -447,8 +422,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(public_key).unwrap();
-                let private_key = BitcoinPrivateKey::from_str(&private_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -456,28 +431,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = BitcoinAddress::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &Format::P2SH_P2WPKH, &Network::Mainnet, &public_key);
+                let address = BitcoinAddress::<N>::from_str(address).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                test_to_address(&address, &Format::P2SH_P2WPKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
+                test_from_str::<N>(
                     expected_public_key,
                     expected_address,
                     true,
-                    &Format::P2SH_P2WPKH,
-                    &Network::Mainnet);
+                    &Format::P2SH_P2WPKH);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -486,6 +460,7 @@ mod tests {
     mod p2sh_p2wpkh_testnet {
         use super::*;
 
+        type N = Testnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "cPYtDeoeHg3wXp7hzcZ8Bu51HtN74yNdSDtdRuXamKCyzvU2oQM2",
@@ -517,8 +492,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(public_key).unwrap();
-                let private_key = BitcoinPrivateKey::from_str(&private_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -526,28 +501,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = BitcoinAddress::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &Format::P2SH_P2WPKH, &Network::Testnet, &public_key);
+                let address = BitcoinAddress::<N>::from_str(address).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                test_to_address(&address, &Format::P2SH_P2WPKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
+                test_from_str::<N>(
                     expected_public_key,
                     expected_address,
                     true,
-                    &Format::P2SH_P2WPKH,
-                    &Network::Testnet);
+                    &Format::P2SH_P2WPKH);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = BitcoinPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -556,44 +530,48 @@ mod tests {
     #[test]
     fn test_p2pkh_invalid() {
 
+        type N = Mainnet;
+
         // Invalid public key length
 
         let public_key = "0";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
     }
 
     #[test]
     fn test_p2sh_p2wpkh_invalid() {
 
+        type N = Mainnet;
+
         // Invalid public key length
 
         let public_key = "0";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "02468791fee1444df3a6e786e2f9da79198";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab402468791fee1444df3a6e786e2f9da79198";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab402468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab4";
-        assert!(BitcoinPublicKey::from_str(public_key).is_err());
+        assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
     }
 }
