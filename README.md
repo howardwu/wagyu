@@ -1,7 +1,7 @@
 # wagu
 
 [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
-[![Travis (.com)](https://travis-ci.com/ArgusHQ/wagu.svg)](https://travis-ci.com/ArgusHQ/wagu)
+![Travis (.com) branch](https://img.shields.io/travis/com/ArgusHQ/wagu/v0.6.0.svg)
 [![Codecov](https://img.shields.io/codecov/c/github/ArgusHQ/wagu.svg)](https://codecov.io/gh/ArgusHQ/wagu)
 [![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
 [![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
