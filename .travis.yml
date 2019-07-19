@@ -10,13 +10,6 @@ rust:
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
-      - binutils-dev
-      - libiberty-dev
       - libssl-dev
 
 before_cache: |
@@ -28,7 +21,7 @@ script: cargo test --all
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
-    cargo tarpaulin --out Xml
+    cargo tarpaulin --out Xml --all
     bash <(curl -s https://codecov.io/bash)
   fi
   
