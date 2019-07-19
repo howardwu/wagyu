@@ -92,18 +92,6 @@ pub enum SigHashCode {
     SIGHASH_ANYONECANPAY = 128,
 }
 
-/// Returns the value of the signature hash opcode
-impl SigHashCode {
-    fn value(&self) -> u32 {
-        match *self {
-            SigHashCode::SIGHASH_ALL => 1,
-            SigHashCode::SIGHASH_NONE => 2,
-            SigHashCode::SIGHASH_SINGLE => 3,
-            SigHashCode::SIGHASH_ANYONECANPAY => 128
-        }
-    }
-}
-
 /// Represents the commonly used script opcodes
 #[allow(non_camel_case_types)]
 pub enum OPCodes {
