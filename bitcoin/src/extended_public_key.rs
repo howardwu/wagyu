@@ -82,7 +82,7 @@ impl BitcoinExtendedPublicKey {
             return Ok(self.clone())
         }
 
-        let mut xpub = self.clone();
+        let mut extended_public_key = self.clone();
         for (i, child_str) in path_vec[1..].iter_mut().enumerate() {
             let mut child_num = 0u32;
 
@@ -96,10 +96,10 @@ impl BitcoinExtendedPublicKey {
                 };
                 child_num.add_assign(child_num_u32);
             }
-            xpub = xpub.ckd_pub(child_num)?;
+            extended_public_key = extended_public_key.ckd_pub(child_num)?;
         }
 
-        Ok(xpub)
+        Ok(extended_public_key)
     }
 
     /// Returns the child extended public key for the given child number.
@@ -236,69 +236,69 @@ mod tests {
         expected_depth: u8,
         expected_parent_fingerprint: &str,
         expected_child_number: u32,
-        expected_xpub_serialized: &str
+        expected_extended_public_key_serialized: &str
     ) {
-        let xpub = BitcoinExtendedPublicKey::from_str(&expected_xpub_serialized).unwrap();
-        assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
-        assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
-        assert_eq!(expected_depth, xpub.depth);
-        assert_eq!(expected_parent_fingerprint, hex::encode(xpub.parent_fingerprint));
-        assert_eq!(expected_child_number, xpub.child_number);
-        assert_eq!(expected_xpub_serialized, xpub.to_string());
+        let extended_public_key = BitcoinExtendedPublicKey::from_str(&expected_extended_public_key_serialized).unwrap();
+        assert_eq!(expected_public_key, extended_public_key.public_key.public_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
+        assert_eq!(expected_depth, extended_public_key.depth);
+        assert_eq!(expected_parent_fingerprint, hex::encode(extended_public_key.parent_fingerprint));
+        assert_eq!(expected_child_number, extended_public_key.child_number);
+        assert_eq!(expected_extended_public_key_serialized, extended_public_key.to_string());
     }
 
     fn test_from_private(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
-        expected_xpub_serialized: &str,
-        xpriv_serialized: &str
+        expected_extended_public_key_serialized: &str,
+        extended_private_key_serialized: &str
     ) {
-        let xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-        let xpub = BitcoinExtendedPublicKey::from_extended_private_key(&xpriv);
-        assert_eq!(expected_public_key, xpub.public_key.public_key.to_string());
-        assert_eq!(expected_chain_code, hex::encode(xpub.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(xpub.parent_fingerprint));
-        assert_eq!(expected_xpub_serialized, xpub.to_string());
+        let extended_private_key = BitcoinExtendedPrivateKey::from_str(extended_private_key_serialized).unwrap();
+        let extended_public_key = BitcoinExtendedPublicKey::from_extended_private_key(&extended_private_key);
+        assert_eq!(expected_public_key, extended_public_key.public_key.public_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
+        assert_eq!(expected_parent_fingerprint, hex::encode(extended_public_key.parent_fingerprint));
+        assert_eq!(expected_extended_public_key_serialized, extended_public_key.to_string());
     }
 
     fn test_ckd_pub(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
-        expected_xpub_serialized: &str,
-        parent_xpub: &BitcoinExtendedPublicKey,
+        expected_extended_public_key_serialized: &str,
+        parent_extended_public_key: &BitcoinExtendedPublicKey,
         child_number: u32,
     ) -> BitcoinExtendedPublicKey {
-        let child_xpub = parent_xpub.ckd_pub(child_number).unwrap();
-        assert_eq!(expected_public_key, child_xpub.public_key.public_key.to_string());
-        assert_eq!(expected_chain_code, hex::encode(child_xpub.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(child_xpub.parent_fingerprint));
-        assert_eq!(expected_xpub_serialized, child_xpub.to_string());
-        assert_eq!(child_number, child_xpub.child_number);
+        let child_extended_public_key = parent_extended_public_key.ckd_pub(child_number).unwrap();
+        assert_eq!(expected_public_key, child_extended_public_key.public_key.public_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(child_extended_public_key.chain_code));
+        assert_eq!(expected_parent_fingerprint, hex::encode(child_extended_public_key.parent_fingerprint));
+        assert_eq!(expected_extended_public_key_serialized, child_extended_public_key.to_string());
+        assert_eq!(child_number, child_extended_public_key.child_number);
 
-        child_xpub
+        child_extended_public_key
     }
 
     fn test_derivation_path(
         expected_public_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
-        expected_xpub_serialized: &str,
-        parent_xpub: &BitcoinExtendedPublicKey,
+        expected_extended_public_key_serialized: &str,
+        parent_extended_public_key: &BitcoinExtendedPublicKey,
         path: &str,
     ) {
-        let derived_xpub = parent_xpub.derivation_path(path).unwrap();
-        assert_eq!(expected_public_key, derived_xpub.public_key.public_key.to_string());
-        assert_eq!(expected_chain_code, hex::encode(derived_xpub.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(derived_xpub.parent_fingerprint));
-        assert_eq!(expected_xpub_serialized, derived_xpub.to_string());
+        let derived_extended_public_key = parent_extended_public_key.derivation_path(path).unwrap();
+        assert_eq!(expected_public_key, derived_extended_public_key.public_key.public_key.to_string());
+        assert_eq!(expected_chain_code, hex::encode(derived_extended_public_key.chain_code));
+        assert_eq!(expected_parent_fingerprint, hex::encode(derived_extended_public_key.parent_fingerprint));
+        assert_eq!(expected_extended_public_key_serialized, derived_extended_public_key.to_string());
     }
 
     mod bip32_default {
         use super::*;
 
-        // (depth, master_seed, public_key, chain_code, parent_fingerprint, xpriv_serialized, xpub_serialized)
+        // (depth, master_seed, public_key, chain_code, parent_fingerprint, extended_private_key_serialized, extended_public_key_serialized)
         const KEYPAIR_TREE_HARDENED: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
             (
                 "0x00",
@@ -320,7 +320,7 @@ mod tests {
             )
         ];
 
-        // (depth, master_seed, secret_key, chain_code, parent_fingerprint, xpriv_serialized, xpub_serialized)
+        // (depth, master_seed, secret_key, chain_code, parent_fingerprint, extended_private_key_serialized, extended_public_key_serialized)
         const KEYPAIR_TREE_NORMAL: [(&str, &str, &str, &str, &str, &str, &str); 2] = [
             (
                 "0x00",
@@ -351,7 +351,7 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 _,
-                xpub
+                extended_public_key
             ) = KEYPAIR_TREE_HARDENED[0];
             test_from_str(
                 public_key,
@@ -359,7 +359,7 @@ mod tests {
                 0,
                 parent_fingerprint,
                 0,
-                xpub
+                extended_public_key
             );
         }
 
@@ -372,7 +372,7 @@ mod tests {
                 chain_code,
                 parent_fingerprint,
                 _,
-                xpub
+                extended_public_key
             ) = KEYPAIR_TREE_NORMAL[0];
             test_from_str(
                 public_key,
@@ -380,7 +380,7 @@ mod tests {
                 0,
                 parent_fingerprint,
                 0,
-                xpub
+                extended_public_key
             );
         }
 
@@ -392,15 +392,15 @@ mod tests {
                 public_key,
                 chain_code,
                 parent_fingerprint,
-                xpriv,
-                xpub
+                extended_private_key,
+                extended_public_key
             ) = KEYPAIR_TREE_HARDENED[0];
             test_from_private(
                 public_key,
                 chain_code,
                 parent_fingerprint,
-                xpub,
-                xpriv
+                extended_public_key,
+                extended_private_key
             );
         }
 
@@ -412,23 +412,23 @@ mod tests {
                 public_key,
                 chain_code,
                 parent_fingerprint,
-                xpriv,
-                xpub
+                extended_private_key,
+                extended_public_key
             ) = KEYPAIR_TREE_NORMAL[0];
             test_from_private(
                 public_key,
                 chain_code,
                 parent_fingerprint,
-                xpub,
-                xpriv
+                extended_public_key,
+                extended_private_key
             );
         }
 
         #[test]
         fn test_ckd_pub_normal() {
-            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-            let mut parent_xpub = parent_xpriv.to_extended_public_key();
+            let (_, _, _, _, _, extended_private_key_serialized, _) = KEYPAIR_TREE_NORMAL[0];
+            let parent_extended_private_key = BitcoinExtendedPrivateKey::from_str(extended_private_key_serialized).unwrap();
+            let mut parent_extended_public_key = parent_extended_private_key.to_extended_public_key();
             for (i,
                 (
                     _,
@@ -437,15 +437,15 @@ mod tests {
                     chain_code,
                     parent_fingerprint,
                     _,
-                    xpub
+                    extended_public_key
                 )
             ) in KEYPAIR_TREE_NORMAL[1..].iter_mut().enumerate() {
-                parent_xpub = test_ckd_pub(
+                parent_extended_public_key = test_ckd_pub(
                     public_key,
                     chain_code,
                     parent_fingerprint,
-                    xpub,
-                    &parent_xpub,
+                    extended_public_key,
+                    &parent_extended_public_key,
                     i as u32,
                 );
             }
@@ -454,17 +454,17 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidChildNumber(2147483648, 2147483648)")]
         fn test_ckd_pub_hardened_panic() {
-            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.ckd_pub(2_u32.pow(31)).unwrap();
+            let (_, _, _, _, _, extended_private_key_serialized, _) = KEYPAIR_TREE_HARDENED[0];
+            let parent_extended_private_key = BitcoinExtendedPrivateKey::from_str(&extended_private_key_serialized).unwrap();
+            let parent_extended_public_key = parent_extended_private_key.to_extended_public_key();
+            let _result = parent_extended_public_key.ckd_pub(2_u32.pow(31)).unwrap();
         }
 
         #[test]
         fn test_derivation_path_normal() {
-            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_NORMAL[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(xpriv_serialized).unwrap();
-            let parent_xpub = parent_xpriv.to_extended_public_key();
+            let (_, _, _, _, _, extended_private_key_serialized, _) = KEYPAIR_TREE_NORMAL[0];
+            let parent_extended_private_key = BitcoinExtendedPrivateKey::from_str(extended_private_key_serialized).unwrap();
+            let parent_extended_public_key = parent_extended_private_key.to_extended_public_key();
             for (_,
                 (
                     _,
@@ -473,15 +473,15 @@ mod tests {
                     chain_code,
                     parent_fingerprint,
                     _,
-                    xpub
+                    extended_public_key
                 )
             ) in KEYPAIR_TREE_NORMAL[1..].iter_mut().enumerate() {
                 test_derivation_path(
                     public_key,
                     chain_code,
                     parent_fingerprint,
-                    xpub,
-                    &parent_xpub,
+                    extended_public_key,
+                    &parent_extended_public_key,
                     path,
                 );
             }
@@ -490,10 +490,10 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn test_derivation_path_hardened_panic() {
-            let (_, _, _, _, _, xpriv_serialized, _) = KEYPAIR_TREE_HARDENED[0];
-            let parent_xpriv = BitcoinExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            let parent_xpub = parent_xpriv.to_extended_public_key();
-            let _result = parent_xpub.derivation_path("m/0'").unwrap();
+            let (_, _, _, _, _, extended_private_key_serialized, _) = KEYPAIR_TREE_HARDENED[0];
+            let parent_extended_private_key = BitcoinExtendedPrivateKey::from_str(&extended_private_key_serialized).unwrap();
+            let parent_extended_public_key = parent_extended_private_key.to_extended_public_key();
+            let _result = parent_extended_public_key.derivation_path("m/0'").unwrap();
         }
     }
 
@@ -503,40 +503,40 @@ mod tests {
         const INVALID_PATH: &str = "/0";
         const INVALID_PATH_HARDENED: &str = "m/a'";
         const INVALID_PATH_NORMAL: &str = "m/a";
-        const INVALID_XPUB_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-        const INVALID_XPUB_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-        const INVALID_XPUB_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
-        const VALID_XPUB: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-        const VALID_XPUB_FINAL: &str = "xpubEND4cWBkwMUcwj3bjw4RNYcpnuvgbEaGSCAujB1XQro3Ptpvs8hDMFsBmk1mhfz9sGc3k4XPpueGAcR66Kb7HMXwfnKKBaV3i7YyMxLuwKh";
+        const INVALID_EXTENDED_PUBLIC_KEY_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
+        const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const VALID_EXTENDED_PUBLIC_KEY_FINAL: &str = "xpubEND4cWBkwMUcwj3bjw4RNYcpnuvgbEaGSCAujB1XQro3Ptpvs8hDMFsBmk1mhfz9sGc3k4XPpueGAcR66Kb7HMXwfnKKBaV3i7YyMxLuwKh";
 
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_PUBLIC_KEY).unwrap();
+            let _result = BitcoinExtendedPublicKey::from_str(INVALID_EXTENDED_PUBLIC_KEY_PUBLIC_KEY).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidNetworkBytes([4, 136, 178, 29])")]
         fn from_str_invalid_network() {
-            let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_NETWORK).unwrap();
+            let _result = BitcoinExtendedPublicKey::from_str(INVALID_EXTENDED_PUBLIC_KEY_NETWORK).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidChecksum(\"5Nvot3\", \"5Nvot4\")")]
         fn from_str_invalid_checksum() {
-            let _result = BitcoinExtendedPublicKey::from_str(INVALID_XPUB_CHECKSUM).unwrap();
+            let _result = BitcoinExtendedPublicKey::from_str(INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
-            let _result = BitcoinExtendedPublicKey::from_str(&VALID_XPUB[1..]).unwrap();
+            let _result = BitcoinExtendedPublicKey::from_str(&VALID_EXTENDED_PUBLIC_KEY[1..]).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(83)")]
         fn from_str_long() {
-            let mut string = String::from(VALID_XPUB);
+            let mut string = String::from(VALID_EXTENDED_PUBLIC_KEY);
             string.push('a');
             let _result = BitcoinExtendedPublicKey::from_str(&string).unwrap();
         }
@@ -544,33 +544,33 @@ mod tests {
         #[test]
         #[should_panic(expected = "MaximumChildDepthReached(255)")]
         fn ckd_pub_max_depth() {
-            let mut xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
+            let mut extended_public_key = BitcoinExtendedPublicKey::from_str(VALID_EXTENDED_PUBLIC_KEY).unwrap();
             for _ in 0..255 {
-                xpub = xpub.ckd_pub(0).unwrap();
+                extended_public_key = extended_public_key.ckd_pub(0).unwrap();
             }
-            assert_eq!(xpub.to_string(), VALID_XPUB_FINAL);
-            let _result = xpub.ckd_pub(0).unwrap();
+            assert_eq!(extended_public_key.to_string(), VALID_EXTENDED_PUBLIC_KEY_FINAL);
+            let _result = extended_public_key.ckd_pub(0).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"m\", \"\")")]
         fn derivation_path_invalid() {
-            let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH).unwrap();
+            let extended_public_key = BitcoinExtendedPublicKey::from_str(VALID_EXTENDED_PUBLIC_KEY).unwrap();
+            let _result = extended_public_key.derivation_path(INVALID_PATH).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\")")]
         fn derivation_path_invalid_digit_normal() {
-            let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_NORMAL).unwrap();
+            let extended_public_key = BitcoinExtendedPublicKey::from_str(VALID_EXTENDED_PUBLIC_KEY).unwrap();
+            let _result = extended_public_key.derivation_path(INVALID_PATH_NORMAL).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidDerivationPath(\"\", \"\\'\")")]
         fn derivation_path_invalid_digit_hardened() {
-            let xpub = BitcoinExtendedPublicKey::from_str(VALID_XPUB).unwrap();
-            let _result = xpub.derivation_path(INVALID_PATH_HARDENED).unwrap();
+            let extended_public_key = BitcoinExtendedPublicKey::from_str(VALID_EXTENDED_PUBLIC_KEY).unwrap();
+            let _result = extended_public_key.derivation_path(INVALID_PATH_HARDENED).unwrap();
         }
     }
 }
