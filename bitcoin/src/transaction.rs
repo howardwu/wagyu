@@ -5,7 +5,7 @@ use std::str::FromStr;
 use base58::{FromBase58};
 use secp256k1::Secp256k1;
 use sha2::{Digest, Sha256};
-use wagu_model::{PrivateKey, AddressError};
+use wagu_model::{PrivateKey, AddressError, crypto::hash160};
 use bech32::{Bech32,FromBase32};
 use crate::witness_program::WitnessProgram;
 
@@ -345,6 +345,8 @@ impl BitcoinTransaction {
 }
 
 impl BitcoinTransactionInput {
+    const DEFAULT_SEQUENCE: [u8; 4] =  [0xff, 0xff, 0xff, 0xff];
+
     /// Create a new Bitcoin Transaction input without the script
     pub fn new(
         address_format: Format,
@@ -360,13 +362,8 @@ impl BitcoinTransactionInput {
             return Err("invalid transaction id");
         }
 
-        if amount.is_none() && redeem_script.is_none() && script_pub_key.is_none() {
-            return Err("insufficient information to craft transaction input");
-        }
-
-        let default_sequence_number: Vec<u8> = vec![0xff, 0xff, 0xff, 0xff];
         let sequence = match sequence {
-            None => default_sequence_number,
+            None => BitcoinTransactionInput::DEFAULT_SEQUENCE.to_vec(),
             Some(sequence) => sequence
         };
 
@@ -503,8 +500,12 @@ pub fn valiate_address_format (address_format: Format, redeem_script: Option<Vec
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
     let op_equal = OPCodes::OP_EQUAL as u8;
 
-    if script_pub_key.is_none() && redeem_script.is_none(){
-        Err("redeem script and script_pub_key are both None")
+    if amount.is_none() && redeem_script.is_none() && script_pub_key.is_none() {
+        return Err("insufficient information to craft transaction input");
+    } else if amount.is_none() && (address_format != Format::P2PKH) {
+        return Err("invalid utxo amount");
+    } else if script_pub_key.is_none() && redeem_script.is_none(){
+        Err("redeem script and script public key are not provided")
     } else if redeem_script.is_none() && amount.is_none() {
         Ok(address_format == Format::P2PKH)
     } else {
@@ -549,7 +550,7 @@ pub fn variable_integer_length (size: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[derive(Clone)]
     pub struct Input {
         pub private_key: &'static str,
@@ -593,14 +594,24 @@ mod tests {
     ) {
         let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
         for input in &inputs {
+            let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
             let transaction_id = hex::decode(input.transaction_id).unwrap();
+
             let redeem_script = match input.redeem_script {
-                None => None,
+                None => {
+                    if input.address_format == Format::P2SH_P2WPKH {
+                        let mut redeem_script: Vec<u8> = vec![0x00, 0x14];
+                        redeem_script.extend(&hash160(&private_key.to_public_key().public_key.serialize()));
+                        Some(redeem_script)
+                    } else {
+                        None
+                    }
+                },
                 Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
             };
             let script_pub_key = match input.script_pub_key {
                 None => {
-                    let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
+
                     let address = private_key.to_address(&input.address_format);
                     Some(generate_script_pub_key(&address.unwrap().to_string()).unwrap().script)
                 }
@@ -690,7 +701,7 @@ mod tests {
                       address_format: Format::P2SH_P2WPKH,
                       transaction_id: "77541aeb3c4dac9260b68f74f44c973081a9d4cb2ebe8038b2d70faa201b6bdb",
                       index: 1,
-                      redeem_script: Some("001479091972186c449eb1ded22b78e40d009bdf0089"),
+                      redeem_script: None,
                       script_pub_key: None,
                       utxo_amount: Some(1000000000),
                       sequence: Some([0xfe, 0xff, 0xff, 0xff]),
@@ -723,7 +734,7 @@ mod tests {
                       address_format: Format::P2SH_P2WPKH,
                       transaction_id: "80d9a1dc460da39c0fbbc0415c7cebf305cea2aa2d1de1a64d0bf4e4e541e513",
                       index: 1,
-                      redeem_script: Some("0014e709f020a951e483eb6628e0ee9abce30da49ffb"),
+                      redeem_script: None,
                       script_pub_key: None,
                       utxo_amount: Some(50000),
                       sequence: Some([0xff, 0xff, 0xff, 0xff]),
@@ -753,7 +764,7 @@ mod tests {
                       address_format: Format::P2SH_P2WPKH,
                       transaction_id: "375e1622b2690e395df21b33192bad06d2706c139692d43ea84d38df3d183313",
                       index: 0,
-                      redeem_script: Some("0014b93f973eb2bf0b614bddc0f47286788c98c535b4"),
+                      redeem_script: Some("0014b93f973eb2bf0b614bddc0f47286788c98c535b4"), // Manually specify redeem_script
                       script_pub_key: None,
                       utxo_amount: Some(1000000000),
                       sequence: Some([0xfe, 0xff, 0xff, 0xff]),
@@ -829,7 +840,7 @@ mod tests {
                       address_format: Format::P2SH_P2WPKH,
                       transaction_id: "7c95424e4c86467eaea85b878985fa77d191bad2b9c5cac5a0cb98f760616afa",
                       index: 55,
-                      redeem_script: Some("00143d295b6276ff8e4579f3350873db3e839e230f41"),
+                      redeem_script: None,
                       script_pub_key: None,
                       utxo_amount: Some(2000000),
                       sequence: Some([0xff, 0xff, 0xff, 0xff]),
@@ -873,7 +884,7 @@ mod tests {
                       address_format: Format::P2SH_P2WPKH,
                       transaction_id: "93ca92c0653260994680a4caa40cfc7b0aac02a077c4f022b007813d6416c70d",
                       index: 1,
-                      redeem_script: Some("00142b654d833c287e239f73ba8165bbadf4dee3c00e"),
+                      redeem_script: None,
                       script_pub_key: None,
                       utxo_amount: Some(100000),
                       sequence: Some([0xff, 0xff, 0xff, 0xff]),
@@ -938,7 +949,7 @@ mod tests {
                       address_format: Format::P2SH_P2WPKH,
                       transaction_id: "1a2290470e0aa7549ab1e04b2453274374149ffee517a57715e5206e4142c233",
                       index: 1,
-                      redeem_script: Some("00142b654d833c287e239f73ba8165bbadf4dee3c00e"),
+                      redeem_script: None,
                       script_pub_key: None,
                       utxo_amount: Some(1500000),
                       sequence: Some([0xff, 0xff, 0xff, 0xff]),
@@ -972,7 +983,7 @@ mod tests {
                       transaction_id: "9f96ade4b41d5433f4eda31e1738ec2b36f6e7d1420d94a6af99801a88f7f7ff",
                       index: 0,
                       redeem_script: None,
-                      script_pub_key: Some("2103c9f4836b9a4f77fc0d81f7bcb01b7f1b35916864b9476c241ce9fc198bd25432ac"),
+                      script_pub_key: Some("76a9148631bf621f7c6671f8d2d646327b636cbbe79f8c88ac"), // Manually specify script_pub_key
                       utxo_amount: None,
                       sequence: Some([0xee, 0xff, 0xff, 0xff]),
                       sig_hash_code: SigHashCode::SIGHASH_ALL
@@ -1006,7 +1017,7 @@ mod tests {
                   },
                   OUTPUT_FILLER
               ],
-              "01000000000102fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f000000006a47304402200bb07602c18f28c100228d66bb9609dad2cda80ed6a9ba65dce3060ef60de9cc02206aa0abb2449fc8ee215f8fab4ad19978981c85c551290b0d61e1e64aa40422f3012103f4edae249cb015280d48cae959d1823440eeab74f9fc9752a8a18cba76c892b6eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff030a0000000000000016001443b957dcac4c405e77dffce035152e8154fcce4763c55400000000001976a9146504e4b146b24898cf7881b0bdcd059dc35dd5a888aca71d8c000000000017a91463c110106d813c69514b3d97e1a1e6c94ad1b56a870002483045022100cfff608b18a97cc46cf8d22e97e78b22343cfcc19028918a5cd06fc9031f532302201b877de8872619a832387d7d0e15482521e449ce0d4daeb2d080995317883cd60121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635700000000"
+              "01000000000102fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f000000006b4830450221009eed10e4b7cc9eb23efc36dc9b0907d0b4dd224ae5d0ee9c92d7912c9a9cde7e02203ede96d667901abfb9f3997aba8e08c6b9de218db920916203f2632c713cd99c012103f4edae249cb015280d48cae959d1823440eeab74f9fc9752a8a18cba76c892b6eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff030a0000000000000016001443b957dcac4c405e77dffce035152e8154fcce4763c55400000000001976a9146504e4b146b24898cf7881b0bdcd059dc35dd5a888aca71d8c000000000017a91463c110106d813c69514b3d97e1a1e6c94ad1b56a870002483045022100cfff608b18a97cc46cf8d22e97e78b22343cfcc19028918a5cd06fc9031f532302201b877de8872619a832387d7d0e15482521e449ce0d4daeb2d080995317883cd60121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635700000000"
             )
         ];
 
