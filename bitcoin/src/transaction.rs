@@ -5,7 +5,7 @@ use std::str::FromStr;
 use base58::{FromBase58};
 use secp256k1::Secp256k1;
 use sha2::{Digest, Sha256};
-use wagu_model::{PrivateKey, AddressError, crypto::hash160};
+use wagu_model::{PrivateKey, AddressError};
 use bech32::{Bech32,FromBase32};
 use crate::witness_program::WitnessProgram;
 
@@ -192,7 +192,6 @@ impl BitcoinTransaction {
                                 address_format: Format
     ) -> Result<Vec<u8>, std::io::Error> {
         let input = &self.inputs[input_index];
-
         let transaction_hash_preimage  = if input.out_point.address.format == Format::P2PKH {
             self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?
         } else {
@@ -371,7 +370,14 @@ impl BitcoinTransactionInput {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        valiate_address_format(address.format.clone(), redeem_script.clone(), script_pub_key.clone(), amount)?;
+        let script_pub_key = match script_pub_key {
+            None => {
+                Some(generate_script_pub_key(&address.address).unwrap().script)
+            }
+            Some (script) => Some(script)
+        };
+
+        validate_address_format(address.format.clone(), redeem_script.clone(), script_pub_key.clone(), amount)?;
         let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address };
 
         Ok(Self { out_point, script: None, sequence, sig_hash_code, witness_count: None,  witnesses: vec![] })
@@ -493,21 +499,21 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressE
     Ok(Script { script_length, script })
 }
 
-// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
-pub fn valiate_address_format (address_format: Format, redeem_script: Option<Vec<u8>>, script_pub_key: Option<Vec<u8>>, amount: Option<u64>) -> Result<bool,  &'static str> {
+/// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
+pub fn validate_address_format (address_format: Format, redeem_script: Option<Vec<u8>>, script_pub_key: Option<Vec<u8>>, amount: Option<u64>) -> Result<bool,  &'static str> {
     let op_dup = OPCodes::OP_DUP as u8;
     let op_hash160 = OPCodes::OP_HASH160 as u8;
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
     let op_equal = OPCodes::OP_EQUAL as u8;
 
-    if amount.is_none() && redeem_script.is_none() && script_pub_key.is_none() {
-        return Err("insufficient information to craft transaction input");
-    } else if amount.is_none() && (address_format != Format::P2PKH) {
-        return Err("invalid utxo amount");
-    } else if script_pub_key.is_none() && redeem_script.is_none(){
-        Err("redeem script and script public key are not provided")
+    if (amount.is_none() || redeem_script.is_none()) && address_format == Format::P2SH_P2WPKH {
+        return Err("insufficient information to craft P2SH_P2WPKH transaction input");
+    } else if amount.is_none() && address_format == Format::Bech32 {
+        return Err("insufficient information to craft Bech32 transaction input");
     } else if redeem_script.is_none() && amount.is_none() {
         Ok(address_format == Format::P2PKH)
+    } else if redeem_script.is_none() && amount.is_some() {
+        Ok(address_format == Format::Bech32)
     } else {
         let script_pub_key = script_pub_key.unwrap();
         if script_pub_key[0] == op_dup && script_pub_key[1] == op_hash160 && script_pub_key[script_pub_key.len() -1] == op_checksig {
@@ -516,9 +522,8 @@ pub fn valiate_address_format (address_format: Format, redeem_script: Option<Vec
             script_pub_key[script_pub_key.len() -1] == op_equal
         {
             Ok(address_format == Format::P2SH_P2WPKH || address_format == Format::Bech32)
-
         } else {
-            Ok(address_format == Format::P2SH_P2WPKH || address_format == Format::Bech32) // UNIMPLEMENTED - P2SH SPENDING
+            Ok(address_format == Format::P2SH_P2WPKH || address_format == Format::Bech32) // UNIMPLEMENTED - P2SH/P2WSH SPENDING
         }
     }
 }
@@ -550,6 +555,7 @@ pub fn variable_integer_length (size: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wagu_model::crypto::hash160;
 
     #[derive(Clone)]
     pub struct Input {
@@ -611,9 +617,7 @@ mod tests {
                 Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
             };
             let script_pub_key = match input.script_pub_key {
-                None => {
-                    Some(generate_script_pub_key(&address.address).unwrap().script)
-                }
+                None => None,
                 Some (script) => Some(hex::decode(script).unwrap())
             };
 
@@ -1044,10 +1048,10 @@ mod tests {
     mod test_invalid_transactions {
         use super::*;
 
-        const INVALID_INPUTS: [Input; 6] = [
+        const INVALID_INPUTS: [Input; 8] = [
             Input {
-                private_key: "5Jw9jJvvzjQGoQq2TDQau1EGu8hegDqy3TdWeFc33wNFQANYzoh",
-                address_format: Format::P2PKH,
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
                 redeem_script: None,
@@ -1058,8 +1062,8 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
-                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                address_format: Format::P2PKH,
+                transaction_id: "7dabce",
                 index: 0,
                 redeem_script: None,
                 script_pub_key: None,
@@ -1074,7 +1078,7 @@ mod tests {
                 index: 0,
                 redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
                 script_pub_key: None,
-                utxo_amount: None,
+                utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sig_hash_code: SigHashCode::SIGHASH_ALL
             },
@@ -1085,7 +1089,7 @@ mod tests {
                 index: 0,
                 redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
                 script_pub_key: None,
-                utxo_amount: None,
+                utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sig_hash_code: SigHashCode::SIGHASH_ALL
             },
@@ -1095,6 +1099,28 @@ mod tests {
                 transaction_id: "7dabce588a8a57786790d27810514f5ffccff4148a8105894da57c985d02cdbb7dabce",
                 index: 0,
                 redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::Bech32,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::Bech32,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
                 script_pub_key: None,
                 utxo_amount: None,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
