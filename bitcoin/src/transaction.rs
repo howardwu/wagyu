@@ -549,7 +549,7 @@ pub fn variable_integer_length (size: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    
     #[derive(Clone)]
     pub struct Input {
         pub private_key: &'static str,
@@ -962,7 +962,7 @@ mod tests {
               ],
               "0200000000010133c242416e20e51577a517e5fe9f1474432753244be0b19a54a70a0e4790221a01000000171600142b654d833c287e239f73ba8165bbadf4dee3c00effffffff0200e1f505000000002a5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6a17f880200000000160014070c01553e70b338ebd05a1cb55169d55e80d59c02483045022100b5cf710307329d8634842c1894057ef243e172284e0908b215479e3b1889f62302205dfdd0287899e3034c95526bcfb1f437a0ca66de42a63c3c36aabb5b893459fb012102d9c6aaa344ee7cc41466e4705780020deb70720bef8ddb9b4e83e75df02e1d8600000000"
             ),
-            ( //test
+            ( // p2pkh and bech32(p2wpkh) to multiple address types
               1,
               0,
               [
@@ -1160,6 +1160,227 @@ mod tests {
                 assert!(invalid_output.is_err());
             }
         }
+    }
 
+    mod test_real_mainnet_transactions {
+        use super::*;
+
+        const REAL_TRANSACTIONS: [(
+            u32,
+            u32,
+            [Input; 4],
+            [Output; 4],
+            &str
+        ); 5] = [
+            ( // Transaction 1 -> Segwit P2SH_P2WPKH to P2PKH and Bech32(P2WPKH) (60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c)
+              1,
+              0,
+              [
+                  Input {
+                      private_key: "L1fUQgwdWcqGUAr3kFznuAP36Vw3oFeGHH29XRYMwxN1HpSw5yBm",
+                      address_format: Format::P2SH_P2WPKH,
+                      transaction_id: "a5766fafb27aba97e7aeb3e71be79806dd23f03bbd1b61135bf5792159f42ab6",
+                      index: 0,
+                      redeem_script: Some("0014b5ccbe3c5a285af4afada113a8619827fb30b2ee"),
+                      script_pub_key: None,
+                      utxo_amount: Some(80000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER,
+                  INPUT_FILLER,
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "176DPNootfp2bSiE7KQUZp1VZj5EyGQeCt",
+                      amount: 35000
+                  },
+                  Output {
+                      address: "bc1qcsjz44ce84j3650qfu9k87tyd3z8h4qyxz470n",
+                      amount: 35000
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "01000000000101b62af4592179f55b13611bbd3bf023dd0698e71be7b3aee797ba7ab2af6f76a50000000017160014b5ccbe3c5a285af4afada113a8619827fb30b2eeffffffff02b8880000000000001976a91442cd2c7460acc561c96b11c4aa96d0346b84db7f88acb888000000000000160014c4242ad7193d651d51e04f0b63f9646c447bd404024730440220449ca32ff3f8da3c17c1813dac91010cb1fea7a77b2f63065184b8318e1b9ed70220315da34cfeae62c26557c40f5ac5cde46b2801349e6677fc96597b4bfee04b0b012102973e9145ca85357b06de3009a12db171d70bae8a648dc8188e49723a2a46459100000000"
+            ),
+            ( // Transaction 2 -> P2PKH to P2SH_P2WPKH and P2PKH uncompressed (76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab)
+              1,
+              0,
+              [
+                  Input {
+                      private_key: "KzZQ4ZzAecDmeDqxEJqSKpCfpPCa1x74ouyBhXUgMV2UdqNcaJiJ",
+                      address_format: Format::P2PKH,
+                      transaction_id: "60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c",
+                      index: 0,
+                      redeem_script: None,
+                      script_pub_key: None,
+                      utxo_amount: None,
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER,
+                  INPUT_FILLER,
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "3QDTHVyuJrHixUhhsdZXQ7M8P9MQngmw1P",
+                      amount: 12000
+                  },
+                  Output {
+                      address: "1C5RdoaGMVyQy8qjk96NsL4dW79aVPYrCK",
+                      amount: 12000
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "01000000012cf96b853ef09cfd5a6266c2a0ca3522fc3f421c6dad0039c5d9532cb85e8060000000006a473044022079471aadca4be014260a4788e7dc7d7168712c8f21c536f326caccb843569ab802206c7b464e3fbe0518f147ee7c5fa39c05e04e7ed17fbe464a2773b179fe0ef35401210384faa5d9710f727523906f6d2fe781b40cf58a3139d02eeaad293dd03be7b69cffffffff02e02e00000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a70187e02e0000000000001976a914797f9c80ef57ba7f30b31598383683923a5a7a7c88ac00000000"
+            ),
+            ( // Transaction 3 -> Bech32 (P2WPKH) to P2SH_P2WPKH (32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429)
+              1,
+              0,
+              [
+                  Input {
+                      private_key: "L5HiUByNV6D4anzT5aMhheZpG9oKdcvoPXjWJopEPiEzFisNTM7X",
+                      address_format: Format::Bech32,
+                      transaction_id: "60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c",
+                      index: 1,
+                      redeem_script: None,
+                      script_pub_key: None,
+                      utxo_amount: Some(35000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER,
+                  INPUT_FILLER,
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "3QDTHVyuJrHixUhhsdZXQ7M8P9MQngmw1P",
+                      amount: 25000
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "010000000001012cf96b853ef09cfd5a6266c2a0ca3522fc3f421c6dad0039c5d9532cb85e80600100000000ffffffff01a86100000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a701870247304402206af8b1cad8d8138631f2b2b08535643afb0c9597e1dd9b8daa4a565be274c96902203844c6af50658fb244370afaaffdb6f6e85ca681b80cd094bfd4f3eeae4febf0012103dcf5a50ac66bde7fe9f01c4710fb5d438d51f1da1ce138863d34fee6499f328900000000"
+            ),
+            ( // Transaction 4 -> Segwit P2SH_P2WPKH to Bech32(P2WPKH) and itself (6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8)
+              1,
+              0,
+              [
+                  Input {
+                      private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
+                      address_format: Format::P2SH_P2WPKH,
+                      transaction_id: "32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429",
+                      index: 0,
+                      redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
+                      script_pub_key: None,
+                      utxo_amount: Some(25000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  Input {
+                      private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
+                      address_format: Format::P2SH_P2WPKH,
+                      transaction_id: "76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab",
+                      index: 0,
+                      redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
+                      script_pub_key: None,
+                      utxo_amount: Some(12000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER,
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "bc1qzkuhp5jxuvwx90eg65wkxuw6y2pfe740yw6h5s",
+                      amount: 12000
+                  },
+                  Output {
+                      address: "3QDTHVyuJrHixUhhsdZXQ7M8P9MQngmw1P",
+                      amount: 15000
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "010000000001022934b0e9075c367e04ed413bac55bb8d6f76e1f1d2b5981383371c78344246320000000017160014354816a98500d7df9201d46e008c203dd5143b92ffffffffabd53e86a8de22508cf845f55f85f12c3a6879a9328435dc0ac1e470fa90ef760000000017160014354816a98500d7df9201d46e008c203dd5143b92ffffffff02e02e00000000000016001415b970d246e31c62bf28d51d6371da22829cfaaf983a00000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a7018702483045022100988bc569371f74d6e49f20ae05ab06abfbe7ba92bbc177b61e38c0c9f430646702207a874da47387b6cfc066c26c24c99ccb75dac6772a0f94b7327703bdb156c4c8012103f850b5fa8fe53be8675dd3045ed89c8a4235155b484d88eb62d0afed7cb9ef050247304402204296465f1f95480f058ccebd70a0f80b9f092021a15793c954f39373e1e6500102206ca2d3f6cb68d1a9fde36ed6ded6509e2284c6afe860abf7f49c3ae18944ffdf012103f850b5fa8fe53be8675dd3045ed89c8a4235155b484d88eb62d0afed7cb9ef0500000000"
+            ),
+            ( // Transaction 5 -> P2SH_P2WPKH, P2PKH uncompressed, and Bech32(P2WPKH) to Bech32(P2WPKH) (b2eb46fe6f8075caf013cd8e947f3b9dc06a416896d28aef450c9ec8d310361f)
+              1,
+              0,
+              [
+                  Input {
+                      private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
+                      address_format: Format::P2SH_P2WPKH,
+                      transaction_id: "6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8",
+                      index: 1,
+                      redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
+                      script_pub_key: None,
+                      utxo_amount: Some(15000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  Input {
+                      private_key: "5KRoKpnWWav74XDgz28opnJUsBozUg8STwEQPq354yUa3MiXySn",
+                      address_format: Format::P2PKH,
+                      transaction_id: "76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab",
+                      index: 1,
+                      redeem_script: None,
+                      script_pub_key: None,
+                      utxo_amount: None,
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  Input {
+                      private_key: "Kzs2rY8y9brmULJ3VK9gZHiZAhNJ2ttjn7ZuyJbG52pToZfCpQDr",
+                      address_format: Format::Bech32,
+                      transaction_id: "6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8",
+                      index: 0,
+                      redeem_script: None,
+                      script_pub_key: None,
+                      utxo_amount: Some(12000),
+                      sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                      sig_hash_code: SigHashCode::SIGHASH_ALL
+                  },
+                  INPUT_FILLER
+              ],
+              [
+                  Output {
+                      address: "bc1qmj865gnmg3hv7eh74qmvu5fcde43ecd7haa5hy",
+                      amount: 30000
+                  },
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER,
+                  OUTPUT_FILLER
+              ],
+              "01000000000103c8ea1896487c5ba437ac8e328a5db926dd9fe53929338318dd248f7183bd066a0100000017160014354816a98500d7df9201d46e008c203dd5143b92ffffffffabd53e86a8de22508cf845f55f85f12c3a6879a9328435dc0ac1e470fa90ef76010000008b4830450221008bf28b9f9e2c6d7d0ef9705b7fd914e7693b2f4f3584deff6dfa9dc83fc9f73402201cdbf5cd78bf04ccedfa11f17cff3728965dd328d30fad4f91ba2be57fb2ccab014104db232c08ac5f0332d317e6cd805f3e29e98b93fc9ca74831a6c5d27a0368cdb0862d536a445250a8de9d92cf1d450c7dc9b8efd6ca2ff0865d553f85f1bd346fffffffffc8ea1896487c5ba437ac8e328a5db926dd9fe53929338318dd248f7183bd066a0000000000ffffffff013075000000000000160014dc8faa227b446ecf66fea836ce51386e6b1ce1be02483045022100c77d6548c8f068d7088d1a5eab91be1f4bd394fdd7e7334699ccb1533af2c6300220621399e24b9f84bb580fab62ced44b979f0b5a06a1c429ffe4f8c2ae27f740fb012103f850b5fa8fe53be8675dd3045ed89c8a4235155b484d88eb62d0afed7cb9ef05000247304402205b3676bb82313d8ed25dec2efc30aa24076b4a5c0dc0e2b2953507a8135a470102207cad2e535a5cac8b947c9d37aeb9162ec745c61b7133eafba790442faa2a19000121030f36fbc8825fcdc2b79e5764b6bb70c2038bf4dba63dbf71483320e4d7f63a0500000000"
+            )
+        ];
+
+        #[test]
+        fn test_real_transactions() {
+            REAL_TRANSACTIONS.iter()
+                .for_each(|(
+                               version,
+                               lock_time,
+                               inputs,
+                               outputs,
+                               expected_signed_transaction
+                           )| {
+                    let mut pruned_inputs = inputs.to_vec();
+                    pruned_inputs.retain(|input| input.transaction_id != "");
+
+                    let mut pruned_outputs = outputs.to_vec();
+                    pruned_outputs.retain(|output| output.address != "");
+
+                    test_transaction(*version, *lock_time, pruned_inputs, pruned_outputs, expected_signed_transaction);
+                });
+        }
     }
 }
