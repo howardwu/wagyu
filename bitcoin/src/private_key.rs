@@ -63,8 +63,8 @@ impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
             return Err(PrivateKeyError::InvalidChecksum(expected, found))
         }
 
-        // TODO (howardwu): Check that the network matches.
-        // network: BitcoinNetwork::from_wif_prefix(data[0])?
+        // Check that the wif prefix corresponds to the correct network.
+        let _ = N::from_wif_prefix(data[0])?;
 
         Ok(Self {
             secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])?,

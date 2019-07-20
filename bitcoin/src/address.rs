@@ -157,7 +157,7 @@ impl <N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a Bech32 address from a given Bitcoin public key.
     pub fn bech32(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let redeem_script = BitcoinAddress::create_redeem_script(public_key);
-        let version = u5::try_from_u8(redeem_script[0]).unwrap();
+        let version = u5::try_from_u8(redeem_script[0])?;
 
         let mut data = vec![version];
         data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
@@ -180,70 +180,47 @@ impl <N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
-        if address.len() < 2 {
+        if address.len() < 2 || address.len() > 50 {
             return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
-        let lowercase_address = address.to_lowercase();
-        let prefix_bytes = &lowercase_address.as_bytes()[0..2];
-        let is_bech32 = if let Ok(format) = Format::from_address_prefix(prefix_bytes) {
-            format == Format::Bech32
-        }
-        else {
-            false
-        };
-        if is_bech32 {
-            return match Bech32::from_str(address) {
-                Ok(bech32) => {
-                    let wit_prog = {
-                        if bech32.data().len() < 1 {
-                            return Err(AddressError::InvalidAddress(address.to_owned()))
-                        }
-                        let (v, program) = bech32.data().split_at(1);
-                        let program_u8 = match Vec::from_base32(program) {
-                            Ok(prog) => prog,
-                            Err(_) => return Err(AddressError::InvalidAddress(address.to_owned()))
-                        };
+        let prefix = &address.to_lowercase()[0..2];
 
-                        let version = v[0].to_u8();
-                        let mut prog_bytes = vec![version, program_u8.len() as u8];
-                        prog_bytes.extend_from_slice(&program_u8);
-                        WitnessProgram::new(prog_bytes.as_slice())
-                    };
+        if let Ok(format) = Format::from_address_prefix(prefix.as_bytes()) {
+            if Format::Bech32 == format {
+                let bech32 = Bech32::from_str(&address)?;
+                if bech32.data().is_empty() {
+                    return Err(AddressError::InvalidAddress(address.to_owned()))
+                }
 
-                    if let Err(_) = wit_prog {
-                        return Err(AddressError::InvalidAddress(address.to_owned()));
-                    };
+                let data = bech32.data();
+                let version = data[0].to_u8();
+                let mut program = Vec::from_base32(&data[1..])?;
 
-                    // TODO (howardwu): Check the network before returning.
-                    // let network = BitcoinNetwork::from_address_prefix(prefix_bytes)?;
+                let mut data = vec![version, program.len() as u8];
+                data.append(&mut program);
 
-                    Ok(Self {
-                        address: address.to_owned(),
-                        format: Format::Bech32,
-                        _network: PhantomData,
-                    })
-                },
-                Err(_) => Err(AddressError::InvalidAddress(address.to_owned()))
+                // Check that the witness program is valid.
+                let _ = WitnessProgram::new(data.as_slice())?;
+                // Check that the address prefix corresponds to the correct network.
+                let _ = N::from_address_prefix(prefix.as_bytes())?;
+
+                return Ok(Self {
+                    address: address.to_owned(),
+                    format: Format::Bech32,
+                    _network: PhantomData,
+                })
             }
         }
 
-        if address.len() > 50 {
-            return Err(AddressError::InvalidCharacterLength(address.len()))
-        }
-
-        let data = match address.from_base58() {
-            Ok(data) => data,
-            Err(_) => return Err(AddressError::InvalidAddress(address.to_owned()))
-        };
+        let data = address.from_base58()?;
         if data.len() != 25 {
             return Err(AddressError::InvalidByteLength(data.len()))
         }
 
+        // Check that the address prefix corresponds to the correct network.
+        let _ = N::from_address_prefix(&data[0..2])?;
         let format = Format::from_address_prefix(&data[0..2])?;
-
-        // TODO (howardwu): Check the network before returning.
-        // let network = BitcoinNetwork::from_address_prefix(&data[0..2])?;
 
         Ok(Self { address: address.into(), format, _network: PhantomData })
     }
