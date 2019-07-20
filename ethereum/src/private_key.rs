@@ -24,11 +24,10 @@ pub struct EthereumPrivateKey(pub(crate) secp256k1::SecretKey);
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
     type Format = PhantomData<u8>;
-    type Network = PhantomData<u8>;
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
-    fn new(_network: &Self::Network) -> Result<Self, PrivateKeyError> {
+    fn new() -> Result<Self, PrivateKeyError> {
         Self::build()
     }
 

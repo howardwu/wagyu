@@ -1,45 +1,43 @@
 use crate::address::{Format, MoneroAddress};
-use crate::network::Network;
+use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
 use std::str::FromStr;
 
 /// Represents a Monero public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MoneroPublicKey {
+pub struct MoneroPublicKey<N: MoneroNetwork> {
     /// The public spending key
     pub spend_key: [u8; 32],
     /// The public viewing key
     pub view_key: [u8; 32],
+    /// PhantomData
+    _network: PhantomData<N>
 }
 
-impl PublicKey for MoneroPublicKey {
-    type Address = MoneroAddress;
+impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
+    type Address = MoneroAddress<N>;
     type Format = Format;
-    type Network = Network;
-    type PrivateKey = MoneroPrivateKey;
+    type PrivateKey = MoneroPrivateKey<N>;
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        let spend_key = MoneroPublicKey::scalar_mul_by_b_compressed(&private_key.spend_key);
-        let view_key = MoneroPublicKey::scalar_mul_by_b_compressed(&private_key.view_key);
-        Self { spend_key, view_key }
+        let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.spend_key);
+        let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.view_key);
+        Self { spend_key, view_key, _network: PhantomData }
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(
-        &self,
-        format: &Self::Format,
-        network: &Self::Network
-    ) -> Result<Self::Address, AddressError> {
-        MoneroAddress::from_public_key(self, format, network)
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
+        MoneroAddress::<N>::from_public_key(self, format)
     }
 }
 
-impl MoneroPublicKey {
+impl <N: MoneroNetwork> MoneroPublicKey<N> {
     /// Returns a Monero public key given a public spend key and public view key.
     pub fn from(public_spend_key: &str, public_view_key: &str) -> Result<Self, PublicKeyError> {
 
@@ -59,7 +57,7 @@ impl MoneroPublicKey {
         let mut view_key = [0u8; 32];
         view_key.copy_from_slice(public_view_key.as_slice());
 
-        Ok(MoneroPublicKey { spend_key, view_key })
+        Ok(Self { spend_key, view_key, _network: PhantomData })
     }
 
     fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
@@ -69,7 +67,7 @@ impl MoneroPublicKey {
     }
 }
 
-impl FromStr for MoneroPublicKey {
+impl <N: MoneroNetwork> FromStr for MoneroPublicKey<N> {
     type Err = PublicKeyError;
 
     /// Returns a Monero public key from a concatenated public spend key and public view key.
@@ -87,7 +85,7 @@ impl FromStr for MoneroPublicKey {
     }
 }
 
-impl Display for MoneroPublicKey {
+impl <N: MoneroNetwork> Display for MoneroPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(")?;
         for byte in &self.spend_key {
@@ -105,47 +103,51 @@ impl Display for MoneroPublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
 
-    fn test_from_private_key(expected_public_key: &MoneroPublicKey, private_key: &MoneroPrivateKey) {
+    fn test_from_private_key<N: MoneroNetwork>(
+        expected_public_key: &MoneroPublicKey<N>,
+        private_key: &MoneroPrivateKey<N>
+    ) {
         let public_key = MoneroPublicKey::from_private_key(private_key);
         assert_eq!(*expected_public_key, public_key);
     }
 
-    fn test_to_address(
-        expected_address: &MoneroAddress,
+    fn test_to_address<N: MoneroNetwork>(
+        expected_address: &MoneroAddress<N>,
         expected_format: &Format,
-        expected_network: &Network,
-        public_key: &MoneroPublicKey
+        public_key: &MoneroPublicKey<N>
     ) {
-        let address = public_key.to_address(expected_format, expected_network).unwrap();
+        let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str(
+    fn test_from_str<N: MoneroNetwork>(
         expected_public_spend_key: &str,
         expected_public_view_key: &str,
         expected_address: &str,
         expected_format: &Format,
-        expected_network: &Network
     ) {
-        let public_key = MoneroPublicKey::from(expected_public_spend_key, expected_public_view_key).unwrap();
-        let address = public_key.to_address(expected_format, expected_network).unwrap();
+        let public_key = MoneroPublicKey::<N>::from(expected_public_spend_key, expected_public_view_key).unwrap();
+        let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_spend_key, hex::encode(public_key.spend_key));
         assert_eq!(expected_public_view_key, hex::encode(public_key.view_key));
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*expected_format, address.format);
     }
 
-    fn test_to_str(
+    fn test_to_str<N: MoneroNetwork>(
         expected_public_spend_key: &str,
         expected_public_view_key: &str,
-        public_key: &MoneroPublicKey
+        public_key: &MoneroPublicKey<N>
     ) {
         assert_eq!(format!("({}, {})", expected_public_spend_key, expected_public_view_key), public_key.to_string());
     }
 
     mod standard_mainnet {
         use super::*;
+
+        type N = Mainnet;
 
         // (seed, (private_spend_key, private_view_key), (public_spend_key, public_view_key), address)
         const KEYPAIRS: [(&str, (&str, &str), (&str, &str), &str); 5] = [
@@ -184,8 +186,8 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, _, (public_spend_key, public_view_key), _)| {
-                let public_key = MoneroPublicKey::from(public_spend_key, public_view_key).unwrap();
-                let private_key = MoneroPrivateKey::from_seed(&seed, &Network::Mainnet).unwrap();
+                let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(&seed).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
         }
@@ -193,28 +195,27 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, _, (public_spend_key, public_view_key), address)| {
-                let address = MoneroAddress::from_str(address).unwrap();
-                let public_key = MoneroPublicKey::from(public_spend_key, public_view_key).unwrap();
-                test_to_address(&address, &Format::Standard, &Network::Mainnet, &public_key);
+                let address = MoneroAddress::<N>::from_str(address).unwrap();
+                let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key).unwrap();
+                test_to_address(&address, &Format::Standard, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, _, (public_spend_key, public_view_key), address)| {
-                test_from_str(
+                test_from_str::<N>(
                     public_spend_key,
                     public_view_key,
                     address,
-                    &Format::Standard,
-                    &Network::Mainnet);
+                    &Format::Standard);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, _, (public_spend_key, public_view_key), _)| {
-                let public_key = MoneroPublicKey::from(public_spend_key, public_view_key).unwrap();
+                let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key).unwrap();
                 test_to_str(public_spend_key, public_view_key, &public_key);
             });
         }

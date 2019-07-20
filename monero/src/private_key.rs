@@ -1,5 +1,5 @@
 use crate::address::{Format, MoneroAddress};
-use crate::network::Network;
+use crate::network::MoneroNetwork;
 use crate::public_key::MoneroPublicKey;
 use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
@@ -8,31 +8,31 @@ use hex;
 use rand::Rng;
 use rand::rngs::OsRng;
 use std::{fmt, fmt::Display};
+use std::marker::PhantomData;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
 
 /// Represents a Monero private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MoneroPrivateKey {
+pub struct MoneroPrivateKey<N: MoneroNetwork> {
     /// The private spending key
     pub spend_key: [u8; 32],
     /// The private viewing key
     pub view_key: [u8; 32],
-    /// The network of the private key
-    pub network: Network,
+    /// PhantomData
+    _network: PhantomData<N>,
 }
 
-impl PrivateKey for MoneroPrivateKey {
-    type Address = MoneroAddress;
+impl <N: MoneroNetwork> PrivateKey for MoneroPrivateKey<N> {
+    type Address = MoneroAddress<N>;
     type Format = Format;
-    type Network = Network;
-    type PublicKey = MoneroPublicKey;
+    type PublicKey = MoneroPublicKey<N>;
 
     /// Returns a randomly-generated Monero private key.
-    fn new(network: &Self::Network) -> Result<Self, PrivateKeyError> {
+    fn new() -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
-        Self::from_seed(hex::encode(random).as_str(), network)
+        Self::from_seed(hex::encode(random).as_str())
     }
 
     /// Returns the public key of the corresponding Monero private key.
@@ -46,9 +46,9 @@ impl PrivateKey for MoneroPrivateKey {
     }
 }
 
-impl MoneroPrivateKey {
+impl <N: MoneroNetwork> MoneroPrivateKey<N> {
     /// Returns a private key given seed bytes.
-    pub fn from_seed(seed: &str, network: &Network) -> Result<Self, PrivateKeyError> {
+    pub fn from_seed(seed: &str) -> Result<Self, PrivateKeyError> {
         let seed = hex::decode(seed)?;
         if seed.len() != 32 {
             return Err(PrivateKeyError::InvalidByteLength(seed.len()))
@@ -61,14 +61,13 @@ impl MoneroPrivateKey {
         Ok(Self {
             spend_key,
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-            network: *network
+            _network: PhantomData
         })
     }
 
     /// Returns a private key given a private spend key.
     pub fn from_private_spend_key(
         private_spend_key: &str,
-        network: &Network
     ) -> Result<Self, PrivateKeyError> {
         let key = hex::decode(private_spend_key)?;
         if key.len() != 32 {
@@ -81,20 +80,20 @@ impl MoneroPrivateKey {
         Ok(Self {
             spend_key,
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-            network: *network
+            _network: PhantomData
         })
     }
 }
 
-impl FromStr for MoneroPrivateKey {
+impl <N: MoneroNetwork> FromStr for MoneroPrivateKey<N> {
     type Err = PrivateKeyError;
     // TODO (howardwu): Add parsing of mainnet or testnet as an option.
     fn from_str(seed: &str) -> Result<Self, PrivateKeyError> {
-        Self::from_seed(seed, &Network::Mainnet)
+        Self::from_seed(seed)
     }
 }
 
-impl Display for MoneroPrivateKey {
+impl <N: MoneroNetwork> Display for MoneroPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(")?;
         for byte in &self.spend_key {
@@ -112,56 +111,62 @@ impl Display for MoneroPrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
 
-    fn test_to_public_key(expected_public_key: &MoneroPublicKey, private_key: &MoneroPrivateKey) {
+    fn test_to_public_key<N: MoneroNetwork>(
+        expected_public_key: &MoneroPublicKey<N>,
+        private_key: &MoneroPrivateKey<N>
+    ) {
         let public_key = private_key.to_public_key();
         assert_eq!(*expected_public_key, public_key);
     }
 
-    fn test_to_address(expected_address: &MoneroAddress, expected_format: &Format, private_key: &MoneroPrivateKey) {
+    fn test_to_address<N: MoneroNetwork>(
+        expected_address: &MoneroAddress<N>,
+        expected_format: &Format,
+        private_key: &MoneroPrivateKey<N>
+    ) {
         let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_seed(
+    fn test_from_seed<N: MoneroNetwork>(
         expected_private_spend_key: &str,
         expected_private_view_key: &str,
         expected_address: &str,
         expected_format: &Format,
         seed: &str,
-        network: &Network
     ) {
-        let private_key = MoneroPrivateKey::from_seed(seed, network).unwrap();
+        let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
         assert_eq!(expected_private_spend_key, hex::encode(private_key.spend_key));
         assert_eq!(expected_private_view_key, hex::encode(private_key.view_key));
-        assert_eq!(*network, private_key.network);
         assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
-    fn test_from_private_spend_key(
+    fn test_from_private_spend_key<N: MoneroNetwork>(
         expected_private_view_key: &str,
         expected_address: &str,
         expected_format: &Format,
         private_spend_key: &str,
-        network: &Network,
     ) {
-        let private_key = MoneroPrivateKey::from_private_spend_key(private_spend_key, network).unwrap();
+        let private_key = MoneroPrivateKey::<N>::from_private_spend_key(private_spend_key).unwrap();
         assert_eq!(private_spend_key, hex::encode(private_key.spend_key));
         assert_eq!(expected_private_view_key, hex::encode(private_key.view_key));
-        assert_eq!(*network, private_key.network);
         assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
     }
 
-    fn test_to_str(
+    fn test_to_str<N: MoneroNetwork>(
         expected_private_spend_key: &str,
         expected_private_view_key: &str,
-        private_key: &MoneroPrivateKey
+        private_key: &MoneroPrivateKey<N>
     ) {
         assert_eq!(format!("({}, {})", expected_private_spend_key, expected_private_view_key), private_key.to_string());
     }
 
     mod standard_mainnet {
         use super::*;
+
+        type N = Mainnet;
 
         // (seed, (private_spend_key, private_view_key), (public_spend_key, public_view_key), address)
         const KEYPAIRS: [(&str, (&str, &str), (&str, &str), &str); 5] = [
@@ -200,8 +205,8 @@ mod tests {
         #[test]
         fn to_public_key() {
             KEYPAIRS.iter().for_each(|(seed, _, (public_spend_key, public_view_key), _)| {
-                let public_key = MoneroPublicKey::from(public_spend_key, public_view_key).unwrap();
-                let private_key = MoneroPrivateKey::from_seed(seed, &Network::Mainnet).unwrap();
+                let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 test_to_public_key(&public_key, &private_key);
             });
         }
@@ -209,8 +214,8 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(seed, _, _, address)| {
-                let address = MoneroAddress::from_str(address).unwrap();
-                let private_key = MoneroPrivateKey::from_seed(seed, &Network::Mainnet).unwrap();
+                let address = MoneroAddress::<N>::from_str(address).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 test_to_address(&address, &Format::Standard, &private_key);
             });
         }
@@ -218,32 +223,30 @@ mod tests {
         #[test]
         fn from_seed() {
             KEYPAIRS.iter().for_each(|(seed, (private_spend_key, private_view_key), _, address)| {
-                test_from_seed(
+                test_from_seed::<N>(
                     private_spend_key,
                     private_view_key,
                     address,
                     &Format::Standard,
-                    seed,
-                    &Network::Mainnet);
+                    seed);
             });
         }
 
         #[test]
         fn from_private_spend_key() {
             KEYPAIRS.iter().for_each(|(_, (private_spend_key, private_view_key), _, address)| {
-                test_from_private_spend_key(
+                test_from_private_spend_key::<N>(
                     private_view_key,
                     address,
                     &Format::Standard,
-                    private_spend_key,
-                    &Network::Mainnet);
+                    private_spend_key);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(seed, (private_spend_key, private_view_key), _, _)| {
-                let private_key = MoneroPrivateKey::from_seed(seed, &Network::Mainnet).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 test_to_str(private_spend_key, private_view_key, &private_key);
             });
         }

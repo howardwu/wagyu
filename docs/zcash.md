@@ -22,7 +22,7 @@ Generate an uncompressed mainnet private key and address with the following comm
 
         Private Key:    5KPcKEuisYjGqqSfZyArrDFjR6xuNRSRotLTu6h4ciu9Qk15bSf
         Address:        t1gNVAzETZA6ygaiDPRrSrz2tqGMPxVCGUN
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 ```
 
@@ -37,7 +37,7 @@ Generate a testnet private key and address with the following command:
 
         Private Key:    92YaFzZkMKFBkndQGsct96CQcLrcMgvsopv7hzHYvJ3HHVSk2Xu
         Address:        tmAMCGitxDgDTDFf6bwhqxAsmk8qGiXHYZv
-        Network:        Testnet
+        Network:        testnet
         Compressed:     false
 ```
 
@@ -53,12 +53,12 @@ Generate an uncompressed mainnet private key and address with the following comm
   {
     "privateKey": {
       "wif": "5JPkNynw2LPvfheom94SG7C4wwcoX9b54qvVFa4AJ1579goKxGP",
-      "network": "Mainnet",
+      "network": "mainnet",
       "compressed": false
     },
     "address": {
       "wif": "t1aevKxZCLGqe1G4gLc6s7QB3vjcCrJ3hN9",
-      "network": "Mainnet"
+      "network": "mainnet"
     }
   }
 ]
@@ -75,19 +75,19 @@ Generate a multiple wallets with the following command:
 
         Private Key:    5K6unwsCYTnqbk2uyqNMJGRoHR3kGeBVKmHtTKPQpg6xTSz69Jw
         Address:        t1NNXgRsca1jT7WUEXV97dDn9pz7KNFPrLs
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 
 
         Private Key:    5JuCtommZKUyPv2nAL4c4jWJ3ShqMNAFpmv983JnMW6wQcFyxS6
         Address:        t1WhNEp8K9imhjrmbuxP33Q7rxZAgY3m697
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 
 
         Private Key:    5Jix5DemZhkZb65943jJkkXMM4K15C8L9REEdphmqiRicccQttj
         Address:        t1YRNCuv9QnwZNVGvfY688MNjNWvm8po3ye
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 ```
 
@@ -102,6 +102,6 @@ Generate a compressed mainnet private key and address with the following command
 
         Private Key:    L4LwPgRwru6evQWqQZbqyW5JKePSF4rUBpF5nNaNDozxs2Z8PNpx
         Address:        t1h46b74XVAggQL6kcngVHaD7JxvebW7hP2
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```

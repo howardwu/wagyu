@@ -23,7 +23,7 @@ Generate an uncompressed mainnet private key and address with the following comm
 
         Private Key:    5JHwLmRafAxdtRddv3o2urYo2bfFUT2V29LSoDM3QFJPzoUoBJT
         Address:        1GMmaXUixBA2ZMqw9U1zX4cTCmhWtNhgTB
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 ```
 
@@ -38,7 +38,7 @@ Generate a testnet private key and address with the following command:
 
         Private Key:    92Rk56bU8atxbM9mUyNJtijc8XFyw7UHrDaasyTzcn9iLn4M9Le
         Address:        myPXYe7NrVpq8oYBugTFtHwamejxB6wNC8
-        Network:        Testnet
+        Network:        testnet
         Compressed:     false
 ```
 
@@ -54,12 +54,12 @@ Generate an uncompressed mainnet private key and address with the following comm
   {
     "privateKey": {
       "wif": "5JZPS2WbS8A5jkZYtSvHibvNQMN6vU2Btht5YqAZze7zEiFtNDd",
-      "network": "Mainnet",
+      "network": "mainnet",
       "compressed": false
     },
     "address": {
       "wif": "1NuPmGDSsCFcSZCuAccq6zJTvXi2vNzRwg",
-      "network": "Mainnet",
+      "network": "mainnet",
       "address_type": "P2PKH"
     }
   }
@@ -77,19 +77,19 @@ Generate a multiple wallets with the following command:
 
         Private Key:    5JsktgmsNQh3MbHMcwNWG3gd5awH59dnUa64Uih6rAssCsdjjU9
         Address:        1N4Ezyuo4K4FFvBnbeyPv5qPA93mBVi5P9
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 
 
         Private Key:    5JzxKHZNEqN9zNgxkjJQASnpCYvBj5NQMs6HfEgMRsQ84VXJpyU
         Address:        1AzoF4Cw8fS7JdFocmsVoKJdv1j4a81Tf9
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 
 
         Private Key:    5JxRr7Evz4YSKRWvMLzAtg7WZHg7uEfpM6D6TK4w3HUE3aSQbF7
         Address:        19uxwixdfxdYVJ4HjrLKT31EakWCqrhb1r
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     false
 ```
 
@@ -104,7 +104,7 @@ Generate a SegWit mainnet private key and address with the following command:
 
         Private Key:    L13EzQBa7izHyXHdhAwBzApAPL1Q8rdVRpY7CASWXyFPyHTuPJxs
         Address:        3Qz5gtJ4GKoeSHHErF8Nvs9bDp5TQDw89o
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```
 
@@ -119,6 +119,6 @@ Generate a compressed mainnet private key and address with the following command
 
         Private Key:    KzpvjTPuU7p2GZFki2FRnnTceDn5jdVAYZkVvDBptWrHMcLeGWFn
         Address:        1G75ZLkSbTr6wBzr4pthM7eV9NzenMyZPC
-        Network:        Mainnet
+        Network:        mainnet
         Compressed:     true
 ```

@@ -5,7 +5,40 @@ use crate::public_key::PublicKey;
 
 use crypto_mac;
 use std::{fmt::{Debug, Display}, str::FromStr};
-//use crate::PrivateKeyError;
+
+/// The interface for a generic extended private key.
+pub trait ExtendedPrivateKey:
+    Clone
+    + Debug
+    + Display
+    + FromStr
+    + Send
+    + Sync
+    + 'static
+    + Eq
+    + Sized
+{
+    type Address: Address;
+    type ExtendedPublicKey: ExtendedPublicKey;
+    type Format;
+    type PrivateKey: PrivateKey;
+    type PublicKey: PublicKey;
+
+    /// Returns a new extended private key.
+    fn new(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
+
+    /// Returns the extended public key of the corresponding extended private key.
+    fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
+
+    /// Returns the private key of the corresponding extended private key.
+    fn to_private_key(&self) -> Self::PrivateKey;
+
+    /// Returns the public key of the corresponding extended private key.
+    fn to_public_key(&self) -> Self::PublicKey;
+
+    /// Returns the address of the corresponding extended private key.
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
+}
 
 #[derive(Debug, Fail)]
 pub enum ExtendedPrivateKeyError {
@@ -22,8 +55,8 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidDerivationPath(String, String),
 
-    #[fail(display = "invalid network bytes: {:?}", _0)]
-    InvalidNetworkBytes(Vec<u8>),
+    #[fail(display = "invalid version bytes: {:?}", _0)]
+    InvalidVersionBytes(Vec<u8>),
 
     #[fail(display = "maximum child depth reached: {}", _0)]
     MaximumChildDepthReached(u8),
@@ -31,6 +64,8 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "{}", _0)]
     Message(String),
 
+    #[fail(display = "unsupported format: {}", _0)]
+    UnsupportedFormat(String)
 }
 
 impl From<base58::FromBase58Error> for ExtendedPrivateKeyError {
@@ -61,39 +96,4 @@ impl From<std::num::ParseIntError> for ExtendedPrivateKeyError {
     fn from(error: std::num::ParseIntError) -> Self {
         ExtendedPrivateKeyError::Crate("std::num", format!("{:?}", error))
     }
-}
-
-/// The interface for a generic extended private key.
-pub trait ExtendedPrivateKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
-    type Address: Address;
-    type ExtendedPublicKey: ExtendedPublicKey;
-    type Format;
-    type Network;
-    type PublicKey: PublicKey;
-    type PrivateKey: PrivateKey;
-
-    /// Returns a new extended private key.
-    fn new(seed: &[u8], network: &Self::Network) -> Result<Self, ExtendedPrivateKeyError>;
-
-    /// Returns the extended public key of the corresponding extended private key.
-    fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
-
-    /// Returns the private key of the corresponding extended private key.
-    fn to_private_key(&self) -> Self::PrivateKey;
-
-    /// Returns the public key of the corresponding extended private key.
-    fn to_public_key(&self) -> Self::PublicKey;
-
-    /// Returns the address of the corresponding extended private key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
