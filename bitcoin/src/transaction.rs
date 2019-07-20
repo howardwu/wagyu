@@ -1,16 +1,19 @@
 use crate::address::{BitcoinAddress, Format};
+use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
-use byteorder::{LittleEndian, WriteBytesExt};
-use std::str::FromStr;
-use base58::{FromBase58};
-use secp256k1::Secp256k1;
-use sha2::{Digest, Sha256};
-use wagu_model::{PrivateKey, AddressError};
-use bech32::{Bech32,FromBase32};
 use crate::witness_program::WitnessProgram;
 
+use base58::{FromBase58};
+use bech32::{Bech32,FromBase32};
+use byteorder::{LittleEndian, WriteBytesExt};
+use secp256k1::Secp256k1;
+use sha2::{Digest, Sha256};
+use std::marker::PhantomData;
+use std::str::FromStr;
+use wagu_model::{PrivateKey, AddressError};
+
 /// Represents a Bitcoin transaction
-pub struct BitcoinTransaction {
+pub struct BitcoinTransaction<N: BitcoinNetwork> {
     /// Version number - 4 bytes
     pub version : u32,
     /// Optional 2 bytes to indicate segwit transactions
@@ -18,19 +21,19 @@ pub struct BitcoinTransaction {
     /// Number of inputs - variable integer length
     pub input_count: Vec<u8>,
     /// Transaction inputs included in the transaction
-    pub inputs: Vec<BitcoinTransactionInput>,
+    pub inputs: Vec<BitcoinTransactionInput<N>>,
     /// Number of outputs - variable integer length
     pub output_count: Vec<u8>,
     /// Transaction outputs included in the transaction
-    pub outputs: Vec<BitcoinTransactionOutput>,
+    pub outputs: Vec<BitcoinTransactionOutput<N>>,
     /// Lock time - 4 bytes
     pub lock_time: u32
 }
 
 /// Represents a Bitcoin transaction input
-pub struct BitcoinTransactionInput {
+pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// OutPoint - transaction id and index - 36 bytes
-    pub out_point: OutPoint,
+    pub out_point: OutPoint<N>,
     /// Tx-in script - Variable size
     pub script: Option<Script>,
     /// Sequence number - 4 bytes (normally 0xFFFFFFFF, unless lock > 0)
@@ -45,15 +48,17 @@ pub struct BitcoinTransactionInput {
 }
 
 /// Represents a Bitcoin transaction output
-pub struct BitcoinTransactionOutput {
+pub struct BitcoinTransactionOutput<N: BitcoinNetwork> {
     /// Transfer amount in Satoshi
     pub amount: u64,
     /// Output public key script
-    pub output_public_key: Script
+    pub output_public_key: Script,
+    /// PhantomData
+    _network: PhantomData<N>,
 }
 
 /// Represents a specific UTXO
-pub struct OutPoint {
+pub struct OutPoint<N: BitcoinNetwork> {
     /// Previous transaction hash (using Bitcoin RPC's reversed hash order) - 32 bytes
     pub reverse_transaction_id: Vec<u8>,
     /// Index of the transaction being used - 4 bytes
@@ -65,7 +70,7 @@ pub struct OutPoint {
     /// Optional redeem script - for segwit transactions
     pub redeem_script: Option<Vec<u8>>,
     /// Address of the outpoint
-    pub address: BitcoinAddress
+    pub address: BitcoinAddress<N>,
 }
 
 /// Represents a generic script (e.g. script_sig or script_pub_key)
@@ -73,7 +78,7 @@ pub struct Script {
     /// Length of the script - variable integer length
     pub script_length: Vec<u8>,
     /// Transaction input script - Variable size
-    pub script: Vec<u8>
+    pub script: Vec<u8>,
 }
 
 /// Represents a witness in a segwit transaction
@@ -102,12 +107,12 @@ pub enum OPCodes {
     OP_EQUALVERIFY = 0x88,
 }
 
-impl BitcoinTransaction {
+impl <N: BitcoinNetwork> BitcoinTransaction<N> {
     /// Returns a raw unsigned bitcoin transaction
     pub fn build_raw_transaction(
         version: u32,
-        raw_inputs: Vec<BitcoinTransactionInput>,
-        outputs: Vec<BitcoinTransactionOutput>,
+        raw_inputs: Vec<BitcoinTransactionInput<N>>,
+        outputs: Vec<BitcoinTransactionOutput<N>>,
         lock_time: u32
     ) -> Self {
         let input_count = variable_length_integer(raw_inputs.len() as u64);
@@ -172,7 +177,7 @@ impl BitcoinTransaction {
 
     /// Signs the raw transaction, updates the transaction, and returns the signature
     pub fn sign_raw_transaction(&mut self,
-                                private_key: BitcoinPrivateKey,
+                                private_key: BitcoinPrivateKey<N>,
                                 input_index: usize,
                                 address_format: Format
     ) -> Result<Vec<u8>, std::io::Error> {
@@ -320,12 +325,12 @@ impl BitcoinTransaction {
     }
 }
 
-impl BitcoinTransactionInput {
+impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
     const DEFAULT_SEQUENCE: [u8; 4] =  [0xff, 0xff, 0xff, 0xff];
 
     /// Create a new Bitcoin Transaction input without the script
     pub fn new(
-        address: BitcoinAddress,
+        address: BitcoinAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
         amount: Option<u64>,
@@ -339,7 +344,7 @@ impl BitcoinTransactionInput {
         }
 
         let sequence = match sequence {
-            None => BitcoinTransactionInput::DEFAULT_SEQUENCE.to_vec(),
+            None => BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec(),
             Some(sequence) => sequence
         };
 
@@ -349,7 +354,7 @@ impl BitcoinTransactionInput {
 
         let script_pub_key = match script_pub_key {
             None => {
-                Some(generate_script_pub_key(&address.address).unwrap().script)
+                Some(generate_script_pub_key::<N>(&address.address).unwrap().script)
             }
             Some (script) => Some(script)
         };
@@ -360,14 +365,14 @@ impl BitcoinTransactionInput {
         Ok(Self { out_point, script: None, sequence, sig_hash_code, witness_count: None,  witnesses: vec![] })
     }
 
-    // Create a full script_sig using the given script
+    /// Create a full script_sig using the given script
     pub fn create_script_sig(&mut self, script: Vec<u8>) {
         let script_size_bytes: u64 = script.len() as u64;
         let script_length = variable_length_integer(script_size_bytes);
         self.script = Some(Script { script_length, script });
     }
 
-    // Serialize the transaction input
+    /// Serialize the transaction input
     pub fn serialize(&self, raw: bool) -> Result<Vec<u8>, std::io::Error> {
         let mut serialized_input: Vec<u8> = Vec::new();
         serialized_input.extend(&self.out_point.reverse_transaction_id);
@@ -397,11 +402,11 @@ impl BitcoinTransactionInput {
     }
 }
 
-impl BitcoinTransactionOutput {
+impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
     /// Create a new Bitcoin transaction output
     pub fn new(bitcoin_address: &str, amount: u64) -> Result<Self, AddressError> {
-        let output_public_key = generate_script_pub_key(bitcoin_address)?;
-        Ok(Self { amount, output_public_key })
+        let output_public_key = generate_script_pub_key::<N>(bitcoin_address)?;
+        Ok(Self { amount, output_public_key, _network: PhantomData })
     }
 
     // Serialize the transaction output
@@ -430,8 +435,8 @@ pub fn address_to_pub_key_or_script_hash(address: String) -> Vec<u8> {
 }
 
 /// Generate the script_pub_key of a corresponding address
-pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressError> {
-    let bitcoin_address = BitcoinAddress::from_str(bitcoin_address)?;
+pub fn generate_script_pub_key<N: BitcoinNetwork>(bitcoin_address: &str) -> Result<Script, AddressError> {
+    let bitcoin_address = BitcoinAddress::<N>::from_str(bitcoin_address)?;
     let mut script: Vec<u8> = Vec::new();
     let format = bitcoin_address.format;
     match format {
@@ -536,8 +541,7 @@ pub fn variable_length_integer (size: u64) -> Vec<u8> {
 mod tests {
     use super::*;
     use wagu_model::crypto::hash160;
-
-    // version, lock time, inputs, outputs, expected_signed_transaction
+    use crate::Mainnet;
 
     pub struct Transaction {
         pub version: u32,
@@ -581,14 +585,14 @@ mod tests {
 
     const OUTPUT_FILLER: Output = Output { address: "", amount: 0 };
 
-    fn test_transaction(
+    fn test_transaction<N: BitcoinNetwork>(
         version: u32,
         lock_time: u32,
         inputs: Vec<Input>,
         outputs: Vec<Output>,
         expected_signed_transaction: &str
     ) {
-        let mut input_vec: Vec<BitcoinTransactionInput> = Vec::new();
+        let mut input_vec: Vec<BitcoinTransactionInput<N>> = Vec::new();
         for input in &inputs {
             let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
@@ -616,7 +620,7 @@ mod tests {
                 Some(seq) => Some(seq.to_vec())
             };
 
-            let transaction_input = BitcoinTransactionInput::new(
+            let transaction_input = BitcoinTransactionInput::<N>::new(
                 address,
                 transaction_id, input.index,
                 input.utxo_amount,
@@ -628,9 +632,9 @@ mod tests {
             input_vec.push(transaction_input);
         }
 
-        let mut output_vec: Vec<BitcoinTransactionOutput> = Vec::new();
+        let mut output_vec: Vec<BitcoinTransactionOutput<N>> = Vec::new();
         for output in outputs {
-            let transaction_output = BitcoinTransactionOutput::new(output.address, output.amount).unwrap();
+            let transaction_output = BitcoinTransactionOutput::<N>::new(output.address, output.amount).unwrap();
             output_vec.push(transaction_output);
         }
 
@@ -644,11 +648,11 @@ mod tests {
         assert_eq!(expected_signed_transaction, signed_transaction);
     }
 
-    mod test_valid_transactions {
+    mod test_valid_mainnet_transactions {
         use super::*;
+        type N = Mainnet;
 
-        // version, lock time, inputs, outputs, expected_signed_transaction
-        const TRANSACTIONS: [Transaction; 10] = [
+        const TRANSACTIONS: [Transaction; 9] = [
             Transaction { // p2pkh to p2pkh - based on https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
                 version: 1,
                 lock_time: 0,
@@ -711,36 +715,6 @@ mod tests {
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "01000000000101db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a5477010000001716001479091972186c449eb1ded22b78e40d009bdf0089feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac02473044022047ac8e878352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae903c713331d877c1f64677e3622ad4010726870540656fe9dcb012103ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000"
-            },
-            Transaction { // p2sh_p2wsh to p2pkh
-                version: 2,
-                lock_time: 0,
-                inputs: [
-                    Input {
-                        private_key: "cNdMBCLMUt7jK8LynAWz7rAC8VTMMcZLozDzwg8e4aTWGRcQ4exR", // Testnet address
-                        address_format: Format::P2SH_P2WPKH,
-                        transaction_id: "80d9a1dc460da39c0fbbc0415c7cebf305cea2aa2d1de1a64d0bf4e4e541e513",
-                        index: 1,
-                        redeem_script: None,
-                        script_pub_key: None,
-                        utxo_amount: Some(50000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
-                    },
-                    INPUT_FILLER,
-                    INPUT_FILLER,
-                    INPUT_FILLER
-                ],
-                outputs: [
-                    Output {
-                        address: "1CUQeVjoMynT4dpgcv6g5A57rBXZ7sdL7w",
-                        amount: 20000
-                    },
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER
-                ],
-                expected_signed_transaction: "0200000000010113e541e5e4f40b4da6e11d2daaa2ce05f3eb7c5c41c0bb0f9ca30d46dca1d9800100000017160014e709f020a951e483eb6628e0ee9abce30da49ffbffffffff01204e0000000000001976a9147dd85a8a421b256394532b7a2aaeb00347080c7888ac0247304402202178e5eb537b086efdef5fb6ee0e1848168a853187b7b9db9de299b5afe7ef0f02205ecfb092874babd3dac021c46854a3c43962c156770d3f420d00b09c1c2be13c012103fae6ce0d2a2920e7fbae4f32ace11c6fa9470115887171d0f98ef40d03a4ab4000000000"
             },
             Transaction { //p2sh_p2wpkh to segwit
                 version: 2,
@@ -856,7 +830,7 @@ mod tests {
                 lock_time: 0,
                 inputs: [
                     Input {
-                        private_key: "L3EEWFaodvuDcH7yeTtugQDvNxnBs8Fkzerqf8tgmHYKQ4QkQJDE", // Testnet address
+                        private_key: "L3EEWFaodvuDcH7yeTtugQDvNxnBs8Fkzerqf8tgmHYKQ4QkQJDE",
                         address_format: Format::P2PKH,
                         transaction_id: "6b88c087247aa2f07ee1c5956b8e1a9f4c7f892a70e324f1bb3d161e05ca107b",
                         index: 0,
@@ -867,7 +841,7 @@ mod tests {
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     Input {
-                        private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq", // Testnet address
+                        private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq",
                         address_format: Format::P2SH_P2WPKH,
                         transaction_id: "93ca92c0653260994680a4caa40cfc7b0aac02a077c4f022b007813d6416c70d",
                         index: 1,
@@ -1009,8 +983,7 @@ mod tests {
         ];
 
         #[test]
-        fn test_transactions() {
-
+        fn test_mainnet_transactions() {
             TRANSACTIONS.iter()
                 .for_each(|transaction| {
                     let mut pruned_inputs = transaction.inputs.to_vec();
@@ -1019,171 +992,14 @@ mod tests {
                     let mut pruned_outputs = transaction.outputs.to_vec();
                     pruned_outputs.retain(|output| output.address != "");
 
-                    test_transaction(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
+                    test_transaction::<N>(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
                 });
-        }
-    }
-
-    mod test_invalid_transactions {
-        use super::*;
-
-        const INVALID_INPUTS: [Input; 8] = [
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
-                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
-                index: 0,
-                redeem_script: None,
-                script_pub_key: None,
-                utxo_amount: None,
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2PKH,
-                transaction_id: "7dabce",
-                index: 0,
-                redeem_script: None,
-                script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
-                utxo_amount: Some(10000),
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
-                transaction_id: "7dabce",
-                index: 0,
-                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
-                script_pub_key: None,
-                utxo_amount: Some(10000),
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
-                transaction_id: "7dabce588a8a57786790",
-                index: 0,
-                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
-                script_pub_key: None,
-                utxo_amount: Some(10000),
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
-                transaction_id: "7dabce588a8a57786790d27810514f5ffccff4148a8105894da57c985d02cdbb7dabce",
-                index: 0,
-                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
-                script_pub_key: None,
-                utxo_amount: Some(10000),
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::Bech32,
-                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
-                index: 0,
-                redeem_script: None,
-                script_pub_key: None,
-                utxo_amount: None,
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            Input {
-                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::Bech32,
-                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
-                index: 0,
-                redeem_script: None,
-                script_pub_key: None,
-                utxo_amount: None,
-                sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL
-            },
-            INPUT_FILLER
-        ];
-
-        const INVALID_OUTPUTS: [Output; 5] = [
-            Output {
-                address: "ABCD",
-                amount: 100
-            },
-            Output {
-                address: "INVALID ADDRESS",
-                amount: 12345
-            },
-            Output {
-                address: "0xE345828db876E265Dc2cea04c6b16F62021841A1",
-                amount: 100000
-            },
-            Output {
-                address: "1PhyG9uGuEAne9BUjtDkBr8pcPGHtdZ",
-                amount: 5
-            },
-            OUTPUT_FILLER
-        ];
-
-        #[test]
-        fn test_invalid_inputs() {
-
-            // Not enough information to craft a bitcoin transaction input
-
-            for input in INVALID_INPUTS.iter() {
-                let transaction_id = hex::decode(input.transaction_id).unwrap();
-
-                let redeem_script = match input.redeem_script {
-                    None => None,
-                    Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
-                };
-
-                let script_pub_key = match input.script_pub_key {
-                    None => None,
-                    Some (script) => Some(hex::decode(script).unwrap())
-                };
-
-                let sequence = match input.sequence {
-                    None => None,
-                    Some(seq) => Some(seq.to_vec())
-                };
-
-                let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
-                let address = private_key.to_address(&input.address_format).unwrap();
-                let invalid_input = BitcoinTransactionInput::new(
-                    address,
-                    transaction_id,
-                    input.index,
-                    input.utxo_amount,
-                    redeem_script,
-                    script_pub_key,
-                    sequence,
-                    input.sig_hash_code
-                );
-                assert!(invalid_input.is_err());
-            }
-        }
-
-        #[test]
-        fn test_invalid_outputs() {
-
-            // Invalid output address
-
-            for output in INVALID_OUTPUTS.iter() {
-                let invalid_output = BitcoinTransactionOutput::new(
-                    output.address,
-                    output.amount
-                );
-                assert!(invalid_output.is_err());
-            }
         }
     }
 
     mod test_real_mainnet_transactions {
         use super::*;
+        type N = Mainnet;
 
         const REAL_TRANSACTIONS: [Transaction; 5] = [
             Transaction { // Transaction 1 -> Segwit P2SH_P2WPKH to P2PKH and Bech32(P2WPKH) (60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c)
@@ -1378,7 +1194,7 @@ mod tests {
         ];
 
         #[test]
-        fn test_real_transactions() {
+        fn test_real_mainnet_transactions() {
             REAL_TRANSACTIONS.iter()
                 .for_each(|transaction| {
                     let mut pruned_inputs = transaction.inputs.to_vec();
@@ -1387,15 +1203,174 @@ mod tests {
                     let mut pruned_outputs = transaction.outputs.to_vec();
                     pruned_outputs.retain(|output| output.address != "");
 
-                    test_transaction(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
+                    test_transaction::<N>(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
                 });
+        }
+    }
+
+    mod test_invalid_transactions {
+        use super::*;
+        type N = Mainnet;
+
+        const INVALID_INPUTS: [Input; 8] = [
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2PKH,
+                transaction_id: "7dabce",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "7dabce",
+                index: 0,
+                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "7dabce588a8a57786790",
+                index: 0,
+                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::P2SH_P2WPKH,
+                transaction_id: "7dabce588a8a57786790d27810514f5ffccff4148a8105894da57c985d02cdbb7dabce",
+                index: 0,
+                redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
+                script_pub_key: None,
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::Bech32,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            Input {
+                private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
+                address_format: Format::Bech32,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL
+            },
+            INPUT_FILLER
+        ];
+
+        const INVALID_OUTPUTS: [Output; 5] = [
+            Output {
+                address: "ABCD",
+                amount: 100
+            },
+            Output {
+                address: "INVALID ADDRESS",
+                amount: 12345
+            },
+            Output {
+                address: "0xE345828db876E265Dc2cea04c6b16F62021841A1",
+                amount: 100000
+            },
+            Output {
+                address: "1PhyG9uGuEAne9BUjtDkBr8pcPGHtdZ",
+                amount: 5
+            },
+            OUTPUT_FILLER
+        ];
+
+        #[test]
+        fn test_invalid_inputs() {
+
+            // Not enough information to craft a bitcoin transaction input
+
+            for input in INVALID_INPUTS.iter() {
+                let transaction_id = hex::decode(input.transaction_id).unwrap();
+
+                let redeem_script = match input.redeem_script {
+                    None => None,
+                    Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
+                };
+
+                let script_pub_key = match input.script_pub_key {
+                    None => None,
+                    Some (script) => Some(hex::decode(script).unwrap())
+                };
+
+                let sequence = match input.sequence {
+                    None => None,
+                    Some(seq) => Some(seq.to_vec())
+                };
+
+                let private_key = BitcoinPrivateKey::<N>::from_wif(input.private_key).unwrap();
+                let address = private_key.to_address(&input.address_format).unwrap();
+                let invalid_input = BitcoinTransactionInput::new(
+                    address,
+                    transaction_id,
+                    input.index,
+                    input.utxo_amount,
+                    redeem_script,
+                    script_pub_key,
+                    sequence,
+                    input.sig_hash_code
+                );
+                assert!(invalid_input.is_err());
+            }
+        }
+
+        #[test]
+        fn test_invalid_outputs() {
+
+            // Invalid output address
+
+            for output in INVALID_OUTPUTS.iter() {
+                let invalid_output = BitcoinTransactionOutput::<N>::new(
+                    output.address,
+                    output.amount
+                );
+                assert!(invalid_output.is_err());
+            }
         }
     }
 
     mod test_helper_functions {
         use super::*;
 
-        const LENGTH_VALUES: [(u64, [u8; 9]); 13] = [
+        const LENGTH_VALUES: [(u64, [u8; 9]); 14] = [
             (20, [0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
             (32, [0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
             (200, [0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
@@ -1407,6 +1382,7 @@ mod tests {
             (2000000000, [0xfe, 0x00, 0x94, 0x35, 0x77, 0x00, 0x00, 0x00, 0x00]),
             (2000000000, [0xfe, 0x00, 0x94, 0x35, 0x77, 0x00, 0x00, 0x00, 0x00]),
             (4294967295, [0xfe, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00]),
+            (4294967296, [0xff, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]),
             (500000000000000000, [0xff, 0x00, 0x00, 0xb2, 0xd3, 0x59, 0x5b, 0xf0, 0x06]),
             (18446744073709551615, [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
         ];
