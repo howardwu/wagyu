@@ -2,7 +2,6 @@ use wagu_model::mnemonic::MnemonicError;
 
 use std::fs;
 
-
 /// Mnemonic word languages
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(non_camel_case_types)]
@@ -35,10 +34,7 @@ impl Language {
     /// Returns the index of the given word in the language's word list.
     pub fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, MnemonicError> {
         let word_string = Language::get_wordlist(language)?;
-
-        let index = word_string.lines().position(|x| x == word);
-
-        match index {
+        match word_string.lines().position(|x| x == word) {
             Some(_) => Ok(index.unwrap()),
             None => Err(MnemonicError::InvalidWord(String::from(word)))
         }

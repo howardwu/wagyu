@@ -1,4 +1,3 @@
-
 #[derive(Debug, Fail)]
 pub enum MnemonicError {
 
