@@ -110,8 +110,8 @@ impl BitcoinTransaction {
         outputs: Vec<BitcoinTransactionOutput>,
         lock_time: u32
     ) -> Self {
-        let input_count = variable_integer_length(raw_inputs.len() as u64);
-        let output_count = variable_integer_length(outputs.len() as u64);
+        let input_count = variable_length_integer(raw_inputs.len() as u64);
+        let output_count = variable_length_integer(outputs.len() as u64);
 
         Self {
             version,
@@ -188,7 +188,7 @@ impl BitcoinTransaction {
         let mut signature =  sign.sign(&message, &signing_key).serialize_der(&sign).to_vec();
         let sig_hash_code_bytes = u32_to_bytes(input.sig_hash_code as u32);
         signature.extend(vec![sig_hash_code_bytes?[0]]); // Add the SIG_HASH ALL TO THE END OF THE signature
-        let signature_length = variable_integer_length(signature.len() as u64 );
+        let signature_length = variable_length_integer(signature.len() as u64 );
         let public_key = private_key.to_public_key();
         let mut public_key_vec: Vec<u8> = Vec::new();
 
@@ -215,7 +215,7 @@ impl BitcoinTransaction {
             // Bech32 P2WPKH doesnt require an input script
             if input.out_point.address.format == Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone().unwrap();
-                let mut new_script = variable_integer_length(input_script.len() as u64);
+                let mut new_script = variable_length_integer(input_script.len() as u64);
                 new_script.extend(input_script);
                 self.inputs[input_index].create_script_sig(new_script);
             }
@@ -231,7 +231,7 @@ impl BitcoinTransaction {
                 BitcoinTransactionWitness { witness: witness_public_key }];
 
             self.inputs[input_index].witnesses.append(&mut full_witness);
-            self.inputs[input_index].witness_count = Some(variable_integer_length(self.inputs[input_index].witnesses.len() as u64));
+            self.inputs[input_index].witness_count = Some(variable_length_integer(self.inputs[input_index].witnesses.len() as u64));
         }
 
         Ok(signature)
@@ -301,7 +301,7 @@ impl BitcoinTransaction {
         script_code.push(OPCodes::OP_EQUALVERIFY as u8);
         script_code.push(OPCodes::OP_CHECKSIG as u8);
 
-        let mut script_code_with_length = variable_integer_length(script_code.len() as u64);
+        let mut script_code_with_length = variable_length_integer(script_code.len() as u64);
         script_code_with_length.extend(&script_code);
 
         transaction_hash_preimage.extend(version_bytes);
@@ -363,7 +363,7 @@ impl BitcoinTransactionInput {
     // Create a full script_sig using the given script
     pub fn create_script_sig(&mut self, script: Vec<u8>) {
         let script_size_bytes: u64 = script.len() as u64;
-        let script_length = variable_integer_length(script_size_bytes);
+        let script_length = variable_length_integer(script_size_bytes);
         self.script = Some(Script { script_length, script });
     }
 
@@ -381,7 +381,7 @@ impl BitcoinTransactionInput {
                         serialized_input.extend(vec![0x00]);
                     } else {
                         let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
-                        let script_pub_key_length = variable_integer_length(script_pub_key.len() as u64);
+                        let script_pub_key_length = variable_length_integer(script_pub_key.len() as u64);
                         serialized_input.extend(script_pub_key_length);
                         serialized_input.extend(script_pub_key);
                     }
@@ -439,7 +439,7 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressE
             let op_dup: Vec<u8> = vec![OPCodes::OP_DUP as u8];
             let op_hash160: Vec<u8> = vec![OPCodes::OP_HASH160 as u8];
             let pub_key_hash = address_to_pub_key_or_script_hash(bitcoin_address.address);
-            let bytes_to_push: Vec<u8> = variable_integer_length(pub_key_hash.len() as u64);
+            let bytes_to_push: Vec<u8> = variable_length_integer(pub_key_hash.len() as u64);
             let op_equal_verify: Vec<u8> = vec![OPCodes::OP_EQUALVERIFY as u8];
             let op_checksig: Vec<u8> = vec![OPCodes::OP_CHECKSIG as u8];
 
@@ -453,7 +453,7 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressE
         Format::P2SH_P2WPKH => {
             let op_hash160: Vec<u8> = vec![OPCodes::OP_HASH160 as u8];
             let script_hash = address_to_pub_key_or_script_hash(bitcoin_address.address);
-            let bytes_to_push: Vec<u8> = variable_integer_length(script_hash.len() as u64);
+            let bytes_to_push: Vec<u8> = variable_length_integer(script_hash.len() as u64);
             let op_equal: Vec<u8> = vec![OPCodes::OP_EQUAL as u8];
 
             script.extend(op_hash160);
@@ -466,7 +466,7 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressE
             let (v, program) = bech32.data().split_at(1);
             let mut version_u8 =  v[0].to_u8();
             let program_u8 = Vec::from_base32(program).unwrap();
-            let bytes_to_push: Vec<u8> = variable_integer_length(program_u8.len() as u64);
+            let bytes_to_push: Vec<u8> = variable_length_integer(program_u8.len() as u64);
             version_u8 = WitnessProgram::convert_version(version_u8);
 
             script.push(version_u8);
@@ -474,7 +474,7 @@ pub fn generate_script_pub_key(bitcoin_address: &str) -> Result<Script, AddressE
             script.extend(program_u8);
         }
     }
-    let script_length = variable_integer_length(script.len() as u64);
+    let script_length = variable_length_integer(script.len() as u64);
 
     Ok(Script { script_length, script })
 }
@@ -510,7 +510,7 @@ pub fn validate_address_format (address_format: Format, redeem_script: Option<Ve
 
 /// Return Bitcoin variable length integer of the size
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-pub fn variable_integer_length (size: u64) -> Vec<u8> {
+pub fn variable_length_integer (size: u64) -> Vec<u8> {
     let mut v8: Vec<u8> = Vec::new();
     if size < 253 {
         vec![size as u8]
@@ -1045,7 +1045,7 @@ mod tests {
                 transaction_id: "7dabce",
                 index: 0,
                 redeem_script: None,
-                script_pub_key: None,
+                script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sig_hash_code: SigHashCode::SIGHASH_ALL
@@ -1140,6 +1140,7 @@ mod tests {
                     None => None,
                     Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
                 };
+
                 let script_pub_key = match input.script_pub_key {
                     None => None,
                     Some (script) => Some(hex::decode(script).unwrap())
@@ -1387,6 +1388,36 @@ mod tests {
                     pruned_outputs.retain(|output| output.address != "");
 
                     test_transaction(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
+                });
+        }
+    }
+
+    mod test_helper_functions {
+        use super::*;
+
+        const LENGTH_VALUES: [(u64, [u8; 9]); 13] = [
+            (20, [0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (32, [0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (200, [0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (252, [0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (253, [0xfd, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (40000, [0xfd, 0x40, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (65535, [0xfd, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (65536, [0xfe, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (2000000000, [0xfe, 0x00, 0x94, 0x35, 0x77, 0x00, 0x00, 0x00, 0x00]),
+            (2000000000, [0xfe, 0x00, 0x94, 0x35, 0x77, 0x00, 0x00, 0x00, 0x00]),
+            (4294967295, [0xfe, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00]),
+            (500000000000000000, [0xff, 0x00, 0x00, 0xb2, 0xd3, 0x59, 0x5b, 0xf0, 0x06]),
+            (18446744073709551615, [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+        ];
+
+        #[test]
+        fn test_variable_length_integer() {
+            LENGTH_VALUES.iter()
+                .for_each(|(size, expected_output)| {
+                    let variable_length_int = variable_length_integer(*size);
+                    let pruned_expected_output = &expected_output[0..variable_length_int.len()];
+                    assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
                 });
         }
     }
