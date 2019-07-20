@@ -35,7 +35,7 @@ impl Language {
     pub fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, MnemonicError> {
         let word_string = Language::get_wordlist(language)?;
         match word_string.lines().position(|x| x == word) {
-            Some(_) => Ok(index.unwrap()),
+            Some(index) => Ok(index),
             None => Err(MnemonicError::InvalidWord(String::from(word)))
         }
     }
