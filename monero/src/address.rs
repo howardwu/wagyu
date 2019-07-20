@@ -1,4 +1,4 @@
-use crate::network::Network;
+use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use wagu_model::{Address, AddressError, PrivateKey};
@@ -6,10 +6,11 @@ use wagu_model::{Address, AddressError, PrivateKey};
 use base58_monero as base58;
 use serde::Serialize;
 use std::fmt;
+use std::marker::PhantomData;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
 
-/// Represents the format of a Bitcoin address
+/// Represents the format of a Monero address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
     /// Standard address
@@ -22,94 +23,61 @@ pub enum Format {
 
 impl Format {
     /// Returns the address prefix of the given network.
-    pub fn to_address_prefix(&self, network: &Network) -> u8 {
-        match network {
-            Network::Mainnet => match self {
-                Format::Standard => 18,
-                Format::Integrated => 19,
-                Format::Subaddress => 42
-            },
-            Network::Testnet => match self {
-                Format::Standard => 24,
-                Format::Integrated => 25,
-                Format::Subaddress => 36
-            },
-            Network::Stagenet => match self {
-                Format::Standard => 53,
-                Format::Integrated => 54,
-                Format::Subaddress => 63
-            }
-        }
+    pub fn to_address_prefix<N: MoneroNetwork>(&self) -> u8 {
+        N::to_address_prefix(self)
     }
 
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: u8, network: &Network) -> Result<Self, AddressError> {
-        match network {
-            Network::Mainnet => match prefix {
-                18 => Ok(Format::Standard),
-                19 => Ok(Format::Integrated),
-                42 => Ok(Format::Subaddress),
-                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
-            },
-            Network::Testnet => match prefix {
-                24 => Ok(Format::Standard),
-                25 => Ok(Format::Integrated),
-                36 => Ok(Format::Subaddress),
-                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
-            },
-            Network::Stagenet => match prefix {
-                53 => Ok(Format::Standard),
-                54 => Ok(Format::Integrated),
-                63 => Ok(Format::Subaddress),
-                _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
-            }
+    pub fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
+        match prefix {
+            18 | 24 | 53 => Ok(Format::Standard),
+            19 | 25 | 54 => Ok(Format::Integrated),
+            42 | 36 | 63 => Ok(Format::Subaddress),
+            _ => return Err(AddressError::InvalidPrefix(vec![prefix]))
         }
     }
 }
 
 /// Represents a Monero address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MoneroAddress {
+pub struct MoneroAddress<N: MoneroNetwork> {
     /// The Monero address
     pub address: String,
     /// The format of the address
     pub format: Format,
-    /// The network on which this address is usable
-    pub network: Network,
+    /// PhantomData
+    _network: PhantomData<N>,
 }
 
-impl Address for MoneroAddress {
+impl <N: MoneroNetwork> Address for MoneroAddress<N> {
     type Format = Format;
-    type Network = Network;
-    type PrivateKey = MoneroPrivateKey;
-    type PublicKey = MoneroPublicKey;
+    type PrivateKey = MoneroPrivateKey<N>;
+    type PublicKey = MoneroPublicKey<N>;
 
     /// Returns the address corresponding to the given Monero private key.
     fn from_private_key(
         private_key: &Self::PrivateKey,
         format: &Self::Format
     ) -> Result<Self, AddressError> {
-        Self::from_public_key(&private_key.to_public_key(), format, &private_key.network)
+        Self::from_public_key(&private_key.to_public_key(), format)
     }
 
     /// Returns the address corresponding to the given Monero public key.
     fn from_public_key(
         public_key: &Self::PublicKey,
         format: &Self::Format,
-        network: &Self::Network,
     ) -> Result<Self, AddressError> {
-        Self::generate_address(&public_key, format, network)
+        Self::generate_address(&public_key, format)
     }
 }
 
-impl MoneroAddress {
+impl <N: MoneroNetwork> MoneroAddress<N> {
     /// Returns a Monero address given the public spend key and public view key.
     pub fn generate_address(
-        public_key: &MoneroPublicKey,
-        format: &Format,
-        network: &Network
+        public_key: &MoneroPublicKey<N>,
+        format: &Format
     ) -> Result<Self, AddressError> {
-        let mut bytes = vec![format.to_address_prefix(network)];
+        let mut bytes = vec![format.to_address_prefix::<N>()];
         bytes.extend_from_slice(&public_key.spend_key);
         bytes.extend_from_slice(&public_key.view_key);
 
@@ -122,11 +90,11 @@ impl MoneroAddress {
         bytes.extend_from_slice(&checksum[0..4]);
 
         let address = base58::encode(bytes.as_slice())?;
-        Ok(Self { address, format: format.clone(), network: *network })
+        Ok(Self { address, format: format.clone(), _network: PhantomData })
     }
 }
 
-impl FromStr for MoneroAddress {
+impl <N: MoneroNetwork> FromStr for MoneroAddress<N> {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
@@ -135,8 +103,9 @@ impl FromStr for MoneroAddress {
         }
         let bytes = base58::decode(address)?;
 
-        let network = Network::from_address_prefix(bytes[0])?;
-        let format = Format::from_address_prefix(bytes[0], &network)?;
+        // Check that the network byte correspond with the correct network.
+        let _ = N::from_address_prefix(bytes[0])?;
+        let format = Format::from_address_prefix(bytes[0])?;
 
         let (checksum_bytes, checksum) = match format {
             Format::Standard | Format::Subaddress => (&bytes[0..65], &bytes[65..69]),
@@ -154,11 +123,11 @@ impl FromStr for MoneroAddress {
         let public_view_key = hex::encode(&bytes[33..65]);
         let public_key = MoneroPublicKey::from(public_spend_key.as_str(), public_view_key.as_str())?;
 
-        Self::generate_address(&public_key, &format, &network)
+        Self::generate_address(&public_key, &format)
     }
 }
 
-impl fmt::Display for MoneroAddress {
+impl <N: MoneroNetwork> fmt::Display for MoneroAddress<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.address)
     }
@@ -167,42 +136,42 @@ impl fmt::Display for MoneroAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
     use wagu_model::public_key::PublicKey;
 
-    fn test_from_private_key(
+    fn test_from_private_key<N: MoneroNetwork>(
         expected_address: &str,
-        private_key: &MoneroPrivateKey,
+        private_key: &MoneroPrivateKey<N>,
         format: &Format
     ) {
-        let address = MoneroAddress::from_private_key(private_key, format).unwrap();
+        let address = MoneroAddress::<N>::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
-    fn test_from_public_key(
+    fn test_from_public_key<N: MoneroNetwork>(
         expected_address: &str,
-        public_key: &MoneroPublicKey,
+        public_key: &MoneroPublicKey<N>,
         format: &Format,
-        network: &Network
     ) {
-        let address = MoneroAddress::from_public_key(public_key, format, network).unwrap();
+        let address = MoneroAddress::<N>::from_public_key(public_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*format, address.format);
-        assert_eq!(*network, address.network);
     }
 
-    fn test_from_str(expected_address: &str, expected_format: &Format, expected_network: &Network) {
-        let address = MoneroAddress::from_str(expected_address).unwrap();
+    fn test_from_str<N: MoneroNetwork>(expected_address: &str, expected_format: &Format) {
+        let address = MoneroAddress::<N>::from_str(expected_address).unwrap();
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*expected_format, address.format);
-        assert_eq!(*expected_network, address.network);
     }
 
-    fn test_to_str(expected_address: &str, address: &MoneroAddress) {
+    fn test_to_str<N: MoneroNetwork>(expected_address: &str, address: &MoneroAddress<N>) {
         assert_eq!(expected_address, address.to_string());
     }
 
     mod standard_mainnet {
         use super::*;
+
+        type N = Mainnet;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -230,7 +199,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, address)| {
-                let private_key = MoneroPrivateKey::from_seed(seed, &Network::Mainnet).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 test_from_private_key(address, &private_key, &Format::Standard);
             });
         }
@@ -238,23 +207,23 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(seed, address)| {
-                let private_key = MoneroPrivateKey::from_seed(seed, &Network::Mainnet).unwrap();
-                let public_key = MoneroPublicKey::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::Standard, &Network::Mainnet);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
+                let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
+                test_from_public_key(address, &public_key, &Format::Standard);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str(address, &Format::Standard, &Network::Mainnet);
+                test_from_str::<N>(address, &Format::Standard);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_address)| {
-                let address = MoneroAddress::from_str(expected_address).unwrap();
+                let address = MoneroAddress::<N>::from_str(expected_address).unwrap();
                 test_to_str(expected_address, &address);
             });
         }

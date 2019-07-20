@@ -17,7 +17,6 @@ pub struct EthereumAddress {
 
 impl Address for EthereumAddress {
     type Format = PhantomData<u8>;
-    type Network = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
@@ -26,14 +25,13 @@ impl Address for EthereumAddress {
         private_key: &Self::PrivateKey,
         _: &Self::Format
     ) -> Result<Self, AddressError> {
-        Self::from_public_key(&private_key.to_public_key(), &PhantomData, &PhantomData)
+        Self::from_public_key(&private_key.to_public_key(), &PhantomData)
     }
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(
         public_key: &Self::PublicKey,
         _: &Self::Format,
-        _: &Self::Network
     ) -> Result<Self, AddressError> {
         Ok(Self::checksum_address(public_key))
     }
@@ -109,7 +107,7 @@ mod tests {
         expected_address: &str,
         public_key: &EthereumPublicKey,
     ) {
-        let address = EthereumAddress::from_public_key(public_key, &PhantomData, &PhantomData).unwrap();
+        let address = EthereumAddress::from_public_key(public_key, &PhantomData).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -194,7 +192,7 @@ mod tests {
         assert_ne!(expected_address, address.to_string());
 
         let public_key = EthereumPublicKey::from_private_key(&private_key);
-        let address = EthereumAddress::from_public_key(&public_key, &PhantomData, &PhantomData).unwrap();
+        let address = EthereumAddress::from_public_key(&public_key, &PhantomData).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length

@@ -41,7 +41,6 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     type Address = EthereumAddress;
     type ExtendedPrivateKey = EthereumExtendedPrivateKey;
     type Format = PhantomData<u8>;
-    type Network = PhantomData<u8>;
     type PublicKey = EthereumPublicKey;
 
     /// Returns extended public key given extended private key
@@ -62,7 +61,7 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
 
     /// Returns the address of the corresponding extended public key.
     fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.public_key.to_address(&PhantomData, &PhantomData)
+        self.public_key.to_address(&PhantomData)
     }
 }
 
@@ -156,7 +155,7 @@ impl FromStr for EthereumExtendedPublicKey {
         }
 
         if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
-            return Err(ExtendedPublicKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
+            return Err(ExtendedPublicKeyError::InvalidVersionBytes(data[0..4].to_vec()))
         };
 
         let depth = data[4] as u8;
@@ -506,8 +505,8 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "InvalidNetworkBytes([4, 136, 178, 29])")]
-        fn from_str_invalid_network() {
+        #[should_panic(expected = "InvalidVersionBytes([4, 136, 178, 29])")]
+        fn from_str_invalid_version() {
             let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_NETWORK).unwrap();
         }
 

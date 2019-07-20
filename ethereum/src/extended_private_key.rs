@@ -42,12 +42,11 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     type Address = EthereumAddress;
     type ExtendedPublicKey = EthereumExtendedPublicKey;
     type Format = PhantomData<u8>;
-    type Network = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
     /// Generates new Ethereum extended private key
-    fn new(seed: &[u8], _network: &Self::Network) -> Result<Self, ExtendedPrivateKeyError> {
+    fn new(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
         EthereumExtendedPrivateKey::new_master(seed)
     }
 
@@ -198,7 +197,7 @@ impl FromStr for EthereumExtendedPrivateKey {
 
         // Ethereum xkeys are mainnet only
         if &data[0..4] != [0x04u8, 0x88, 0xAD, 0xE4] {
-            return Err(ExtendedPrivateKeyError::InvalidNetworkBytes(data[0..4].to_vec()))
+            return Err(ExtendedPrivateKeyError::InvalidVersionBytes(data[0..4].to_vec()))
         };
 
         let depth = data[4] as u8;
@@ -757,8 +756,8 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "InvalidNetworkBytes([4, 136, 173, 227])")]
-        fn from_str_invalid_network() {
+        #[should_panic(expected = "InvalidVersionBytes([4, 136, 173, 227])")]
+        fn from_str_invalid_version() {
             let _result = EthereumExtendedPrivateKey::from_str(INVALID_XPRIV_NETWORK).unwrap();
         }
 
