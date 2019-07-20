@@ -180,7 +180,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
-        if address.len() < 2 || address.len() > 50 {
+        if address.len() < 14 || address.len() > 74 {
             return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
