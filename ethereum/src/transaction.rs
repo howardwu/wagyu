@@ -1,46 +1,46 @@
 use crate::private_key::EthereumPrivateKey;
 
-use tiny_keccak::keccak256;
-use secp256k1::Secp256k1;
-use rlp::RlpStream;
 use ethereum_types::U256;
+use rlp::RlpStream;
+use secp256k1::Secp256k1;
+use tiny_keccak::keccak256;
 
 /// Represents a raw Ethereum transaction
 pub struct EthereumTransaction {
-    // Ethereum account nonce
+    /// Ethereum account nonce
     pub nonce: U256,
-    // Transaction gas price in wei
+    /// Transaction gas price in wei
     pub gas_price: U256,
-    // Transaction gas limit
+    /// Transaction gas limit
     pub gas: U256,
-    // Transaction destination address
+    /// Transaction destination address
     pub to: Vec<u8>,
-    // Transaction transfer amount
+    /// Transaction transfer amount
     pub value: U256,
-    // Transaction data
+    /// Transaction data
     pub data: Vec<u8>
 }
 
-// Represents an Ethereum transaction signature
+/// Represents an Ethereum transaction signature
 struct EthereumTransactionSignature {
-    // The V field of the signature protected with a chain_id
+    /// The V field of the signature protected with a chain_id
     v: Vec<u8>,
-    // The R field of the signature
+    /// The R field of the signature
     r: Vec<u8>,
-    // The S field of the signature
+    /// The S field of the signature
     s: Vec<u8>,
 }
 
-// Represents an Ethereum transaction output
+/// Represents an Ethereum transaction output
 pub struct EthereumTransactionOutput {
-    // Signed transaction output
+    /// Signed transaction output
     pub signed_transaction: String,
-    // Hash of the signed transaction
+    /// Hash of the signed transaction
     pub transaction_hash: String
 }
 
 impl EthereumTransaction {
-    // Generate a raw Ethereum transaction
+    /// Generate a raw Ethereum transaction
     pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Self {
         let nonce = Self::str_to_u256(nonce);
         let gas_price = Self::str_to_u256(gas_price);
@@ -52,7 +52,7 @@ impl EthereumTransaction {
         Self { nonce, gas_price, gas, to, value, data }
     }
 
-    // Generate a Recursive Length Prefix encoding from the raw transaction
+    /// Generate a Recursive Length Prefix encoding from the raw transaction
     fn encode_transaction_rlp (&self, transaction_rlp: &mut RlpStream) {
         transaction_rlp.append(&self.nonce);
         transaction_rlp.append(&self.gas_price);
@@ -62,7 +62,7 @@ impl EthereumTransaction {
         transaction_rlp.append(&self.data);
     }
 
-    // Generate the raw transaction hash
+    /// Generate the raw transaction hash
     fn raw_transaction_hash(&self, chain_id: u8) -> Vec<u8> {
         let mut transaction_rlp = RlpStream::new();
         transaction_rlp.begin_list(9);
@@ -74,19 +74,22 @@ impl EthereumTransaction {
         keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect()
     }
 
-    // Sign the transaction with a given private key and output the encoded signature
+    /// Sign the transaction with a given private key and output the encoded signature
     pub fn sign_transaction(&self, private_key: &str, chain_id: u8) -> Result<EthereumTransactionOutput, &'static str> {
         if chain_id == 0 {
             return Err("invalid chain_id");
         }
 
-        let hash = self.raw_transaction_hash(chain_id);
         let ethereum_private_key = EthereumPrivateKey::from(private_key);
         if ethereum_private_key.is_err() {
             return Err("invalid private key");
         }
 
-        let signature = Self::ecdsa_sign(&hash, ethereum_private_key.unwrap(), &chain_id);
+        let signature = Self::ecdsa_sign(
+            &self.raw_transaction_hash(chain_id),
+            ethereum_private_key.unwrap(), &chain_id
+        );
+
         let mut signed_transaction_rlp = RlpStream::new();
         signed_transaction_rlp.begin_list(9);
         self.encode_transaction_rlp(&mut signed_transaction_rlp);
@@ -95,39 +98,33 @@ impl EthereumTransaction {
         signed_transaction_rlp.append(&signature.s);
 
         let signed_transaction_bytes= signed_transaction_rlp.as_raw();
-        let mut signed_transaction= "0x".to_owned();
-        let mut transaction_hash = "0x".to_owned();
-        signed_transaction.push_str(&hex::encode(signed_transaction_bytes));
-        transaction_hash.push_str(&hex::encode(keccak256(signed_transaction_bytes)));
+        let signed_transaction = format!("0x{}", &hex::encode(signed_transaction_bytes));
+        let transaction_hash = format!("0x{}", &hex::encode(keccak256(signed_transaction_bytes)));
 
         Ok(EthereumTransactionOutput { signed_transaction, transaction_hash })
     }
 
-    // Sign the transaction hash with a given private key
+    /// Sign the transaction hash with a given private key
     fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> EthereumTransactionSignature {
-        let signing_key = private_key.secret_key;
         let message = secp256k1::Message::from_slice(hash).unwrap();
-
         let sign = Secp256k1::signing_only();
-        let (v, signature_bytes) = sign.sign_recoverable(&message, &signing_key).serialize_compact(&sign);
-        let protected_v = Self::chain_replay_protection(v.to_i32() as u8, chain_id);
+        let (v, signature) = sign.sign_recoverable(&message, &private_key.0).serialize_compact(&sign);
 
         EthereumTransactionSignature {
-            v: protected_v,
-            r: signature_bytes[0..32].to_vec(),
-            s: signature_bytes[32..64].to_vec(),
+            v: Self::chain_replay_protection(v.to_i32() as u8, chain_id),
+            r: signature[0..32].to_vec(),
+            s: signature[32..64].to_vec(),
         }
     }
 
-    // Convert integer strings into U246
+    /// Convert integer strings into U246
     fn str_to_u256(s: &str) -> U256 {
         U256::from_dec_str(s).unwrap()
     }
 
-    // Apply chain replay protection - EIP155
+    /// Apply chain replay protection - EIP155
     fn chain_replay_protection(v: u8, chain_id: &u8) -> Vec<u8> {
-        let protected_v = v + chain_id * 2 + 35;
-        vec![protected_v]
+        vec![v + chain_id * 2 + 35]
     }
 }
 
