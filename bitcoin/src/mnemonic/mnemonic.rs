@@ -1,4 +1,4 @@
-use crate::language::Language;
+use crate::mnemonic::language::Language;
 
 use bitvec::prelude::*;
 use bitvec::cursor::BigEndian;
@@ -403,8 +403,8 @@ mod tests {
 
         mod integration {
             use super::*;
+            use crate::{BitcoinExtendedPrivateKey, Format, Mainnet};
             use wagu_model::extended_private_key::ExtendedPrivateKey;
-            use bitcoin::{BitcoinExtendedPrivateKey, Format, Mainnet};
 
             type N = Mainnet;
 

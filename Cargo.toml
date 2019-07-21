@@ -24,7 +24,7 @@ name = "wagu"
 path = "wagu/cli.rs"
 
 [workspace]
-members = [ "bitcoin", "ethereum", "mnemonic", "model", "monero", "zcash" ]
+members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
 
 [badges]
 travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }

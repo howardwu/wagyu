@@ -1,6 +1,13 @@
 use wagu_model::mnemonic::MnemonicError;
 
-use std::fs;
+const CHINESE_SIMPLIFIED: &str = include_str!("./languages/chinese_simplified.txt");
+const CHINESE_TRADITIONAL: &str = include_str!("./languages/chinese_traditional.txt");
+const ENGLISH: &str = include_str!("./languages/english.txt");
+const FRENCH: &str = include_str!("./languages/french.txt");
+const ITALIAN: &str = include_str!("./languages/italian.txt");
+const JAPANESE: &str = include_str!("./languages/japanese.txt");
+const KOREAN: &str = include_str!("./languages/korean.txt");
+const SPANISH: &str = include_str!("./languages/spanish.txt");
 
 /// Mnemonic word languages
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -20,14 +27,14 @@ impl Language {
     /// Returns the word list for a given language as a string.
     pub fn get_wordlist(language: &Language) -> Result<String, MnemonicError> {
         match language {
-            Language::CHINESE_SIMPLIFIED => Ok(fs::read_to_string("src/languages/chinese_simplified.txt")?),
-            Language::CHINESE_TRADITIONAL => Ok(fs::read_to_string("src/languages/chinese_traditional.txt")?),
-            Language::ENGLISH => Ok(fs::read_to_string("src/languages/english.txt")?),
-            Language::FRENCH => Ok(fs::read_to_string("src/languages/french.txt")?),
-            Language::ITALIAN => Ok(fs::read_to_string("src/languages/italian.txt")?),
-            Language::JAPANESE => Ok(fs::read_to_string("src/languages/japanese.txt")?),
-            Language::KOREAN => Ok(fs::read_to_string("src/languages/korean.txt")?),
-            Language::SPANISH => Ok(fs::read_to_string("src/languages/spanish.txt")?),
+            Language::CHINESE_SIMPLIFIED => Ok(CHINESE_SIMPLIFIED.into()),
+            Language::CHINESE_TRADITIONAL => Ok(CHINESE_TRADITIONAL.into()),
+            Language::ENGLISH => Ok(ENGLISH.into()),
+            Language::FRENCH => Ok(FRENCH.into()),
+            Language::ITALIAN => Ok(ITALIAN.into()),
+            Language::JAPANESE => Ok(JAPANESE.into()),
+            Language::KOREAN => Ok(KOREAN.into()),
+            Language::SPANISH => Ok(SPANISH.into()),
         }
     }
 
