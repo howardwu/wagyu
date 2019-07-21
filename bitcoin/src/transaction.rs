@@ -192,7 +192,6 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let public_key_bytes = if address_format == Format::P2PKH && !public_key.compressed {
             public_key.public_key.serialize_uncompressed().to_vec()
         } else {
-            // Public Key must always be compressed for segwit- https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#restrictions-on-public-key-type
             public_key.public_key.serialize().to_vec()
         };
 
@@ -203,9 +202,6 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
             let new_script = [signature.clone(), public_key].concat();
             self.inputs[input_index].create_script_sig(new_script);
         } else {
-            self.segwit_flag = true;
-
-            // Bech32 P2WPKH doesnt require an input script
             if input.out_point.address.format == Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone().unwrap();
                 let new_script = [variable_length_integer(input_script.len() as u64), input_script].concat();
@@ -216,6 +212,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
                 BitcoinTransactionWitness { witness: signature.clone() },
                 BitcoinTransactionWitness { witness: public_key }];
 
+            self.segwit_flag = true;
             self.inputs[input_index].witnesses.append(&mut full_witness);
             self.inputs[input_index].witness_count = Some(variable_length_integer(self.inputs[input_index].witnesses.len() as u64));
         }
@@ -324,7 +321,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         if transaction_id.len() != 32 {
             return Err("invalid transaction id");
         }
-        // Bitcoin uses reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
+        // Reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
@@ -388,7 +385,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
         )
     }
 
-    // Serialize the transaction output
+    /// Serialize the transaction output
     pub fn serialize(&self) -> Vec<u8> {
         let mut serialized_output: Vec<u8> = Vec::new();
         serialized_output.write_u64::<LittleEndian>(self.amount).unwrap();
@@ -638,7 +635,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: None,
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -777,7 +774,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(2000000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -810,7 +807,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: None,
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     Input {
@@ -821,7 +818,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(100000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -853,7 +850,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: None,
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -886,7 +883,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(1500000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -965,7 +962,13 @@ mod tests {
                     let mut pruned_outputs = transaction.outputs.to_vec();
                     pruned_outputs.retain(|output| output.address != "");
 
-                    test_transaction::<N>(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
+                    test_transaction::<N>(
+                        transaction.version,
+                        transaction.lock_time,
+                        pruned_inputs,
+                        pruned_outputs,
+                        transaction.expected_signed_transaction
+                    );
                 });
         }
     }
@@ -987,7 +990,7 @@ mod tests {
                         redeem_script: Some("0014b5ccbe3c5a285af4afada113a8619827fb30b2ee"),
                         script_pub_key: None,
                         utxo_amount: Some(80000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -1020,7 +1023,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: None,
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -1053,7 +1056,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(35000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -1083,7 +1086,7 @@ mod tests {
                         redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
                         script_pub_key: None,
                         utxo_amount: Some(25000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     Input {
@@ -1094,7 +1097,7 @@ mod tests {
                         redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
                         script_pub_key: None,
                         utxo_amount: Some(12000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER,
@@ -1126,7 +1129,7 @@ mod tests {
                         redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
                         script_pub_key: None,
                         utxo_amount: Some(15000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     Input {
@@ -1137,7 +1140,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: None,
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     Input {
@@ -1148,7 +1151,7 @@ mod tests {
                         redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(12000),
-                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sequence: None,
                         sig_hash_code: SigHashCode::SIGHASH_ALL
                     },
                     INPUT_FILLER
@@ -1176,7 +1179,13 @@ mod tests {
                     let mut pruned_outputs = transaction.outputs.to_vec();
                     pruned_outputs.retain(|output| output.address != "");
 
-                    test_transaction::<N>(transaction.version, transaction.lock_time, pruned_inputs, pruned_outputs, transaction.expected_signed_transaction);
+                    test_transaction::<N>(
+                        transaction.version,
+                        transaction.lock_time,
+                        pruned_inputs,
+                        pruned_outputs,
+                        transaction.expected_signed_transaction
+                    );
                 });
         }
     }
@@ -1294,20 +1303,17 @@ mod tests {
             for input in INVALID_INPUTS.iter() {
                 let transaction_id = hex::decode(input.transaction_id).unwrap();
 
-                let redeem_script = match input.redeem_script {
-                    None => None,
-                    Some(redeem_script) => Some(hex::decode(redeem_script).unwrap())
-                };
+                let redeem_script = if let Some(script) = input.redeem_script {
+                    Some(hex::decode(script).unwrap())
+                } else { None };
 
-                let script_pub_key = match input.script_pub_key {
-                    None => None,
-                    Some (script) => Some(hex::decode(script).unwrap())
-                };
+                let script_pub_key = if let Some(script) = input.script_pub_key {
+                    Some(hex::decode(script).unwrap())
+                } else { None };
 
-                let sequence = match input.sequence {
-                    None => None,
-                    Some(seq) => Some(seq.to_vec())
-                };
+                let sequence = if let Some(seq) = input.sequence {
+                    Some(seq.to_vec())
+                } else { None };
 
                 let private_key = BitcoinPrivateKey::<N>::from_wif(input.private_key).unwrap();
                 let address = private_key.to_address(&input.address_format).unwrap();
@@ -1365,7 +1371,7 @@ mod tests {
             LENGTH_VALUES.iter()
                 .for_each(|(size, expected_output)| {
                     let variable_length_int = variable_length_integer(*size);
-                    let pruned_expected_output = &expected_output[0..variable_length_int.len()];
+                    let pruned_expected_output = &expected_output[..variable_length_int.len()];
                     assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
                 });
         }
