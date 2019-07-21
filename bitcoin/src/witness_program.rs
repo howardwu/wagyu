@@ -32,7 +32,7 @@ pub struct WitnessProgram {
 }
 
 impl WitnessProgram {
-    /// Returns a new WitnessProgram given a program with a version byte, data size, and data.
+    /// Returns a new witness program given a program with a version byte, data size, and data.
     pub fn new(program: &[u8]) -> Result<WitnessProgram, &'static str> {
         if program.len() < 2 {
             return Err("Invalid program");

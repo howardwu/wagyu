@@ -1,34 +1,34 @@
 use crate::language::Language;
 
 use bitvec::prelude::*;
+use bitvec::cursor::BigEndian;
 use hmac::Hmac;
+use pbkdf2::pbkdf2;
 use rand::Rng;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256, Sha512};
+use std::ops::Div;
 use std::str;
 use wagu_model::MnemonicError;
-
-use bitvec::cursor::BigEndian;
-use std::ops::{AddAssign, Div};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// Represents a BIP39 Mnemonic
+/// Represents a BIP39 mnemonic
 pub struct Mnemonic {
-    /// Initial entropy for generating the mnemonic. Must be a multiple of 32 bits.
+    /// Initial entropy in multiples of 32 bits
     pub entropy: Vec<u8>,
-    /// Language of mnemnoic words
+    /// The language of the mnemonic words
     pub language: Language,
-    /// Mnemonic phrase
+    /// The mnemonic phrase
     pub phrase: String,
 }
 
 impl Mnemonic {
     /// Returns a random mnemonic with the given word count and language.
     pub fn new(word_count: u8, language: &Language) -> Result<Self, MnemonicError> {
-        let entropy_length: usize = match word_count {
+        let length: usize = match word_count {
             12 => 16,
             15 => 20,
             18 => 24,
@@ -36,17 +36,16 @@ impl Mnemonic {
             24 => 32,
             wc => return Err(MnemonicError::InvalidWordCount(wc))
         };
-        let mut entropy_slice_max = [0u8; 32];
-        OsRng.try_fill(&mut entropy_slice_max)?;
-        let entropy_slice_exact = &entropy_slice_max[0..entropy_length];
-        let entropy: Vec<u8> = Vec::from(entropy_slice_exact);
 
-        Ok(Mnemonic::from_entropy(&entropy, language)?)
+        let mut entropy = [0u8; 32];
+        OsRng.try_fill(&mut entropy)?;
+
+        Ok(Self::from_entropy(&entropy[0..length].to_vec(), language)?)
     }
 
     /// Returns the mnemonic for the given entropy and language.
     pub fn from_entropy(entropy: &Vec<u8>, language: &Language) -> Result<Self, MnemonicError> {
-        let word_count: i32 = match entropy.len() {
+        let length: i32 = match entropy.len() {
             16 => 12,
             20 => 15,
             24 => 18,
@@ -55,67 +54,56 @@ impl Mnemonic {
             entropy_len => return Err(MnemonicError::InvalidEntropyLength(entropy_len))
         };
 
-        let word_list_str = Language::get_wordlist(language)?;
-        let word_list: Vec<&str> = word_list_str.lines().collect();
-
         // Compute the checksum by taking the first ENT / 32 bits of the SHA256 hash
-        let mut hasher = Sha256::new();
-        hasher.input(entropy.as_slice());
-        let hash_result = hasher.result();
+        let mut sha256 = Sha256::new();
+        sha256.input(entropy.as_slice());
 
-        let cs = word_count.div(3i32) as usize;
-        let checksum_bit_slice: &BitSlice = &hash_result[0].as_bitslice::<BigEndian>()[..cs];
-        let mut checksum_bit_vector = BitVec::from_bitslice(checksum_bit_slice);
+        let hash = sha256.result();
+        let checksum = &hash[0].as_bitslice::<BigEndian>()[..length.div(3) as usize];
 
         // Convert the entropy bytes into bits and append the checksum
-        let mut encoding_vec = BitVec::<BigEndian, u8>::from_vec(entropy.clone());
-        encoding_vec.append(&mut checksum_bit_vector);
+        let mut encoding = BitVec::<BigEndian, u8>::from_vec(entropy.clone());
+        encoding.append(&mut BitVec::from_bitslice(checksum));
 
-        // Compute the phrase in 11 bit chunks which encode an index into the wordlist
-        let mut phrase = String::new();
-        let mut word_bits: Vec<u8> = Vec::with_capacity(11);
+        // Compute the phrase in 11 bit chunks which encode an index into the word list
+        let list = Language::get_wordlist(language)?;
+        let words = list.lines().collect::<Vec<&str>>();
 
-        encoding_vec.iter().for_each(|bit| {
-            match bit {
-                true => word_bits.push(1),
-                false => word_bits.push(0)
-            }
-            if word_bits.len() == 11 {
-                phrase.push_str(&word_list[Mnemonic::to_u11(&word_bits)]);
-                phrase.push(' ');
-                word_bits = Vec::new();
-            }
-        });
-        phrase.pop();
+        let phrase = encoding.chunks(11).map(|index| {
+            // Convert a vector of 11 bits into a u11 number.
+            let index = index.iter().enumerate().map(|(i, bit)| {
+                (bit as u16) * 2u16.pow(10 - i as u32)
+            }).sum::<u16>();
+
+            words[index as usize]
+        }).collect::<Vec<&str>>();
 
         Ok(Self {
             entropy: entropy.clone(),
             language: language.clone(),
-            phrase,
+            phrase: phrase.join(" "),
         })
     }
 
     /// Returns the mnemonic for the given phrase and language.
     pub fn from_phrase(phrase: &str, language: &Language) -> Result<Self, MnemonicError> {
         Ok(Self {
-            entropy: Mnemonic::to_entropy(phrase, language)?,
+            entropy: Self::to_entropy(phrase, language)?,
             language: language.clone(),
-            phrase: String::from(phrase),
+            phrase: phrase.to_owned(),
         })
     }
 
     /// Compares the given phrase against the phrase extracted from its entropy.
     pub fn verify_phrase(phrase: &str, language: &Language) -> bool {
-        match Mnemonic::to_entropy(phrase, language) {
-            Ok(_) => true,
-            Err(_) => false
-        }
+        Self::to_entropy(phrase, language).is_ok()
     }
 
     /// Returns the entropy bytes for the given phrase and language.
     pub fn to_entropy(phrase: &str, language: &Language) -> Result<Vec<u8>, MnemonicError> {
-        let mnemonic: Vec<&str> = phrase.split(" ").collect();
-        let entropy_length = match mnemonic.len() {
+        let mnemonic = phrase.split(" ").collect::<Vec<&str>>();
+
+        let length = match mnemonic.len() {
             12 => 128,
             15 => 160,
             18 => 192,
@@ -126,51 +114,32 @@ impl Mnemonic {
 
         let mut entropy: BitVec<BigEndian> = BitVec::new();
 
-        mnemonic.iter().for_each(|word| {
-            let index = Language::get_wordlist_index(word, language)
-                .map_err(|err| { return err; });
+        for word in mnemonic {
+            let index = Language::get_wordlist_index(word, language)?;
+            let index_u8: [u8; 2] = (index as u16).to_be_bytes();
+            let index_slice = &BitVec::from_slice(&index_u8)[5..];
 
-            let index_u16 = index.unwrap() as u16;
-            let index_u8_slice: [u8; 2] = index_u16.to_be_bytes();
-            let index_11_bits = &BitVec::<BigEndian, u8>::from_slice(&index_u8_slice)[5..];
-            let mut index_bit_vector = BitVec::<BigEndian, u8>::from_bitslice(index_11_bits);
+            entropy.append(&mut BitVec::<BigEndian, u8>::from_bitslice(index_slice));
+        }
 
-            entropy.append(&mut index_bit_vector);
-        });
+        let entropy = entropy[..length].as_slice().to_vec();
+        let mnemonic = Self::from_entropy(&entropy, language)?;
 
-        let entropy_extracted: Vec<u8> = Vec::from(entropy[..entropy_length].as_slice());
-        let mnemonic_extracted = Mnemonic::from_entropy(&entropy_extracted, language)?;
+        if phrase != mnemonic.phrase {
+            return Err(MnemonicError::InvalidPhrase(phrase.into()))
+        }
 
-        return match phrase == mnemonic_extracted.phrase {
-            true => Ok(entropy_extracted),
-            false => Err(MnemonicError::InvalidPhrase(String::from(phrase)))
-        };
+        Ok(entropy)
     }
 
     /// Returns a seed using the given password and mnemonic.
     pub fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
-        let mut salt = String::from("mnemonic");
-
-        let pass = password.unwrap_or_else(|| "");
-        salt.push_str(pass);
+        let salt = format!("mnemonic{}", password.unwrap_or(""));
 
         let mut seed = vec![0u8; PBKDF2_BYTES];
-        pbkdf2::pbkdf2::<Hmac<Sha512>>(&self.phrase.as_bytes(), salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
+        pbkdf2::<Hmac<Sha512>>(&self.phrase.as_bytes(), salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
 
         Ok(seed)
-    }
-
-    /// Returns the u11 representation of a given a bit vector in BigEndian form.
-    fn to_u11(bits: &Vec<u8>) -> usize {
-        let mut number = 0u16;
-        for x in 0..11 {
-            if bits[x] == 1 {
-                let exp = (10 - x) as u32;
-                number.add_assign(2u16.pow(exp));
-            }
-        }
-
-        number as usize
     }
 }
 
@@ -435,7 +404,9 @@ mod tests {
         mod integration {
             use super::*;
             use wagu_model::extended_private_key::ExtendedPrivateKey;
-            use bitcoin::{BitcoinExtendedPrivateKey, Network};
+            use bitcoin::{BitcoinExtendedPrivateKey, Format, Mainnet};
+
+            type N = Mainnet;
 
             #[test]
             fn to_extended_private_key() {
@@ -443,7 +414,7 @@ mod tests {
                     let mnemonic = Mnemonic::from_phrase(phrase, &Language::ENGLISH).unwrap();
                     let seed = mnemonic.to_seed(Some(PASSWORD)).unwrap();
                     assert_eq!(*expected_seed, hex::encode(&seed));
-                    let xpriv = BitcoinExtendedPrivateKey::new(&seed, &Network::Mainnet).unwrap();
+                    let xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed, &Format::P2PKH).unwrap();
                     assert_eq!(*expected_xpriv, xpriv.to_string());
                 });
             }
@@ -459,7 +430,6 @@ mod tests {
         const INVALID_PHRASE_LENGTH: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
         const INVALID_PHRASE_WORD: &str = "abandoz abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
         const INVALID_PHRASE_CHECKSUM: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
-
 
         #[test]
         #[should_panic(expected = "InvalidWordCount(11)")]

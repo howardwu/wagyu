@@ -33,8 +33,8 @@ impl Language {
 
     /// Returns the index of the given word in the language's word list.
     pub fn get_wordlist_index(word: &str, language: &Language) -> Result<usize, MnemonicError> {
-        let word_string = Language::get_wordlist(language)?;
-        match word_string.lines().position(|x| x == word) {
+        let list = Language::get_wordlist(language)?;
+        match list.lines().position(|s| s == word) {
             Some(index) => Ok(index),
             None => Err(MnemonicError::InvalidWord(String::from(word)))
         }
