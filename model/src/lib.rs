@@ -10,6 +10,8 @@ extern crate failure;
 pub mod address;
 pub use self::address::*;
 
+pub mod bip39;
+
 pub mod extended_private_key;
 pub use self::extended_private_key::*;
 

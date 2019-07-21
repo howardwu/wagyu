@@ -1,13 +1,13 @@
-use wagu_model::mnemonic::MnemonicError;
+use crate::mnemonic::MnemonicError;
 
-const CHINESE_SIMPLIFIED: &str = include_str!("./languages/chinese_simplified.txt");
-const CHINESE_TRADITIONAL: &str = include_str!("./languages/chinese_traditional.txt");
-const ENGLISH: &str = include_str!("./languages/english.txt");
-const FRENCH: &str = include_str!("./languages/french.txt");
-const ITALIAN: &str = include_str!("./languages/italian.txt");
-const JAPANESE: &str = include_str!("./languages/japanese.txt");
-const KOREAN: &str = include_str!("./languages/korean.txt");
-const SPANISH: &str = include_str!("./languages/spanish.txt");
+const CHINESE_SIMPLIFIED: &str = include_str!("chinese_simplified.txt");
+const CHINESE_TRADITIONAL: &str = include_str!("chinese_traditional.txt");
+const ENGLISH: &str = include_str!("english.txt");
+const FRENCH: &str = include_str!("french.txt");
+const ITALIAN: &str = include_str!("italian.txt");
+const JAPANESE: &str = include_str!("japanese.txt");
+const KOREAN: &str = include_str!("korean.txt");
+const SPANISH: &str = include_str!("spanish.txt");
 
 /// Mnemonic word languages
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

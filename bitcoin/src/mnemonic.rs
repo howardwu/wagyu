@@ -1,4 +1,4 @@
-use crate::mnemonic::language::Language;
+use wagu_model::{MnemonicError, bip39::language::Language};
 
 use bitvec::prelude::*;
 use bitvec::cursor::BigEndian;
@@ -9,7 +9,6 @@ use rand::rngs::OsRng;
 use sha2::{Digest, Sha256, Sha512};
 use std::ops::Div;
 use std::str;
-use wagu_model::MnemonicError;
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
@@ -180,6 +179,10 @@ mod tests {
     /// Test vectors from https://github.com/trezor/python-mnemonic/blob/master/vectors.json
     mod english {
         use super::*;
+        use crate::{BitcoinExtendedPrivateKey, Format, Mainnet};
+        use wagu_model::extended_private_key::ExtendedPrivateKey;
+
+        type N = Mainnet;
 
         const PASSWORD: &str = "TREZOR";
         const LANGUAGE: &Language = &Language::ENGLISH;
@@ -401,23 +404,15 @@ mod tests {
             test_to_seed(NO_PASSWORD_STR, None, result);
         }
 
-        mod integration {
-            use super::*;
-            use crate::{BitcoinExtendedPrivateKey, Format, Mainnet};
-            use wagu_model::extended_private_key::ExtendedPrivateKey;
-
-            type N = Mainnet;
-
-            #[test]
-            fn to_extended_private_key() {
-                KEYPAIRS.iter().for_each(|(_, phrase, expected_seed, expected_xpriv)| {
-                    let mnemonic = Mnemonic::from_phrase(phrase, &Language::ENGLISH).unwrap();
-                    let seed = mnemonic.to_seed(Some(PASSWORD)).unwrap();
-                    assert_eq!(*expected_seed, hex::encode(&seed));
-                    let xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed, &Format::P2PKH).unwrap();
-                    assert_eq!(*expected_xpriv, xpriv.to_string());
-                });
-            }
+        #[test]
+        fn to_extended_private_key() {
+            KEYPAIRS.iter().for_each(|(_, phrase, expected_seed, expected_xpriv)| {
+                let mnemonic = Mnemonic::from_phrase(phrase, &Language::ENGLISH).unwrap();
+                let seed = mnemonic.to_seed(Some(PASSWORD)).unwrap();
+                assert_eq!(*expected_seed, hex::encode(&seed));
+                let xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed, &Format::P2PKH).unwrap();
+                assert_eq!(*expected_xpriv, xpriv.to_string());
+            });
         }
     }
 
