@@ -3,13 +3,13 @@
 //! A command-line tool to generate cryptocurrency wallets.
 
 use bitcoin::address::Format as BitcoinFormat;
-use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Network as BitcoinNetwork};
+use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
-use monero::{MoneroAddress, MoneroPrivateKey, Network as MoneroNetwork};
-use model::{Address, PrivateKey};
+use monero::{MoneroAddress, MoneroPrivateKey, Mainnet as MoneroMainnet, Testnet as MoneroTestnet};
+use wagu_model::{Address, PrivateKey};
 use zcash::address::Format as ZcashFormat;
-use zcash::{ZcashAddress, ZcashPrivateKey, Network as ZcashNetwork};
+use zcash::{ZcashAddress, ZcashPrivateKey, Mainnet as ZcashMainnet, Testnet as ZcashTestnet};
 
 use clap::{App, Arg};
 use serde::Serialize;
@@ -21,7 +21,7 @@ fn main() {
        .version("v0.6.0")
        .about("Generate a wallet for any cryptocurrency
 
-Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
+Supported Currencies: Bitcoin, Ethereum, Monero, Zcash")
        .author("Argus Developer <team@argus.dev>")
        .arg(Arg::with_name("currency")
             .required(true)
@@ -49,6 +49,10 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
             .long("segwit")
             .conflicts_with("network")
             .help("Enabling this flag generates a wallet with a SegWit address"))
+        .arg(Arg::with_name("bech32")
+            .long("bech32")
+            .conflicts_with("segwit")
+            .help("Enabling this flag generates a wallet with a Bech32 (SegWit enabled) address"))
        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
@@ -58,13 +62,15 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
     let bitcoin_address_type = if matches.is_present("segwit") {
 //        compressed = true;
         BitcoinFormat::P2SH_P2WPKH
+    } else if matches.is_present("bech32") {
+        BitcoinFormat::Bech32
     } else {
         BitcoinFormat::P2PKH
     };
     let zcash_address_type = if matches.is_present("shielded") {
-        ZcashFormat::Shielded
+        ZcashFormat::Sprout
     } else {
-        ZcashFormat::Transparent
+        ZcashFormat::P2PKH
     };
     let testnet = match matches.value_of("network") {
         Some("mainnet") => false,
@@ -82,14 +88,6 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash (t-address)")
 }
 
 fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, json: bool) {
-    let network = match testnet {
-        true => BitcoinNetwork::Testnet,
-        false => BitcoinNetwork::Mainnet,
-    };
-
-    let private_key = BitcoinPrivateKey::new(&network);
-    let address = BitcoinAddress::from_private_key(&private_key, &format);
-
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
@@ -98,11 +96,26 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
         compressed: bool,
     };
 
-    let wallet = Wallet {
-        private_key: private_key.wif.clone(),
-        address: address.address,
-        network: private_key.network.to_string(),
-        compressed: private_key.compressed,
+    let wallet = if testnet {
+        let private_key = BitcoinPrivateKey::<BitcoinTestnet>::new().unwrap();
+        let address = BitcoinAddress::from_private_key(&private_key, &format).unwrap();
+
+        Wallet {
+            private_key: private_key.to_string(),
+            address: address.to_string(),
+            network: "testnet".into(),
+            compressed: private_key.compressed,
+        }
+    } else {
+        let private_key = BitcoinPrivateKey::<BitcoinMainnet>::new().unwrap();
+        let address = BitcoinAddress::from_private_key(&private_key, &format).unwrap();
+
+        Wallet {
+            private_key: private_key.to_string(),
+            address: address.to_string(),
+            network: "mainnet".into(),
+            compressed: private_key.compressed,
+        }
     };
 
     for _ in 0..count {
@@ -123,14 +136,14 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
 }
 
 fn print_ethereum_wallet(count: usize, json: bool) {
-    let private_key = EthereumPrivateKey::new(&PhantomData);
-    let address = EthereumAddress::from_private_key(&private_key, &PhantomData);
-
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
         address: String,
     };
+
+    let private_key = EthereumPrivateKey::new().unwrap();
+    let address = EthereumAddress::from_private_key(&private_key, &PhantomData).unwrap();
 
     let wallet = Wallet {
         private_key: private_key.to_string(),
@@ -153,22 +166,32 @@ fn print_ethereum_wallet(count: usize, json: bool) {
 }
 
 fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
-    let network = match testnet {
-        true => MoneroNetwork::Testnet,
-        false => MoneroNetwork::Mainnet,
-    };
-    let private_key = MoneroPrivateKey::new(&network);
-    let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard);
-
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
         address: String,
+        network: String,
     };
 
-    let wallet = Wallet {
-        private_key: private_key.to_string(),
-        address: address.address,
+    // TODO (howardwu): Add support for all Monero formats.
+    let wallet = if testnet {
+        let private_key = MoneroPrivateKey::<MoneroTestnet>::new().unwrap();
+        let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
+
+        Wallet {
+            private_key: private_key.to_string(),
+            address: address.to_string(),
+            network: "testnet".into(),
+        }
+    } else {
+        let private_key = MoneroPrivateKey::<MoneroMainnet>::new().unwrap();
+        let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
+
+        Wallet {
+            private_key: private_key.to_string(),
+            address: address.to_string(),
+            network: "mainnet".into(),
+        }
     };
 
     for _ in 0..count {
@@ -187,27 +210,31 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
 }
 
 fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: bool) {
-    let network = match testnet {
-        true => ZcashNetwork::Testnet,
-        false => ZcashNetwork::Mainnet
-    };
-
-    let private_key = ZcashPrivateKey::new(&network);
-    let address = ZcashAddress::from_private_key(&private_key, &format);
-
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
         address: String,
-        network: String,
-        compressed: bool
+        network: String
     };
 
-    let wallet = Wallet {
-        private_key: private_key.wif.clone(),
-        address: address.address,
-        network: private_key.network.to_string(),
-        compressed: private_key.compressed
+    let wallet = if testnet {
+        let private_key = ZcashPrivateKey::<ZcashTestnet>::new().unwrap();
+        let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
+
+        Wallet {
+            private_key: private_key.to_string(),
+            address: address.to_string(),
+            network: "testnet".into(),
+        }
+    } else {
+        let private_key = ZcashPrivateKey::<ZcashMainnet>::new().unwrap();
+        let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
+
+        Wallet {
+            private_key: private_key.to_string(),
+            address: address.to_string(),
+            network: "mainnet".into(),
+        }
     };
 
     for _ in 0..count {
@@ -219,12 +246,10 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
         Private Key:    {}
         Address:        {}
         Network:        {}
-        Compressed:     {}
         ",
                 wallet.private_key,
                 wallet.address,
-                wallet.network,
-                wallet.compressed
+                wallet.network
             )
         }
     }

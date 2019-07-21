@@ -4,12 +4,20 @@
 
 #![forbid(unsafe_code)]
 
-extern crate byteorder;
-extern crate ripemd160;
-extern crate sha2;
+#[macro_use]
+extern crate failure;
 
 pub mod address;
 pub use self::address::*;
+
+pub mod extended_private_key;
+pub use self::extended_private_key::*;
+
+pub mod extended_public_key;
+pub use self::extended_public_key::*;
+
+pub mod network;
+pub use self::network::*;
 
 pub mod private_key;
 pub use self::private_key::*;
