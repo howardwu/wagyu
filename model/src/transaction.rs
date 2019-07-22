@@ -1,23 +1,17 @@
 use crate::address::{Address, AddressError};
 use crate::private_key::PrivateKey;
 use crate::public_key::{PublicKey};
-//use std::{fmt::{Debug, Display}, str::FromStr};
 
-/// The interface for a generic private key.
+use std::{fmt::Debug, hash::Hash};
+
+/// The interface for a generic transactions.
 pub trait Transaction:
-//Clone
-//+ Debug
-//+ Send
-//+ Sync
-//+ 'static
-//+ Eq
-//+ Sized
+    Clone + Debug + Send + Sync + 'static + Eq + Ord + Sized + Hash
 {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
-
 }
 
 #[derive(Debug, Fail)]

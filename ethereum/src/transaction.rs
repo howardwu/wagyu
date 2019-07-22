@@ -11,6 +11,7 @@ use tiny_keccak::keccak256;
 use wagu_model::{Transaction, TransactionError};
 
 /// Represents a raw Ethereum transaction
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransaction {
     /// Ethereum account nonce
     pub nonce: U256,
@@ -27,6 +28,7 @@ pub struct EthereumTransaction {
 }
 
 /// Represents an Ethereum transaction signature
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct EthereumTransactionSignature {
     /// The V field of the signature protected with a chain_id
     v: Vec<u8>,
@@ -37,6 +39,7 @@ struct EthereumTransactionSignature {
 }
 
 /// Represents an Ethereum transaction output
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransactionOutput {
     /// Signed transaction output
     pub signed_transaction: String,

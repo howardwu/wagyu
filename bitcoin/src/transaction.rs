@@ -8,12 +8,57 @@ use base58::{FromBase58};
 use bech32::{Bech32,FromBase32};
 use byteorder::{LittleEndian, WriteBytesExt};
 use secp256k1::Secp256k1;
+use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, str::FromStr};
 use wagu_model::{PrivateKey, TransactionError, Transaction};
 
+/// Represents the signature hash opcode
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum SigHashCode {
+    SIGHASH_ALL = 1,
+    SIGHASH_NONE = 2,
+    SIGHASH_SINGLE = 3,
+    SIGHASH_ANYONECANPAY = 128,
+}
+
+/// Represents the commonly used script opcodes
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum OPCodes {
+    OP_DUP = 0x76,
+    OP_HASH160 = 0xa9,
+    OP_CHECKSIG = 0xac,
+    OP_EQUAL = 0x87,
+    OP_EQUALVERIFY = 0x88,
+}
+
+impl fmt::Display for SigHashCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SigHashCode::SIGHASH_ALL => write!(f, "SIGHASH_ALL"),
+            SigHashCode::SIGHASH_NONE => write!(f, "SIGHASH_NONE"),
+            SigHashCode::SIGHASH_SINGLE => write!(f, "SIGHASH_SINGLE"),
+            SigHashCode::SIGHASH_ANYONECANPAY => write!(f, "SIGHASH_ANYONECANPAY"),
+        }
+    }
+}
+
+impl fmt::Display for OPCodes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OPCodes::OP_DUP => write!(f, "OP_DUP"),
+            OPCodes::OP_HASH160 => write!(f, "OP_HASH160"),
+            OPCodes::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
+            OPCodes::OP_EQUAL => write!(f, "OP_EQUAL"),
+            OPCodes::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
+        }
+    }
+}
+
 /// Represents a Bitcoin transaction
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinTransaction<N: BitcoinNetwork> {
     /// Version number - 4 bytes
     pub version : u32,
@@ -28,6 +73,7 @@ pub struct BitcoinTransaction<N: BitcoinNetwork> {
 }
 
 /// Represents a Bitcoin transaction input
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// OutPoint - transaction id and index - 36 bytes
     pub out_point: OutPoint<N>,
@@ -43,6 +89,7 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
 }
 
 /// Represents a Bitcoin transaction output
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinTransactionOutput<N: BitcoinNetwork> {
     /// Transfer amount in Satoshi
     pub amount: u64,
@@ -53,6 +100,7 @@ pub struct BitcoinTransactionOutput<N: BitcoinNetwork> {
 }
 
 /// Represents a specific UTXO
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OutPoint<N: BitcoinNetwork> {
     /// Previous transaction hash (using Bitcoin RPC's reversed hash order) - 32 bytes
     pub reverse_transaction_id: Vec<u8>,
@@ -66,26 +114,6 @@ pub struct OutPoint<N: BitcoinNetwork> {
     pub redeem_script: Vec<u8>,
     /// Address of the outpoint
     pub address: BitcoinAddress<N>,
-}
-
-/// Represents the signature hash opcode
-#[derive(Clone, Copy)]
-#[allow(non_camel_case_types)]
-pub enum SigHashCode {
-    SIGHASH_ALL = 1,
-    SIGHASH_NONE = 2,
-    SIGHASH_SINGLE = 3,
-    SIGHASH_ANYONECANPAY = 128,
-}
-
-/// Represents the commonly used script opcodes
-#[allow(non_camel_case_types)]
-pub enum OPCodes {
-    OP_DUP = 0x76,
-    OP_HASH160 = 0xa9,
-    OP_CHECKSIG = 0xac,
-    OP_EQUAL = 0x87,
-    OP_EQUALVERIFY = 0x88,
 }
 
 impl <N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
