@@ -9,6 +9,9 @@ pub struct Spanish;
 impl Wordlist for Spanish {}
 
 impl MoneroWordlist for Spanish {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32 = 4;
+
     /// Returns the word list as a string.
     fn get_all() -> Vec<&'static str> {
         SPANISH.lines().collect::<Vec<&str>>()

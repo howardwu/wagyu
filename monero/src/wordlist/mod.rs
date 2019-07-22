@@ -41,6 +41,9 @@ pub use self::spanish::*;
 
 /// The interface for a Monero wordlist.
 pub trait MoneroWordlist: Wordlist {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32;
+
     /// Returns the word of a given index from the word list.
     fn get(index: usize) -> Result<String, WordlistError> {
         if index >= 1626 {

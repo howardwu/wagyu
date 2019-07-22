@@ -9,6 +9,9 @@ pub struct Japanese;
 impl Wordlist for Japanese {}
 
 impl MoneroWordlist for Japanese {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32 = 3;
+
     /// Returns the word list as a string.
     fn get_all() -> Vec<&'static str> {
         JAPANESE.lines().collect::<Vec<&str>>()

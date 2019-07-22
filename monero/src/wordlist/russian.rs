@@ -9,6 +9,9 @@ pub struct Russian;
 impl Wordlist for Russian {}
 
 impl MoneroWordlist for Russian {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32 = 4;
+
     /// Returns the word list as a string.
     fn get_all() -> Vec<&'static str> {
         RUSSIAN.lines().collect::<Vec<&str>>()

@@ -9,6 +9,9 @@ pub struct ChineseSimplified;
 impl Wordlist for ChineseSimplified {}
 
 impl MoneroWordlist for ChineseSimplified {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32 = 1;
+
     /// Returns the word list as a string.
     fn get_all() -> Vec<&'static str> {
         CHINESE_SIMPLIFIED.lines().collect::<Vec<&str>>()

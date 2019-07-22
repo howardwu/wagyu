@@ -9,6 +9,9 @@ pub struct Dutch;
 impl Wordlist for Dutch {}
 
 impl MoneroWordlist for Dutch {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32 = 4;
+
     /// Returns the word list as a string.
     fn get_all() -> Vec<&'static str> {
         DUTCH.lines().collect::<Vec<&str>>()

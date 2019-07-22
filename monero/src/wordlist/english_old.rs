@@ -9,6 +9,9 @@ pub struct EnglishOld;
 impl Wordlist for EnglishOld {}
 
 impl MoneroWordlist for EnglishOld {
+    /// The prefix length for computing the checksum.
+    const PREFIX_LENGTH: u32 = 4;
+
     /// Returns the word list as a string.
     fn get_all() -> Vec<&'static str> {
         ENGLISH_OLD.lines().collect::<Vec<&str>>()
