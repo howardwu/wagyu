@@ -6,7 +6,7 @@ use rlp::RlpStream;
 use secp256k1::Secp256k1;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
-use wagu_model::AddressError;
+use wagu_model::{TransactionError};
 
 /// Represents a raw Ethereum transaction
 pub struct EthereumTransaction {
@@ -44,35 +44,30 @@ pub struct EthereumTransactionOutput {
 
 impl EthereumTransaction {
     /// Generate a raw Ethereum transaction
-    pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Result<Self, AddressError> {
+    pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Result<Self, TransactionError> {
         Ok(
             Self {
-                nonce: Self::str_to_u256(nonce),
-                gas_price: Self::str_to_u256(gas_price),
-                gas: Self::str_to_u256(gas),
-                to: hex::decode(&EthereumAddress::from_str(to)?.address[2..]).unwrap(),
-                value: Self::str_to_u256(value),
+                nonce: Self::str_to_u256(nonce)?,
+                gas_price: Self::str_to_u256(gas_price)?,
+                gas: Self::str_to_u256(gas)?,
+                to: hex::decode(&EthereumAddress::from_str(to)?.address[2..])?,
+                value: Self::str_to_u256(value)?,
                 data: data.as_bytes().to_vec()
             }
         )
     }
 
     /// Sign the transaction with a given private key and output the encoded signature
-    pub fn sign_transaction(&self, private_key: &str, chain_id: u8) -> Result<EthereumTransactionOutput, &'static str> {
+    pub fn sign_transaction(&self, private_key: EthereumPrivateKey, chain_id: u8) -> Result<EthereumTransactionOutput, TransactionError> {
         if chain_id == 0 {
-            return Err("invalid chain_id");
-        }
-
-        let ethereum_private_key = EthereumPrivateKey::from(private_key);
-        if ethereum_private_key.is_err() {
-            return Err("invalid private key");
+            return Err(TransactionError::InvalidChainId(chain_id));
         }
 
         let signature = Self::ecdsa_sign(
             &self.raw_transaction_hash(chain_id),
-            ethereum_private_key.unwrap(),
+            private_key,
             &chain_id
-        );
+        )?;
 
         let mut signed_transaction_rlp = RlpStream::new();
         signed_transaction_rlp.begin_list(9);
@@ -105,33 +100,31 @@ impl EthereumTransaction {
         transaction_rlp.begin_list(9);
         self.encode_transaction_rlp(&mut transaction_rlp);
         transaction_rlp.append(&chain_id);
-        transaction_rlp.append(&U256::zero());
-        transaction_rlp.append(&U256::zero());
+        transaction_rlp.append(&0u8);
+        transaction_rlp.append(&0u8);
 
         keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect()
     }
 
     /// Sign the transaction hash with a given private key
-    fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> EthereumTransactionSignature {
-        let message = secp256k1::Message::from_slice(hash).unwrap();
+    fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> Result<EthereumTransactionSignature, TransactionError> {
+        let message = secp256k1::Message::from_slice(hash)?;
         let sign = Secp256k1::signing_only();
         let (v, signature) = sign.sign_recoverable(&message, &private_key.0).serialize_compact(&sign);
+        let protected_v = vec![(v.to_i32() as u8 + chain_id * 2 + 35)]; // EIP155
 
-        EthereumTransactionSignature {
-            v: Self::chain_replay_protection(v.to_i32() as u8, chain_id),
-            r: signature[0..32].to_vec(),
-            s: signature[32..64].to_vec(),
-        }
+        Ok (
+            EthereumTransactionSignature {
+                v: protected_v,
+                r: signature[0..32].to_vec(),
+                s: signature[32..64].to_vec(),
+            }
+        )
     }
 
     /// Convert integer strings into U256
-    fn str_to_u256(s: &str) -> U256 {
-        U256::from_dec_str(s).unwrap()
-    }
-
-    /// Apply chain replay protection - EIP155
-    fn chain_replay_protection(v: u8, chain_id: &u8) -> Vec<u8> {
-        vec![v + chain_id * 2 + 35]
+    fn str_to_u256(s: &str) -> Result<U256, TransactionError> {
+        Ok(U256::from_dec_str(s)?)
     }
 }
 
@@ -216,7 +209,7 @@ mod tests {
             ).unwrap();
 
             let tx_output = tx.sign_transaction(
-                transaction.private_key,
+                EthereumPrivateKey::from_str(transaction.private_key).unwrap(),
                 transaction.chain_id
             ).unwrap();
 
@@ -268,46 +261,7 @@ mod tests {
                 transaction.data
             ).unwrap();
 
-            assert!(tx.sign_transaction(transaction.private_key, chain_id).is_err());
+            assert!(tx.sign_transaction(EthereumPrivateKey::from_str(transaction.private_key).unwrap(), chain_id).is_err());
         });
-    }
-
-    #[test]
-    fn invalid_private_key() {
-        let nonce = "10";
-        let gas_price = "1000000000";
-        let gas = "54000";
-        let to = "0xd1c4ff31a31571e0EB9fc8F1CBBDD019bD3698b2";
-        let value = "1000000000000000000";
-        let data = "invalid private key";
-
-        let tx = EthereumTransaction::new(
-            nonce,
-            gas_price,
-            gas,
-            to,
-            value,
-            data
-        ).unwrap();
-
-        let chain_id: u8 = 1;
-
-        let private_key = "";
-        assert!(tx.sign_transaction(private_key, chain_id).is_err());
-
-        let private_key = "DEADBEEF";
-        assert!(tx.sign_transaction(private_key, chain_id).is_err());
-
-        let private_key = "12345";
-        assert!(tx.sign_transaction(private_key, chain_id).is_err());
-
-        let private_key = "2a834eb8b";
-        assert!(tx.sign_transaction(private_key, chain_id).is_err());
-
-        let private_key = "2a834eb8bf3dd6b1d7e3390";
-        assert!(tx.sign_transaction(private_key, chain_id).is_err());
-
-        let private_key = "2a834eb8bf3dd6b1d7e3390d22416158a5975126c65419cfd";
-        assert!(tx.sign_transaction(private_key, chain_id).is_err());
     }
 }
