@@ -52,28 +52,6 @@ impl EthereumTransaction {
         Self { nonce, gas_price, gas, to, value, data }
     }
 
-    /// Generate a Recursive Length Prefix encoding from the raw transaction
-    fn encode_transaction_rlp (&self, transaction_rlp: &mut RlpStream) {
-        transaction_rlp.append(&self.nonce);
-        transaction_rlp.append(&self.gas_price);
-        transaction_rlp.append(&self.gas);
-        transaction_rlp.append(&self.to);
-        transaction_rlp.append(&self.value);
-        transaction_rlp.append(&self.data);
-    }
-
-    /// Generate the raw transaction hash
-    fn raw_transaction_hash(&self, chain_id: u8) -> Vec<u8> {
-        let mut transaction_rlp = RlpStream::new();
-        transaction_rlp.begin_list(9);
-        self.encode_transaction_rlp(&mut transaction_rlp);
-        transaction_rlp.append(&chain_id);
-        transaction_rlp.append(&U256::zero());
-        transaction_rlp.append(&U256::zero());
-
-        keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect()
-    }
-
     /// Sign the transaction with a given private key and output the encoded signature
     pub fn sign_transaction(&self, private_key: &str, chain_id: u8) -> Result<EthereumTransactionOutput, &'static str> {
         if chain_id == 0 {
@@ -102,6 +80,29 @@ impl EthereumTransaction {
         let transaction_hash = format!("0x{}", &hex::encode(keccak256(signed_transaction_bytes)));
 
         Ok(EthereumTransactionOutput { signed_transaction, transaction_hash })
+    }
+
+    /// Encode the transactions using the Recursive Length Prefix format
+    /// https://github.com/ethereum/wiki/wiki/RLP
+    fn encode_transaction_rlp (&self, transaction_rlp: &mut RlpStream) {
+        transaction_rlp.append(&self.nonce);
+        transaction_rlp.append(&self.gas_price);
+        transaction_rlp.append(&self.gas);
+        transaction_rlp.append(&self.to);
+        transaction_rlp.append(&self.value);
+        transaction_rlp.append(&self.data);
+    }
+
+    /// Generate the raw transaction hash
+    fn raw_transaction_hash(&self, chain_id: u8) -> Vec<u8> {
+        let mut transaction_rlp = RlpStream::new();
+        transaction_rlp.begin_list(9);
+        self.encode_transaction_rlp(&mut transaction_rlp);
+        transaction_rlp.append(&chain_id);
+        transaction_rlp.append(&U256::zero());
+        transaction_rlp.append(&U256::zero());
+
+        keccak256(&transaction_rlp.as_raw()).into_iter().cloned().collect()
     }
 
     /// Sign the transaction hash with a given private key
