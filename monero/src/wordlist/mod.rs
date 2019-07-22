@@ -30,8 +30,8 @@ pub use self::japanese::*;
 pub mod lojban;
 pub use self::lojban::*;
 
-pub mod portugese;
-pub use self::portugese::*;
+pub mod portuguese;
+pub use self::portuguese::*;
 
 pub mod russian;
 pub use self::russian::*;
