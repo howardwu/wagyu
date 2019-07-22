@@ -1,21 +1,16 @@
 use crate::wordlist::MoneroWordlist;
 use wagu_model::wordlist::Wordlist;
 
-const ENGLISH: &str = include_str!("./dictionary/english.txt");
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct English;
 
 impl Wordlist for English {}
 
 impl MoneroWordlist for English {
+    /// The wordlist in original form.
+    const WORDLIST: &'static str = include_str!("./dictionary/english.txt");
     /// The prefix length for computing the checksum.
-    const PREFIX_LENGTH: u32 = 3;
-
-    /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str> {
-        ENGLISH.lines().collect::<Vec<&str>>()
-    }
+    const PREFIX_LENGTH: usize = 3;
 }
 
 #[cfg(test)]

@@ -1,21 +1,16 @@
 use crate::wordlist::MoneroWordlist;
 use wagu_model::wordlist::Wordlist;
 
-const CHINESE_SIMPLIFIED: &str = include_str!("./dictionary/chinese_simplified.txt");
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChineseSimplified;
 
 impl Wordlist for ChineseSimplified {}
 
 impl MoneroWordlist for ChineseSimplified {
+    /// The wordlist in original form.
+    const WORDLIST: &'static str = include_str!("./dictionary/chinese_simplified.txt");
     /// The prefix length for computing the checksum.
-    const PREFIX_LENGTH: u32 = 1;
-
-    /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str> {
-        CHINESE_SIMPLIFIED.lines().collect::<Vec<&str>>()
-    }
+    const PREFIX_LENGTH: usize = 1;
 }
 
 #[cfg(test)]

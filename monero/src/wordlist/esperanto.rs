@@ -1,21 +1,16 @@
 use crate::wordlist::MoneroWordlist;
 use wagu_model::wordlist::Wordlist;
 
-const ESPERANTO: &str = include_str!("./dictionary/esperanto.txt");
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Esperanto;
 
 impl Wordlist for Esperanto {}
 
 impl MoneroWordlist for Esperanto {
+    /// The wordlist in original form.
+    const WORDLIST: &'static str = include_str!("./dictionary/esperanto.txt");
     /// The prefix length for computing the checksum.
-    const PREFIX_LENGTH: u32 = 4;
-
-    /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str> {
-        ESPERANTO.lines().collect::<Vec<&str>>()
-    }
+    const PREFIX_LENGTH: usize = 4;
 }
 
 #[cfg(test)]
