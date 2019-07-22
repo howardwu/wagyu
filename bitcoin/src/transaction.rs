@@ -47,7 +47,7 @@ pub struct BitcoinTransactionOutput<N: BitcoinNetwork> {
     /// Transfer amount in Satoshi
     pub amount: u64,
     /// Output public key script
-    pub output_public_key: Script,
+    pub output_public_key: Vec<u8>,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -327,7 +327,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let script_pub_key = Some(script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address)?.script));
+        let script_pub_key = Some(script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address)?));
 
         validate_address_format(
             address.format.clone(),
@@ -386,8 +386,8 @@ impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_output: Vec<u8> = Vec::new();
         serialized_output.write_u64::<LittleEndian>(self.amount)?;
-        serialized_output.extend( &self.output_public_key.script_length);
-        serialized_output.extend(&self.output_public_key.script);
+        serialized_output.extend( variable_length_integer(self.output_public_key.len() as u64)?);
+        serialized_output.extend(&self.output_public_key);
         Ok(serialized_output)
     }
 }
@@ -400,7 +400,7 @@ fn u32_to_bytes(num: u32) -> Result<Vec<u8>, TransactionError> {
 }
 
 /// Generate the script_pub_key of a corresponding address
-pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Script, TransactionError> {
+pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u8>, TransactionError> {
     let address = BitcoinAddress::<N>::from_str(address)?;
     let mut script: Vec<u8> = Vec::new();
     let format = address.format;
@@ -436,7 +436,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Scrip
         }
     }
 
-    Ok(Script { script_length: variable_length_integer(script.len() as u64)?, script })
+    Ok(script)
 }
 
 /// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
