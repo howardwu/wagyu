@@ -226,7 +226,8 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(transaction_hash_preimage)
     }
 
-    /// Return the segwit hash preimage of the raw transaction - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
+    /// Return the segwit hash preimage of the raw transaction
+    /// https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
     pub fn generate_segwit_hash_preimage(
         &self,
         input_index: usize,
