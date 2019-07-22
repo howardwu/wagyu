@@ -113,7 +113,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
     /// Returns a raw unsigned bitcoin transaction
     pub fn build_raw_transaction(
         version: u32,
-        raw_inputs: Vec<BitcoinTransactionInput<N>>,
+        inputs: Vec<BitcoinTransactionInput<N>>,
         outputs: Vec<BitcoinTransactionOutput<N>>,
         lock_time: u32
     ) -> Result<Self, TransactionError> {
@@ -121,7 +121,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
             Self {
                 version,
                 segwit_flag: false,
-                inputs: raw_inputs,
+                inputs,
                 outputs,
                 lock_time
             }
@@ -393,7 +393,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
 }
 
 /// Write a u32 into a 4 byte vector
-pub fn u32_to_bytes(num: u32) -> Result<Vec<u8>, TransactionError> {
+fn u32_to_bytes(num: u32) -> Result<Vec<u8>, TransactionError> {
     let mut num_vec: Vec<u8> = Vec::new();
     num_vec.write_u32::<LittleEndian>(num)?;
     Ok(num_vec)
