@@ -1,6 +1,7 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
+use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
 
 use base58::{FromBase58};
@@ -10,7 +11,7 @@ use secp256k1::Secp256k1;
 use sha2::{Digest, Sha256};
 use std::marker::PhantomData;
 use std::str::FromStr;
-use wagu_model::{PrivateKey, AddressError};
+use wagu_model::{PrivateKey, TransactionError, Transaction};
 
 /// Represents a Bitcoin transaction
 pub struct BitcoinTransaction<N: BitcoinNetwork> {
@@ -18,12 +19,8 @@ pub struct BitcoinTransaction<N: BitcoinNetwork> {
     pub version : u32,
     /// Optional 2 bytes to indicate segwit transactions
     pub segwit_flag : bool,
-    /// Number of inputs - variable integer length
-    pub input_count: Vec<u8>,
     /// Transaction inputs included in the transaction
     pub inputs: Vec<BitcoinTransactionInput<N>>,
-    /// Number of outputs - variable integer length
-    pub output_count: Vec<u8>,
     /// Transaction outputs included in the transaction
     pub outputs: Vec<BitcoinTransactionOutput<N>>,
     /// Lock time - 4 bytes
@@ -41,8 +38,6 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     pub sequence: Vec<u8>,
     /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
     pub sig_hash_code: SigHashCode,
-    /// Number of witnesses - variable integer length
-    pub witness_count: Option<Vec<u8>>,
     /// Witnesses used in segwit transactions
     pub witnesses: Vec<BitcoinTransactionWitness>,
 }
@@ -107,6 +102,13 @@ pub enum OPCodes {
     OP_EQUALVERIFY = 0x88,
 }
 
+impl <N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
+    type Address = BitcoinAddress<N>;
+    type Format = Format;
+    type PrivateKey = BitcoinPrivateKey<N>;
+    type PublicKey = BitcoinPublicKey<N>;
+}
+
 impl <N: BitcoinNetwork> BitcoinTransaction<N> {
     /// Returns a raw unsigned bitcoin transaction
     pub fn build_raw_transaction(
@@ -114,20 +116,20 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         raw_inputs: Vec<BitcoinTransactionInput<N>>,
         outputs: Vec<BitcoinTransactionOutput<N>>,
         lock_time: u32
-    ) -> Self {
-        Self {
-            version,
-            segwit_flag: false,
-            input_count: variable_length_integer(raw_inputs.len() as u64),
-            inputs: raw_inputs,
-            output_count: variable_length_integer(outputs.len() as u64),
-            outputs,
-            lock_time
-        }
+    ) -> Result<Self, TransactionError> {
+        Ok(
+            Self {
+                version,
+                segwit_flag: false,
+                inputs: raw_inputs,
+                outputs,
+                lock_time
+            }
+        )
     }
 
     /// Returns the transaction as a byte vector
-    pub fn serialize_transaction(&mut self, raw: bool) -> Result<Vec<u8>, std::io::Error> {
+    pub fn serialize_transaction(&mut self, raw: bool) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_transaction: Vec<u8> = Vec::new();
 
         serialized_transaction.extend(u32_to_bytes(self.version)?);
@@ -136,26 +138,26 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
             serialized_transaction.extend(vec![0x00, 0x01]);
         }
 
-        serialized_transaction.extend(&self.input_count);
+        serialized_transaction.extend(variable_length_integer(self.inputs.len() as u64)?);
 
         let mut has_witness = false;
         for input in &self.inputs {
-            if input.witness_count.is_some() && input.witnesses.len() > 0 {
+            if input.witnesses.len() > 0 {
                 has_witness = true;
             }
             serialized_transaction.extend(input.serialize(raw)?);
         }
 
-        serialized_transaction.extend(&self.output_count);
+        serialized_transaction.extend(variable_length_integer(self.outputs.len() as u64)?);
 
         for output in  &self.outputs {
-            serialized_transaction.extend(output.serialize());
+            serialized_transaction.extend(output.serialize()?);
         }
 
         if has_witness {
             for input in &self.inputs {
-                if input.witness_count.is_some() && input.witnesses.len() > 0 {
-                    serialized_transaction.extend(input.witness_count.clone().unwrap());
+                if input.witnesses.len() > 0 {
+                    serialized_transaction.extend(variable_length_integer(input.witnesses.len() as u64)?);
                     for witness in &input.witnesses {
                         serialized_transaction.extend(&witness.witness);
                     }
@@ -172,40 +174,41 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
 
     /// Signs the raw transaction, updates the transaction, and returns the signature
     pub fn sign_raw_transaction(&mut self,
-                                private_key: BitcoinPrivateKey<N>,
+                                private_key: <Self as Transaction>::PrivateKey,
                                 input_index: usize,
-                                address_format: Format
-    ) -> Result<Vec<u8>, std::io::Error> {
+                                address_format: <Self as Transaction>::Format
+    ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
         let transaction_hash_preimage = match input.out_point.address.format {
-            Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?,
+            <Self as Transaction>::Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?,
             _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code.clone())?
         };
 
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
-        let message = secp256k1::Message::from_slice(&transaction_hash).unwrap();
+        let message = secp256k1::Message::from_slice(&transaction_hash)?;
         let sign = Secp256k1::signing_only();
         let mut signature =  sign.sign(&message, &private_key.secret_key).serialize_der(&sign).to_vec();
         signature.push(u32_to_bytes(input.sig_hash_code as u32)?[0]);
 
         let public_key = private_key.to_public_key();
-        let public_key_bytes = if address_format == Format::P2PKH && !public_key.compressed {
+        let public_key_bytes = if address_format == <Self as Transaction>::Format::P2PKH && !public_key.compressed {
             public_key.public_key.serialize_uncompressed().to_vec()
         } else {
             public_key.public_key.serialize().to_vec()
         };
 
-        let signature = [variable_length_integer(signature.len() as u64), signature].concat();
+        let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
         let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
-        if input.out_point.address.format == Format::P2PKH {
+        if input.out_point.address.format == <Self as Transaction>::Format::P2PKH {
             let new_script = [signature.clone(), public_key].concat();
-            self.inputs[input_index].create_script_sig(new_script);
+            self.inputs[input_index].script = Some(Script { script_length: variable_length_integer(new_script.len() as u64)?, script: new_script });
+
         } else {
-            if input.out_point.address.format == Format::P2SH_P2WPKH {
+            if input.out_point.address.format == <Self as Transaction>::Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone().unwrap();
-                let new_script = [variable_length_integer(input_script.len() as u64), input_script].concat();
-                self.inputs[input_index].create_script_sig(new_script);
+                let new_script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();
+                self.inputs[input_index].script = Some(Script { script_length: variable_length_integer(new_script.len() as u64)?, script: new_script });
             }
 
             let mut full_witness: Vec<BitcoinTransactionWitness> = vec![
@@ -214,7 +217,6 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
 
             self.segwit_flag = true;
             self.inputs[input_index].witnesses.append(&mut full_witness);
-            self.inputs[input_index].witness_count = Some(variable_length_integer(self.inputs[input_index].witnesses.len() as u64));
         }
 
         Ok(signature)
@@ -225,18 +227,18 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         &self,
         input_index: usize,
         sig_hash_code: SigHashCode
-    ) -> Result<Vec<u8>, std::io::Error> {
+    ) -> Result<Vec<u8>, TransactionError> {
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
         transaction_hash_preimage.extend(u32_to_bytes(self.version)?);
-        transaction_hash_preimage.extend(&self.input_count);
+        transaction_hash_preimage.extend(variable_length_integer(self.inputs.len() as u64)?);
 
         for (index, input) in self.inputs.iter().enumerate() {
             transaction_hash_preimage.extend(input.serialize(index != input_index)?);
         }
 
-        transaction_hash_preimage.extend(&self.output_count);
+        transaction_hash_preimage.extend(variable_length_integer(self.outputs.len() as u64)?);
         for output in  &self.outputs {
-            transaction_hash_preimage.extend(output.serialize());
+            transaction_hash_preimage.extend(output.serialize()?);
         }
 
         transaction_hash_preimage.extend( u32_to_bytes(self.lock_time)?);
@@ -250,7 +252,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         &self,
         input_index: usize,
         sig_hash_code: SigHashCode
-    ) -> Result<Vec<u8>, std::io::Error>{
+    ) -> Result<Vec<u8>, TransactionError>{
         let mut prev_outputs: Vec<u8> = Vec::new();
         let mut prev_sequences: Vec<u8> = Vec::new();
         let mut outputs: Vec<u8> = Vec::new();
@@ -262,7 +264,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         }
 
         for output in &self.outputs {
-            outputs.extend(&output.serialize());
+            outputs.extend(&output.serialize()?);
         }
 
         let input = &self.inputs[input_index];
@@ -285,7 +287,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         script_code.push(OPCodes::OP_EQUALVERIFY as u8);
         script_code.push(OPCodes::OP_CHECKSIG as u8);
 
-        let script_code = [variable_length_integer(script_code.len() as u64), script_code].concat();
+        let script_code = [variable_length_integer(script_code.len() as u64)?, script_code].concat();
 
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
         transaction_hash_preimage.extend(u32_to_bytes(self.version)?);
@@ -317,15 +319,15 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         script_pub_key: Option<Vec<u8>>,
         sequence: Option<Vec<u8>>,
         sig_hash_code: SigHashCode
-    ) -> Result<Self,  &'static str> {
+    ) -> Result<Self,  TransactionError> {
         if transaction_id.len() != 32 {
-            return Err("invalid transaction id");
+            return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
         }
         // Reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let script_pub_key = Some(script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address).unwrap().script));
+        let script_pub_key = Some(script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address)?.script));
 
         validate_address_format(
             address.format.clone(),
@@ -336,16 +338,11 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address };
         let sequence = sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec());
 
-        Ok(Self { out_point, script: None, sequence, sig_hash_code, witness_count: None,  witnesses: vec![] })
-    }
-
-    /// Create a full script_sig using the given script
-    pub fn create_script_sig(&mut self, script: Vec<u8>) {
-        self.script = Some(Script { script_length: variable_length_integer(script.len() as u64), script });
+        Ok(Self { out_point, script: None, sequence, sig_hash_code, witnesses: vec![] })
     }
 
     /// Serialize the transaction input
-    pub fn serialize(&self, raw: bool) -> Result<Vec<u8>, std::io::Error> {
+    pub fn serialize(&self, raw: bool) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_input: Vec<u8> = Vec::new();
         serialized_input.extend(&self.out_point.reverse_transaction_id);
         serialized_input.extend(u32_to_bytes(self.out_point.index)?);
@@ -358,7 +355,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
                         serialized_input.extend(vec![0x00]);
                     } else {
                         let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
-                        serialized_input.extend(variable_length_integer(script_pub_key.len() as u64));
+                        serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                         serialized_input.extend(script_pub_key);
                     }
                 },
@@ -375,7 +372,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
 impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
     /// Create a new Bitcoin transaction output
-    pub fn new(address: &str, amount: u64) -> Result<Self, AddressError> {
+    pub fn new(address: &str, amount: u64) -> Result<Self, TransactionError> {
         Ok(
             Self {
                 amount,
@@ -386,65 +383,60 @@ impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
     }
 
     /// Serialize the transaction output
-    pub fn serialize(&self) -> Vec<u8> {
+    pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_output: Vec<u8> = Vec::new();
-        serialized_output.write_u64::<LittleEndian>(self.amount).unwrap();
+        serialized_output.write_u64::<LittleEndian>(self.amount)?;
         serialized_output.extend( &self.output_public_key.script_length);
         serialized_output.extend(&self.output_public_key.script);
-        serialized_output
+        Ok(serialized_output)
     }
 }
 
 /// Write a u32 into a 4 byte vector
-pub fn u32_to_bytes(num: u32) -> Result<Vec<u8>, std::io::Error> {
+pub fn u32_to_bytes(num: u32) -> Result<Vec<u8>, TransactionError> {
     let mut num_vec: Vec<u8> = Vec::new();
     num_vec.write_u32::<LittleEndian>(num)?;
     Ok(num_vec)
 }
 
-/// Derive the public key hash or script hash from the spending address
-pub fn address_to_pub_key_or_script_hash(address: String) -> Vec<u8> {
-    let address_bytes = address.from_base58().unwrap();
-    address_bytes[1..(address_bytes.len()-4)].to_vec()
-
-}
-
 /// Generate the script_pub_key of a corresponding address
-pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Script, AddressError> {
+pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Script, TransactionError> {
     let address = BitcoinAddress::<N>::from_str(address)?;
     let mut script: Vec<u8> = Vec::new();
     let format = address.format;
     match format {
         Format::P2PKH => {
-            let pub_key_hash = address_to_pub_key_or_script_hash(address.address);
+            let address_bytes = &address.address.from_base58()?;
+            let pub_key_hash = address_bytes[1..(address_bytes.len()-4)].to_vec();
 
             script.push(OPCodes::OP_DUP as u8);
             script.push(OPCodes::OP_HASH160 as u8);
-            script.extend(variable_length_integer(pub_key_hash.len() as u64));
+            script.extend(variable_length_integer(pub_key_hash.len() as u64)?);
             script.extend(pub_key_hash);
             script.push(OPCodes::OP_EQUALVERIFY as u8);
             script.push(OPCodes::OP_CHECKSIG as u8);
         },
         Format::P2SH_P2WPKH => {
-            let script_hash = address_to_pub_key_or_script_hash(address.address);
+            let script_bytes = &address.address.from_base58()?;
+            let script_hash = script_bytes[1..(script_bytes.len()-4)].to_vec();
 
             script.push(OPCodes::OP_HASH160 as u8);
-            script.extend(variable_length_integer(script_hash.len() as u64));
+            script.extend(variable_length_integer(script_hash.len() as u64)?);
             script.extend(script_hash);
             script.push(OPCodes::OP_EQUAL as u8);
         },
         Format::Bech32 => {
-            let bech32 = Bech32::from_str(&address.address).unwrap();
+            let bech32 = Bech32::from_str(&address.address)?;
             let (v, program) = bech32.data().split_at(1);
-            let program_bytes = Vec::from_base32(program).unwrap();
+            let program_bytes = Vec::from_base32(program)?;
 
             script.push(WitnessProgram::convert_version(v[0].to_u8()));
-            script.extend(variable_length_integer(program_bytes.len() as u64));
+            script.extend(variable_length_integer(program_bytes.len() as u64)?);
             script.extend(program_bytes);
         }
     }
 
-    Ok(Script { script_length: variable_length_integer(script.len() as u64), script })
+    Ok(Script { script_length: variable_length_integer(script.len() as u64)?, script })
 }
 
 /// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
@@ -453,16 +445,16 @@ pub fn validate_address_format(
     redeem_script: Option<Vec<u8>>,
     script_pub_key: Option<Vec<u8>>,
     amount: Option<u64>
-) -> Result<bool,  &'static str> {
+) -> Result<bool, TransactionError> {
     let op_dup = OPCodes::OP_DUP as u8;
     let op_hash160 = OPCodes::OP_HASH160 as u8;
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
     let op_equal = OPCodes::OP_EQUAL as u8;
 
     if (amount.is_none() || redeem_script.is_none()) && address_format == Format::P2SH_P2WPKH {
-        return Err("insufficient information to craft P2SH_P2WPKH transaction input");
+        return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into()));
     } else if amount.is_none() && address_format == Format::Bech32 {
-        return Err("insufficient information to craft Bech32 transaction input");
+        return Err(TransactionError::InvalidInputs("Bech32".into()));
     } else if redeem_script.is_none() && amount.is_none() {
         Ok(address_format == Format::P2PKH)
     } else if redeem_script.is_none() && amount.is_some() {
@@ -486,19 +478,19 @@ pub fn validate_address_format(
 
 /// Return Bitcoin variable length integer of the size
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-pub fn variable_length_integer(size: u64) -> Vec<u8> {
+pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     let mut size_bytes: Vec<u8> = Vec::new();
     if size < 253 {
-        vec![size as u8]
+        Ok(vec![size as u8])
     } else if size <= 65535 { // u16::max_value()
-        size_bytes.write_u16::<LittleEndian>(size as u16).unwrap();
-        [vec![0xfd], size_bytes].concat()
+        size_bytes.write_u16::<LittleEndian>(size as u16)?;
+        Ok([vec![0xfd], size_bytes].concat())
     } else if size <= 4294967295 { // u32::max_value()
-        size_bytes.write_u32::<LittleEndian>(size as u32).unwrap();
-        [vec![0xfe], size_bytes].concat()
+        size_bytes.write_u32::<LittleEndian>(size as u32)?;
+        Ok([vec![0xfe], size_bytes].concat())
     } else {
-        size_bytes.write_u64::<LittleEndian>(size).unwrap();
-        [vec![0xff], size_bytes].concat()
+        size_bytes.write_u64::<LittleEndian>(size)?;
+        Ok([vec![0xff], size_bytes].concat())
     }
 }
 
@@ -604,7 +596,7 @@ mod tests {
             input_vec,
             output_vec,
             lock_time
-        );
+        ).unwrap();
 
         for (index, input) in inputs.iter().enumerate() {
             transaction.sign_raw_transaction(
@@ -1370,7 +1362,7 @@ mod tests {
         fn test_variable_length_integer() {
             LENGTH_VALUES.iter()
                 .for_each(|(size, expected_output)| {
-                    let variable_length_int = variable_length_integer(*size);
+                    let variable_length_int = variable_length_integer(*size).unwrap();
                     let pruned_expected_output = &expected_output[..variable_length_int.len()];
                     assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
                 });
