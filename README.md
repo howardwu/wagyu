@@ -29,9 +29,6 @@ Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet 
 
 Wagu is a lightweight command-line utility to generate a cryptocurrency wallet.
 
-| Library                                                                                                                | Cryptocurrency                                                                     | Address     | Public Key   | Private Key   | HD Wallet   | Mnemonic |
-|:----------------------------------------------------------------------------------------------------------------------:|------------------------------------------------------------------------------------|:-----------:|:------------:|:-------------:|:-----------:|:--------:|
-| [**wagu**](.) <br/> [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu) | <br/><ul><li>Bitcoin</li><li>Ethereum</li><li>Monero</li><li>Zcash</li></ul>       | Yes         | Yes          | Yes           | Yes         | Yes      |
 
 Wagu enables developers to build their own cryptocurrency application using the following modules.
 
