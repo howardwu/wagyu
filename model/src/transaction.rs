@@ -29,7 +29,7 @@ pub enum TransactionError {
     #[fail(display = "{}", _0)]
     Message(String),
 
-    #[fail(display = "insufficient information to craft {} transaction", _0)]
+    #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
 
     #[fail(display = "invalid transaction id {:?}", _0)]

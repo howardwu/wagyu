@@ -59,11 +59,11 @@ pub struct OutPoint<N: BitcoinNetwork> {
     /// Index of the transaction being used - 4 bytes
     pub index: u32,
     /// Amount associated with the UTXO - used for segwit transaction signatures
-    pub amount: Option<u64>,
+    pub amount: u64,
     /// Script public key asssociated with claiming this particular input UTXO
-    pub script_pub_key: Option<Vec<u8>>,
+    pub script_pub_key: Vec<u8>,
     /// Optional redeem script - for segwit transactions
-    pub redeem_script: Option<Vec<u8>>,
+    pub redeem_script: Vec<u8>,
     /// Address of the outpoint
     pub address: BitcoinAddress<N>,
 }
@@ -166,8 +166,8 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
         let transaction_hash_preimage = match input.out_point.address.format {
-            <Self as Transaction>::Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code.clone())?,
-            _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code.clone())?
+            <Self as Transaction>::Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
+            _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code)?
         };
 
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
@@ -188,10 +188,9 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
 
         if input.out_point.address.format == <Self as Transaction>::Format::P2PKH {
             self.inputs[input_index].script = [signature.clone(), public_key].concat();;
-
         } else {
             if input.out_point.address.format == <Self as Transaction>::Format::P2SH_P2WPKH {
-                let input_script = input.out_point.redeem_script.clone().unwrap();
+                let input_script = input.out_point.redeem_script.clone();
                 self.inputs[input_index].script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();;
             }
 
@@ -253,11 +252,11 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let hash_outputs = Sha256::digest(&Sha256::digest(&outputs));
 
         let mut amount: Vec<u8> = Vec::new();
-        amount.write_u64::<LittleEndian>(input.out_point.amount.unwrap())?;
+        amount.write_u64::<LittleEndian>(input.out_point.amount)?;
 
         let script = match input.out_point.address.format {
-            Format::Bech32 => input.out_point.script_pub_key.clone().unwrap(),
-            _ => input.out_point.redeem_script.clone().unwrap()
+            Format::Bech32 => input.out_point.script_pub_key.clone(),
+            _ => input.out_point.redeem_script.clone()
         }[1..].to_vec();
 
         let mut script_code: Vec<u8> = Vec::new();
@@ -303,17 +302,18 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         if transaction_id.len() != 32 {
             return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
         }
+
         // Reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let script_pub_key = Some(script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address)?));
-
-        validate_address_format(
-            address.format.clone(),
-            redeem_script.clone(),
-            script_pub_key.clone(),
-            amount)?;
+        let script_pub_key = script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address)?);
+        let (amount, redeem_script) = validate_address_format(
+            &address.format,
+            &amount,
+            &redeem_script,
+            &script_pub_key
+        )?;
 
         let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address };
         let sequence = sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec());
@@ -333,7 +333,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
                 if self.out_point.address.format == Format::Bech32 {
                     serialized_input.extend(vec![0x00]);
                 } else {
-                    let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
+                    let script_pub_key = &self.out_point.script_pub_key.clone();
                     serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                     serialized_input.extend(script_pub_key);
                 }
@@ -418,38 +418,41 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
 
 /// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
 pub fn validate_address_format(
-    address_format: Format,
-    redeem_script: Option<Vec<u8>>,
-    script_pub_key: Option<Vec<u8>>,
-    amount: Option<u64>
-) -> Result<bool, TransactionError> {
+    address_format: &Format,
+    amount: &Option<u64>,
+    redeem_script: &Option<Vec<u8>>,
+    script_pub_key: &Vec<u8>
+) -> Result<(u64, Vec<u8>), TransactionError> {
     let op_dup = OPCodes::OP_DUP as u8;
     let op_hash160 = OPCodes::OP_HASH160 as u8;
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
     let op_equal = OPCodes::OP_EQUAL as u8;
 
-    if (amount.is_none() || redeem_script.is_none()) && address_format == Format::P2SH_P2WPKH {
+    if address_format == &Format::P2SH_P2WPKH && (amount.is_none() || redeem_script.is_none()) {
         return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into()));
-    } else if amount.is_none() && address_format == Format::Bech32 {
+    } else if address_format == &Format::Bech32 && (amount.is_none() || redeem_script.is_some()) {
         return Err(TransactionError::InvalidInputs("Bech32".into()));
-    } else if redeem_script.is_none() && amount.is_none() {
-        Ok(address_format == Format::P2PKH)
-    } else if redeem_script.is_none() && amount.is_some() {
-        Ok(address_format == Format::Bech32)
-    } else {
-        let script_pub_key = script_pub_key.unwrap();
-        if script_pub_key[0] == op_dup &&
-            script_pub_key[1] == op_hash160 &&
-            script_pub_key[script_pub_key.len() -1] == op_checksig
-        {
-            Ok(address_format == Format::P2PKH)
-        } else if script_pub_key[0] == op_hash160 &&
-            script_pub_key[script_pub_key.len() -1] == op_equal
-        {
-            Ok(address_format == Format::P2SH_P2WPKH || address_format == Format::Bech32)
-        } else {
-            Ok(address_format == Format::P2SH_P2WPKH || address_format == Format::Bech32) // UNIMPLEMENTED - P2SH/P2WSH SPENDING
-        }
+    } else if address_format == &Format::P2PKH && redeem_script.is_some() && amount.is_some() {
+        return Err(TransactionError::InvalidInputs("P2PKH".into()));
+    } else if (address_format == &Format::P2PKH ||
+        address_format == &Format::P2PKH) &&
+        script_pub_key[0] != op_dup &&
+        script_pub_key[1] != op_hash160 &&
+        script_pub_key[script_pub_key.len() -1] != op_checksig
+    {
+        return Err(TransactionError::Message("invalid script_pub_key for P2PKH or Bech32 transaction".into()));
+    } else if address_format == &Format::P2SH_P2WPKH &&
+        script_pub_key[0] != op_hash160 &&
+        script_pub_key[script_pub_key.len() -1] != op_equal
+    {
+        return Err(TransactionError::Message("invalid script_pub_key for P2SH_P2WPKH transaction".into()));
+    } else { // UNIMPLEMENTED - P2SH/P2WSH SPENDING
+        Ok(
+            (
+                amount.unwrap_or(0),
+                redeem_script.clone().unwrap_or(Vec::new())
+            )
+        )
     }
 }
 
