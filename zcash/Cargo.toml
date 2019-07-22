@@ -19,9 +19,9 @@ edition = "2018"
 [dependencies]
 wagu-model = { path = "../model" }
 
-sapling-crypto = {  git = "https://github.com/argusdeveloper/librustzcash", branch = "master" }
-pairing = {  git = "https://github.com/argusdeveloper/librustzcash", branch = "master" }
-zcash_primitives = {  git = "https://github.com/argusdeveloper/librustzcash", branch = "master" }
+pairing = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
+sapling-crypto = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
+zcash_primitives = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
 
 bech32 = { version = "0.6" }
 base58 = { version = "0.1" }
