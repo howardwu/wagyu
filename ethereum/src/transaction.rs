@@ -18,7 +18,7 @@ pub struct EthereumTransaction {
     /// Transaction transfer amount
     pub value: U256,
     /// Transaction data
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
 }
 
 /// Represents an Ethereum transaction signature
@@ -36,20 +36,20 @@ pub struct EthereumTransactionOutput {
     /// Signed transaction output
     pub signed_transaction: String,
     /// Hash of the signed transaction
-    pub transaction_hash: String
+    pub transaction_hash: String,
 }
 
 impl EthereumTransaction {
     /// Generate a raw Ethereum transaction
     pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Self {
-        let nonce = Self::str_to_u256(nonce);
-        let gas_price = Self::str_to_u256(gas_price);
-        let gas = Self::str_to_u256(gas);
-        let to = hex::decode(&to[2..]).unwrap();
-        let value = Self::str_to_u256(value);
-        let data = data.as_bytes().to_vec();
-
-        Self { nonce, gas_price, gas, to, value, data }
+        Self {
+            nonce: Self::str_to_u256(nonce),
+            gas_price: Self::str_to_u256(gas_price),
+            gas: Self::str_to_u256(gas),
+            to: hex::decode(&to[2..]).unwrap(),
+            value: Self::str_to_u256(value),
+            data: data.as_bytes().to_vec()
+        }
     }
 
     /// Sign the transaction with a given private key and output the encoded signature
@@ -65,7 +65,8 @@ impl EthereumTransaction {
 
         let signature = Self::ecdsa_sign(
             &self.raw_transaction_hash(chain_id),
-            ethereum_private_key.unwrap(), &chain_id
+            ethereum_private_key.unwrap(),
+            &chain_id
         );
 
         let mut signed_transaction_rlp = RlpStream::new();
@@ -118,7 +119,7 @@ impl EthereumTransaction {
         }
     }
 
-    /// Convert integer strings into U246
+    /// Convert integer strings into U256
     fn str_to_u256(s: &str) -> U256 {
         U256::from_dec_str(s).unwrap()
     }
