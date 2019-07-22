@@ -7,6 +7,9 @@
 pub mod address;
 pub use self::address::*;
 
+pub mod mnemonic;
+pub use self::mnemonic::*;
+
 pub mod network;
 pub use self::network::*;
 
