@@ -36,7 +36,6 @@ pub trait BitcoinWordlist: Wordlist {
 
     /// Returns the index of a given word from the word list.
     fn get_index(word: &str) -> Result<usize, WordlistError> {
-        let word = word.to_lowercase();
         match Self::get_all().iter().position(|element| element == &word) {
             Some(index) => Ok(index),
             None => Err(WordlistError::InvalidWord(word.into()))

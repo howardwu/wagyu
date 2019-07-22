@@ -5,7 +5,7 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::{Mnemonic, MnemonicError, ExtendedPrivateKey};
+use wagu_model::{Mnemonic, MnemonicError, MnemonicExtended, ExtendedPrivateKey};
 
 use bitvec::prelude::*;
 use bitvec::cursor::BigEndian;
@@ -36,30 +36,9 @@ pub struct BitcoinMnemonic<N: BitcoinNetwork, W: BitcoinWordlist> {
     _wordlist: PhantomData<W>,
 }
 
-impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
-    type Address = BitcoinAddress<N>;
+impl <N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemonic<N, W> {
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
     type ExtendedPublicKey = BitcoinExtendedPublicKey<N>;
-    type Format = Format;
-    type PrivateKey = BitcoinPrivateKey<N>;
-    type PublicKey = BitcoinPublicKey<N>;
-
-    /// Returns a new mnemonic phrase given the word count.
-    fn new(word_count: u8) -> Result<Self, MnemonicError> {
-        let length: usize = match word_count {
-            12 => 16,
-            15 => 20,
-            18 => 24,
-            21 => 28,
-            24 => 32,
-            wc => return Err(MnemonicError::InvalidWordCount(wc))
-        };
-
-        let mut entropy = [0u8; 32];
-        OsRng.try_fill(&mut entropy)?;
-
-        Ok(Self::from_entropy(&entropy[0..length].to_vec())?)
-    }
 
     /// Returns the extended private key of the corresponding mnemonic.
     fn to_extended_private_key(
@@ -76,6 +55,13 @@ impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> 
     ) -> Result<Self::ExtendedPublicKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_extended_public_key())
     }
+}
+
+impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
+    type Address = BitcoinAddress<N>;
+    type Format = Format;
+    type PrivateKey = BitcoinPrivateKey<N>;
+    type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(
@@ -104,6 +90,22 @@ impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> 
 }
 
 impl <N: BitcoinNetwork, W: BitcoinWordlist> BitcoinMnemonic<N, W> {
+    /// Returns a new mnemonic phrase given the word count.
+    pub fn new(word_count: u8) -> Result<Self, MnemonicError> {
+        let length: usize = match word_count {
+            12 => 16,
+            15 => 20,
+            18 => 24,
+            21 => 28,
+            24 => 32,
+            wc => return Err(MnemonicError::InvalidWordCount(wc))
+        };
+
+        let mut entropy = [0u8; 32];
+        OsRng.try_fill(&mut entropy)?;
+
+        Ok(Self::from_entropy(&entropy[0..length].to_vec())?)
+    }
 
     /// Returns the mnemonic for the given phrase.
     pub fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
@@ -268,10 +270,20 @@ mod tests {
         assert_eq!(expected_seed, &hex::encode(mnemonic.to_seed(password).unwrap()))
     }
 
+    fn test_to_extended_private_key<N: BitcoinNetwork, W: BitcoinWordlist>(
+        expected_extended_private_key: &str,
+        password: Option<&str>,
+        phrase: &str
+    ) {
+        let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(phrase).unwrap();
+        let extended_private_key = mnemonic.to_extended_private_key(password).unwrap();
+        assert_eq!(expected_extended_private_key, extended_private_key.to_string());
+    }
+
     /// Test vectors from https://github.com/trezor/python-mnemonic/blob/master/vectors.json
     mod english {
         use super::*;
-        use crate::{BitcoinExtendedPrivateKey, Format, Mainnet};
+        use crate::{BitcoinExtendedPrivateKey, Format};
         use wagu_model::extended_private_key::ExtendedPrivateKey;
 
         type N = Mainnet;
@@ -280,7 +292,7 @@ mod tests {
         const PASSWORD: &str = "TREZOR";
         const NO_PASSWORD_STR: &str = "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
 
-        // (entropy, phrase, seed, extended private key)
+        // (entropy, phrase, seed, extended_private_key)
         const KEYPAIRS: [(&str, &str, &str, &str); 26] = [
             (
                 "00000000000000000000000000000000",
@@ -498,12 +510,11 @@ mod tests {
 
         #[test]
         fn to_extended_private_key() {
-            KEYPAIRS.iter().for_each(|(_, phrase, expected_seed, expected_xpriv)| {
-                let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(phrase).unwrap();
-                let seed = mnemonic.to_seed(Some(PASSWORD)).unwrap();
-                assert_eq!(*expected_seed, hex::encode(&seed));
-                let xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed, &Format::P2PKH).unwrap();
-                assert_eq!(*expected_xpriv, xpriv.to_string());
+            KEYPAIRS.iter().for_each(|(_, phrase, _, expected_extended_private_key)| {
+                test_to_extended_private_key::<N, W>(
+                    expected_extended_private_key,
+                    Some(PASSWORD),
+                    phrase);
             });
         }
     }
