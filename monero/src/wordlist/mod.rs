@@ -3,14 +3,23 @@ use wagu_model::wordlist::{Wordlist, WordlistError};
 pub mod chinese_simplified;
 pub use self::chinese_simplified::*;
 
-pub mod chinese_traditional;
-pub use self::chinese_traditional::*;
+pub mod dutch;
+pub use self::dutch::*;
 
 pub mod english;
 pub use self::english::*;
 
+pub mod english_old;
+pub use self::english_old::*;
+
+pub mod esperanto;
+pub use self::esperanto::*;
+
 pub mod french;
 pub use self::french::*;
+
+pub mod german;
+pub use self::german::*;
 
 pub mod italian;
 pub use self::italian::*;
@@ -18,17 +27,23 @@ pub use self::italian::*;
 pub mod japanese;
 pub use self::japanese::*;
 
-pub mod korean;
-pub use self::korean::*;
+pub mod lojban;
+pub use self::lojban::*;
+
+pub mod portugese;
+pub use self::portugese::*;
+
+pub mod russian;
+pub use self::russian::*;
 
 pub mod spanish;
 pub use self::spanish::*;
 
-/// The interface for a Bitcoin wordlist.
-pub trait BitcoinWordlist: Wordlist {
+/// The interface for a Monero wordlist.
+pub trait MoneroWordlist: Wordlist {
     /// Returns the word of a given index from the word list.
     fn get(index: usize) -> Result<String, WordlistError> {
-        if index >= 2048 {
+        if index >= 1626 {
             return Err(WordlistError::InvalidIndex(index))
         }
         Ok(Self::get_all()[index].into())
