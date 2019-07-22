@@ -1,9 +1,12 @@
+use crate::address::EthereumAddress;
 use crate::private_key::EthereumPrivateKey;
 
 use ethereum_types::U256;
 use rlp::RlpStream;
 use secp256k1::Secp256k1;
+use std::str::FromStr;
 use tiny_keccak::keccak256;
+use wagu_model::AddressError;
 
 /// Represents a raw Ethereum transaction
 pub struct EthereumTransaction {
@@ -41,15 +44,17 @@ pub struct EthereumTransactionOutput {
 
 impl EthereumTransaction {
     /// Generate a raw Ethereum transaction
-    pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Self {
-        Self {
-            nonce: Self::str_to_u256(nonce),
-            gas_price: Self::str_to_u256(gas_price),
-            gas: Self::str_to_u256(gas),
-            to: hex::decode(&to[2..]).unwrap(),
-            value: Self::str_to_u256(value),
-            data: data.as_bytes().to_vec()
-        }
+    pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Result<Self, AddressError> {
+        Ok(
+            Self {
+                nonce: Self::str_to_u256(nonce),
+                gas_price: Self::str_to_u256(gas_price),
+                gas: Self::str_to_u256(gas),
+                to: hex::decode(&EthereumAddress::from_str(to)?.address[2..]).unwrap(),
+                value: Self::str_to_u256(value),
+                data: data.as_bytes().to_vec()
+            }
+        )
     }
 
     /// Sign the transaction with a given private key and output the encoded signature
@@ -199,7 +204,7 @@ mod tests {
     ];
 
     #[test]
-    fn test_transactions() {
+    fn test_valid_transactions() {
         TRANSACTIONS.iter().for_each(|transaction| {
             let tx = EthereumTransaction::new(
                 transaction.nonce,
@@ -208,7 +213,7 @@ mod tests {
                 transaction.to,
                 transaction.value,
                 transaction.data
-            );
+            ).unwrap();
 
             let tx_output = tx.sign_transaction(
                 transaction.private_key,
@@ -218,6 +223,36 @@ mod tests {
             assert_eq!(transaction.signed_transaction, tx_output.signed_transaction);
             assert_eq!(transaction.transaction_hash, tx_output.transaction_hash);
         });
+    }
+
+    #[test]
+    fn invalid_output_address() {
+        let nonce = "1";
+        let gas_price = "1000000000";
+        let gas = "21000";
+        let value = "1000000000000000000";
+        let data = "invalid output addresses";
+
+        let to = "";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
+
+        let to = "0x";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
+
+        let to = "0x0";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
+
+        let to = "invalid address";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
+
+        let to = "0x3f9bcf82";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
+
+        let to = "0x3f9bcf82295DbB7";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
+
+        let to = "0x3f9bcf82295DbB7d192aFA481D1B20dDa042";
+        assert!(EthereumTransaction::new(nonce, gas_price, gas, to, value, data).is_err());
     }
 
     #[test]
@@ -231,36 +266,48 @@ mod tests {
                 transaction.to,
                 transaction.value,
                 transaction.data
-            );
+            ).unwrap();
 
-            let tx_output = tx.sign_transaction(
-                transaction.private_key,
-                chain_id
-            );
-
-            assert!( tx_output.is_err());
+            assert!(tx.sign_transaction(transaction.private_key, chain_id).is_err());
         });
     }
 
     #[test]
     fn invalid_private_key() {
-        TRANSACTIONS.iter().for_each(|transaction| {
-            let private_key = "DEADBEEF";
-            let tx = EthereumTransaction::new(
-                transaction.nonce,
-                transaction.gas_price,
-                transaction.gas,
-                transaction.to,
-                transaction.value,
-                transaction.data
-            );
+        let nonce = "10";
+        let gas_price = "1000000000";
+        let gas = "54000";
+        let to = "0xd1c4ff31a31571e0EB9fc8F1CBBDD019bD3698b2";
+        let value = "1000000000000000000";
+        let data = "invalid private key";
 
-            let tx_output = tx.sign_transaction(
-                private_key,
-                transaction.chain_id
-            );
+        let tx = EthereumTransaction::new(
+            nonce,
+            gas_price,
+            gas,
+            to,
+            value,
+            data
+        ).unwrap();
 
-            assert!( tx_output.is_err());
-        });
+        let chain_id: u8 = 1;
+
+        let private_key = "";
+        assert!(tx.sign_transaction(private_key, chain_id).is_err());
+
+        let private_key = "DEADBEEF";
+        assert!(tx.sign_transaction(private_key, chain_id).is_err());
+
+        let private_key = "12345";
+        assert!(tx.sign_transaction(private_key, chain_id).is_err());
+
+        let private_key = "2a834eb8b";
+        assert!(tx.sign_transaction(private_key, chain_id).is_err());
+
+        let private_key = "2a834eb8bf3dd6b1d7e3390";
+        assert!(tx.sign_transaction(private_key, chain_id).is_err());
+
+        let private_key = "2a834eb8bf3dd6b1d7e3390d22416158a5975126c65419cfd";
+        assert!(tx.sign_transaction(private_key, chain_id).is_err());
     }
 }
