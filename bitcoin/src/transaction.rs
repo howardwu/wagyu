@@ -32,14 +32,14 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// OutPoint - transaction id and index - 36 bytes
     pub out_point: OutPoint<N>,
     /// Tx-in script - Variable size
-    pub script: Option<Script>,
+    pub script: Vec<u8>,
     /// Sequence number - 4 bytes (normally 0xFFFFFFFF, unless lock > 0)
     /// Also used in replace-by-fee - BIP 125.
     pub sequence: Vec<u8>,
     /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
     pub sig_hash_code: SigHashCode,
     /// Witnesses used in segwit transactions
-    pub witnesses: Vec<BitcoinTransactionWitness>,
+    pub witnesses: Vec<Vec<u8>>,
 }
 
 /// Represents a Bitcoin transaction output
@@ -66,20 +66,6 @@ pub struct OutPoint<N: BitcoinNetwork> {
     pub redeem_script: Option<Vec<u8>>,
     /// Address of the outpoint
     pub address: BitcoinAddress<N>,
-}
-
-/// Represents a generic script (e.g. script_sig or script_pub_key)
-pub struct Script {
-    /// Length of the script - variable integer length
-    pub script_length: Vec<u8>,
-    /// Transaction input script - Variable size
-    pub script: Vec<u8>,
-}
-
-/// Represents a witness in a segwit transaction
-pub struct BitcoinTransactionWitness {
-    /// The witness in segwit transactions
-    pub witness: Vec<u8>
 }
 
 /// Represents the signature hash opcode
@@ -159,7 +145,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
                 if input.witnesses.len() > 0 {
                     serialized_transaction.extend(variable_length_integer(input.witnesses.len() as u64)?);
                     for witness in &input.witnesses {
-                        serialized_transaction.extend(&witness.witness);
+                        serialized_transaction.extend(witness);
                     }
                 } else {
                     serialized_transaction.extend(vec![0x00]);
@@ -201,22 +187,16 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
         if input.out_point.address.format == <Self as Transaction>::Format::P2PKH {
-            let new_script = [signature.clone(), public_key].concat();
-            self.inputs[input_index].script = Some(Script { script_length: variable_length_integer(new_script.len() as u64)?, script: new_script });
+            self.inputs[input_index].script = [signature.clone(), public_key].concat();;
 
         } else {
             if input.out_point.address.format == <Self as Transaction>::Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone().unwrap();
-                let new_script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();
-                self.inputs[input_index].script = Some(Script { script_length: variable_length_integer(new_script.len() as u64)?, script: new_script });
+                self.inputs[input_index].script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();;
             }
 
-            let mut full_witness: Vec<BitcoinTransactionWitness> = vec![
-                BitcoinTransactionWitness { witness: signature.clone() },
-                BitcoinTransactionWitness { witness: public_key }];
-
             self.segwit_flag = true;
-            self.inputs[input_index].witnesses.append(&mut full_witness);
+            self.inputs[input_index].witnesses.append(&mut vec![signature.clone(), public_key]);
         }
 
         Ok(signature)
@@ -338,7 +318,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let out_point = OutPoint { reverse_transaction_id, index, amount, redeem_script, script_pub_key, address };
         let sequence = sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec());
 
-        Ok(Self { out_point, script: None, sequence, sig_hash_code, witnesses: vec![] })
+        Ok(Self { out_point, script: Vec::new(), sequence, sig_hash_code, witnesses: Vec::new() })
     }
 
     /// Serialize the transaction input
@@ -349,20 +329,17 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         if raw {
             serialized_input.extend(vec![0x00]);
         } else {
-            match &self.script {
-                None => {
-                    if self.out_point.address.format == Format::Bech32 {
-                        serialized_input.extend(vec![0x00]);
-                    } else {
-                        let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
-                        serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
-                        serialized_input.extend(script_pub_key);
-                    }
-                },
-                Some(script) => {
-                    serialized_input.extend(&script.script_length);
-                    serialized_input.extend(&script.script);
+            if self.script.len() == 0 {
+                if self.out_point.address.format == Format::Bech32 {
+                    serialized_input.extend(vec![0x00]);
+                } else {
+                    let script_pub_key = &self.out_point.script_pub_key.clone().unwrap();
+                    serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
+                    serialized_input.extend(script_pub_key);
                 }
+            } else {
+                serialized_input.extend(variable_length_integer(self.script.len() as u64)?);
+                serialized_input.extend(&self.script);
             }
         }
         serialized_input.extend(&self.sequence);
