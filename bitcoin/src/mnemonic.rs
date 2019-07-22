@@ -1,4 +1,11 @@
-use wagu_model::{MnemonicError, bip39::language::Language};
+use crate::address::{BitcoinAddress, Format};
+use crate::extended_private_key::BitcoinExtendedPrivateKey;
+use crate::extended_public_key::BitcoinExtendedPublicKey;
+use crate::network::BitcoinNetwork;
+use crate::private_key::BitcoinPrivateKey;
+use crate::public_key::BitcoinPublicKey;
+use crate::wordlist::BitcoinWordlist;
+use wagu_model::{Mnemonic, MnemonicError, ExtendedPrivateKey};
 
 use bitvec::prelude::*;
 use bitvec::cursor::BigEndian;
@@ -7,26 +14,38 @@ use pbkdf2::pbkdf2;
 use rand::Rng;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256, Sha512};
+use std::fmt;
+use std::marker::PhantomData;
 use std::ops::Div;
 use std::str;
+use std::str::FromStr;
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Represents a BIP39 mnemonic
-pub struct Mnemonic {
+pub struct BitcoinMnemonic<N: BitcoinNetwork, W: BitcoinWordlist> {
     /// Initial entropy in multiples of 32 bits
     pub entropy: Vec<u8>,
-    /// The language of the mnemonic words
-    pub language: Language,
     /// The mnemonic phrase
     pub phrase: String,
+    /// PhantomData
+    _network: PhantomData<N>,
+    /// PhantomData
+    _wordlist: PhantomData<W>,
 }
 
-impl Mnemonic {
-    /// Returns a random mnemonic with the given word count and language.
-    pub fn new(word_count: u8, language: &Language) -> Result<Self, MnemonicError> {
+impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
+    type Address = BitcoinAddress<N>;
+    type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
+    type ExtendedPublicKey = BitcoinExtendedPublicKey<N>;
+    type Format = Format;
+    type PrivateKey = BitcoinPrivateKey<N>;
+    type PublicKey = BitcoinPublicKey<N>;
+
+    /// Returns a new mnemonic phrase given the word count.
+    fn new(word_count: u8) -> Result<Self, MnemonicError> {
         let length: usize = match word_count {
             12 => 16,
             15 => 20,
@@ -39,11 +58,70 @@ impl Mnemonic {
         let mut entropy = [0u8; 32];
         OsRng.try_fill(&mut entropy)?;
 
-        Ok(Self::from_entropy(&entropy[0..length].to_vec(), language)?)
+        Ok(Self::from_entropy(&entropy[0..length].to_vec())?)
     }
 
-    /// Returns the mnemonic for the given entropy and language.
-    pub fn from_entropy(entropy: &Vec<u8>, language: &Language) -> Result<Self, MnemonicError> {
+    /// Returns the extended private key of the corresponding mnemonic.
+    fn to_extended_private_key(
+        &self,
+        password: Option<&str>
+    ) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
+        Ok(Self::ExtendedPrivateKey::new(self.to_seed(password)?.as_slice(), &Format::P2PKH)?)
+    }
+
+    /// Returns the extended public key of the corresponding mnemonic.
+    fn to_extended_public_key(
+        &self,
+        password: Option<&str>
+    ) -> Result<Self::ExtendedPublicKey, MnemonicError> {
+        Ok(self.to_extended_private_key(password)?.to_extended_public_key())
+    }
+
+    /// Returns the private key of the corresponding mnemonic.
+    fn to_private_key(
+        &self,
+        password: Option<&str>
+    ) -> Result<Self::PrivateKey, MnemonicError> {
+        Ok(self.to_extended_private_key(password)?.to_private_key())
+    }
+
+    /// Returns the public key of the corresponding mnemonic.
+    fn to_public_key(
+        &self,
+        password: Option<&str>
+    ) -> Result<Self::PublicKey, MnemonicError> {
+        Ok(self.to_extended_private_key(password)?.to_public_key())
+    }
+
+    /// Returns the address of the corresponding mnemonic.
+    fn to_address(
+        &self,
+        password: Option<&str>,
+        format: &Self::Format
+    ) -> Result<Self::Address, MnemonicError> {
+        Ok(self.to_extended_private_key(password)?.to_address(format)?)
+    }
+}
+
+impl <N: BitcoinNetwork, W: BitcoinWordlist> BitcoinMnemonic<N, W> {
+
+    /// Returns the mnemonic for the given phrase.
+    pub fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
+        Ok(Self {
+            entropy: Self::to_entropy(phrase)?,
+            phrase: phrase.to_owned(),
+            _network: PhantomData,
+            _wordlist: PhantomData
+        })
+    }
+
+    /// Compares the given phrase against the phrase extracted from its entropy.
+    pub fn verify_phrase(phrase: &str) -> bool {
+        Self::to_entropy(phrase).is_ok()
+    }
+
+    /// Returns the mnemonic for the given entropy.
+    fn from_entropy(entropy: &Vec<u8>) -> Result<Self, MnemonicError> {
         let length: i32 = match entropy.len() {
             16 => 12,
             20 => 15,
@@ -65,41 +143,26 @@ impl Mnemonic {
         encoding.append(&mut BitVec::from_bitslice(checksum));
 
         // Compute the phrase in 11 bit chunks which encode an index into the word list
-        let list = Language::get_wordlist(language)?;
-        let words = list.lines().collect::<Vec<&str>>();
-
+        let wordlist = W::get_all();
         let phrase = encoding.chunks(11).map(|index| {
             // Convert a vector of 11 bits into a u11 number.
             let index = index.iter().enumerate().map(|(i, bit)| {
                 (bit as u16) * 2u16.pow(10 - i as u32)
             }).sum::<u16>();
 
-            words[index as usize]
+            wordlist[index as usize]
         }).collect::<Vec<&str>>();
 
         Ok(Self {
             entropy: entropy.clone(),
-            language: language.clone(),
             phrase: phrase.join(" "),
+            _network: PhantomData,
+            _wordlist: PhantomData
         })
     }
 
-    /// Returns the mnemonic for the given phrase and language.
-    pub fn from_phrase(phrase: &str, language: &Language) -> Result<Self, MnemonicError> {
-        Ok(Self {
-            entropy: Self::to_entropy(phrase, language)?,
-            language: language.clone(),
-            phrase: phrase.to_owned(),
-        })
-    }
-
-    /// Compares the given phrase against the phrase extracted from its entropy.
-    pub fn verify_phrase(phrase: &str, language: &Language) -> bool {
-        Self::to_entropy(phrase, language).is_ok()
-    }
-
-    /// Returns the entropy bytes for the given phrase and language.
-    pub fn to_entropy(phrase: &str, language: &Language) -> Result<Vec<u8>, MnemonicError> {
+    /// Returns the entropy bytes for the given phrase.
+    fn to_entropy(phrase: &str) -> Result<Vec<u8>, MnemonicError> {
         let mnemonic = phrase.split(" ").collect::<Vec<&str>>();
 
         let length = match mnemonic.len() {
@@ -114,7 +177,7 @@ impl Mnemonic {
         let mut entropy: BitVec<BigEndian> = BitVec::new();
 
         for word in mnemonic {
-            let index = Language::get_wordlist_index(word, language)?;
+            let index = W::get_index(word)?;
             let index_u8: [u8; 2] = (index as u16).to_be_bytes();
             let index_slice = &BitVec::from_slice(&index_u8)[5..];
 
@@ -122,7 +185,7 @@ impl Mnemonic {
         }
 
         let entropy = entropy[..length].as_slice().to_vec();
-        let mnemonic = Self::from_entropy(&entropy, language)?;
+        let mnemonic = Self::from_entropy(&entropy)?;
 
         if phrase != mnemonic.phrase {
             return Err(MnemonicError::InvalidPhrase(phrase.into()))
@@ -132,7 +195,7 @@ impl Mnemonic {
     }
 
     /// Returns a seed using the given password and mnemonic.
-    pub fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
+    fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
         let salt = format!("mnemonic{}", password.unwrap_or(""));
 
         let mut seed = vec![0u8; PBKDF2_BYTES];
@@ -142,37 +205,66 @@ impl Mnemonic {
     }
 }
 
+impl <N: BitcoinNetwork, W: BitcoinWordlist> FromStr for BitcoinMnemonic<N, W> {
+    type Err = MnemonicError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_phrase(s)
+    }
+}
+
+impl <N: BitcoinNetwork, W: BitcoinWordlist> fmt::Display for BitcoinMnemonic<N, W> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.phrase)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
+    use crate::wordlist::*;
     use hex;
 
-    fn test_new(word_count: u8, language: &Language) {
-        let result = Mnemonic::new(word_count, language).unwrap();
-        test_from_entropy(&result.entropy, &result.phrase, &result.language);
+    fn test_new<N: BitcoinNetwork, W: BitcoinWordlist>(word_count: u8) {
+        let result = BitcoinMnemonic::<N, W>::new(word_count).unwrap();
+        test_from_entropy::<N, W>(&result.entropy, &result.phrase);
     }
 
-    fn test_from_entropy(entropy: &Vec<u8>, expected_phrase: &str, language: &Language) {
-        let result = Mnemonic::from_entropy(entropy, language).unwrap();
+    fn test_from_entropy<N: BitcoinNetwork, W: BitcoinWordlist>(
+        entropy: &Vec<u8>,
+        expected_phrase: &str
+    ) {
+        let result = BitcoinMnemonic::<N, W>::from_entropy(entropy).unwrap();
         assert_eq!(expected_phrase, result.phrase);
     }
 
-    fn test_from_phrase(expected_entropy: &Vec<u8>, phrase: &str, language: &Language) {
-        let result = Mnemonic::from_phrase(phrase, language).unwrap();
+    fn test_from_phrase<N: BitcoinNetwork, W: BitcoinWordlist>(
+        expected_entropy: &Vec<u8>,
+        phrase: &str
+    ) {
+        let result = BitcoinMnemonic::<N, W>::from_phrase(phrase).unwrap();
         assert_eq!(&expected_entropy[..], &result.entropy[..]);
         assert_eq!(phrase, result.phrase);
     }
 
-    fn test_verify_phrase(phrase: &str, language: &Language) {
-        assert!(Mnemonic::verify_phrase(phrase, language));
+    fn test_verify_phrase<N: BitcoinNetwork, W: BitcoinWordlist>(phrase: &str) {
+        assert!(BitcoinMnemonic::<N, W>::verify_phrase(phrase));
     }
 
-    fn test_to_entropy(expected_entropy: &Vec<u8>, phrase: &str, language: &Language) {
-        let result = Mnemonic::to_entropy(phrase, language).unwrap();
+    fn test_to_entropy<N: BitcoinNetwork, W: BitcoinWordlist>(
+        expected_entropy: &Vec<u8>,
+        phrase: &str
+    ) {
+        let result = BitcoinMnemonic::<N, W>::to_entropy(phrase).unwrap();
         assert_eq!(&expected_entropy[..], &result[..]);
     }
 
-    fn test_to_seed(expected_seed: &str, password: Option<&str>, mnemonic: Mnemonic) {
+    fn test_to_seed<N: BitcoinNetwork, W: BitcoinWordlist>(
+        expected_seed: &str,
+        password: Option<&str>,
+        mnemonic: BitcoinMnemonic<N, W>
+    ) {
         assert_eq!(expected_seed, &hex::encode(mnemonic.to_seed(password).unwrap()))
     }
 
@@ -183,9 +275,9 @@ mod tests {
         use wagu_model::extended_private_key::ExtendedPrivateKey;
 
         type N = Mainnet;
+        type W = English;
 
         const PASSWORD: &str = "TREZOR";
-        const LANGUAGE: &Language = &Language::ENGLISH;
         const NO_PASSWORD_STR: &str = "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
 
         // (entropy, phrase, seed, extended private key)
@@ -352,7 +444,7 @@ mod tests {
         fn new() {
             let word_counts: [u8; 5] = [12, 15, 18, 21, 24];
             word_counts.iter().for_each(|word_count| {
-                test_new(*word_count, LANGUAGE);
+                test_new::<N, W>(*word_count);
             })
         }
 
@@ -360,7 +452,7 @@ mod tests {
         fn from_entropy() {
             KEYPAIRS.iter().for_each(|(entropy_str, phrase, _, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                test_from_entropy(&entropy, phrase, LANGUAGE);
+                test_from_entropy::<N, W>(&entropy, phrase);
             });
         }
 
@@ -368,14 +460,14 @@ mod tests {
         fn from_phrase() {
             KEYPAIRS.iter().for_each(|(entropy_str, phrase, _, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                test_from_phrase(&entropy, phrase, LANGUAGE);
+                test_from_phrase::<N, W>(&entropy, phrase);
             })
         }
 
         #[test]
         fn verify_phrase() {
             KEYPAIRS.iter().for_each(|(_, phrase, _, _)| {
-                test_verify_phrase(phrase, LANGUAGE);
+                test_verify_phrase::<N, W>(phrase);
             });
         }
 
@@ -383,7 +475,7 @@ mod tests {
         fn to_entropy() {
             KEYPAIRS.iter().for_each(|(entropy_str, phrase, _, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                test_to_entropy(&entropy, phrase, LANGUAGE);
+                test_to_entropy::<N, W>(&entropy, phrase);
             })
         }
 
@@ -391,8 +483,8 @@ mod tests {
         fn to_seed() {
             KEYPAIRS.iter().for_each(|(entropy_str, _, expected_seed, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                let result = Mnemonic::from_entropy(&entropy, LANGUAGE).unwrap();
-                test_to_seed(expected_seed, Some(PASSWORD), result);
+                let result = BitcoinMnemonic::<N, W>::from_entropy(&entropy).unwrap();
+                test_to_seed::<N, W>(expected_seed, Some(PASSWORD), result);
             });
         }
 
@@ -400,14 +492,14 @@ mod tests {
         fn to_seed_no_password() {
             let (entropy_str, _, _, _) = KEYPAIRS[0];
             let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-            let result = Mnemonic::from_entropy(&entropy, LANGUAGE).unwrap();
-            test_to_seed(NO_PASSWORD_STR, None, result);
+            let result = BitcoinMnemonic::<N, W>::from_entropy(&entropy).unwrap();
+            test_to_seed::<N, W>(NO_PASSWORD_STR, None, result);
         }
 
         #[test]
         fn to_extended_private_key() {
             KEYPAIRS.iter().for_each(|(_, phrase, expected_seed, expected_xpriv)| {
-                let mnemonic = Mnemonic::from_phrase(phrase, &Language::ENGLISH).unwrap();
+                let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(phrase).unwrap();
                 let seed = mnemonic.to_seed(Some(PASSWORD)).unwrap();
                 assert_eq!(*expected_seed, hex::encode(&seed));
                 let xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed, &Format::P2PKH).unwrap();
@@ -419,7 +511,9 @@ mod tests {
     mod test_invalid {
         use super::*;
 
-        const LANGUAGE: &Language = &Language::ENGLISH;
+        type N = Mainnet;
+        type W = English;
+
         const INVALID_WORD_COUNT: u8 = 11;
         const INVALID_ENTROPY_STR: &str = "000000000000000000000000000000000000";
         const INVALID_PHRASE_LENGTH: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -429,37 +523,37 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidWordCount(11)")]
         fn new_invalid_word_count() {
-            let _result = Mnemonic::new(INVALID_WORD_COUNT, LANGUAGE).unwrap();
+            let _result = BitcoinMnemonic::<N, W>::new(INVALID_WORD_COUNT).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidEntropyLength(18)")]
         fn from_entropy_invalid_entropy() {
             let invalid_entropy: Vec<u8> = Vec::from(hex::decode(INVALID_ENTROPY_STR).unwrap());
-            let _result = Mnemonic::from_entropy(&invalid_entropy, LANGUAGE).unwrap();
+            let _result = BitcoinMnemonic::<N, W>::from_entropy(&invalid_entropy).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidWordCount(13)")]
         fn to_entropy_invalid_length() {
-            let _result = Mnemonic::to_entropy(INVALID_PHRASE_LENGTH, LANGUAGE).unwrap();
+            let _result = BitcoinMnemonic::<N, W>::to_entropy(INVALID_PHRASE_LENGTH).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidWord(\"abandoz\")")]
         fn to_entropy_invalid_word() {
-            let _result = Mnemonic::to_entropy(INVALID_PHRASE_WORD, LANGUAGE).unwrap();
+            let _result = BitcoinMnemonic::<N, W>::to_entropy(INVALID_PHRASE_WORD).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon\")")]
         fn to_entropy_invalid_checksum() {
-            let _result = Mnemonic::to_entropy(INVALID_PHRASE_CHECKSUM, LANGUAGE).unwrap();
+            let _result = BitcoinMnemonic::<N, W>::to_entropy(INVALID_PHRASE_CHECKSUM).unwrap();
         }
 
         #[test]
         fn verify_invalid_phrase() {
-            assert!(!Mnemonic::verify_phrase(INVALID_PHRASE_LENGTH, LANGUAGE));
+            assert!(!BitcoinMnemonic::<N, W>::verify_phrase(INVALID_PHRASE_LENGTH));
         }
     }
 }
