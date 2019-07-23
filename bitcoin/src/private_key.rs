@@ -7,7 +7,6 @@ use base58::{FromBase58, ToBase58};
 use rand::Rng;
 use rand::rngs::OsRng;
 use secp256k1;
-use secp256k1::Secp256k1;
 use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;

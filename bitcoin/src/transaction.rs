@@ -7,7 +7,7 @@ use crate::witness_program::WitnessProgram;
 use base58::{FromBase58};
 use bech32::{Bech32,FromBase32};
 use byteorder::{LittleEndian, WriteBytesExt};
-use secp256k1::Secp256k1;
+use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{fmt, marker::PhantomData, str::FromStr};
@@ -200,8 +200,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
 
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
         let message = secp256k1::Message::from_slice(&transaction_hash)?;
-        let sign = Secp256k1::signing_only();
-        let mut signature =  sign.sign(&message, &private_key.secret_key).serialize_der(&sign).to_vec();
+        let mut signature =  secp256k1::Secp256k1::signing_only().sign(&message, &private_key.secret_key).serialize_der().to_vec();
         signature.push(u32_to_bytes(input.sig_hash_code as u32)?[0]);
 
         let public_key = private_key.to_public_key();

@@ -4,7 +4,7 @@ use crate::private_key::EthereumPrivateKey;
 
 use ethereum_types::U256;
 use rlp::RlpStream;
-use secp256k1::Secp256k1;
+use secp256k1;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
@@ -121,8 +121,7 @@ impl EthereumTransaction {
     /// Sign the transaction hash with a given private key
     fn ecdsa_sign(hash: &[u8], private_key: <Self as Transaction>::PrivateKey, chain_id: &u8) -> Result<EthereumTransactionSignature, TransactionError> {
         let message = secp256k1::Message::from_slice(hash)?;
-        let sign = Secp256k1::signing_only();
-        let (v, signature) = sign.sign_recoverable(&message, &private_key.0).serialize_compact(&sign);
+        let (v, signature) = secp256k1::Secp256k1::new().sign_recoverable(&message, &private_key.0).serialize_compact();
         let protected_v = vec![(v.to_i32() as u8 + chain_id * 2 + 35)]; // EIP155
 
         Ok (
