@@ -67,7 +67,7 @@ impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
         let _ = N::from_wif_prefix(data[0])?;
 
         Ok(Self {
-            secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])?,
+            secret_key: secp256k1::SecretKey::from_slice( &data[1..33])?,
             wif: wif.to_string(),
             compressed: len == 38,
             _network: PhantomData
@@ -91,7 +91,7 @@ impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
     fn random_secret_key() -> Result<secp256k1::SecretKey, PrivateKeyError> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
-        Ok(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?)
+        Ok(secp256k1::SecretKey::from_slice(&random)?)
     }
 
     /// Returns a WIF string given a secp256k1 secret key.

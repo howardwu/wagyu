@@ -1,7 +1,5 @@
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::wordlist::Wordlist;
-
-const CHINESE_TRADITIONAL: &str = include_str!("./bip39/chinese_traditional.txt");
+use wagu_model::{wordlist::Wordlist, bip39::CHINESE_TRADITIONAL};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChineseTraditional;
@@ -9,10 +7,8 @@ pub struct ChineseTraditional;
 impl Wordlist for ChineseTraditional {}
 
 impl BitcoinWordlist for ChineseTraditional {
-    /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str> {
-        CHINESE_TRADITIONAL.lines().collect::<Vec<&str>>()
-    }
+    /// The wordlist in original form.
+    const WORDLIST: &'static str = CHINESE_TRADITIONAL;
 }
 
 #[cfg(test)]

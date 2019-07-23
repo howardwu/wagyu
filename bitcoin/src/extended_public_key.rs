@@ -134,9 +134,9 @@ impl <N: BitcoinNetwork> BitcoinExtendedPublicKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
 
-        let secret_key = SecretKey::from_slice(&Secp256k1::without_caps(), &result[..32])?;
+        let secret_key = SecretKey::from_slice( &result[..32])?;
         let mut public_key = self.public_key.clone();
-        public_key.public_key.add_exp_assign(&Secp256k1::new(), &secret_key)?;
+        public_key.public_key.add_exp_assign(&Secp256k1::new(), &secret_key[..])?;
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -179,8 +179,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let secp = Secp256k1::new();
-        let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&secp,&data[45..78])?;
+        let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&data[45..78])?;
         let public_key = BitcoinPublicKey::<N>::from_str(&secp256k1_public_key.to_string())?;
 
         let expected = &data[78..82];

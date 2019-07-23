@@ -1,7 +1,7 @@
 //! # Model
 //!
 //! A model for cryptocurrency wallets.
-
+#![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
 #[macro_use]

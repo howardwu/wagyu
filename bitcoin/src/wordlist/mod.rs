@@ -26,6 +26,9 @@ pub use self::spanish::*;
 
 /// The interface for a Bitcoin wordlist.
 pub trait BitcoinWordlist: Wordlist {
+    /// The wordlist in original form.
+    const WORDLIST: &'static str;
+
     /// Returns the word of a given index from the word list.
     fn get(index: usize) -> Result<String, WordlistError> {
         if index >= 2048 {
@@ -36,7 +39,6 @@ pub trait BitcoinWordlist: Wordlist {
 
     /// Returns the index of a given word from the word list.
     fn get_index(word: &str) -> Result<usize, WordlistError> {
-        let word = word.to_lowercase();
         match Self::get_all().iter().position(|element| element == &word) {
             Some(index) => Ok(index),
             None => Err(WordlistError::InvalidWord(word.into()))
@@ -44,5 +46,7 @@ pub trait BitcoinWordlist: Wordlist {
     }
 
     /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str>;
+    fn get_all() -> Vec<&'static str> {
+        Self::WORDLIST.lines().collect::<Vec<&str>>()
+    }
 }

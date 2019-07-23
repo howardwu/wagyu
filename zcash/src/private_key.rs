@@ -7,7 +7,6 @@ use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;
 use rand::Rng;
 use rand::rngs::OsRng;
-use secp256k1::Secp256k1;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
 use std::{fmt, fmt::Debug, fmt::Display};
@@ -146,7 +145,7 @@ impl <N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
         Ok(Self(SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
-            secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?, true)), PhantomData))
+            secp256k1::SecretKey::from_slice(&random)?, true)), PhantomData))
     }
 
     /// Returns the public key of the corresponding Zcash private key.
@@ -195,7 +194,7 @@ impl <N: ZcashNetwork> ZcashPrivateKey<N> {
         let _ = N::from_wif_prefix(data[0])?;
 
         Ok(Self(SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
-            secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])?, len == 38)), PhantomData))
+            secp256k1::SecretKey::from_slice(&data[1..33])?, len == 38)), PhantomData))
     }
 
     /// Returns a Sapling private key from a given seed.

@@ -1,7 +1,7 @@
 use crate::address::{Address, AddressError};
 use crate::extended_private_key::{ExtendedPrivateKey, ExtendedPrivateKeyError};
 use crate::extended_public_key::ExtendedPublicKey;
-use crate::private_key::PrivateKey;
+use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::wordlist::WordlistError;
 
@@ -20,26 +20,9 @@ pub trait Mnemonic:
     + Sized
 {
     type Address: Address;
-    type ExtendedPrivateKey: ExtendedPrivateKey;
-    type ExtendedPublicKey: ExtendedPublicKey;
     type Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
-
-    /// Returns a new mnemonic phrase given the word count and language.
-    fn new(word_count: u8) -> Result<Self, MnemonicError>;
-
-    /// Returns the extended private key of the corresponding mnemonic.
-    fn to_extended_private_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::ExtendedPrivateKey, MnemonicError>;
-
-    /// Returns the extended public key of the corresponding mnemonic.
-    fn to_extended_public_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::ExtendedPublicKey, MnemonicError>;
 
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(
@@ -61,6 +44,34 @@ pub trait Mnemonic:
     ) -> Result<Self::Address, MnemonicError>;
 }
 
+/// The interface for a generic mnemonic for extended keys.
+pub trait MnemonicExtended:
+    Clone
+    + Debug
+    + Display
+    + FromStr
+    + Send
+    + Sync
+    + 'static
+    + Eq
+    + Sized
+{
+    type ExtendedPrivateKey: ExtendedPrivateKey;
+    type ExtendedPublicKey: ExtendedPublicKey;
+
+    /// Returns the extended private key of the corresponding mnemonic.
+    fn to_extended_private_key(
+        &self,
+        password: Option<&str>
+    ) -> Result<Self::ExtendedPrivateKey, MnemonicError>;
+
+    /// Returns the extended public key of the corresponding mnemonic.
+    fn to_extended_public_key(
+        &self,
+        password: Option<&str>
+    ) -> Result<Self::ExtendedPublicKey, MnemonicError>;
+}
+
 #[derive(Debug, Fail)]
 pub enum MnemonicError {
 
@@ -73,17 +84,35 @@ pub enum MnemonicError {
     #[fail(display = "{}", _0)]
     ExtendedPrivateKeyError(ExtendedPrivateKeyError),
 
-    #[fail(display = "Invalid mnemonic word count: {}", _0)]
-    InvalidWordCount(u8),
+    #[fail(display = "Invalid checksum word: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    InvalidChecksumWord(String, String),
+
+    #[fail(display = "Invalid decoding from word to seed")]
+    InvalidDecoding,
 
     #[fail(display = "Invalid entropy length: {}", _0)]
     InvalidEntropyLength(usize),
 
+    #[fail(display = "Invalid wordlist index: {}", _0)]
+    InvalidIndex(usize),
+
     #[fail(display = "Invalid phrase: {}", _0)]
     InvalidPhrase(String),
 
-    #[fail(display = "Invalid word not found in dictionary: {}", _0)]
+    #[fail(display = "Invalid word not found in monero: {}", _0)]
     InvalidWord(String),
+
+    #[fail(display = "Invalid mnemonic word count: {}", _0)]
+    InvalidWordCount(u8),
+
+    #[fail(display = "Missing the last word (checksum)")]
+    MissingChecksumWord,
+
+    #[fail(display = "Missing word(s) in mnemonic")]
+    MissingWord,
+
+    #[fail(display = "{}", _0)]
+    PrivateKeyError(PrivateKeyError),
 
     #[fail(display = "{}", _0)]
     WordlistError(WordlistError),
@@ -98,6 +127,12 @@ impl From<AddressError> for MnemonicError {
 impl From<ExtendedPrivateKeyError> for MnemonicError {
     fn from(error: ExtendedPrivateKeyError) -> Self {
         MnemonicError::ExtendedPrivateKeyError(error)
+    }
+}
+
+impl From<PrivateKeyError> for MnemonicError {
+    fn from(error: PrivateKeyError) -> Self {
+        MnemonicError::PrivateKeyError(error)
     }
 }
 

@@ -12,7 +12,6 @@ use wagu_model::{
 use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
-use secp256k1::Secp256k1;
 use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -50,7 +49,7 @@ impl EthereumPrivateKey {
         }
 
         let secret_key = hex::decode(private_key)?;
-        Ok(Self(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &secret_key)?))
+        Ok(Self(secp256k1::SecretKey::from_slice(&secret_key)?))
     }
 
     /// Returns a private key given a secp256k1 secret key
@@ -62,7 +61,7 @@ impl EthereumPrivateKey {
     fn build() -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
-        Ok(Self(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?))
+        Ok(Self(secp256k1::SecretKey::from_slice(&random)?))
     }
 }
 

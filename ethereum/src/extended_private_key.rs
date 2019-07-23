@@ -47,7 +47,19 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 
     /// Generates new Ethereum extended private key
     fn new(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
-        EthereumExtendedPrivateKey::new_master(seed)
+        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
+        mac.input(seed);
+        let result = mac.result().code();
+
+        let (private_key, chain_code) =
+            EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result)?;
+        Ok(Self {
+            private_key,
+            chain_code,
+            depth: 0,
+            parent_fingerprint: [0; 4],
+            child_number: 0x00000000,
+        })
     }
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -72,22 +84,6 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 }
 
 impl EthereumExtendedPrivateKey {
-    /// Returns a new Bitcoin extended master private key.
-    fn new_master(seed: &[u8]) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
-        mac.input(seed);
-        let result = mac.result().code();
-
-        let (private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result)?;
-        Ok(Self {
-            private_key,
-            chain_code,
-            depth: 0,
-            parent_fingerprint: [0; 4],
-            child_number: 0x00000000,
-        })
-    }
-
     /// Returns the extended private key of the given derivation path.
     pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPrivateKeyError> {
         let mut path_vec: Vec<&str> = path.split("/").collect();
@@ -157,8 +153,9 @@ impl EthereumExtendedPrivateKey {
 
         let result = mac.result().code();
 
-        let (mut private_key, chain_code) = EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result)?;
-        private_key.0.add_assign(&Secp256k1::new(), &self.private_key.0)?;
+        let (mut private_key, chain_code) =
+            EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result)?;
+        private_key.0.add_assign( &self.private_key.0[..])?;
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -177,7 +174,7 @@ impl EthereumExtendedPrivateKey {
         result: &[u8]
     ) -> Result<(EthereumPrivateKey, [u8; 32]), ExtendedPrivateKeyError> {
         let private_key = EthereumPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32])?);
+            SecretKey::from_slice(&result[0..32])?);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
@@ -211,7 +208,7 @@ impl FromStr for EthereumExtendedPrivateKey {
         chain_code.copy_from_slice(&data[13..45]);
 
         let private_key = EthereumPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::new(), &data[46..78])?);
+            SecretKey::from_slice(&data[46..78])?);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
