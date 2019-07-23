@@ -190,11 +190,11 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
     pub fn sign_raw_transaction(&mut self,
                                 private_key: <Self as Transaction>::PrivateKey,
                                 input_index: usize,
-                                address_format: <Self as Transaction>::Format
+                                address_format: Format
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
         let transaction_hash_preimage = match input.out_point.address.format {
-            <Self as Transaction>::Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
+            Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
             _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code)?
         };
 
@@ -205,7 +205,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         signature.push(u32_to_bytes(input.sig_hash_code as u32)?[0]);
 
         let public_key = private_key.to_public_key();
-        let public_key_bytes = if address_format == <Self as Transaction>::Format::P2PKH && !public_key.compressed {
+        let public_key_bytes = if address_format == Format::P2PKH && !public_key.compressed {
             public_key.public_key.serialize_uncompressed().to_vec()
         } else {
             public_key.public_key.serialize().to_vec()
@@ -214,10 +214,10 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
         let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
-        if input.out_point.address.format == <Self as Transaction>::Format::P2PKH {
+        if input.out_point.address.format == Format::P2PKH {
             self.inputs[input_index].script = [signature.clone(), public_key].concat();;
         } else {
-            if input.out_point.address.format == <Self as Transaction>::Format::P2SH_P2WPKH {
+            if input.out_point.address.format == Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone();
                 self.inputs[input_index].script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();;
             }
