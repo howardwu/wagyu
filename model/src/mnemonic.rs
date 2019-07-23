@@ -99,7 +99,7 @@ pub enum MnemonicError {
     #[fail(display = "Invalid phrase: {}", _0)]
     InvalidPhrase(String),
 
-    #[fail(display = "Invalid word not found in dictionary: {}", _0)]
+    #[fail(display = "Invalid word not found in monero: {}", _0)]
     InvalidWord(String),
 
     #[fail(display = "Invalid mnemonic word count: {}", _0)]

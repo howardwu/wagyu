@@ -1,5 +1,5 @@
 use crate::wordlist::MoneroWordlist;
-use wagu_model::wordlist::Wordlist;
+use wagu_model::{wordlist::Wordlist, monero::CHINESE_SIMPLIFIED};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChineseSimplified;
@@ -8,7 +8,7 @@ impl Wordlist for ChineseSimplified {}
 
 impl MoneroWordlist for ChineseSimplified {
     /// The wordlist in original form.
-    const WORDLIST: &'static str = include_str!("./dictionary/chinese_simplified.txt");
+    const WORDLIST: &'static str = CHINESE_SIMPLIFIED;
     /// The prefix length for computing the checksum.
     const PREFIX_LENGTH: usize = 1;
 }

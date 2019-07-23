@@ -19,10 +19,12 @@ edition = "2018"
 [dependencies]
 wagu-model = { path = "../model" }
 
-base58 = "0.1"
+base58 = { version = "0.1" }
+bitvec = { version = "0.14.0" }
 byteorder = { version = "1.2" }
 hex = { version = "0.3.2" }
 hmac = "0.7.0"
+pbkdf2 = { version = "0.3.0", features=["parallel"], default-features = false }
 rand = { version = "0.7" }
 regex = "1"
 secp256k1 = "0.11.1"

@@ -1,7 +1,5 @@
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::wordlist::Wordlist;
-
-const JAPANESE: &str = include_str!("./bip39/japanese.txt");
+use wagu_model::{wordlist::Wordlist, bip39::JAPANESE};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Japanese;
@@ -9,10 +7,8 @@ pub struct Japanese;
 impl Wordlist for Japanese {}
 
 impl BitcoinWordlist for Japanese {
-    /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str> {
-        JAPANESE.lines().collect::<Vec<&str>>()
-    }
+    /// The wordlist in original form.
+    const WORDLIST: &'static str = JAPANESE;
 }
 
 #[cfg(test)]

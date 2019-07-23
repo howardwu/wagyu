@@ -1,4 +1,4 @@
-use crate::wordlist::BitcoinWordlist;
+use crate::wordlist::EthereumWordlist;
 use wagu_model::{wordlist::Wordlist, bip39::KOREAN};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -6,7 +6,7 @@ pub struct Korean;
 
 impl Wordlist for Korean {}
 
-impl BitcoinWordlist for Korean {
+impl EthereumWordlist for Korean {
     /// The wordlist in original form.
     const WORDLIST: &'static str = KOREAN;
 }

@@ -1,5 +1,5 @@
 use crate::wordlist::MoneroWordlist;
-use wagu_model::wordlist::Wordlist;
+use wagu_model::{wordlist::Wordlist, monero::LOJBAN};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Lojban;
@@ -8,7 +8,7 @@ impl Wordlist for Lojban {}
 
 impl MoneroWordlist for Lojban {
     /// The wordlist in original form.
-    const WORDLIST: &'static str = include_str!("./dictionary/lojban.txt");
+    const WORDLIST: &'static str = LOJBAN;
     /// The prefix length for computing the checksum.
     const PREFIX_LENGTH: usize = 4;
 }

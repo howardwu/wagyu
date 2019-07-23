@@ -24,8 +24,8 @@ pub use self::korean::*;
 pub mod spanish;
 pub use self::spanish::*;
 
-/// The interface for a Bitcoin wordlist.
-pub trait BitcoinWordlist: Wordlist {
+/// The interface for a Ethereum wordlist.
+pub trait EthereumWordlist: Wordlist {
     /// The wordlist in original form.
     const WORDLIST: &'static str;
 

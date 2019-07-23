@@ -1,4 +1,4 @@
-use crate::wordlist::BitcoinWordlist;
+use crate::wordlist::EthereumWordlist;
 use wagu_model::{wordlist::Wordlist, bip39::CHINESE_TRADITIONAL};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -6,7 +6,7 @@ pub struct ChineseTraditional;
 
 impl Wordlist for ChineseTraditional {}
 
-impl BitcoinWordlist for ChineseTraditional {
+impl EthereumWordlist for ChineseTraditional {
     /// The wordlist in original form.
     const WORDLIST: &'static str = CHINESE_TRADITIONAL;
 }

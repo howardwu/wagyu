@@ -54,7 +54,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
 impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     /// Returns a new mnemonic phrase given the word count.
-    fn new() -> Result<Self, MnemonicError> {
+    pub fn new() -> Result<Self, MnemonicError> {
         let mut seed = [0u8; 32];
         OsRng.try_fill(&mut seed)?;
         Ok(Self::from_seed(&seed)?)

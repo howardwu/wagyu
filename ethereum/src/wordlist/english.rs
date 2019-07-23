@@ -1,24 +1,22 @@
-use crate::wordlist::MoneroWordlist;
-use wagu_model::{wordlist::Wordlist, monero::ENGLISH};
+use crate::wordlist::EthereumWordlist;
+use wagu_model::{wordlist::Wordlist, bip39::ENGLISH};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct English;
 
 impl Wordlist for English {}
 
-impl MoneroWordlist for English {
+impl EthereumWordlist for English {
     /// The wordlist in original form.
     const WORDLIST: &'static str = ENGLISH;
-    /// The prefix length for computing the checksum.
-    const PREFIX_LENGTH: usize = 3;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const VALID_WORD: &str = "magically";
-    const VALID_WORD_INDEX: usize = 840;
+    const VALID_WORD: &str = "deposit";
+    const VALID_WORD_INDEX: usize = 472;
     const INVALID_WORD: &str = "abracadabra";
     const INVALID_WORD_INDEX: usize = 3400;
 
@@ -41,7 +39,7 @@ mod tests {
     #[test]
     fn get_all() {
         let list = English::get_all();
-        assert_eq!(1626, list.len());
+        assert_eq!(2048, list.len());
         assert_eq!(VALID_WORD, list[VALID_WORD_INDEX]);
     }
 }

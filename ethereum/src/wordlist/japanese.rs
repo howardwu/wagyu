@@ -1,24 +1,22 @@
-use crate::wordlist::MoneroWordlist;
-use wagu_model::{wordlist::Wordlist, monero::JAPANESE};
+use crate::wordlist::EthereumWordlist;
+use wagu_model::{wordlist::Wordlist, bip39::JAPANESE};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Japanese;
 
 impl Wordlist for Japanese {}
 
-impl MoneroWordlist for Japanese {
+impl EthereumWordlist for Japanese {
     /// The wordlist in original form.
     const WORDLIST: &'static str = JAPANESE;
-    /// The prefix length for computing the checksum.
-    const PREFIX_LENGTH: usize = 3;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const VALID_WORD: &str = "こうじ";
-    const VALID_WORD_INDEX: usize = 608;
+    const VALID_WORD: &str = "むえん";
+    const VALID_WORD_INDEX: usize = 1850;
     const INVALID_WORD: &str = "a";
     const INVALID_WORD_INDEX: usize = 3400;
 
@@ -41,7 +39,7 @@ mod tests {
     #[test]
     fn get_all() {
         let list = Japanese::get_all();
-        assert_eq!(1626, list.len());
+        assert_eq!(2048, list.len());
         assert_eq!(VALID_WORD, list[VALID_WORD_INDEX]);
     }
 }

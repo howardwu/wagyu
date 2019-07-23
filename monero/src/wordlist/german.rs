@@ -1,5 +1,5 @@
 use crate::wordlist::MoneroWordlist;
-use wagu_model::wordlist::Wordlist;
+use wagu_model::{wordlist::Wordlist, monero::GERMAN};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct German;
@@ -8,7 +8,7 @@ impl Wordlist for German {}
 
 impl MoneroWordlist for German {
     /// The wordlist in original form.
-    const WORDLIST: &'static str = include_str!("./dictionary/german.txt");
+    const WORDLIST: &'static str = GERMAN;
     /// The prefix length for computing the checksum.
     const PREFIX_LENGTH: usize = 4;
 }
