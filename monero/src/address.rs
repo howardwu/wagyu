@@ -5,7 +5,6 @@ use wagu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
-use std::default::Default;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -22,11 +21,6 @@ pub enum Format {
     Subaddress
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PaymentId {
-    pub data: [u8; 8]
-}
-
 impl Format {
     /// Returns the address prefix of the given network.
     pub fn to_address_prefix<N: MoneroNetwork>(&self) -> u8 {
@@ -37,15 +31,20 @@ impl Format {
     pub fn from_address(address: &[u8]) -> Result<Self, AddressError> {
         match address[0] {
             18 | 24 | 53 => Ok(Format::Standard),
+            42 | 36 | 63 => Ok(Format::Subaddress),
             19 | 25 | 54 => {
-                let mut data: [u8; 8] = Default::default();
+                let mut data = [0u8; 8];
                 data.copy_from_slice(&address[65..73]);
                 Ok(Format::Integrated(PaymentId { data }))
             },
-            42 | 36 | 63 => Ok(Format::Subaddress),
             _ => return Err(AddressError::InvalidPrefix(vec![address[0]]))
         }
     }
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PaymentId {
+    pub data: [u8; 8]
 }
 
 /// Represents a Monero address
@@ -94,17 +93,12 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         let checksum_bytes = match format {
             Format::Standard | Format::Subaddress => &bytes[0..65],
             Format::Integrated(payment_id) => {
-//                [bytes[0..65], &payment_id.data].iter().flat_map(|s| s.iter()).collect()
                 bytes.extend_from_slice(&payment_id.data);
                 &bytes[0..73]
             }
         };
 
-        println!("length of checksum_bytes");
-
         let checksum = &keccak256(checksum_bytes);
-        println!("checksum: {:?}", checksum);
-
         bytes.extend_from_slice(&checksum[0..4]);
 
         let address = base58::encode(bytes.as_slice())?;
@@ -284,7 +278,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, payment_id, address)| {
                 let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
-                let mut data = Default::default();
+                let mut data = [0u8; 8];
                 data.copy_from_slice(&hex::decode(payment_id).unwrap()[0..8]);
                 test_from_private_key(address, &private_key, &Format::Integrated(PaymentId { data }));
             });
@@ -295,7 +289,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(seed, payment_id, address)| {
                 let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
-                let mut data = Default::default();
+                let mut data = [0u8; 8];
                 data.copy_from_slice(&hex::decode(payment_id).unwrap()[0..8]);
                 test_from_public_key(address, &public_key, &Format::Integrated(PaymentId { data }));
             });
@@ -304,7 +298,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, payment_id, address)| {
-                let mut data = Default::default();
+                let mut data = [0u8; 8];
                 data.copy_from_slice(&hex::decode(payment_id).unwrap()[0..8]);
                 test_from_str::<N>(address, &Format::Integrated(PaymentId { data }));
             });
