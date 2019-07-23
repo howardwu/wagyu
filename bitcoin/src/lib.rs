@@ -1,7 +1,7 @@
 //! # Bitcoin
 //!
 //! A library for generating Bitcoin wallets.
-
+#![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
 pub mod address;

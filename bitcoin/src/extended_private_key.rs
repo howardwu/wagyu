@@ -163,7 +163,7 @@ impl <N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
         let (mut private_key, chain_code) =
             BitcoinExtendedPrivateKey::<N>::derive_private_key_and_chain_code(&result)?;
 
-        private_key.secret_key.add_assign(&Secp256k1::new(), &self.private_key.secret_key)?;
+        private_key.secret_key.add_assign(&self.private_key.secret_key[..])?;
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
@@ -184,7 +184,7 @@ impl <N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
         result: &[u8],
     ) -> Result<(BitcoinPrivateKey<N>, [u8; 32]), ExtendedPrivateKeyError> {
         let private_key = BitcoinPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::without_caps(), &result[0..32])?, true);
+            SecretKey::from_slice(&result[0..32])?, true);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&result[32..]);
@@ -217,7 +217,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPrivateKey<N> {
         chain_code.copy_from_slice(&data[13..45]);
 
         let private_key = BitcoinPrivateKey::from_secret_key(
-            SecretKey::from_slice(&Secp256k1::new(), &data[46..78])?, true);
+            SecretKey::from_slice(&data[46..78])?, true);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];

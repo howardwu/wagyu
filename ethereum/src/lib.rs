@@ -1,7 +1,7 @@
 //! # Ethereum
 //!
 //! A library for generating Ethereum wallets.
-
+#![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
 pub mod address;

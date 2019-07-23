@@ -1,7 +1,7 @@
 //! # Zcash
 //!
 //! A library for generating Zcash wallets.
-
+#![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
 pub mod address;
