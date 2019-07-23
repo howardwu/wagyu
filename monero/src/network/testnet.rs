@@ -17,7 +17,7 @@ impl MoneroNetwork for Testnet {
     fn to_address_prefix(format: &Format) -> u8 {
         match format {
             Format::Standard => 53,
-            Format::Integrated => 54,
+            Format::Integrated(_) => 54,
             Format::Subaddress => 63
         }
     }

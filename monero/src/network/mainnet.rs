@@ -17,7 +17,7 @@ impl MoneroNetwork for Mainnet {
     fn to_address_prefix(format: &Format) -> u8 {
         match format {
             Format::Standard => 18,
-            Format::Integrated => 19,
+            Format::Integrated(_) => 19,
             Format::Subaddress => 24
         }
     }
