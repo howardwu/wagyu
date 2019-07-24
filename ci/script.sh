@@ -2,7 +2,7 @@
 
 set -ex
 
-# TODO This is the "test phase", tweak it as you see fit
+# TODO This is the "test phase"
 main() {
     # cross build --target $TARGET
     cross build --target $TARGET --release
@@ -11,10 +11,8 @@ main() {
         return
     fi
 
-    # cross test --target $TARGET
     cross test --all --target $TARGET --release
 
-    # cross run --target $TARGET
     # cross run --target $TARGET --release
 }
 
