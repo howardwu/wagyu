@@ -3,6 +3,7 @@ use crate::network::MoneroNetwork;
 use crate::public_key::MoneroPublicKey;
 use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
+use byteorder::{LittleEndian, WriteBytesExt};
 use curve25519_dalek::{scalar::Scalar};
 use hex;
 use rand::Rng;
@@ -19,6 +20,8 @@ pub struct MoneroPrivateKey<N: MoneroNetwork> {
     pub spend_key: [u8; 32],
     /// The private viewing key
     pub view_key: [u8; 32],
+    /// Optional
+    pub subaddress_view_key: Option<[u8;32]>,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -61,6 +64,7 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         Ok(Self {
             spend_key,
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+            subaddress_view_key: None,
             _network: PhantomData
         })
     }
@@ -80,8 +84,33 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         Ok(Self {
             spend_key,
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+            subaddress_view_key: None,
             _network: PhantomData
         })
+    }
+
+
+    /// Generate a subaddress private view key - Hs("SubAddr" || a || account_index || subaddress_index_within_account)
+    pub fn generate_subaddress_private_view_key(&mut self, major: u32, minor: u32) -> Result<[u8; 32], PrivateKeyError>{
+        if major == 0 && minor == 0 {
+            self.subaddress_view_key = None;
+            Ok([0u8; 32])
+        } else {
+            let mut major_index: Vec<u8> = Vec::new();
+            let mut minor_index: Vec<u8> = Vec::new();
+
+            major_index.write_u32::<LittleEndian>(major)?;
+            minor_index.write_u32::<LittleEndian>(minor)?;
+
+            let mut derivation: Vec<u8> = b"SubAddr\x00"[..].into();
+            derivation.extend(&self.view_key);
+            derivation.extend(&major_index);
+            derivation.extend(&minor_index);
+
+            let subaddress_view_key = Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes();
+            self.subaddress_view_key = Some(subaddress_view_key);
+            Ok(subaddress_view_key)
+        }
     }
 }
 
