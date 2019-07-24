@@ -49,14 +49,14 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
-    fn from_extended_private_key(private_key: &Self::ExtendedPrivateKey) -> Self {
+    fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
-            format: private_key.format.clone(),
-            depth: private_key.depth,
-            parent_fingerprint: private_key.parent_fingerprint,
-            child_number: private_key.child_number,
-            chain_code: private_key.chain_code,
-            public_key: BitcoinPublicKey::<N>::from_private_key(&private_key.private_key),
+            format: extended_private_key.format.clone(),
+            depth: extended_private_key.depth,
+            parent_fingerprint: extended_private_key.parent_fingerprint,
+            child_number: extended_private_key.child_number,
+            chain_code: extended_private_key.chain_code,
+            public_key: BitcoinPublicKey::<N>::from_private_key(&extended_private_key.private_key),
             _network: PhantomData
         }
     }

@@ -46,6 +46,47 @@ impl ZcashNetwork for Mainnet {
             _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix]))
         }
     }
+
+    /// Returns the extended private key prefix of the given network.
+    fn to_extended_private_key_prefix() -> String {
+        "secret-extended-key-main".into()
+    }
+
+    /// Returns the network of the given extended private key prefix.
+    fn from_extended_private_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
+        match prefix {
+            "secret-extended-key-main" => Ok(Self),
+            _ => return Err(NetworkError::InvalidExtendedPrivateKeyPrefix(prefix.into()))
+        }
+    }
+
+    /// Returns the extended public key prefix of the given network.
+    fn to_extended_public_key_prefix() -> String {
+        "zviews".into()
+    }
+
+    /// Returns the network of the given extended public key prefix.
+    fn from_extended_public_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
+        match prefix {
+            "zviews" => Ok(Self),
+            _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into()))
+        }
+    }
+
+    /// Returns the coin type of the given network.
+    /// https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+    fn to_coin_type() -> u8 {
+        133
+    }
+
+    /// Returns the network of the given coin type.
+    /// https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+    fn from_coin_type(index: u8) -> Result<Self, NetworkError> {
+        match index {
+            133 => Ok(Self),
+            _ => return Err(NetworkError::InvalidCoinType(index))
+        }
+    }
 }
 
 impl FromStr for Mainnet {

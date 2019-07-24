@@ -1,5 +1,6 @@
 use crate::address::{Address, AddressError};
 use crate::extended_public_key::ExtendedPublicKey;
+use crate::network::NetworkError;
 use crate::private_key::PrivateKey;
 use crate::public_key::PublicKey;
 
@@ -64,13 +65,28 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "{}", _0)]
     Message(String),
 
+    #[fail(display = "{}", _0)]
+    NetworkError(NetworkError),
+
     #[fail(display = "unsupported format: {}", _0)]
     UnsupportedFormat(String)
+}
+
+impl From<NetworkError> for ExtendedPrivateKeyError {
+    fn from(error: NetworkError) -> Self {
+        ExtendedPrivateKeyError::NetworkError(error)
+    }
 }
 
 impl From<base58::FromBase58Error> for ExtendedPrivateKeyError {
     fn from(error: base58::FromBase58Error) -> Self {
         ExtendedPrivateKeyError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for ExtendedPrivateKeyError {
+    fn from(error: bech32::Error) -> Self {
+        ExtendedPrivateKeyError::Crate("bech32", format!("{:?}", error))
     }
 }
 
