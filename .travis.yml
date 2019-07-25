@@ -21,7 +21,7 @@ matrix:
         - |
           if [ "$TRAVIS_RUST_VERSION" == stable ]; then 
             cargo tarpaulin --out Xml --all
-            bash <(curl -s https://codecov.io/bash)
+            bash <(curl -s https://codecov.io/bash) -X gcov
           fi
     - env: TARGET=x86_64-unknown-linux-musl
       rust: beta
