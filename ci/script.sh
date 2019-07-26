@@ -2,7 +2,6 @@
 
 set -ex
 
-# TODO This is the "test phase"
 main() {
     # cross build --target $TARGET
     cross build --target $TARGET --release
