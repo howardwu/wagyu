@@ -35,8 +35,8 @@ impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
                     let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.view_key);
                     Self { spend_key, view_key, format: private_key.format.clone(), _network: PhantomData }
                 } else {
-                    let subaddress_view_key = private_key.clone().generate_subaddress_private_view_key(major, minor).unwrap();
-                    Self::generate_subaddress_public_keys(private_key, subaddress_view_key)
+                    let subaddress_view_key = private_key.clone().to_subaddress_private_view_key(major, minor);
+                    Self::to_subaddress_public_key(private_key, subaddress_view_key)
                 }
             }
             _ => {
@@ -90,7 +90,7 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         compressed
     }
 
-    pub fn generate_subaddress_public_keys(
+    pub fn to_subaddress_public_key(
         private_key: &<Self as PublicKey>::PrivateKey,
         subaddress_private_view: [u8; 32]
     ) -> Self {

@@ -3,14 +3,11 @@ use crate::network::MoneroNetwork;
 use crate::public_key::MoneroPublicKey;
 use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
-use byteorder::{LittleEndian, WriteBytesExt};
 use curve25519_dalek::{scalar::Scalar};
 use hex;
 use rand::Rng;
 use rand::rngs::OsRng;
-use std::{fmt, fmt::Display};
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents a Monero private key
@@ -61,6 +58,8 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         let mut s = [0u8; 32];
         s.copy_from_slice(seed.as_slice());
 
+        let spend_key = Scalar::from_bytes_mod_order(s).to_bytes();
+
         let mut format = format.clone();
         match format {
             Format::Subaddress(major, minor) => {
@@ -70,8 +69,6 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
             },
             _ => {}
         }
-
-        let spend_key = Scalar::from_bytes_mod_order(s).to_bytes();
 
         Ok(Self {
             spend_key,
@@ -102,7 +99,7 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
                 }
             },
             _ => {}
-        }
+        };
 
         Ok(Self {
             spend_key,
@@ -113,26 +110,19 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
     }
 
     /// Generate a subaddress private view key - Hs("SubAddr" || a || account_index || subaddress_index_within_account)
-    pub fn generate_subaddress_private_view_key(&mut self, major: u32, minor: u32) -> Result<[u8; 32], PrivateKeyError>{
+    pub fn to_subaddress_private_view_key(&mut self, major: u32, minor: u32) -> [u8; 32] {
         if major == 0 && minor == 0 {
             self.format = Format::Standard;
-            Ok([0u8; 32])
+            [0u8; 32]
         } else {
-            let mut major_index: Vec<u8> = Vec::new();
-            let mut minor_index: Vec<u8> = Vec::new();
-
-            major_index.write_u32::<LittleEndian>(major)?;
-            minor_index.write_u32::<LittleEndian>(minor)?;
-
-            let mut derivation: Vec<u8> = b"SubAddr"[..].into();
-            derivation.push(0u8);
+            let mut derivation: Vec<u8> = b"SubAddr\x00"[..].into();
             derivation.extend(&self.view_key);
-            derivation.extend(&major_index);
-            derivation.extend(&minor_index);
+            derivation.extend(&major.to_le_bytes());
+            derivation.extend(&minor.to_le_bytes());
 
             let subaddress_view_key = Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes();
             self.format = Format::Subaddress(major, minor);
-            Ok(subaddress_view_key)
+            subaddress_view_key
         }
     }
 }
@@ -489,7 +479,7 @@ mod tests {
         fn to_public_key() {
             KEYPAIRS.iter().for_each(|(seed, _, (public_spend_key, public_view_key), major, minor, _)| {
                 let mut private_key = MoneroPrivateKey::<N>::from_seed(seed, &Format::Standard).unwrap();
-                private_key.generate_subaddress_private_view_key(*major, *minor).unwrap();
+                private_key.to_subaddress_private_view_key(*major, *minor);
                 let format = &Format::Subaddress(*major, *minor);
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                 test_to_public_key(&public_key, &private_key);
@@ -500,7 +490,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(seed, _, _, major, minor, expected_address)| {
                 let mut private_key = MoneroPrivateKey::<N>::from_seed(seed, &Format::Standard).unwrap();
-                private_key.generate_subaddress_private_view_key(*major, *minor).unwrap();
+                private_key.to_subaddress_private_view_key(*major, *minor);
                 let format = &Format::Subaddress(*major, *minor);
                 test_to_address(expected_address, format, &private_key);
             });

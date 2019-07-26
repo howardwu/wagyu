@@ -20,7 +20,6 @@ edition = "2018"
 wagu-model = { path = "../model" }
 
 base58-monero = { version = "0.1.1" }
-byteorder = { version = "1.2" }
 crc = { version = "1.8.1" }
 curve25519-dalek = "1.2.1"
 hex = "0.3.2"
