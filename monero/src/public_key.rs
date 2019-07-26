@@ -4,9 +4,7 @@ use crate::private_key::MoneroPrivateKey;
 use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
-use std::{fmt, fmt::Display};
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a Monero public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -29,15 +27,9 @@ impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         match private_key.format {
-            Format::Subaddress(major, minor) => {
-                if major == 0 && minor == 0 {
-                    let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.spend_key);
-                    let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.view_key);
-                    Self { spend_key, view_key, format: private_key.format.clone(), _network: PhantomData }
-                } else {
-                    let subaddress_view_key = private_key.clone().to_subaddress_private_view_key(major, minor);
-                    Self::to_subaddress_public_key(private_key, subaddress_view_key)
-                }
+            Format::Subaddress(major, minor) if major != 0 || minor != 0 => {
+                let subaddress_view_key = private_key.clone().to_subaddress_private_view_key(major, minor);
+                Self::to_subaddress_public_key(private_key, subaddress_view_key)
             }
             _ => {
                 let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.spend_key);
@@ -72,16 +64,14 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         let mut view_key = [0u8; 32];
         view_key.copy_from_slice(public_view_key.as_slice());
 
-        match format {
-            Format::Subaddress(major, minor) => {
-                if *major == 0 && *minor == 0 {
-                    Ok(Self { spend_key, view_key, format: Format::Standard, _network: PhantomData })
-                } else {
-                    Ok(Self { spend_key, view_key, format: format.clone(), _network: PhantomData })
-                }
-            },
-            _ => Ok(Self { spend_key, view_key, format: format.clone(), _network: PhantomData }),
+        let mut format = format.clone();
+        if let Format::Subaddress(major, minor) = format {
+            if major == 0 && minor == 0 {
+                format = Format::Standard;
+            }
         }
+
+        Ok(Self { spend_key, view_key, format, _network: PhantomData })
     }
 
     fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
@@ -123,7 +113,6 @@ impl <N: MoneroNetwork> FromStr for MoneroPublicKey<N> {
         let public_spend_key = hex::encode(spend_key);
         let public_view_key = hex::encode(view_key);
 
-        // TODO phase out hard coded standard format
         Ok(Self::from(public_spend_key.as_str(), public_view_key.as_str(), &Format::Standard)?)
     }
 }

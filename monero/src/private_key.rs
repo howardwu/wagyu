@@ -32,7 +32,6 @@ impl <N: MoneroNetwork> PrivateKey for MoneroPrivateKey<N> {
     fn new() -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
-        // TODO change hard-coded format
         Self::from_seed(hex::encode(random).as_str(), &Format::Standard)
     }
 
@@ -59,21 +58,17 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         s.copy_from_slice(seed.as_slice());
 
         let spend_key = Scalar::from_bytes_mod_order(s).to_bytes();
-
-        let mut format = format.clone();
-        match format {
-            Format::Subaddress(major, minor) => {
-                if major == 0 && minor == 0 {
-                    format = Format::Standard;
-                }
-            },
-            _ => {}
-        }
+        let format = match format {
+            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
+                Format::Standard
+            }
+            _ => { *format }
+        };
 
         Ok(Self {
             spend_key,
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-            format: format.clone(),
+            format,
             _network: PhantomData
         })
     }
@@ -91,20 +86,17 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         let mut spend_key = [0u8; 32];
         spend_key.copy_from_slice(key.as_slice());
 
-        let mut format = format.clone();
-        match format {
-            Format::Subaddress(major, minor) => {
-                if major == 0 && minor == 0 {
-                    format = Format::Standard;
-                }
-            },
-            _ => {}
+        let format = match format {
+            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
+                Format::Standard
+            }
+            _ => { *format }
         };
 
         Ok(Self {
             spend_key,
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-            format: format.clone(),
+            format,
             _network: PhantomData
         })
     }
@@ -130,7 +122,6 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
 impl <N: MoneroNetwork> FromStr for MoneroPrivateKey<N> {
     type Err = PrivateKeyError;
     // TODO (howardwu): Add parsing of mainnet or testnet as an option.
-    // TODO Phase out hardcoded format
     fn from_str(seed: &str) -> Result<Self, PrivateKeyError> {
         Self::from_seed(seed, &Format::Standard)
     }
