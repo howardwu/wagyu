@@ -298,7 +298,7 @@ mod tests {
         assert_eq!(expected_xpriv_serialized, xpriv.to_string());
     }
 
-    fn test_new<N: BitcoinNetwork>(
+    fn test_new_master<N: BitcoinNetwork>(
         expected_secret_key: &str,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
@@ -306,7 +306,7 @@ mod tests {
         seed: &str,
     ) {
         let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
-        let xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed_bytes, &Format::P2PKH).unwrap();
+        let xpriv = BitcoinExtendedPrivateKey::<N>::new_master(&seed_bytes, &Format::P2PKH).unwrap();
         assert_eq!(expected_secret_key, xpriv.private_key.secret_key.to_string());
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(0, xpriv.depth);
@@ -549,7 +549,7 @@ mod tests {
                 xpriv_serialized,
                 _
             ) = TEST_VECTOR_1[0];
-            test_new::<N>(
+            test_new_master::<N>(
                 secret_key,
                 chain_code,
                 parent_fingerprint,
@@ -569,7 +569,7 @@ mod tests {
                 xpriv_serialized,
                 _
             ) = TEST_VECTOR_2[0];
-            test_new::<N>(
+            test_new_master::<N>(
                 secret_key,
                 chain_code,
                 parent_fingerprint,
@@ -739,7 +739,7 @@ mod tests {
             // This tests for the retention of leading zeros
             let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[0];
             let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
-            let master_xpriv = BitcoinExtendedPrivateKey::<N>::new(&seed_bytes, &Format::P2PKH).unwrap();
+            let master_xpriv = BitcoinExtendedPrivateKey::<N>::new_master(&seed_bytes, &Format::P2PKH).unwrap();
             assert_eq!(master_xpriv.to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.derivation_path(path).unwrap().to_string(), xpriv_serialized);
             assert_eq!(master_xpriv.to_extended_public_key().to_string(), xpub_serialized);
