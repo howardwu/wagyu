@@ -45,7 +45,7 @@ impl <N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemoni
         &self,
         password: Option<&str>
     ) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
-        Ok(Self::ExtendedPrivateKey::new(self.to_seed(password)?.as_slice(), &Format::P2PKH)?)
+        Ok(Self::ExtendedPrivateKey::new_master(self.to_seed(password)?.as_slice(), &Format::P2PKH)?)
     }
 
     /// Returns the extended public key of the corresponding mnemonic.

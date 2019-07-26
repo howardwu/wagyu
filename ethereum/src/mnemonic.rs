@@ -42,7 +42,7 @@ impl <W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
         &self,
         password: Option<&str>
     ) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
-        Ok(Self::ExtendedPrivateKey::new(self.to_seed(password)?.as_slice(), &PhantomData)?)
+        Ok(Self::ExtendedPrivateKey::new_master(self.to_seed(password)?.as_slice(), &PhantomData)?)
     }
 
     /// Returns the extended public key of the corresponding mnemonic.
