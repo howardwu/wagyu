@@ -111,7 +111,7 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         }
     }
 
-    /// Generate a subaddress private view key - Hs("SubAddr" || a || account_index || subaddress_index_within_account)
+    /// Update the private key format and returns a subaddress private view key.
     pub fn to_subaddress_private_view_key(&mut self, major: u32, minor: u32) -> [u8; 32] {
         if major == 0 && minor == 0 {
             self.format = Format::Standard;
@@ -122,9 +122,8 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
             derivation.extend(&major.to_le_bytes());
             derivation.extend(&minor.to_le_bytes());
 
-            let subaddress_view_key = Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes();
             self.format = Format::Subaddress(major, minor);
-            subaddress_view_key
+            Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes()
         }
     }
 }

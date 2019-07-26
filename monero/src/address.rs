@@ -101,10 +101,9 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         let mut format = format;
         match (public_key.format, format) {
             (Format::Subaddress(_, _), Format::Subaddress(major, minor)) |
-            (Format::Standard, Format::Subaddress(major, minor)) => {
-                if *major == 0 && *minor == 0 {
-                    format = &Format::Standard;
-                }
+            (Format::Standard, Format::Subaddress(major, minor))
+                if (*major == 0 && *minor == 0) => {
+                format = &Format::Standard;
             },
             (Format::Integrated(_), Format::Standard) |
             (Format::Integrated(_), Format::Integrated(_)) |

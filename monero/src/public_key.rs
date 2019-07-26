@@ -80,6 +80,7 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         compressed
     }
 
+    /// Returns a Monero subaddress public key given a private key and subaddress private view key.
     pub fn to_subaddress_public_key(
         private_key: &<Self as PublicKey>::PrivateKey,
         subaddress_private_view: [u8; 32]
