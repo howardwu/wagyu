@@ -256,7 +256,6 @@ mod tests {
 
     mod integrated_mainnet {
         use super::*;
-        use crate::PaymentId;
 
         type N = Mainnet;
 
@@ -302,9 +301,9 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, _, (public_spend_key, public_view_key), payment_id, _)| {
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap());
-                let format = &Format::Integrated(PaymentId { data });
+                let mut payment_id_bytes = [0u8; 8];
+                payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(payment_id_bytes);
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                 let private_key = MoneroPrivateKey::<N>::from_seed(&seed, &format).unwrap();
                 test_from_private_key(&public_key, &private_key);
@@ -315,33 +314,34 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, _, (public_spend_key, public_view_key), payment_id, address)| {
                 let address = MoneroAddress::<N>::from_str(address).unwrap();
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap());
-                let format = &Format::Integrated(PaymentId { data });
+                let mut payment_id_bytes = [0u8; 8];
+                payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(payment_id_bytes);
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
-                test_to_address(&address, &Format::Integrated(PaymentId { data }), &public_key);
+                test_to_address(&address, format, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, _, (public_spend_key, public_view_key), payment_id, address)| {
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let mut payment_id_bytes = [0u8; 8];
+                payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(payment_id_bytes);
                 test_from_str::<N>(
                     public_spend_key,
                     public_view_key,
                     address,
-                    &Format::Integrated(PaymentId { data }));
+                    format);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, _, (public_spend_key, public_view_key), payment_id, _)| {
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap());
-                let format = &Format::Integrated(PaymentId { data });
+                let mut payment_id_bytes = [0u8; 8];
+                payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(payment_id_bytes);
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                 test_to_str(public_spend_key, public_view_key, &public_key);
             });

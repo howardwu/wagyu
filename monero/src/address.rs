@@ -14,7 +14,7 @@ pub enum Format {
     /// Standard address
     Standard,
     /// Address with payment id (8 bytes)
-    Integrated(PaymentId),
+    Integrated([u8; 8]),
     /// Subaddress
     Subaddress(u32, u32)
 }
@@ -33,7 +33,7 @@ impl Format {
             19 | 25 | 54 => {
                 let mut data = [0u8; 8];
                 data.copy_from_slice(&address[65..73]);
-                Ok(Format::Integrated(PaymentId { data }))
+                Ok(Format::Integrated(data))
             },
             _ => return Err(AddressError::InvalidPrefix(vec![address[0]]))
         }
@@ -50,11 +50,6 @@ impl fmt::Display for Format {
     }
 }
 
-
-#[derive(Serialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PaymentId {
-    pub data: [u8; 8]
-}
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Index {
@@ -132,7 +127,7 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         let checksum_bytes = match format {
             Format::Standard | Format::Subaddress(_, _)=> &bytes[0..65],
             Format::Integrated(payment_id) => {
-                bytes.extend_from_slice(&payment_id.data);
+                bytes.extend_from_slice(payment_id);
                 &bytes[0..73]
             }
         };
@@ -315,9 +310,9 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, payment_id, address)| {
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap());
-                let format = &Format::Integrated(PaymentId { data });
+                let mut payment_id_bytes = [0u8; 8];
+                payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(payment_id_bytes);
                 let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
                 test_from_private_key(address, &private_key, format);
             });
@@ -326,9 +321,9 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(seed, payment_id, address)| {
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap());
-                let format = &Format::Integrated(PaymentId { data });
+                let mut payment_id_bytes = [0u8; 8];
+                payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(payment_id_bytes);
                 let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
                 let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, format);

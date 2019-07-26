@@ -35,7 +35,7 @@ pub enum AddressError {
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid address format conversion from {:?} to {:?}", _0, _1)]
+    #[fail(display = "invalid format conversion from {:?} to {:?}", _0, _1)]
     IncompatibleFormats(String, String),
 
     #[fail(display = "invalid address: {}", _0)]
