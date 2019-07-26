@@ -61,18 +61,12 @@ impl <W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     type PublicKey = EthereumPublicKey;
 
     /// Returns the private key of the corresponding mnemonic.
-    fn to_private_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PrivateKey, MnemonicError> {
+    fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_private_key())
     }
 
     /// Returns the public key of the corresponding mnemonic.
-    fn to_public_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PublicKey, MnemonicError> {
+    fn to_public_key(&self, password: Option<&str>) -> Result<Self::PublicKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_public_key())
     }
 
@@ -80,9 +74,9 @@ impl <W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     fn to_address(
         &self,
         password: Option<&str>,
-        format: &Self::Format
+        _format: &Self::Format
     ) -> Result<Self::Address, MnemonicError> {
-        Ok(self.to_extended_private_key(password)?.to_address(format)?)
+        Ok(self.to_extended_private_key(password)?.to_address(_format)?)
     }
 }
 

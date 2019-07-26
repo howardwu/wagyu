@@ -26,7 +26,14 @@ pub trait ExtendedPrivateKey:
     type PublicKey: PublicKey;
 
     /// Returns a new extended private key.
-    fn new(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
+    fn new(
+        seed: &[u8],
+        format: &Self::Format,
+        derivation_path: &str
+    ) -> Result<Self, ExtendedPrivateKeyError>;
+
+    /// Returns a new extended private key.
+    fn new_master(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
@@ -46,6 +53,9 @@ pub enum ExtendedPrivateKeyError {
 
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
+
+    #[fail(display = "expected hardened path")]
+    ExpectedHardenedPath,
 
     #[fail(display = "invalid byte length: {}", _0)]
     InvalidByteLength(usize),

@@ -45,8 +45,17 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
-    /// Generates new Ethereum extended private key
-    fn new(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
+    /// Returns a new Ethereum extended private key.
+    fn new(
+        seed: &[u8],
+        format: &Self::Format,
+        derivation_path: &str
+    ) -> Result<Self, ExtendedPrivateKeyError> {
+        Ok(Self::new_master(seed, format)?.derivation_path(derivation_path)?)
+    }
+
+    /// Returns a new Ethereum extended private key.
+    fn new_master(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
         mac.input(seed);
         let result = mac.result().code();

@@ -64,18 +64,12 @@ impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> 
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the private key of the corresponding mnemonic.
-    fn to_private_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PrivateKey, MnemonicError> {
+    fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_private_key())
     }
 
     /// Returns the public key of the corresponding mnemonic.
-    fn to_public_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PublicKey, MnemonicError> {
+    fn to_public_key(&self, password: Option<&str>) -> Result<Self::PublicKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_public_key())
     }
 

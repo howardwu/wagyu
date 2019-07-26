@@ -46,9 +46,9 @@ impl <N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     fn to_address(
         &self,
         _: Option<&str>,
-        format: &Self::Format
+        _: &Self::Format
     ) -> Result<Self::Address, MnemonicError> {
-        Ok(self.to_private_key(None)?.to_address(format)?)
+        Ok(self.to_private_key(None)?.to_address(&Format::Standard)?)
     }
 }
 
