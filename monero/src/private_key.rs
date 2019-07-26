@@ -5,8 +5,7 @@ use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use curve25519_dalek::{scalar::Scalar};
 use hex;
-use rand::Rng;
-use rand::rngs::OsRng;
+use rand::{rngs::OsRng, Rng};
 use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
@@ -58,19 +57,25 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         s.copy_from_slice(seed.as_slice());
 
         let spend_key = Scalar::from_bytes_mod_order(s).to_bytes();
-        let format = match format {
-            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
-                Format::Standard
-            }
-            _ => { *format }
-        };
 
-        Ok(Self {
-            spend_key,
-            view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-            format,
-            _network: PhantomData
-        })
+        match format {
+            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
+                Ok(Self {
+                    spend_key,
+                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+                    format: Format::Standard,
+                    _network: PhantomData
+                })
+            }
+            _ => {
+                Ok(Self {
+                    spend_key,
+                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+                    format: *format,
+                    _network: PhantomData
+                })
+            }
+        }
     }
 
     /// Returns a private key given a private spend key.
@@ -86,19 +91,24 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         let mut spend_key = [0u8; 32];
         spend_key.copy_from_slice(key.as_slice());
 
-        let format = match format {
+        match format {
             Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
-                Format::Standard
+                Ok(Self {
+                    spend_key,
+                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+                    format: Format::Standard,
+                    _network: PhantomData
+                })
             }
-            _ => { *format }
-        };
-
-        Ok(Self {
-            spend_key,
-            view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-            format,
-            _network: PhantomData
-        })
+            _ => {
+                Ok(Self {
+                    spend_key,
+                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+                    format: *format,
+                    _network: PhantomData
+                })
+            }
+        }
     }
 
     /// Generate a subaddress private view key - Hs("SubAddr" || a || account_index || subaddress_index_within_account)

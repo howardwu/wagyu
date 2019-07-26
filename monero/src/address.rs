@@ -50,13 +50,6 @@ impl fmt::Display for Format {
     }
 }
 
-
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Index {
-    pub major: u32,
-    pub minor: u32
-}
-
 /// Represents a Monero address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroAddress<N: MoneroNetwork> {

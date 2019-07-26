@@ -34,7 +34,7 @@ impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
             _ => {
                 let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.spend_key);
                 let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.view_key);
-                Self { spend_key, view_key, format: private_key.format.clone(), _network: PhantomData }
+                Self { spend_key, view_key, format: private_key.format, _network: PhantomData }
             }
         }
     }
@@ -64,14 +64,14 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         let mut view_key = [0u8; 32];
         view_key.copy_from_slice(public_view_key.as_slice());
 
-        let mut format = format.clone();
-        if let Format::Subaddress(major, minor) = format {
-            if major == 0 && minor == 0 {
-                format = Format::Standard;
+        match format {
+            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
+                Ok(Self { spend_key, view_key, format: Format::Standard, _network: PhantomData })
+            }
+            _ => {
+                Ok(Self { spend_key, view_key, format: *format, _network: PhantomData })
             }
         }
-
-        Ok(Self { spend_key, view_key, format, _network: PhantomData })
     }
 
     fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
