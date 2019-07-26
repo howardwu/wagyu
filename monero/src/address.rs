@@ -40,6 +40,17 @@ impl Format {
     }
 }
 
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Format::Standard => write!(f, "Standard"),
+            Format::Integrated(_) => write!(f, "Integrated"),
+            Format::Subaddress(_, _) => write!(f, "Subaddress"),
+        }
+    }
+}
+
+
 #[derive(Serialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PaymentId {
     pub data: [u8; 8]
@@ -78,7 +89,7 @@ impl <N: MoneroNetwork> Address for MoneroAddress<N> {
             (Format::Integrated(_), Format::Standard) |
             (Format::Integrated(_), Format::Integrated(_)) |
             (Format::Subaddress(_, _), &Format::Standard) => {},
-            _ => return Err(AddressError::Message("Incompatible format conversion".into()))
+            _ => return Err(AddressError::IncompatibleFormats(private_key.format.to_string(), format.to_string()))
         };
         Self::from_public_key(&private_key.to_public_key(), format)
     }
@@ -111,7 +122,7 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
             (Format::Integrated(_), Format::Integrated(_)) |
             (Format::Standard, _) |
             (_, &Format::Standard) => {},
-            _ => return Err(AddressError::Message("Incompatible format conversion".into()))
+            _ => return Err(AddressError::IncompatibleFormats(public_key.format.to_string(), format.to_string()))
         };
 
         let mut bytes = vec![format.to_address_prefix::<N>()];
