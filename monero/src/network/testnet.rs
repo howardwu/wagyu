@@ -18,7 +18,7 @@ impl MoneroNetwork for Testnet {
         match format {
             Format::Standard => 53,
             Format::Integrated(_) => 54,
-            Format::Subaddress => 63
+            Format::Subaddress(_, _) => 63
         }
     }
 

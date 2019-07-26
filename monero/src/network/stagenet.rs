@@ -18,7 +18,7 @@ impl MoneroNetwork for Stagenet {
         match format {
             Format::Standard => 24,
             Format::Integrated(_) => 25,
-            Format::Subaddress => 36
+            Format::Subaddress(_, _) => 36
         }
     }
 

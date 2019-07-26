@@ -11,14 +11,14 @@ use std::str::FromStr;
 use tiny_keccak::keccak256;
 
 /// Represents the format of a Monero address
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
     /// Standard address
     Standard,
     /// Address with payment id (8 bytes)
     Integrated(PaymentId),
     /// Subaddress
-    Subaddress
+    Subaddress(u32, u32)
 }
 
 impl Format {
@@ -31,7 +31,7 @@ impl Format {
     pub fn from_address(address: &[u8]) -> Result<Self, AddressError> {
         match address[0] {
             18 | 24 | 53 => Ok(Format::Standard),
-            42 | 36 | 63 => Ok(Format::Subaddress),
+            42 | 36 | 63 => Ok(Format::Subaddress(u32::max_value(), u32::max_value())),
             19 | 25 | 54 => {
                 let mut data = [0u8; 8];
                 data.copy_from_slice(&address[65..73]);
@@ -42,9 +42,15 @@ impl Format {
     }
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PaymentId {
     pub data: [u8; 8]
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Index {
+    pub major: u32,
+    pub minor: u32
 }
 
 /// Represents a Monero address
@@ -52,8 +58,6 @@ pub struct PaymentId {
 pub struct MoneroAddress<N: MoneroNetwork> {
     /// The Monero address
     pub address: String,
-    /// The format of the address
-    pub format: Format,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -68,6 +72,16 @@ impl <N: MoneroNetwork> Address for MoneroAddress<N> {
         private_key: &Self::PrivateKey,
         format: &Self::Format
     ) -> Result<Self, AddressError> {
+        let mut private_key = private_key.clone();
+        match (private_key.format, format) {
+            (Format::Standard, _) | (Format::Subaddress(_, _), Format::Subaddress(_, _)) => {
+                private_key.format = *format;
+            },
+            (Format::Integrated(_), Format::Standard) |
+            (Format::Integrated(_), Format::Integrated(_)) |
+            (Format::Subaddress(_, _), &Format::Standard) => {},
+            _ => return Err(AddressError::Message("Incompatible format conversion".into()))
+        };
         Self::from_public_key(&private_key.to_public_key(), format)
     }
 
@@ -86,12 +100,28 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         public_key: &MoneroPublicKey<N>,
         format: &Format
     ) -> Result<Self, AddressError> {
+
+        let mut format = format;
+        match (public_key.format, format) {
+            (Format::Subaddress(_, _), Format::Subaddress(major, minor)) |
+            (Format::Standard, Format::Subaddress(major, minor)) => {
+                if *major == 0 && *minor == 0 {
+                    format = &Format::Standard;
+                }
+            },
+            (Format::Integrated(_), Format::Standard) |
+            (Format::Integrated(_), Format::Integrated(_)) |
+            (Format::Standard, _) |
+            (_, &Format::Standard) => {},
+            _ => return Err(AddressError::Message("Incompatible format conversion".into()))
+        };
+
         let mut bytes = vec![format.to_address_prefix::<N>()];
         bytes.extend_from_slice(&public_key.spend_key);
         bytes.extend_from_slice(&public_key.view_key);
 
         let checksum_bytes = match format {
-            Format::Standard | Format::Subaddress => &bytes[0..65],
+            Format::Standard | Format::Subaddress(_, _)=> &bytes[0..65],
             Format::Integrated(payment_id) => {
                 bytes.extend_from_slice(&payment_id.data);
                 &bytes[0..73]
@@ -102,7 +132,7 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         bytes.extend_from_slice(&checksum[0..4]);
 
         let address = base58::encode(bytes.as_slice())?;
-        Ok(Self { address, format: format.clone(), _network: PhantomData })
+        Ok(Self { address, _network: PhantomData })
     }
 }
 
@@ -120,7 +150,7 @@ impl <N: MoneroNetwork> FromStr for MoneroAddress<N> {
         let format = Format::from_address(&bytes)?;
 
         let (checksum_bytes, checksum) = match format {
-            Format::Standard | Format::Subaddress => (&bytes[0..65], &bytes[65..69]),
+            Format::Standard | Format::Subaddress(_, _) => (&bytes[0..65], &bytes[65..69]),
             Format::Integrated(_) => (&bytes[0..73], &bytes[73..77]),
         };
 
@@ -133,7 +163,7 @@ impl <N: MoneroNetwork> FromStr for MoneroAddress<N> {
 
         let public_spend_key = hex::encode(&bytes[1..33]);
         let public_view_key = hex::encode(&bytes[33..65]);
-        let public_key = MoneroPublicKey::from(public_spend_key.as_str(), public_view_key.as_str())?;
+        let public_key = MoneroPublicKey::from(public_spend_key.as_str(), public_view_key.as_str(), &format)?;
 
         Self::generate_address(&public_key, &format)
     }
@@ -167,13 +197,11 @@ mod tests {
     ) {
         let address = MoneroAddress::<N>::from_public_key(public_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*format, address.format);
     }
 
-    fn test_from_str<N: MoneroNetwork>(expected_address: &str, expected_format: &Format) {
+    fn test_from_str<N: MoneroNetwork>(expected_address: &str) {
         let address = MoneroAddress::<N>::from_str(expected_address).unwrap();
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*expected_format, address.format);
     }
 
     fn test_to_str<N: MoneroNetwork>(expected_address: &str, address: &MoneroAddress<N>) {
@@ -184,6 +212,7 @@ mod tests {
         use super::*;
 
         type N = Mainnet;
+        const FORMAT: &Format = &Format::Standard;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -211,24 +240,24 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, address)| {
-                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
-                test_from_private_key(address, &private_key, &Format::Standard);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, FORMAT).unwrap();
+                test_from_private_key(address, &private_key, FORMAT);
             });
         }
 
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(seed, address)| {
-                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, FORMAT).unwrap();
                 let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::Standard);
+                test_from_public_key(address, &public_key, FORMAT);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::Standard);
+                test_from_str::<N>(address);
             });
         }
 
@@ -277,36 +306,109 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(seed, payment_id, address)| {
-                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
                 let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap()[0..8]);
-                test_from_private_key(address, &private_key, &Format::Integrated(PaymentId { data }));
+                data.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(PaymentId { data });
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
+                test_from_private_key(address, &private_key, format);
             });
         }
 
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(seed, payment_id, address)| {
-                let private_key = MoneroPrivateKey::<N>::from_seed(seed).unwrap();
-                let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
                 let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap()[0..8]);
-                test_from_public_key(address, &public_key, &Format::Integrated(PaymentId { data }));
+                data.copy_from_slice(&hex::decode(payment_id).unwrap());
+                let format = &Format::Integrated(PaymentId { data });
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
+                let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
+                test_from_public_key(address, &public_key, format);
             });
         }
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, payment_id, address)| {
-                let mut data = [0u8; 8];
-                data.copy_from_slice(&hex::decode(payment_id).unwrap()[0..8]);
-                test_from_str::<N>(address, &Format::Integrated(PaymentId { data }));
+            KEYPAIRS.iter().for_each(|(_, _, address)| {
+                test_from_str::<N>(address);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, _, expected_address)| {
+                let address = MoneroAddress::<N>::from_str(expected_address).unwrap();
+                test_to_str(expected_address, &address);
+            });
+        }
+    }
+
+    mod subaddress_mainnet {
+        use super::*;
+
+        type N = Mainnet;
+
+        const KEYPAIRS: [(&str, u32, u32, &str); 5] = [
+            (
+                "f6aceb9caa1d04bb3a6a3d5614a731dd58d24da957f33448fa50600c3d928404",
+                0,
+                0,
+                "42yuCfeWRoe4aRLYS82WNXfgY1eK8XH2V4hgwPjyuAEE56M4tbxqyLATxSrKPtxxEQETnhmFxW741RMYTaM9neiWCK2uvkW"
+            ),
+            (
+                "7130e7a7657a75590fc00c2926bbcbd252044ca2210fde0dc74a6dfdd2512501",
+                0,
+                1,
+                "83NfRiAk5AiBZDyTjGDejpap8VJDgspsyQhHfGZAVATpfPwaJ9SXRcHEkTC8chu8gEcrudMymLT8dFKkidrqTEVRKApoPSx"
+            ),
+            (
+                "a22b4a3418db16214f1a278e1f0b115ede224f043bc1d0596a74f9748f41b00b",
+                1,
+                100,
+                "87DrKYY4cXidB8g9kB9pS6dH3xvySXRg71Abpy2nGHemGX7sKA2kdFT8MgReY8jbdMaESqJU8XeAzbFqYdUREQPtKC3yTYS"
+            ),
+            (
+                "c25c2b372c49fe3056b211432da1c5f76173230215df1ab0554ecf51417e7709",
+                25000,
+                0,
+                "8AypGY3tMu49YQqZ49cFUjBoywJJ72r6R9xmjq77jLHTD8GxyV3AKogahHNhNWZDWKZPxbdaDASwT5axCkmwhCaYH8DYADx"
+            ),
+            (
+                "3eb8e283b45559d4d2fb6b3a4f52443b420e6da2b38832ea0eb642100c92d600",
+                5000,
+                123456789,
+                "84Enuwpd5cMhvXowv12wdEL7Y7u57fPSAHkjM6pBjHCDf4M3mkXQkcbiLmBFJYXJ1JKLTP1RyJMEU5iUZ5dLfh5GRJYBzdy"
+            )
+        ];
+
+        #[test]
+        fn from_private_key() {
+            KEYPAIRS.iter().for_each(|(seed, major, minor, address)| {
+                let format = &Format::Subaddress(*major, *minor);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
+                test_from_private_key(address, &private_key, format);
+            });
+        }
+
+        #[test]
+        fn from_public_key() {
+            KEYPAIRS.iter().for_each(|(seed, major, minor, address)| {
+                let format = &Format::Subaddress(*major, *minor);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
+                let public_key = MoneroPublicKey::<N>::from_private_key(&private_key);
+                test_from_public_key(address, &public_key, format);
+            });
+        }
+
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(_, _, _, address)| {
+                test_from_str::<N>(address);
+            });
+        }
+
+        #[test]
+        fn to_str() {
+            KEYPAIRS.iter().for_each(|(_, _, _, expected_address)| {
                 let address = MoneroAddress::<N>::from_str(expected_address).unwrap();
                 test_to_str(expected_address, &address);
             });
