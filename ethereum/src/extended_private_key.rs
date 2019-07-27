@@ -28,15 +28,15 @@ type HmacSha512 = Hmac<Sha512>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EthereumExtendedPrivateKey {
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
-    pub depth: u8,
+    pub(super) depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
-    pub parent_fingerprint: [u8; 4],
+    pub(super) parent_fingerprint: [u8; 4],
     /// The child index of the key (0 for master key)
-    pub child_index: ChildIndex,
+    pub(super) child_index: ChildIndex,
     /// The chain code for this extended private key
-    pub chain_code: [u8; 32],
+    pub(super) chain_code: [u8; 32],
     /// The Ethereum private key
-    pub private_key: EthereumPrivateKey,
+    private_key: EthereumPrivateKey,
 }
 
 impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
@@ -62,7 +62,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
         mac.input(seed);
         let hmac = mac.result().code();
         let private_key =
-            Self::PrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?);
+            Self::PrivateKey::from_secp256k1_secret_key(SecretKey::from_slice(&hmac[0..32])?);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -84,9 +84,9 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 
         let mut extended_private_key = self.clone();
 
-        for index in path.0.iter() {
+        for index in path.into_iter() {
             let public_key = &PublicKey::from_secret_key(
-                &Secp256k1::new(), &extended_private_key.private_key.0).serialize()[..];
+                &Secp256k1::new(), &extended_private_key.private_key.to_secp256k1_secret_key()).serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
@@ -96,7 +96,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
                 // (Note: The 0x00 pads the private key to make it 33 bytes long.)
                 ChildIndex::Hardened(_) => {
                     mac.input(&[0u8]);
-                    mac.input(&extended_private_key.private_key.0[..]);
+                    mac.input(&extended_private_key.private_key.to_secp256k1_secret_key()[..]);
                 }
             }
             // Append the child index in big-endian format
@@ -106,8 +106,8 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
             let hmac = mac.result().code();
 
             let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
-            secret_key.add_assign(&extended_private_key.private_key.0[..])?;
-            let private_key = Self::PrivateKey::from_secret_key(secret_key);
+            secret_key.add_assign(&extended_private_key.private_key.to_secp256k1_secret_key()[..])?;
+            let private_key = Self::PrivateKey::from_secp256k1_secret_key(secret_key);
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -172,7 +172,7 @@ impl FromStr for EthereumExtendedPrivateKey {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let private_key = EthereumPrivateKey::from_secret_key(
+        let private_key = EthereumPrivateKey::from_secp256k1_secret_key(
             SecretKey::from_slice(&data[46..78])?);
 
         let expected = &data[78..82];
@@ -206,7 +206,7 @@ impl Display for EthereumExtendedPrivateKey {
 
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45] = 0;
-        result[46..78].copy_from_slice(&self.private_key.0[..]);
+        result[46..78].copy_from_slice(&self.private_key.to_secp256k1_secret_key()[..]);
 
         let checksum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(&checksum);
@@ -214,7 +214,6 @@ impl Display for EthereumExtendedPrivateKey {
         fmt.write_str(&result.to_base58())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -238,7 +237,7 @@ mod tests {
         assert_eq!(expected_parent_fingerprint, hex::encode(extended_private_key.parent_fingerprint));
         assert_eq!(expected_child_index, u32::from(extended_private_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_private_key.chain_code));
-        assert_eq!(expected_secret_key, extended_private_key.private_key.0.to_string());
+        assert_eq!(expected_secret_key, extended_private_key.private_key.to_secp256k1_secret_key().to_string());
     }
 
     // Check: (extended_private_key1 -> extended_private_key2) == (expected_extended_private_key2)
@@ -247,7 +246,7 @@ mod tests {
         expected_extended_private_key2: &str,
         expected_child_index2: u32
     ) {
-        let path = EthereumDerivationPath(vec![ChildIndex::from(expected_child_index2)]);
+        let path = vec![ChildIndex::from(expected_child_index2)].into();
 
         let extended_private_key1 = EthereumExtendedPrivateKey::from_str(expected_extended_private_key1).unwrap();
         let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
@@ -256,6 +255,7 @@ mod tests {
 
         assert_eq!(expected_extended_private_key2, extended_private_key2);
         assert_eq!(expected_extended_private_key2.private_key, extended_private_key2.private_key);
+        assert_eq!(expected_extended_private_key2.depth, extended_private_key2.depth);
         assert_eq!(expected_extended_private_key2.child_index, extended_private_key2.child_index);
         assert_eq!(expected_extended_private_key2.chain_code, extended_private_key2.chain_code);
         assert_eq!(expected_extended_private_key2.parent_fingerprint, extended_private_key2.parent_fingerprint);
@@ -285,7 +285,7 @@ mod tests {
         assert_eq!(expected_parent_fingerprint, hex::encode(extended_private_key.parent_fingerprint));
         assert_eq!(expected_child_index, u32::from(extended_private_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_private_key.chain_code));
-        assert_eq!(expected_secret_key, extended_private_key.private_key.0.to_string());
+        assert_eq!(expected_secret_key, extended_private_key.private_key.to_secp256k1_secret_key().to_string());
     }
 
     fn test_to_string(expected_extended_private_key: &str) {

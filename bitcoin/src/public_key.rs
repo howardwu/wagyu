@@ -12,9 +12,9 @@ use std::str::FromStr;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinPublicKey<N: BitcoinNetwork> {
     /// The ECDSA public key
-    pub public_key: secp256k1::PublicKey,
+    public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
-    pub compressed: bool,
+    compressed: bool,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -28,8 +28,8 @@ impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         let secp = secp256k1::Secp256k1::new();
         Self {
-            public_key: secp256k1::PublicKey::from_secret_key(&secp, &private_key.secret_key),
-            compressed: private_key.compressed,
+            public_key: secp256k1::PublicKey::from_secret_key(&secp, &private_key.to_secp256k1_secret_key()),
+            compressed: private_key.is_compressed(),
             _network: PhantomData
         }
     }
@@ -37,6 +37,23 @@ impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
     /// Returns the address of the corresponding private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         Self::Address::from_public_key(self, format)
+    }
+}
+
+impl <N: BitcoinNetwork> BitcoinPublicKey<N> {
+    /// Returns a public key given a secp256k1 public key.
+    pub fn from_secp256k1_public_key(public_key: secp256k1::PublicKey, compressed: bool) -> Self {
+        Self { public_key, compressed, _network: PhantomData }
+    }
+
+    /// Returns the secp256k1 public key of the public key.
+    pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
+        self.public_key.clone()
+    }
+
+    /// Returns `true` if the public key is in compressed form.
+    pub fn is_compressed(&self) -> bool {
+        self.compressed
     }
 }
 
@@ -100,7 +117,7 @@ mod tests {
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_compressed, public_key.compressed);
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*expected_format, address.format);
+        assert_eq!(*expected_format, address.format());
     }
 
     fn test_to_str<N: BitcoinNetwork>(expected_public_key: &str, public_key: &BitcoinPublicKey<N>) {

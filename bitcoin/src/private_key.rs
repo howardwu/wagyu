@@ -15,9 +15,9 @@ use std::str::FromStr;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BitcoinPrivateKey<N: BitcoinNetwork> {
     /// The ECDSA private key
-    pub secret_key: secp256k1::SecretKey,
+    secret_key: secp256k1::SecretKey,
     /// If true, the private key is serialized in compressed form
-    pub compressed: bool,
+    compressed: bool,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -29,7 +29,11 @@ impl <N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {
 
     /// Returns a randomly-generated compressed Bitcoin private key.
     fn new() -> Result<Self, PrivateKeyError> {
-        Self::build(true)
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random)?;
+        let secret_key = secp256k1::SecretKey::from_slice(&random)?;
+
+        Ok(Self { secret_key, compressed: true, _network: PhantomData })
     }
 
     /// Returns the public key of the corresponding Bitcoin private key.
@@ -44,8 +48,27 @@ impl <N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {
 }
 
 impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
-    /// Returns either a Bitcoin private key struct or errors.
-    pub fn from_wif(wif: &str) -> Result<Self, PrivateKeyError> {
+    /// Returns a private key given a secp256k1 secret key.
+    pub fn from_secp256k1_secret_key(secret_key: secp256k1::SecretKey, compressed: bool) -> Self {
+        Self { secret_key, compressed, _network: PhantomData }
+    }
+
+    /// Returns the secp256k1 secret key of the private key.
+    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
+        self.secret_key.clone()
+    }
+
+    /// Returns `true` if the private key is in compressed form.
+    pub fn is_compressed(&self) -> bool {
+        self.compressed
+    }
+}
+
+impl <N: BitcoinNetwork> FromStr for BitcoinPrivateKey<N> {
+    type Err = PrivateKeyError;
+
+    /// Returns a Bitcoin private key from a given WIF.
+    fn from_str(wif: &str) -> Result<Self, Self::Err> {
         let data = wif.from_base58()?;
         let len = data.len();
         if len != 37 && len != 38 {
@@ -68,28 +91,6 @@ impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
             compressed: len == 38,
             _network: PhantomData
         })
-    }
-
-    /// Returns a private key given a secp256k1 secret key
-    pub fn from_secret_key(secret_key: secp256k1::SecretKey, compressed: bool) -> Self {
-        Self { secret_key, compressed, _network: PhantomData }
-    }
-
-    /// Returns a randomly-generated Bitcoin private key.
-    fn build(compressed: bool) -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
-        let secret_key = secp256k1::SecretKey::from_slice(&random)?;
-
-        Ok(Self { secret_key, compressed, _network: PhantomData })
-    }
-}
-
-impl <N: BitcoinNetwork> FromStr for BitcoinPrivateKey<N> {
-    type Err = PrivateKeyError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_wif(s)
     }
 }
 
@@ -136,23 +137,7 @@ mod tests {
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_wif<N: BitcoinNetwork>(
-        expected_secret_key: &secp256k1::SecretKey,
-        expected_compressed: bool,
-        expected_public_key: &str,
-        expected_address: &str,
-        expected_format: &Format,
-        wif: &str
-    ) {
-        let private_key = BitcoinPrivateKey::<N>::from_wif(wif).unwrap();
-        assert_eq!(wif, private_key.to_string());
-        assert_eq!(*expected_secret_key, private_key.secret_key);
-        assert_eq!(expected_compressed, private_key.compressed);
-        assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
-    }
-
-    fn test_from_secret_key<N: BitcoinNetwork>(
+    fn test_from_secp256k1_secret_key<N: BitcoinNetwork>(
         expected_wif: &str,
         expected_compressed: bool,
         expected_public_key: &str,
@@ -161,9 +146,25 @@ mod tests {
         secret_key: secp256k1::SecretKey,
         compressed: bool
     ) {
-        let private_key = BitcoinPrivateKey::<N>::from_secret_key(secret_key, compressed);
+        let private_key = BitcoinPrivateKey::<N>::from_secp256k1_secret_key(secret_key, compressed);
         assert_eq!(expected_wif, private_key.to_string());
         assert_eq!(secret_key, private_key.secret_key);
+        assert_eq!(expected_compressed, private_key.compressed);
+        assert_eq!(expected_public_key, private_key.to_public_key().to_string());
+        assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
+    }
+
+    fn test_from_str<N: BitcoinNetwork>(
+        expected_secret_key: &secp256k1::SecretKey,
+        expected_compressed: bool,
+        expected_public_key: &str,
+        expected_address: &str,
+        expected_format: &Format,
+        wif: &str
+    ) {
+        let private_key = BitcoinPrivateKey::<N>::from_str(wif).unwrap();
+        assert_eq!(wif, private_key.to_string());
+        assert_eq!(*expected_secret_key, private_key.secret_key);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
@@ -224,24 +225,10 @@ mod tests {
         }
 
         #[test]
-        fn from_wif() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_from_wif::<N>(
-                    &expected_private_key.secret_key,
-                    true,
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH,
-                    &private_key);
-            });
-        }
-
-        #[test]
-        fn from_secret_key() {
+        fn from_secp256k1_secret_key() {
             KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(&expected_private_key).unwrap();
-                test_from_secret_key::<N>(
+                test_from_secp256k1_secret_key::<N>(
                     expected_private_key,
                     true,
                     expected_public_key,
@@ -253,11 +240,46 @@ mod tests {
         }
 
         #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_from_str::<N>(
+                    &expected_private_key.secret_key,
+                    true,
+                    expected_public_key,
+                    expected_address,
+                    &Format::P2PKH,
+                    &private_key);
+            });
+        }
+
+        #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(expected_private_key).unwrap();
                 test_to_str(expected_private_key, &private_key);
             });
+        }
+
+        #[test]
+        fn test_invalid() {
+
+            // Invalid WIF length
+
+            let private_key = "L";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReq";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQ";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
         }
     }
 
@@ -312,24 +334,10 @@ mod tests {
         }
 
         #[test]
-        fn from_wif() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_from_wif::<N>(
-                    &expected_private_key.secret_key,
-                    false,
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH,
-                    &private_key);
-            });
-        }
-
-        #[test]
-        fn from_secret_key() {
+        fn from_secp256k1_secret_key() {
             KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(&expected_private_key).unwrap();
-                test_from_secret_key::<N>(
+                test_from_secp256k1_secret_key::<N>(
                     expected_private_key,
                     false,
                     expected_public_key,
@@ -337,6 +345,20 @@ mod tests {
                     &Format::P2PKH,
                     private_key.secret_key,
                     false);
+            });
+        }
+
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_from_str::<N>(
+                    &expected_private_key.secret_key,
+                    false,
+                    expected_public_key,
+                    expected_address,
+                    &Format::P2PKH,
+                    &private_key);
             });
         }
 
@@ -400,24 +422,10 @@ mod tests {
         }
 
         #[test]
-        fn from_wif() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_from_wif::<N>(
-                    &expected_private_key.secret_key,
-                    true,
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH,
-                    &private_key);
-            });
-        }
-
-        #[test]
-        fn from_secret_key() {
+        fn from_secp256k1_secret_key() {
             KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(&expected_private_key).unwrap();
-                test_from_secret_key::<N>(
+                test_from_secp256k1_secret_key::<N>(
                     expected_private_key,
                     true,
                     expected_public_key,
@@ -425,6 +433,20 @@ mod tests {
                     &Format::P2PKH,
                     private_key.secret_key,
                     true);
+            });
+        }
+
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_from_str::<N>(
+                    &expected_private_key.secret_key,
+                    true,
+                    expected_public_key,
+                    expected_address,
+                    &Format::P2PKH,
+                    &private_key);
             });
         }
 
@@ -488,24 +510,10 @@ mod tests {
         }
 
         #[test]
-        fn from_wif() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_from_wif::<N>(
-                    &expected_private_key.secret_key,
-                    false,
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH,
-                    &private_key);
-            });
-        }
-
-        #[test]
-        fn from_secret_key() {
+        fn from_secp256k1_secret_key() {
             KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(&expected_private_key).unwrap();
-                test_from_secret_key::<N>(
+                test_from_secp256k1_secret_key::<N>(
                     expected_private_key,
                     false,
                     expected_public_key,
@@ -513,6 +521,20 @@ mod tests {
                     &Format::P2PKH,
                     private_key.secret_key,
                     false);
+            });
+        }
+
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_from_str::<N>(
+                    &expected_private_key.secret_key,
+                    false,
+                    expected_public_key,
+                    expected_address,
+                    &Format::P2PKH,
+                    &private_key);
             });
         }
 
@@ -576,24 +598,10 @@ mod tests {
         }
 
         #[test]
-        fn from_wif() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_from_wif::<N>(
-                    &expected_private_key.secret_key,
-                    true,
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2SH_P2WPKH,
-                    &private_key);
-            });
-        }
-
-        #[test]
-        fn from_secret_key() {
+        fn from_secp256k1_secret_key() {
             KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(&expected_private_key).unwrap();
-                test_from_secret_key::<N>(
+                test_from_secp256k1_secret_key::<N>(
                     expected_private_key,
                     true,
                     expected_public_key,
@@ -605,11 +613,46 @@ mod tests {
         }
 
         #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_from_str::<N>(
+                    &expected_private_key.secret_key,
+                    true,
+                    expected_public_key,
+                    expected_address,
+                    &Format::P2SH_P2WPKH,
+                    &private_key);
+            });
+        }
+
+        #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(expected_private_key).unwrap();
                 test_to_str(expected_private_key, &private_key);
             });
+        }
+
+        #[test]
+        fn test_invalid() {
+
+            // Invalid WIF length
+
+            let private_key = "K";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJ";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJNKyTx39W9vjeGRRjvZna5bbFGE";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
+
+            let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJNKyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJN";
+            assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
         }
     }
 
@@ -665,24 +708,10 @@ mod tests {
         }
 
         #[test]
-        fn from_wif() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_from_wif::<N>(
-                    &expected_private_key.secret_key,
-                    true,
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2SH_P2WPKH,
-                    &private_key);
-            });
-        }
-
-        #[test]
-        fn from_secret_key() {
+        fn from_secp256k1_secret_key() {
             KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(&expected_private_key).unwrap();
-                test_from_secret_key::<N>(
+                test_from_secp256k1_secret_key::<N>(
                     expected_private_key,
                     true,
                     expected_public_key,
@@ -694,6 +723,20 @@ mod tests {
         }
 
         #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_from_str::<N>(
+                    &expected_private_key.secret_key,
+                    true,
+                    expected_public_key,
+                    expected_address,
+                    &Format::P2SH_P2WPKH,
+                    &private_key);
+            });
+        }
+
+        #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(expected_private_key).unwrap();
@@ -701,71 +744,4 @@ mod tests {
             });
         }
     }
-
-    #[test]
-    fn test_p2pkh_invalid() {
-
-        type N = Mainnet;
-
-        // Invalid WIF length
-
-        let private_key = "L";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReq";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQ";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42HL5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-    }
-
-    #[test]
-    fn test_p2sh_p2wpkh_invalid() {
-
-        type N = Mainnet;
-
-        // Invalid WIF length
-
-        let private_key = "K";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJ";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJNKyTx39W9vjeGRRjvZna5bbFGE";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-        let private_key = "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJNKyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJN";
-        assert!(BitcoinPrivateKey::<N>::from_str(private_key).is_err());
-
-    }
-
-//    fn test_new(private_key: BitcoinPrivateKey) {
-//        let first_character = match private_key.wif.chars().next() {
-//            Some(c) => c,
-//            None => panic!("Error unwrapping first character of WIF"),
-//        };
-//        // Reference: https://en.bitcoin.it/wiki/Address#Address_map
-//        let is_valid_first_character = match (private_key.network, private_key.compressed) {
-//            (Network::Mainnet, false) => first_character == '5',
-//            (Network::Testnet, false) => first_character == '9',
-//            (Network::Mainnet, true) => first_character == 'L' || first_character == 'K',
-//            (Network::Testnet, true) => first_character == 'c',
-//        };
-//        assert!(is_valid_first_character);
-//        let from_wif =
-//            BitcoinPrivateKey::from_wif(private_key.wif.as_str()).expect("Error unwrapping private key from WIF");
-//        assert_eq!(from_wif.wif, private_key.wif);
-//    }
-
 }

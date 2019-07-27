@@ -102,7 +102,7 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
             private_key: private_key.to_string(),
             address: address.to_string(),
             network: "testnet".into(),
-            compressed: private_key.compressed,
+            compressed: private_key.is_compressed(),
         }
     } else {
         let private_key = BitcoinPrivateKey::<BitcoinMainnet>::new().unwrap();
@@ -112,7 +112,7 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
             private_key: private_key.to_string(),
             address: address.to_string(),
             network: "mainnet".into(),
-            compressed: private_key.compressed,
+            compressed: private_key.is_compressed(),
         }
     };
 
@@ -145,7 +145,7 @@ fn print_ethereum_wallet(count: usize, json: bool) {
 
     let wallet = Wallet {
         private_key: private_key.to_string(),
-        address: address.address,
+        address: address.to_string(),
     };
 
     for _ in 0..count {

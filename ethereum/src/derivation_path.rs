@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 /// Represents a Ethereum derivation path
 #[derive(Clone, PartialEq, Eq)]
-pub struct EthereumDerivationPath(pub(crate) Vec<ChildIndex>);
+pub struct EthereumDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for EthereumDerivationPath {}
 
@@ -39,6 +39,15 @@ impl Into<Vec<ChildIndex>> for EthereumDerivationPath {
 impl<'a> From<&'a [ChildIndex]> for EthereumDerivationPath {
     fn from(path: &'a [ChildIndex]) -> Self {
         Self(path.to_vec())
+    }
+}
+
+impl<'a> ::std::iter::IntoIterator for &'a EthereumDerivationPath {
+    type Item = &'a ChildIndex;
+    type IntoIter = ::std::slice::Iter<'a, ChildIndex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

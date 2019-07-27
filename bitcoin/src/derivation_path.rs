@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 /// Represents a Bitcoin derivation path
 #[derive(Clone, PartialEq, Eq)]
-pub struct BitcoinDerivationPath(pub(crate) Vec<ChildIndex>);
+pub struct BitcoinDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for BitcoinDerivationPath {}
 
@@ -39,6 +39,15 @@ impl Into<Vec<ChildIndex>> for BitcoinDerivationPath {
 impl<'a> From<&'a [ChildIndex]> for BitcoinDerivationPath {
     fn from(path: &'a [ChildIndex]) -> Self {
         Self(path.to_vec())
+    }
+}
+
+impl<'a> ::std::iter::IntoIterator for &'a BitcoinDerivationPath {
+    type Item = &'a ChildIndex;
+    type IntoIter = ::std::slice::Iter<'a, ChildIndex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 
