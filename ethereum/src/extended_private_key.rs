@@ -215,59 +215,94 @@ impl Display for EthereumExtendedPrivateKey {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use hex;
+    use std::string::String;
+
+    fn test_new(
+        expected_extended_private_key: &str,
+        expected_parent_fingerprint: &str,
+        expected_child_index: u32,
+        expected_chain_code: &str,
+        expected_secret_key: &str,
+        seed: &str,
+        path: &EthereumDerivationPath
+    ) {
+        let extended_private_key =
+            EthereumExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &PhantomData, path).unwrap();
+        assert_eq!(expected_extended_private_key, extended_private_key.to_string());
+        assert_eq!(expected_parent_fingerprint, hex::encode(extended_private_key.parent_fingerprint));
+        assert_eq!(expected_child_index, u32::from(extended_private_key.child_index));
+        assert_eq!(expected_chain_code, hex::encode(extended_private_key.chain_code));
+        assert_eq!(expected_secret_key, extended_private_key.private_key.0.to_string());
+    }
+
+    // Check: (extended_private_key1 -> extended_private_key2) == (expected_extended_private_key2)
+    fn test_derive(
+        expected_extended_private_key1: &str,
+        expected_extended_private_key2: &str,
+        expected_child_index2: u32
+    ) {
+        let path = EthereumDerivationPath(vec![ChildIndex::from(expected_child_index2)]);
+
+        let extended_private_key1 = EthereumExtendedPrivateKey::from_str(expected_extended_private_key1).unwrap();
+        let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
+
+        let expected_extended_private_key2 = EthereumExtendedPrivateKey::from_str(&expected_extended_private_key2).unwrap();
+
+        assert_eq!(expected_extended_private_key2, extended_private_key2);
+        assert_eq!(expected_extended_private_key2.private_key, extended_private_key2.private_key);
+        assert_eq!(expected_extended_private_key2.child_index, extended_private_key2.child_index);
+        assert_eq!(expected_extended_private_key2.chain_code, extended_private_key2.chain_code);
+        assert_eq!(expected_extended_private_key2.parent_fingerprint, extended_private_key2.parent_fingerprint);
+    }
+
+    fn test_to_extended_public_key(
+        expected_extended_public_key: &str,
+        seed: &str,
+        path: &EthereumDerivationPath
+    ) {
+        let extended_private_key =
+            EthereumExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &PhantomData, path).unwrap();
+        let extended_public_key = extended_private_key.to_extended_public_key();
+        assert_eq!(expected_extended_public_key, extended_public_key.to_string());
+    }
 
     fn test_from_str(
-        expected_secret_key: &str,
-        expected_chain_code: &str,
-        expected_depth: u8,
+        expected_extended_private_key: &str,
         expected_parent_fingerprint: &str,
-        expected_child_number: u32,
-        expected_xpriv_serialized: &str,
-    ) {
-        let xpriv = EthereumExtendedPrivateKey::from_str(&expected_xpriv_serialized).expect("error generating xpriv object");
-        assert_eq!(expected_secret_key, xpriv.private_key.0.to_string());
-        assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
-        assert_eq!(expected_depth, xpriv.depth);
-        assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
-        assert_eq!(expected_child_number, u32::from(xpriv.child_index));
-        assert_eq!(expected_xpriv_serialized, xpriv.to_string());
-    }
-
-    fn test_new_master(
-        expected_secret_key: &str,
+        expected_child_index: u32,
         expected_chain_code: &str,
-        expected_parent_fingerprint: &str,
-        expected_xpriv_serialized: &str,
-        seed: &str,
+        expected_secret_key: &str,
     ) {
-        let seed_bytes = hex::decode(seed).expect("error decoding hex seed");
-        let xpriv = EthereumExtendedPrivateKey::new_master(&seed_bytes, &PhantomData).expect("error generating new extended private key");
-        assert_eq!(expected_secret_key, xpriv.private_key.0.to_string());
-        assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
-        assert_eq!(0, xpriv.depth);
-        assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
-        assert_eq!(0, u32::from(xpriv.child_index));
-        assert_eq!(expected_xpriv_serialized, xpriv.to_string());
+        let extended_private_key =
+            EthereumExtendedPrivateKey::from_str(expected_extended_private_key).unwrap();
+        assert_eq!(expected_extended_private_key, extended_private_key.to_string());
+        assert_eq!(expected_parent_fingerprint, hex::encode(extended_private_key.parent_fingerprint));
+        assert_eq!(expected_child_index, u32::from(extended_private_key.child_index));
+        assert_eq!(expected_chain_code, hex::encode(extended_private_key.chain_code));
+        assert_eq!(expected_secret_key, extended_private_key.private_key.0.to_string());
     }
 
-    fn test_to_xpub(expected_xpub_serialized: &str, xpriv: &EthereumExtendedPrivateKey) {
-        let xpub = xpriv.to_extended_public_key();
-        assert_eq!(expected_xpub_serialized, xpub.to_string());
+    fn test_to_string(expected_extended_private_key: &str) {
+        let extended_private_key =
+            EthereumExtendedPrivateKey::from_str(expected_extended_private_key).unwrap();
+        assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
-    /// Test vectors from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
-    mod bip32_default {
+    mod bip32_mainnet {
         use super::*;
 
-        // (path, master_seed or child_num, secret_key, chain_code, parent_fingerprint, xpriv, xpub)
-        const TEST_VECTOR_1: [(&str, &str, &str, &str, &str, &str, &str); 6] = [
+        // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 12] = [
             (
                 "m",
                 "000102030405060708090a0b0c0d0e0f",
+                "0",
                 "e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35",
                 "873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508",
                 "00000000",
@@ -276,6 +311,7 @@ mod tests {
             ),
             (
                 "m/0'",
+                "000102030405060708090a0b0c0d0e0f",
                 "2147483648",
                 "edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea",
                 "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141",
@@ -285,6 +321,7 @@ mod tests {
             ),
             (
                 "m/0'/1",
+                "000102030405060708090a0b0c0d0e0f",
                 "1",
                 "3c6cb8d0f6a264c91ea8b5030fadaa8e538b020f0a387421a12de9319dc93368",
                 "2a7857631386ba23dacac34180dd1983734e444fdbf774041578e9b6adb37c19",
@@ -294,6 +331,7 @@ mod tests {
             ),
             (
                 "m/0'/1/2'",
+                "000102030405060708090a0b0c0d0e0f",
                 "2147483650",
                 "cbce0d719ecf7431d88e6a89fa1483e02e35092af60c042b1df2ff59fa424dca",
                 "04466b9cc8e161e966409ca52986c584f07e9dc81f735db683c3ff6ec7b1503f",
@@ -303,6 +341,7 @@ mod tests {
             ),
             (
                 "m/0'/1/2'/2",
+                "000102030405060708090a0b0c0d0e0f",
                 "2",
                 "0f479245fb19a38a1954c5c7c0ebab2f9bdfd96a17563ef28a6a4b1a2a764ef4",
                 "cfb71883f01676f587d023cc53a35bc7f88f724b1f8c2892ac1275ac822a3edd",
@@ -312,19 +351,18 @@ mod tests {
             ),
             (
                 "m/0'/1/2'/2/1000000000",
+                "000102030405060708090a0b0c0d0e0f",
                 "1000000000",
                 "471b76e389e528d6de6d816857e012c5455051cad6660850e58372a6c3e6e7c8",
                 "c783e67b921d2beb8f6b389cc646d7263b4145701dadd2161548a8b078e65e9e",
                 "d880d7d8",
                 "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76",
                 "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
-            )
-        ];
-        // (path, master_seed or child_num, secret_key, chain_code, parent_fingerprint, xpriv, xpub)
-        const TEST_VECTOR_2: [(&str, &str, &str, &str, &str, &str, &str); 6] = [
+            ),
             (
                 "m",
                 "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
+                "0",
                 "4b03d6fc340455b363f51020ad3ecca4f0850280cf436c70c727923f6db46c3e",
                 "60499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd9689",
                 "00000000",
@@ -333,6 +371,7 @@ mod tests {
             ),
             (
                 "m/0",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
                 "0",
                 "abe74a98f6c7eabee0428f53798f0ab8aa1bd37873999041703c742f15ac7e1e",
                 "f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c",
@@ -342,6 +381,7 @@ mod tests {
             ),
             (
                 "m/0/2147483647'",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
                 "4294967295",
                 "877c779ad9687164e9c2f4f0f4ff0340814392330693ce95a58fe18fd52e6e93",
                 "be17a268474a6bb9c61e1d720cf6215e2a88c5406c4aee7b38547f585c9a37d9",
@@ -351,6 +391,7 @@ mod tests {
             ),
             (
                 "m/0/2147483647'/1",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
                 "1",
                 "704addf544a06e5ee4bea37098463c23613da32020d604506da8c0518e1da4b7",
                 "f366f48f1ea9f2d1d3fe958c95ca84ea18e4c4ddb9366c336c927eb246fb38cb",
@@ -360,6 +401,7 @@ mod tests {
             ),
             (
                 "m/0/2147483647'/1/2147483646'",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
                 "4294967294",
                 "f1c7c871a54a804afe328b4c83a1c33b8e5ff48f5087273f04efa83b247d6a2d",
                 "637807030d55d01f9a0cb3a7839515d796bd07706386a6eddf06cc29a65a0e29",
@@ -369,109 +411,70 @@ mod tests {
             ),
             (
                 "m/0/2147483647'/1/2147483646'/2",
+                "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542",
                 "2",
                 "bb7d39bdb83ecf58f2fd82b6d918341cbef428661ef01ab97c28a4842125ac23",
                 "9452b549be8cea3ecb7a84bec10dcfd94afe4d129ebfd3b3cb58eedf394ed271",
                 "31a507b8",
                 "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j",
                 "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
-            )
+            ),
         ];
 
         #[test]
-        fn test_from_str_tv1() {
-            let (
-                _,
-                _,
-                secret_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                _
-            ) = TEST_VECTOR_1[0];
-            test_from_str(
-                secret_key,
-                chain_code,
-                0,
-                parent_fingerprint,
-                0,
-                xpriv_serialized,
-            );
+        fn new() {
+            KEYPAIRS.iter().for_each(|(path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
+                test_new(
+                    extended_private_key,
+                    parent_fingerprint,
+                    child_index.parse().unwrap(),
+                    chain_code,
+                    secret_key,
+                    seed,
+                    &EthereumDerivationPath::from_str(path).unwrap());
+            });
         }
 
         #[test]
-        fn test_from_str_tv2() {
-            let (
-                _,
-                _,
-                secret_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                _
-            ) = TEST_VECTOR_2[0];
-            test_from_str(
-                secret_key,
-                chain_code,
-                0,
-                parent_fingerprint,
-                0,
-                xpriv_serialized,
-            );
+        fn derive() {
+            KEYPAIRS.chunks(2).for_each(|pair| {
+                let (_, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
+                let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
+                test_derive(
+                    expected_extended_private_key1,
+                    expected_extended_private_key2,
+                    expected_child_index2.parse().unwrap(),
+                );
+            });
         }
 
         #[test]
-        fn test_new_tv1() {
-            let (_,
-                seed,
-                secret_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                _
-            ) = TEST_VECTOR_1[0];
-            test_new_master(
-                secret_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                seed,
-            );
+        fn to_extended_public_key() {
+            KEYPAIRS.iter().for_each(|(path, seed, _, _, _, _, _, expected_public_key)| {
+                test_to_extended_public_key(
+                    expected_public_key,
+                    seed,
+                    &EthereumDerivationPath::from_str(path).unwrap());
+            });
         }
 
         #[test]
-        fn test_new_tv2() {
-            let (
-                _,
-                seed,
-                secret_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                _
-            ) = TEST_VECTOR_2[0];
-            test_new_master(
-                secret_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                seed,
-            );
-        }
-
-
-        #[test]
-        fn test_to_xpub_tv1() {
-            let (_, _, _, _, _, xpriv_serialized, xpub_serialized) = TEST_VECTOR_1[0];
-            let xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            test_to_xpub(xpub_serialized, &xpriv);
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(_, _, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
+                test_from_str(
+                    extended_private_key,
+                    parent_fingerprint,
+                    child_index.parse().unwrap(),
+                    chain_code,
+                    secret_key);
+            });
         }
 
         #[test]
-        fn test_to_xpub_tv2() {
-            let (_, _, _, _, _, xpriv_serialized, xpub_serialized) = TEST_VECTOR_2[0];
-            let xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            test_to_xpub(xpub_serialized, &xpriv);
+        fn to_string() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_to_string(extended_private_key);
+            });
         }
     }
 
