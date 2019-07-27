@@ -7,7 +7,7 @@ use std::{
 /// The interface for a generic derivation path.
 pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {}
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Fail, PartialEq, Eq)]
 pub enum DerivationPathError {
 
     #[fail(display = "expected hardened path")]
