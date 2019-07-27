@@ -463,4 +463,55 @@ mod tests {
             });
         }
     }
+
+    mod invalid_public_key {
+        use super::*;
+        type N = Mainnet;
+        const FORMAT: &Format = &Format::Standard;
+
+        // (public spend key, public view key, concatenated public key)
+        const INVALID: [(&str, &str, &str); 5] = [
+            (
+                "",
+                "",
+                ""
+            ),
+            (
+                "ed91c2ab5245dc",
+                "52f1685aab335c",
+                "ed91c2ab5245dc52f1685aab335c"
+            ),
+            (
+                "ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38e",
+                "52f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582ef",
+                "ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38e52f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582ef"
+            ),
+            (
+                "ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38eed91c2",
+                "52f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582ef52f168",
+                "ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38eed91c252f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582ef52f168"
+            ),
+            (
+                "ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38e80ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38e80",
+                "52f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582efde52f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582efde",
+                "ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38e80ed91c2ab5245dc1bdcb6854684d8d10b3bd4398311c46af21fae371213c38e8052f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582efde52f1685aab335c15eecaf7da3edf8870ae680f5e8de0c968c878888b6582efde"
+            ),
+        ];
+
+        #[test]
+        fn test_invalid_from() {
+            INVALID.iter().for_each(|(spend_key, view_key, _)| {
+                let public_key = MoneroPublicKey::<N>::from(spend_key, view_key, FORMAT);
+                assert!(public_key.is_err());
+            });
+        }
+
+        #[test]
+        fn test_invalid_from_str() {
+            INVALID.iter().for_each(|(_, _, combined_key)| {
+                let public_key = MoneroPublicKey::<N>::from_str(combined_key);
+                assert!(public_key.is_err());
+            });
+        }
+    }
 }

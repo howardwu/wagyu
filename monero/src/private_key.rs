@@ -528,4 +528,37 @@ mod tests {
             });
         }
     }
+
+    mod invalid_private_key {
+        use super::*;
+        type N = Mainnet;
+        const FORMAT: &Format = &Format::Standard;
+
+        const INVALID: [&str; 6] = [
+            "",
+            "a98213556a",
+            "a98213556a454af1782d1fb80c95e34",
+            "a98213556a454af1782d1fb80c95e3401897819b385e7a677",
+            "a98213556a454af1782d1fb80c95e3401897819b385e7a6779ced7ecc4c00a0900",
+            "a98213556a454af1782d1fb80c95e3401897819b385e7a6779ced7ecc4c00a09a98213556a454af1782d1fb80c95e3401897819b385e7a6779ced7ecc4c00a09"
+        ];
+
+        #[test]
+        fn test_invalid_seed() {
+
+            INVALID.iter().for_each(|seed| {
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, FORMAT);
+                assert!(private_key.is_err());
+            });
+        }
+
+        #[test]
+        fn test_invalid_private_spend_key() {
+
+            INVALID.iter().for_each(|private_spend_key| {
+                let private_key = MoneroPrivateKey::<N>::from_private_spend_key(private_spend_key, FORMAT);
+                assert!(private_key.is_err());
+            });
+        }
+    }
 }
