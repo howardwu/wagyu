@@ -145,7 +145,7 @@ fn print_ethereum_wallet(count: usize, json: bool) {
 
     let wallet = Wallet {
         private_key: private_key.to_string(),
-        address: address.address,
+        address: address.to_string(),
     };
 
     for _ in 0..count {
