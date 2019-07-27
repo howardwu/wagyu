@@ -16,7 +16,7 @@ impl FromStr for EthereumDerivationPath {
         let mut parts = path.split("/");
 
         if parts.next().unwrap() != "m" {
-            return Err(DerivationPathError::InvalidDerivationPath(path.to_string()));
+            return Err(DerivationPathError::InvalidDerivationPath(path.to_string()))
         }
 
         let path: Result<Vec<ChildIndex>, Self::Err> = parts.map(str::parse).collect();

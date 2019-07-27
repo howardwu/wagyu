@@ -1,5 +1,6 @@
 use wagu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
+use std::convert::TryFrom;
 use std::fmt;
 use std::str::FromStr;
 
@@ -16,29 +17,32 @@ impl FromStr for ZcashDerivationPath {
         let mut parts = path.split("/");
 
         if parts.next().unwrap() != "m" {
-            return Err(DerivationPathError::InvalidDerivationPath(path.to_string()));
+            return Err(DerivationPathError::InvalidDerivationPath(path.to_string()))
         }
 
         let path: Result<Vec<ChildIndex>, Self::Err> = parts.map(str::parse).collect();
-        Ok(Self(path?))
+        Self::try_from(path?)
     }
 }
 
-impl From<Vec<ChildIndex>> for ZcashDerivationPath {
-    fn from(path: Vec<ChildIndex>) -> Self {
-        Self(path)
+impl TryFrom<Vec<ChildIndex>> for ZcashDerivationPath {
+    type Error = DerivationPathError;
+
+    fn try_from(path: Vec<ChildIndex>) -> Result<Self, Self::Error> {
+        // Only hardened paths are allowed in Zcash
+        if !path.iter().filter(|&&index| index.is_normal()).collect::<Vec<_>>().is_empty() {
+            return Err(DerivationPathError::ExpectedHardenedPath)
+        }
+
+        Ok(Self(path))
     }
 }
 
-impl Into<Vec<ChildIndex>> for ZcashDerivationPath {
-    fn into(self) -> Vec<ChildIndex> {
-        self.0
-    }
-}
+impl<'a> TryFrom<&'a [ChildIndex]> for ZcashDerivationPath {
+    type Error = DerivationPathError;
 
-impl<'a> From<&'a [ChildIndex]> for ZcashDerivationPath {
-    fn from(path: &'a [ChildIndex]) -> Self {
-        Self(path.to_vec())
+    fn try_from(path: &'a [ChildIndex]) -> Result<Self, Self::Error> {
+        Self::try_from(path.to_vec())
     }
 }
 

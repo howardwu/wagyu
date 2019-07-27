@@ -1,5 +1,5 @@
 use crate::address::{Address, AddressError};
-use crate::derivation_path::DerivationPath;
+use crate::derivation_path::{DerivationPath, DerivationPathError};
 use crate::extended_public_key::ExtendedPublicKey;
 use crate::network::NetworkError;
 use crate::private_key::PrivateKey;
@@ -59,8 +59,8 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
-    #[fail(display = "expected hardened path")]
-    ExpectedHardenedPath,
+    #[fail(display = "{}", _0)]
+    DerivationPathError(DerivationPathError),
 
     #[fail(display = "invalid byte length: {}", _0)]
     InvalidByteLength(usize),
@@ -82,6 +82,12 @@ pub enum ExtendedPrivateKeyError {
 
     #[fail(display = "unsupported format: {}", _0)]
     UnsupportedFormat(String)
+}
+
+impl From<DerivationPathError> for ExtendedPrivateKeyError {
+    fn from(error: DerivationPathError) -> Self {
+        ExtendedPrivateKeyError::DerivationPathError(error)
+    }
 }
 
 impl From<NetworkError> for ExtendedPrivateKeyError {

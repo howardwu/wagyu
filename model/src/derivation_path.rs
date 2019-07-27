@@ -10,6 +10,12 @@ pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'sta
 #[derive(Debug, Fail)]
 pub enum DerivationPathError {
 
+    #[fail(display = "expected hardened path")]
+    ExpectedHardenedPath,
+
+    #[fail(display = "expected normal path")]
+    ExpectedNormalPath,
+
     #[fail(display = "invalid child number: {}", _0)]
     InvalidChildNumber(u32),
 
@@ -45,6 +51,19 @@ impl ChildIndex {
             Ok(ChildIndex::Hardened(index))
         } else {
             Err(DerivationPathError::InvalidChildNumber(index))
+        }
+    }
+
+    /// Returns `true` if the child index is a [`Normal`] value.
+    pub fn is_normal(&self) -> bool {
+        !self.is_hardened()
+    }
+
+    /// Returns `true` if the child index is a [`Hardened`] value.
+    pub fn is_hardened(&self) -> bool {
+        match *self {
+            ChildIndex::Hardened(_) => true,
+            ChildIndex::Normal(_) => false,
         }
     }
 }
