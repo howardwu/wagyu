@@ -11,9 +11,7 @@ use tiny_keccak::keccak256;
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
-pub struct EthereumAddress {
-    pub address: String,
-}
+pub struct EthereumAddress(String);
 
 impl Address for EthereumAddress {
     type Format = PhantomData<u8>;
@@ -41,7 +39,7 @@ impl EthereumAddress {
     /// Returns the checksum address given a public key.
     /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
     pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {
-        let hash = keccak256(&public_key.0.serialize_uncompressed()[1..]);
+        let hash = keccak256(&public_key.to_secp256k1_public_key().serialize_uncompressed()[1..]);
         let address = to_hex_string(&hash[12..]).to_lowercase();
 
         let hash = to_hex_string(&keccak256(address.as_bytes()));
@@ -54,7 +52,7 @@ impl EthereumAddress {
             checksum_address.push_str(&ch);
         }
 
-        EthereumAddress { address: checksum_address }
+        EthereumAddress(checksum_address)
     }
 }
 
@@ -80,13 +78,13 @@ impl FromStr for EthereumAddress {
             checksum_address.push_str(&ch);
         }
 
-        Ok(EthereumAddress { address: checksum_address })
+        Ok(EthereumAddress(checksum_address))
     }
 }
 
 impl fmt::Display for EthereumAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.address)
+        write!(f, "{}", self.0)
     }
 }
 

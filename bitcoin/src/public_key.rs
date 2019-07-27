@@ -41,12 +41,12 @@ impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
 }
 
 impl <N: BitcoinNetwork> BitcoinPublicKey<N> {
-    /// Returns a public key given a secp256k1 public key
+    /// Returns a public key given a secp256k1 public key.
     pub fn from_secp256k1_public_key(public_key: secp256k1::PublicKey, compressed: bool) -> Self {
         Self { public_key, compressed, _network: PhantomData }
     }
 
-    /// Returns the secp256k1 public key of the public key
+    /// Returns the secp256k1 public key of the public key.
     pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
         self.public_key.clone()
     }
