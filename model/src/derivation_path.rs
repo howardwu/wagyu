@@ -10,6 +10,13 @@ pub trait DerivationPath: Copy + Clone + Debug + Display + FromStr + Send + Sync
 #[derive(Debug, Fail)]
 pub enum DerivationPathError {
 
+    #[fail(display = "invalid child number: {}", _0)]
+    InvalidChildNumber(u32),
+
+    #[fail(display = "invalid child number format")]
+    InvalidChildNumberFormat,
+
     #[fail(display = "invalid derivation path: {}", _0)]
     InvalidDerivationPath(String),
 }
+
