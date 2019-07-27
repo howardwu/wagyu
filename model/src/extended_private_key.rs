@@ -1,4 +1,5 @@
 use crate::address::{Address, AddressError};
+use crate::derivation_path::{DerivationPath, DerivationPathError};
 use crate::extended_public_key::ExtendedPublicKey;
 use crate::network::NetworkError;
 use crate::private_key::PrivateKey;
@@ -20,6 +21,7 @@ pub trait ExtendedPrivateKey:
     + Sized
 {
     type Address: Address;
+    type DerivationPath: DerivationPath;
     type ExtendedPublicKey: ExtendedPublicKey;
     type Format;
     type PrivateKey: PrivateKey;
@@ -29,11 +31,14 @@ pub trait ExtendedPrivateKey:
     fn new(
         seed: &[u8],
         format: &Self::Format,
-        derivation_path: &str
+        path: &Self::DerivationPath
     ) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns a new extended private key.
     fn new_master(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
+
+    /// Returns the extended private key of the given derivation path.
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
@@ -54,17 +59,14 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
-    #[fail(display = "expected hardened path")]
-    ExpectedHardenedPath,
+    #[fail(display = "{}", _0)]
+    DerivationPathError(DerivationPathError),
 
     #[fail(display = "invalid byte length: {}", _0)]
     InvalidByteLength(usize),
 
     #[fail(display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidChecksum(String, String),
-
-    #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
-    InvalidDerivationPath(String, String),
 
     #[fail(display = "invalid version bytes: {:?}", _0)]
     InvalidVersionBytes(Vec<u8>),
@@ -80,6 +82,12 @@ pub enum ExtendedPrivateKeyError {
 
     #[fail(display = "unsupported format: {}", _0)]
     UnsupportedFormat(String)
+}
+
+impl From<DerivationPathError> for ExtendedPrivateKeyError {
+    fn from(error: DerivationPathError) -> Self {
+        ExtendedPrivateKeyError::DerivationPathError(error)
+    }
 }
 
 impl From<NetworkError> for ExtendedPrivateKeyError {

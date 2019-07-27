@@ -1,10 +1,13 @@
 use crate::address::{ZcashAddress, Format};
+use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
 use crate::network::ZcashNetwork;
 use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
 use wagu_model::{
     Address,
     AddressError,
+    ChildIndex,
+    DerivationPathError,
     ExtendedPublicKey,
     ExtendedPublicKeyError,
 };
@@ -27,6 +30,7 @@ pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
 
 impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     type Address = ZcashAddress<N>;
+    type DerivationPath = ZcashDerivationPath;
     type ExtendedPrivateKey = ZcashExtendedPrivateKey<N>;
     type Format = Format;
     type PublicKey = ZcashPublicKey<N>;
@@ -38,6 +42,25 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
                 ExtendedFullViewingKey::from(&extended_private_key.extended_spending_key),
             _network: PhantomData
         }
+    }
+
+    /// Returns the extended public key of the given derivation path.
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
+        let mut extended_public_key = self.clone();
+        for index in path.0.iter() {
+            match index {
+                ChildIndex::Hardened(_) => return Err(DerivationPathError::ExpectedNormalPath.into()),
+                ChildIndex::Normal(number) => extended_public_key = Self {
+                    extended_full_viewing_key: match extended_public_key.extended_full_viewing_key.derive_child(
+                        zcash_primitives::zip32::ChildIndex::NonHardened(*number)) {
+                        Ok(extended_full_viewing_key) => extended_full_viewing_key,
+                        _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),
+                    },
+                    _network: PhantomData
+                }
+            }
+        }
+        Ok(extended_public_key)
     }
 
     /// Returns the public key of the corresponding extended public key.
@@ -118,7 +141,8 @@ mod tests {
         path: &str
     ) {
         let seed = hex::decode(seed).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), path).unwrap();
+        let path = ZcashDerivationPath::from_str(path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
@@ -129,7 +153,8 @@ mod tests {
         path: &str
     ) {
         let seed = hex::decode(seed).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), path).unwrap();
+        let path = ZcashDerivationPath::from_str(path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         let format = &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
         let address = extended_public_key.to_address(&format).unwrap();
@@ -143,7 +168,8 @@ mod tests {
 
     fn test_to_string<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), path).unwrap();
+        let path = ZcashDerivationPath::from_str(path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }

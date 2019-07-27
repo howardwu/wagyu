@@ -142,7 +142,7 @@ impl <N: BitcoinNetwork> BitcoinAddress<N> {
 
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
     pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let redeem = BitcoinAddress::create_redeem_script(public_key);
+        let redeem = Self::create_redeem_script(public_key);
 
         let mut address = [0u8; 25];
         address[0] = N::to_address_prefix(&Format::P2SH_P2WPKH)[0];
