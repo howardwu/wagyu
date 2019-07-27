@@ -176,7 +176,6 @@ impl fmt::Display for EthereumExtendedPublicKey {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

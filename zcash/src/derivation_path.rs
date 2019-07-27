@@ -5,6 +5,10 @@ use std::fmt;
 use std::str::FromStr;
 
 /// Represents a Zcash derivation path
+///
+/// m_Sapling / purpose' / coin_type' / account' / address_index
+/// https://github.com/zcash/zips/blob/master/zip-0032.rst
+///
 #[derive(Clone, PartialEq, Eq)]
 pub struct ZcashDerivationPath(pub(crate) Vec<ChildIndex>);
 
@@ -29,8 +33,10 @@ impl TryFrom<Vec<ChildIndex>> for ZcashDerivationPath {
     type Error = DerivationPathError;
 
     fn try_from(path: Vec<ChildIndex>) -> Result<Self, Self::Error> {
-        // Only hardened paths are allowed in Zcash
-        if !path.iter().filter(|&&index| index.is_normal()).collect::<Vec<_>>().is_empty() {
+        // The purpose' / coin_type' / account' must all be hardened
+        // https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-key-path
+        let primary = match path.len() > 3 { true => &path[0..3], false => &path };
+        if !primary.iter().filter(|&&index| index.is_normal()).collect::<Vec<_>>().is_empty() {
             return Err(DerivationPathError::ExpectedHardenedPath)
         }
 
