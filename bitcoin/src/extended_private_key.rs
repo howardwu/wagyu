@@ -67,7 +67,7 @@ impl <N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
         mac.input(seed);
         let hmac = mac.result().code();
         let private_key =
-            BitcoinPrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?, true);
+            Self::PrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?, true);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -113,7 +113,7 @@ impl <N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
             let hmac = mac.result().code();
 
             let mut private_key =
-                BitcoinPrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?, true);
+                Self::PrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?, true);
             private_key.secret_key.add_assign(&extended_private_key.private_key.secret_key[..])?;
 
             let mut chain_code = [0u8; 32];
@@ -456,7 +456,7 @@ mod tests {
         #[test]
         fn derive() {
             KEYPAIRS.chunks(2).for_each(|pair| {
-                let (path, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
+                let (_, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
                 let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
                 test_derive::<N>(
                     expected_extended_private_key1,
