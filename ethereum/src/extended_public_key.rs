@@ -44,13 +44,13 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     type PublicKey = EthereumPublicKey;
 
     /// Returns extended public key given extended private key
-    fn from_extended_private_key(private_key: &EthereumExtendedPrivateKey) -> Self {
+    fn from_extended_private_key(extended_private_key: &EthereumExtendedPrivateKey) -> Self {
         Self {
-            public_key: EthereumPublicKey::from_private_key(&private_key.private_key),
-            chain_code: private_key.chain_code,
-            depth: private_key.depth,
-            parent_fingerprint: private_key.parent_fingerprint,
-            child_number: private_key.child_number,
+            public_key: EthereumPublicKey::from_private_key(&extended_private_key.private_key),
+            chain_code: extended_private_key.chain_code,
+            depth: extended_private_key.depth,
+            parent_fingerprint: extended_private_key.parent_fingerprint,
+            child_number: extended_private_key.child_number,
         }
     }
 

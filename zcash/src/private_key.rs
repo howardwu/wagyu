@@ -133,7 +133,7 @@ pub enum SpendingKey<N: ZcashNetwork> {
 
 /// Represents a Zcash Private Key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZcashPrivateKey<N: ZcashNetwork>(pub(crate) SpendingKey<N>, PhantomData<N>);
+pub struct ZcashPrivateKey<N: ZcashNetwork>(pub(crate) SpendingKey<N>, pub(crate) PhantomData<N>);
 
 impl <N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type Address = ZcashAddress<N>;

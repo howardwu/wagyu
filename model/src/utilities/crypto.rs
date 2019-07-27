@@ -11,9 +11,8 @@ pub fn hash160(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    extern crate hex;
-
     use super::*;
+    use hex;
 
     fn test_checksum(data: &[u8], expected: &[u8; 32]) {
         let entropy = hex::decode(data).expect("hex decode failed");

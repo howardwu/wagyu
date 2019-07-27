@@ -1,6 +1,7 @@
 use crate::address::{Address, AddressError};
-use crate::public_key::{PublicKey, PublicKeyError};
 use crate::extended_private_key::ExtendedPrivateKey;
+use crate::network::NetworkError;
+use crate::public_key::{PublicKey, PublicKeyError};
 
 use std::{fmt::{Debug, Display}, str::FromStr};
 
@@ -22,7 +23,7 @@ pub trait ExtendedPublicKey:
     type PublicKey: PublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
-    fn from_extended_private_key(private_key: &Self::ExtendedPrivateKey) -> Self;
+    fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self;
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey;
@@ -59,10 +60,19 @@ pub enum ExtendedPublicKeyError {
     Message(String),
 
     #[fail(display = "{}", _0)]
+    NetworkError(NetworkError),
+
+    #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
 
     #[fail(display = "unsupported format: {}", _0)]
     UnsupportedFormat(String)
+}
+
+impl From<NetworkError> for ExtendedPublicKeyError {
+    fn from(error: NetworkError) -> Self {
+        ExtendedPublicKeyError::NetworkError(error)
+    }
 }
 
 impl From<PublicKeyError> for ExtendedPublicKeyError {
@@ -74,6 +84,12 @@ impl From<PublicKeyError> for ExtendedPublicKeyError {
 impl From<base58::FromBase58Error> for ExtendedPublicKeyError {
     fn from(error: base58::FromBase58Error) -> Self {
         ExtendedPublicKeyError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for ExtendedPublicKeyError {
+    fn from(error: bech32::Error) -> Self {
+        ExtendedPublicKeyError::Crate("bech32", format!("{:?}", error))
     }
 }
 

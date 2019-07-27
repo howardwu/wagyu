@@ -52,7 +52,7 @@ pub enum ViewingKey {
 
 ///Represents a Zcash public key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZcashPublicKey<N: ZcashNetwork>(pub(crate) ViewingKey, PhantomData<N>);
+pub struct ZcashPublicKey<N: ZcashNetwork>(pub(crate) ViewingKey, pub(crate) PhantomData<N>);
 
 impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     type Address = ZcashAddress<N>;

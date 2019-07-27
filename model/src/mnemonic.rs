@@ -25,16 +25,10 @@ pub trait Mnemonic:
     type PublicKey: PublicKey;
 
     /// Returns the private key of the corresponding mnemonic.
-    fn to_private_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PrivateKey, MnemonicError>;
+    fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError>;
 
     /// Returns the public key of the corresponding mnemonic.
-    fn to_public_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PublicKey, MnemonicError>;
+    fn to_public_key(&self, password: Option<&str>) -> Result<Self::PublicKey, MnemonicError>;
 
     /// Returns the address of the corresponding mnemonic.
     fn to_address(
