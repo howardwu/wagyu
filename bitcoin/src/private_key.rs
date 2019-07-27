@@ -34,12 +34,12 @@ impl <N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {
 
     /// Returns the public key of the corresponding Bitcoin private key.
     fn to_public_key(&self) -> Self::PublicKey {
-        BitcoinPublicKey::from_private_key(self)
+        Self::PublicKey::from_private_key(self)
     }
 
     /// Returns the address of the corresponding Bitcoin private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        BitcoinAddress::from_private_key(self, format)
+        Self::Address::from_private_key(self, format)
     }
 }
 

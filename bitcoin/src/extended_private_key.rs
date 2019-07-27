@@ -138,7 +138,7 @@ impl <N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey {
-        BitcoinExtendedPublicKey::from_extended_private_key(&self)
+        Self::ExtendedPublicKey::from_extended_private_key(&self)
     }
 
     /// Returns the private key of the corresponding extended private key.
@@ -181,7 +181,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPrivateKey<N> {
         chain_code.copy_from_slice(&data[13..45]);
 
         let private_key =
-            BitcoinPrivateKey::from_secret_key(SecretKey::from_slice(&data[46..78])?, true);
+            Self::PrivateKey::from_secret_key(SecretKey::from_slice(&data[46..78])?, true);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];

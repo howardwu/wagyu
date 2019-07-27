@@ -57,7 +57,7 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             parent_fingerprint: extended_private_key.parent_fingerprint,
             child_index: extended_private_key.child_index,
             chain_code: extended_private_key.chain_code,
-            public_key: BitcoinPublicKey::<N>::from_private_key(&extended_private_key.private_key),
+            public_key: Self::PublicKey::<N>::from_private_key(&extended_private_key.private_key),
             _network: PhantomData
         }
     }
@@ -146,7 +146,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
         chain_code.copy_from_slice(&data[13..45]);
 
         let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&data[45..78])?;
-        let public_key = BitcoinPublicKey::<N>::from_str(&secp256k1_public_key.to_string())?;
+        let public_key = Self::PublicKey::<N>::from_str(&secp256k1_public_key.to_string())?;
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
