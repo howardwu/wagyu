@@ -42,9 +42,9 @@ impl Format {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroAddress<N: MoneroNetwork> {
     /// The Monero address
-    pub address: String,
+    address: String,
     /// The format of the address
-    pub format: Format,
+    format: Format,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -78,8 +78,8 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         format: &Format
     ) -> Result<Self, AddressError> {
         let mut bytes = vec![format.to_address_prefix::<N>()];
-        bytes.extend_from_slice(&public_key.spend_key);
-        bytes.extend_from_slice(&public_key.view_key);
+        bytes.extend_from_slice(&public_key.to_public_spend_key());
+        bytes.extend_from_slice(&public_key.to_public_view_key());
 
         let checksum_bytes = match format {
             Format::Standard | Format::Subaddress => &bytes[0..65],
@@ -91,6 +91,11 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
 
         let address = base58::encode(bytes.as_slice())?;
         Ok(Self { address, format: format.clone(), _network: PhantomData })
+    }
+
+    /// Returns the format of the Monero address.
+    pub fn format(&self) -> Format {
+        self.format.clone()
     }
 }
 

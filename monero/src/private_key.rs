@@ -16,9 +16,9 @@ use tiny_keccak::keccak256;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MoneroPrivateKey<N: MoneroNetwork> {
     /// The private spending key
-    pub spend_key: [u8; 32],
+    spend_key: [u8; 32],
     /// The private viewing key
-    pub view_key: [u8; 32],
+    view_key: [u8; 32],
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -82,6 +82,16 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
             view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
             _network: PhantomData
         })
+    }
+
+    /// Returns the private spend key of the Monero private key.
+    pub fn to_private_spend_key(&self) -> [u8; 32] {
+        self.spend_key
+    }
+
+    /// Returns the private spend key of the Monero private key.
+    pub fn to_private_view_key(&self) -> [u8; 32] {
+        self.view_key
     }
 }
 
