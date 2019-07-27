@@ -65,25 +65,6 @@ impl EthereumPrivateKey {
     }
 }
 
-//impl FromBytes for EthereumPrivateKey {
-//    #[inline]
-//    fn read<R: Read>(reader: R) -> IoResult<Self> {
-//        let mut f = reader;
-//        let mut buffer = Vec::new();
-//        f.read_to_end(&mut buffer)?;
-//
-//        Self::from_str(buffer.to_base58().as_str())?
-//    }
-//}
-//
-//impl ToBytes for EthereumPrivateKey {
-//    #[inline]
-//    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
-//        let buffer = self.wif.as_str().from_base58()?.as_slice();
-//        buffer.write(writer)
-//    }
-//}
-
 impl FromStr for EthereumPrivateKey {
     type Err = PrivateKeyError;
 

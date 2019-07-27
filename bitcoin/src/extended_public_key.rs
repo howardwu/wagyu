@@ -44,6 +44,7 @@ pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
 
 impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type Address = BitcoinAddress<N>;
+    type DerivationPath = BitcoinDerivationPath;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
     type Format = Format;
     type PublicKey = BitcoinPublicKey<N>;
@@ -61,20 +62,8 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
         }
     }
 
-    /// Returns the public key of the corresponding extended public key.
-    fn to_public_key(&self) -> Self::PublicKey {
-        self.public_key
-    }
-
-    /// Returns the address of the corresponding extended public key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.public_key.to_address(format)
-    }
-}
-
-impl <N: BitcoinNetwork> BitcoinExtendedPublicKey<N> {
     /// Returns the extended public key for the given derivation path.
-    pub fn derive(&self, path: &BitcoinDerivationPath) -> Result<Self, ExtendedPublicKeyError> {
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth == 255 {
             return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth))
         }
@@ -117,6 +106,16 @@ impl <N: BitcoinNetwork> BitcoinExtendedPublicKey<N> {
         }
 
         Ok(extended_public_key)
+    }
+
+    /// Returns the public key of the corresponding extended public key.
+    fn to_public_key(&self) -> Self::PublicKey {
+        self.public_key
+    }
+
+    /// Returns the address of the corresponding extended public key.
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
+        self.public_key.to_address(format)
     }
 }
 
@@ -197,6 +196,7 @@ impl <N: BitcoinNetwork> fmt::Display for BitcoinExtendedPublicKey<N> {
 mod tests {
     use super::*;
     use crate::network::*;
+    use wagu_model::extended_private_key::ExtendedPrivateKey;
 
     use hex;
 
@@ -215,6 +215,27 @@ mod tests {
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
         assert_eq!(expected_parent_fingerprint, hex::encode(extended_public_key.parent_fingerprint));
+    }
+
+    // Check: (extended_private_key1 -> extended_private_key2 -> extended_public_key2) == (expected_extended_public_key2)
+    fn test_derive<N: BitcoinNetwork>(
+        expected_extended_private_key1: &str,
+        expected_extended_public_key2: &str,
+        expected_child_index2: u32
+    ) {
+        let path = BitcoinDerivationPath(vec![ChildIndex::from(expected_child_index2)]);
+
+        let extended_private_key1 = BitcoinExtendedPrivateKey::<N>::from_str(expected_extended_private_key1).unwrap();
+        let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
+        let extended_public_key2 = extended_private_key2.to_extended_public_key();
+
+        let expected_extended_public_key2 = BitcoinExtendedPublicKey::<N>::from_str(&expected_extended_public_key2).unwrap();
+
+        assert_eq!(expected_extended_public_key2, extended_public_key2);
+        assert_eq!(expected_extended_public_key2.public_key, extended_public_key2.public_key);
+        assert_eq!(expected_extended_public_key2.child_index, extended_public_key2.child_index);
+        assert_eq!(expected_extended_public_key2.chain_code, extended_public_key2.chain_code);
+        assert_eq!(expected_extended_public_key2.parent_fingerprint, extended_public_key2.parent_fingerprint);
     }
 
     fn test_from_str<N: BitcoinNetwork>(
@@ -367,8 +388,7 @@ mod tests {
 
         #[test]
         fn from_extended_private_key() {
-            KEYPAIRS.iter().for_each(|(path, _, child_index, public_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)| {
-                println!("{}", path);
+            KEYPAIRS.iter().for_each(|(_, _, child_index, public_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)| {
                 test_from_extended_private_key::<N>(
                     extended_public_key,
                     public_key,
@@ -376,6 +396,19 @@ mod tests {
                     chain_code,
                     parent_fingerprint,
                     extended_private_key);
+            });
+        }
+
+        #[test]
+        fn derive() {
+            KEYPAIRS.chunks(2).for_each(|pair| {
+                let (_, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
+                let (_, _, expected_child_index2, _, _, _, _, expected_extended_public_key2) = pair[1];
+                test_derive::<N>(
+                    expected_extended_private_key1,
+                    expected_extended_public_key2,
+                    expected_child_index2.parse().unwrap(),
+                );
             });
         }
 

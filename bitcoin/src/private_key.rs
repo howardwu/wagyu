@@ -16,8 +16,6 @@ use std::str::FromStr;
 pub struct BitcoinPrivateKey<N: BitcoinNetwork> {
     /// The ECDSA private key
     pub secret_key: secp256k1::SecretKey,
-    /// The Wallet Import Format (WIF) string encoding
-    pub wif: String,
     /// If true, the private key is serialized in compressed form
     pub compressed: bool,
     /// PhantomData
@@ -67,7 +65,6 @@ impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
 
         Ok(Self {
             secret_key: secp256k1::SecretKey::from_slice( &data[1..33])?,
-            wif: wif.to_string(),
             compressed: len == 38,
             _network: PhantomData
         })
@@ -75,43 +72,16 @@ impl <N: BitcoinNetwork> BitcoinPrivateKey<N> {
 
     /// Returns a private key given a secp256k1 secret key
     pub fn from_secret_key(secret_key: secp256k1::SecretKey, compressed: bool) -> Self {
-        let wif = Self::secret_key_to_wif(&secret_key, compressed);
-        Self { secret_key, wif, compressed, _network: PhantomData }
+        Self { secret_key, compressed, _network: PhantomData }
     }
 
     /// Returns a randomly-generated Bitcoin private key.
     fn build(compressed: bool) -> Result<Self, PrivateKeyError> {
-        let secret_key = Self::random_secret_key()?;
-        let wif = Self::secret_key_to_wif(&secret_key, compressed);
-        Ok(Self { secret_key, wif, compressed, _network: PhantomData })
-    }
-
-    /// Returns a randomly-generated secp256k1 secret key.
-    fn random_secret_key() -> Result<secp256k1::SecretKey, PrivateKeyError> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
-        Ok(secp256k1::SecretKey::from_slice(&random)?)
-    }
+        let secret_key = secp256k1::SecretKey::from_slice(&random)?;
 
-    /// Returns a WIF string given a secp256k1 secret key.
-    fn secret_key_to_wif(
-        secret_key: &secp256k1::SecretKey,
-        compressed: bool
-    ) -> String {
-        let mut wif = [0u8; 38];
-        wif[0] = N::to_wif_prefix();
-        wif[1..33].copy_from_slice(&secret_key[..]);
-
-        if compressed {
-            wif[33] = 0x01;
-            let sum = &checksum(&wif[0..34])[0..4];
-            wif[34..].copy_from_slice(sum);
-            wif.to_base58()
-        } else {
-            let sum = &checksum(&wif[0..33])[0..4];
-            wif[33..37].copy_from_slice(sum);
-            wif[..37].to_base58()
-        }
+        Ok(Self { secret_key, compressed, _network: PhantomData })
     }
 }
 
@@ -125,7 +95,22 @@ impl <N: BitcoinNetwork> FromStr for BitcoinPrivateKey<N> {
 
 impl <N: BitcoinNetwork> Display for BitcoinPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.wif)
+        let mut wif = [0u8; 38];
+        wif[0] = N::to_wif_prefix();
+        wif[1..33].copy_from_slice(&self.secret_key[..]);
+
+        let output = if self.compressed {
+            wif[33] = 0x01;
+            let sum = &checksum(&wif[0..34])[0..4];
+            wif[34..].copy_from_slice(sum);
+            wif.to_base58()
+        } else {
+            let sum = &checksum(&wif[0..33])[0..4];
+            wif[33..37].copy_from_slice(sum);
+            wif[..37].to_base58()
+        };
+
+        write!(f, "{}", output)
     }
 }
 
@@ -160,8 +145,8 @@ mod tests {
         wif: &str
     ) {
         let private_key = BitcoinPrivateKey::<N>::from_wif(wif).unwrap();
+        assert_eq!(wif, private_key.to_string());
         assert_eq!(*expected_secret_key, private_key.secret_key);
-        assert_eq!(wif, private_key.wif);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());
@@ -177,8 +162,8 @@ mod tests {
         compressed: bool
     ) {
         let private_key = BitcoinPrivateKey::<N>::from_secret_key(secret_key, compressed);
+        assert_eq!(expected_wif, private_key.to_string());
         assert_eq!(secret_key, private_key.secret_key);
-        assert_eq!(expected_wif, private_key.wif);
         assert_eq!(expected_compressed, private_key.compressed);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(expected_address, private_key.to_address(expected_format).unwrap().to_string());

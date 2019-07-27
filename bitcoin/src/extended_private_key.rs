@@ -255,6 +255,30 @@ mod tests {
         assert_eq!(expected_secret_key, extended_private_key.private_key.secret_key.to_string());
     }
 
+    // Check: (extended_private_key1 -> extended_private_key2) == (expected_extended_private_key2)
+    fn test_derive<N: BitcoinNetwork>(
+        expected_extended_private_key1: &str,
+        expected_extended_private_key2: &str,
+        expected_child_index2: u32
+    ) {
+        let path = BitcoinDerivationPath(vec![ChildIndex::from(expected_child_index2)]);
+
+        let extended_private_key1 = BitcoinExtendedPrivateKey::<N>::from_str(expected_extended_private_key1).unwrap();
+        let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
+
+        let expected_extended_private_key2 = BitcoinExtendedPrivateKey::<N>::from_str(&expected_extended_private_key2).unwrap();
+
+        println!("{}", extended_private_key1.private_key);
+        println!("{}", extended_private_key2.private_key);
+        println!("{}", expected_extended_private_key2.private_key);
+
+        assert_eq!(expected_extended_private_key2, extended_private_key2);
+        assert_eq!(expected_extended_private_key2.private_key, extended_private_key2.private_key);
+        assert_eq!(expected_extended_private_key2.child_index, extended_private_key2.child_index);
+        assert_eq!(expected_extended_private_key2.chain_code, extended_private_key2.chain_code);
+        assert_eq!(expected_extended_private_key2.parent_fingerprint, extended_private_key2.parent_fingerprint);
+    }
+
     fn test_to_extended_public_key<N: BitcoinNetwork>(
         expected_extended_public_key: &str,
         seed: &str,
@@ -430,6 +454,20 @@ mod tests {
                     seed,
                     &Format::P2PKH,
                     &BitcoinDerivationPath::from_str(path).unwrap());
+            });
+        }
+
+        #[test]
+        fn derive() {
+            KEYPAIRS.chunks(2).for_each(|pair| {
+                let (path, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
+                let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
+                println!("{}", path);
+                test_derive::<N>(
+                    expected_extended_private_key1,
+                    expected_extended_private_key2,
+                    expected_child_index2.parse().unwrap(),
+                );
             });
         }
 

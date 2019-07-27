@@ -33,34 +33,6 @@ impl PublicKey for EthereumPublicKey {
     }
 }
 
-//impl FromBytes for EthereumPublicKey {
-//    #[inline]
-//    fn read<R: Read>(reader: R) -> IoResult<Self> {
-//        let mut f = reader;
-//        let mut buffer = Vec::new();
-//        f.read_to_end(&mut buffer)?;
-//
-//        let compressed: bool = match buffer.len() {
-//            33 => true,
-//            65 => false,
-//            len =>  { return Err(String::from_usize(len)); },
-//        };
-//
-//        let secp = secp256k1::Secp256k1::new();
-//        let public_key = secp256k1::PublicKey::from_slice(&secp, buffer.as_slice())?;
-//        Ok(Self { public_key, compressed })
-//    }
-//}
-//
-//impl ToBytes for EthereumPublicKey {
-//    #[inline]
-//    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
-//        let mut buf = Vec::new();
-//        self.write_into(&mut buf);
-//        buf
-//    }
-//}
-
 impl FromStr for EthereumPublicKey {
     type Err = PublicKeyError;
 
