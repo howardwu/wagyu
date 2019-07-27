@@ -113,9 +113,9 @@ impl <N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
             mac.input(&index_be);
             let hmac = mac.result().code();
 
-            let mut private_key =
-                Self::PrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?, true);
-            private_key.secret_key.add_assign(&extended_private_key.private_key.secret_key[..])?;
+            let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
+            secret_key.add_assign(&extended_private_key.private_key.secret_key[..])?;
+            let private_key = Self::PrivateKey::from_secret_key(secret_key, true);
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);
