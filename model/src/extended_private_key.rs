@@ -31,11 +31,14 @@ pub trait ExtendedPrivateKey:
     fn new(
         seed: &[u8],
         format: &Self::Format,
-        derivation_path: &Self::DerivationPath
+        path: &Self::DerivationPath
     ) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns a new extended private key.
     fn new_master(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
+
+    /// Returns the extended private key of the given derivation path.
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
