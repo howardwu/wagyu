@@ -268,10 +268,6 @@ mod tests {
 
         let expected_extended_private_key2 = BitcoinExtendedPrivateKey::<N>::from_str(&expected_extended_private_key2).unwrap();
 
-        println!("{}", extended_private_key1.private_key);
-        println!("{}", extended_private_key2.private_key);
-        println!("{}", expected_extended_private_key2.private_key);
-
         assert_eq!(expected_extended_private_key2, extended_private_key2);
         assert_eq!(expected_extended_private_key2.private_key, extended_private_key2.private_key);
         assert_eq!(expected_extended_private_key2.child_index, extended_private_key2.child_index);
@@ -462,7 +458,6 @@ mod tests {
             KEYPAIRS.chunks(2).for_each(|pair| {
                 let (path, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
                 let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
-                println!("{}", path);
                 test_derive::<N>(
                     expected_extended_private_key1,
                     expected_extended_private_key2,
