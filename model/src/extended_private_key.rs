@@ -1,4 +1,5 @@
 use crate::address::{Address, AddressError};
+use crate::derivation_path::DerivationPath;
 use crate::extended_public_key::ExtendedPublicKey;
 use crate::network::NetworkError;
 use crate::private_key::PrivateKey;
@@ -20,6 +21,7 @@ pub trait ExtendedPrivateKey:
     + Sized
 {
     type Address: Address;
+    type DerivationPath: DerivationPath;
     type ExtendedPublicKey: ExtendedPublicKey;
     type Format;
     type PrivateKey: PrivateKey;
@@ -29,7 +31,7 @@ pub trait ExtendedPrivateKey:
     fn new(
         seed: &[u8],
         format: &Self::Format,
-        derivation_path: &str
+        derivation_path: &Self::DerivationPath
     ) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns a new extended private key.
@@ -62,9 +64,6 @@ pub enum ExtendedPrivateKeyError {
 
     #[fail(display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidChecksum(String, String),
-
-    #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
-    InvalidDerivationPath(String, String),
 
     #[fail(display = "invalid version bytes: {:?}", _0)]
     InvalidVersionBytes(Vec<u8>),

@@ -5,7 +5,7 @@ use std::{
 };
 
 /// The interface for a generic derivation path.
-pub trait DerivationPath: Copy + Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
+pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {}
 
 #[derive(Debug, Fail)]
 pub enum DerivationPathError {

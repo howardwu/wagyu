@@ -1,9 +1,10 @@
-use wagu_model::derivation_path::DerivationPathError;
+use wagu_model::derivation_path::{DerivationPath, DerivationPathError};
 
+use std::fmt;
 use std::str::FromStr;
 
 /// Represents a child index for a derivation path
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ChildIndex {
     // A non-hardened index: Normal(n) == n in path notation
     Normal(u32),
@@ -41,6 +42,15 @@ impl From<u32> for ChildIndex {
     }
 }
 
+impl From<ChildIndex> for u32 {
+    fn from(index: ChildIndex) -> Self {
+        match index {
+            ChildIndex::Normal(number) => number,
+            ChildIndex::Hardened(number) => number | (1 << 31),
+        }
+    }
+}
+
 impl FromStr for ChildIndex {
     type Err = DerivationPathError;
 
@@ -56,9 +66,20 @@ impl FromStr for ChildIndex {
     }
 }
 
+impl fmt::Display for ChildIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ChildIndex::Hardened(number) => write!(f, "{}'", number),
+            ChildIndex::Normal(number) => write!(f, "{}", number),
+        }
+    }
+}
+
 /// Represents a Bitcoin derivation path
-#[derive(Clone, Debug, PartialEq)]
-pub struct BitcoinDerivationPath(Vec<ChildIndex>);
+#[derive(Clone, PartialEq, Eq)]
+pub struct BitcoinDerivationPath(pub(crate) Vec<ChildIndex>);
+
+impl DerivationPath for BitcoinDerivationPath {}
 
 impl FromStr for BitcoinDerivationPath {
     type Err = DerivationPathError;
@@ -90,5 +111,22 @@ impl Into<Vec<ChildIndex>> for BitcoinDerivationPath {
 impl<'a> From<&'a [ChildIndex]> for BitcoinDerivationPath {
     fn from(path: &'a [ChildIndex]) -> Self {
         Self(path.to_vec())
+    }
+}
+
+impl fmt::Debug for BitcoinDerivationPath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self, f)
+    }
+}
+
+impl fmt::Display for BitcoinDerivationPath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("m")?;
+        for index in self.0.iter() {
+            f.write_str("/")?;
+            fmt::Display::fmt(index, f)?;
+        }
+        Ok(())
     }
 }

@@ -47,9 +47,6 @@ pub enum ExtendedPublicKeyError {
     #[fail(display = "invalid child number: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidChildNumber(u32, u32),
 
-    #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
-    InvalidDerivationPath(String, String),
-
     #[fail(display = "invalid version bytes: {:?}", _0)]
     InvalidVersionBytes(Vec<u8>),
 
