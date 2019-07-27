@@ -26,7 +26,7 @@ use zcash_primitives::zip32::ExtendedSpendingKey;
 #[derive(Debug, Clone)]
 pub struct ZcashExtendedPrivateKey<N: ZcashNetwork> {
     /// The extended spending key
-    pub extended_spending_key: ExtendedSpendingKey,
+    extended_spending_key: ExtendedSpendingKey,
     /// PhantomData
     _network: PhantomData<N>
 }
@@ -56,7 +56,7 @@ impl <N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     /// Returns the extended private key of the given derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
         let mut extended_private_key = self.clone();
-        for index in path.0.iter() {
+        for index in path.into_iter() {
             match index {
                 ChildIndex::Hardened(number) => extended_private_key = Self {
                     extended_spending_key: extended_private_key.extended_spending_key.derive_child(
@@ -76,10 +76,10 @@ impl <N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
 
     /// Returns the private key of the corresponding extended private key.
     fn to_private_key(&self) -> Self::PrivateKey {
-        ZcashPrivateKey(SpendingKey::<N>::Sapling(SaplingSpendingKey {
+        ZcashPrivateKey::from_spending_key(SpendingKey::<N>::Sapling(SaplingSpendingKey {
             spending_key: None,
             expanded_spending_key: self.extended_spending_key.expsk.clone()
-        }), PhantomData)
+        }))
     }
 
     /// Returns the public key of the corresponding extended private key.
@@ -90,6 +90,13 @@ impl <N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     /// Returns the address of the corresponding extended private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         Self::Address::from_private_key(&self.to_private_key(), format)
+    }
+}
+
+impl <N: ZcashNetwork> ZcashExtendedPrivateKey<N> {
+    /// Returns the extended spending key of the Zcash extended private key.
+    pub fn to_extended_spending_key(&self) -> ExtendedSpendingKey {
+        self.extended_spending_key.clone()
     }
 }
 

@@ -10,7 +10,7 @@ use std::str::FromStr;
 /// https://github.com/zcash/zips/blob/master/zip-0032.rst
 ///
 #[derive(Clone, PartialEq, Eq)]
-pub struct ZcashDerivationPath(pub(crate) Vec<ChildIndex>);
+pub struct ZcashDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for ZcashDerivationPath {}
 
@@ -48,6 +48,15 @@ impl<'a> TryFrom<&'a [ChildIndex]> for ZcashDerivationPath {
 
     fn try_from(path: &'a [ChildIndex]) -> Result<Self, Self::Error> {
         Self::try_from(path.to_vec())
+    }
+}
+
+impl<'a> ::std::iter::IntoIterator for &'a ZcashDerivationPath {
+    type Item = &'a ChildIndex;
+    type IntoIter = ::std::slice::Iter<'a, ChildIndex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

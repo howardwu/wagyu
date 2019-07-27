@@ -23,7 +23,7 @@ use zcash_primitives::zip32::ExtendedFullViewingKey;
 #[derive(Debug, Clone)]
 pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
     /// The extended full viewing key
-    pub extended_full_viewing_key: ExtendedFullViewingKey,
+    extended_full_viewing_key: ExtendedFullViewingKey,
     /// PhantomData
     _network: PhantomData<N>
 }
@@ -39,7 +39,7 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
             extended_full_viewing_key:
-                ExtendedFullViewingKey::from(&extended_private_key.extended_spending_key),
+                ExtendedFullViewingKey::from(&extended_private_key.to_extended_spending_key()),
             _network: PhantomData
         }
     }
@@ -47,7 +47,7 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     /// Returns the extended public key of the given derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         let mut extended_public_key = self.clone();
-        for index in path.0.iter() {
+        for index in path.into_iter() {
             match index {
                 ChildIndex::Hardened(_) => return Err(DerivationPathError::ExpectedNormalPath.into()),
                 ChildIndex::Normal(number) => extended_public_key = Self {
@@ -65,14 +65,20 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey {
-        ZcashPublicKey(
-            ViewingKey::Sapling(SaplingViewingKey(self.extended_full_viewing_key.fvk.clone())),
-            PhantomData)
+        ZcashPublicKey::from_viewing_key(
+            ViewingKey::Sapling(SaplingViewingKey(self.extended_full_viewing_key.fvk.clone())))
     }
 
     /// Returns the address of the corresponding extended public key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         Self::Address::from_public_key(&self.to_public_key(), format)
+    }
+}
+
+impl <N: ZcashNetwork> ZcashExtendedPublicKey<N> {
+    /// Returns the extended full viewing key of the Zcash extended public key.
+    pub fn to_extended_full_viewing_key(&self) -> ExtendedFullViewingKey {
+        self.extended_full_viewing_key.clone()
     }
 }
 
