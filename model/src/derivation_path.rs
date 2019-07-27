@@ -1,6 +1,5 @@
 use std::{
     fmt::{Debug, Display},
-    hash::Hash,
     str::FromStr
 };
 

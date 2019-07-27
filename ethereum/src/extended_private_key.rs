@@ -1,4 +1,5 @@
 use crate::address::EthereumAddress;
+use crate::derivation_path::{ChildIndex, EthereumDerivationPath};
 use crate::extended_public_key::EthereumExtendedPublicKey;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
@@ -18,7 +19,6 @@ use sha2::Sha512;
 use std::{fmt, fmt::Display};
 use std::io::Cursor;
 use std::marker::PhantomData;
-use std::ops::AddAssign;
 use std::str::FromStr;
 
 type HmacSha512 = Hmac<Sha512>;
@@ -26,20 +26,21 @@ type HmacSha512 = Hmac<Sha512>;
 /// Represents a Ethereum Extended Private Key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EthereumExtendedPrivateKey {
-    /// The Ethereum private key
-    pub private_key: EthereumPrivateKey,
-    /// The chain code for this extended private key
-    pub chain_code: [u8; 32],
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
     pub parent_fingerprint: [u8; 4],
-    /// This is ser32(i) for i in x_i = x_par/i, with x_i the key being serialized. (0x00000000 if master key)
-    pub child_number: u32,
+    /// The child index of the key (0 for master key)
+    pub child_index: ChildIndex,
+    /// The chain code for this extended private key
+    pub chain_code: [u8; 32],
+    /// The Ethereum private key
+    pub private_key: EthereumPrivateKey,
 }
 
 impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     type Address = EthereumAddress;
+    type DerivationPath = EthereumDerivationPath;
     type ExtendedPublicKey = EthereumExtendedPublicKey;
     type Format = PhantomData<u8>;
     type PrivateKey = EthereumPrivateKey;
@@ -48,32 +49,86 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     /// Returns a new Ethereum extended private key.
     fn new(
         seed: &[u8],
-        format: &Self::Format,
-        derivation_path: &str
+        _format: &Self::Format,
+        path: &Self::DerivationPath,
     ) -> Result<Self, ExtendedPrivateKeyError> {
-        Ok(Self::new_master(seed, format)?.derivation_path(derivation_path)?)
+        Ok(Self::new_master(seed, _format)?.derive(path)?)
     }
 
     /// Returns a new Ethereum extended private key.
     fn new_master(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
         mac.input(seed);
-        let result = mac.result().code();
+        let hmac = mac.result().code();
+        let private_key =
+            Self::PrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?);
 
-        let (private_key, chain_code) =
-            EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result)?;
+        let mut chain_code = [0u8; 32];
+        chain_code[0..32].copy_from_slice(&hmac[32..]);
+
         Ok(Self {
-            private_key,
-            chain_code,
             depth: 0,
-            parent_fingerprint: [0; 4],
-            child_number: 0x00000000,
+            parent_fingerprint: [0u8; 4],
+            child_index: ChildIndex::Normal(0),
+            chain_code,
+            private_key,
         })
+    }
+
+    /// Returns the extended private key of the given derivation path.
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
+        if self.depth == 255 {
+            return Err(ExtendedPrivateKeyError::MaximumChildDepthReached(self.depth))
+        }
+
+        let mut extended_private_key = self.clone();
+
+        for index in path.0.iter() {
+            let public_key = &PublicKey::from_secret_key(
+                &Secp256k1::new(), &extended_private_key.private_key.0).serialize()[..];
+
+            let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
+            match index {
+                // HMAC-SHA512(Key = cpar, Data = serP(point(kpar)) || ser32(i)).
+                ChildIndex::Normal(_) => mac.input(public_key),
+                // HMAC-SHA512(Key = cpar, Data = 0x00 || ser256(kpar) || ser32(i))
+                // (Note: The 0x00 pads the private key to make it 33 bytes long.)
+                ChildIndex::Hardened(_) => {
+                    mac.input(&[0u8]);
+                    mac.input(&extended_private_key.private_key.0[..]);
+                }
+            }
+            // Append the child index in big-endian format
+            let mut index_be = [0u8; 4];
+            BigEndian::write_u32(&mut index_be, u32::from(*index));
+            mac.input(&index_be);
+            let hmac = mac.result().code();
+
+            let mut private_key =
+                Self::PrivateKey::from_secret_key(SecretKey::from_slice(&hmac[0..32])?);
+            private_key.0.add_assign(&extended_private_key.private_key.0[..])?;
+
+            let mut chain_code = [0u8; 32];
+            chain_code[0..32].copy_from_slice(&hmac[32..]);
+
+            let mut parent_fingerprint = [0u8; 4];
+            parent_fingerprint.copy_from_slice(&hash160(public_key)[0..4]);
+
+            extended_private_key = Self {
+                depth: extended_private_key.depth + 1,
+                parent_fingerprint,
+                child_index: *index,
+                chain_code,
+                private_key,
+            }
+        }
+
+        Ok(extended_private_key)
     }
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey {
-        EthereumExtendedPublicKey::from_extended_private_key(&self)
+        Self::ExtendedPublicKey::from_extended_private_key(&self)
     }
 
     /// Returns the private key of the corresponding extended private key.
@@ -89,106 +144,6 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     /// Returns the address of the corresponding extended private key.
     fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
         self.private_key.to_address(&PhantomData)
-    }
-}
-
-impl EthereumExtendedPrivateKey {
-    /// Returns the extended private key of the given derivation path.
-    pub fn derivation_path(&self, path: &str) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut path_vec: Vec<&str> = path.split("/").collect();
-        if path_vec[0] != "m" {
-            return Err(ExtendedPrivateKeyError::InvalidDerivationPath("m".into(), path_vec[0].into()))
-        }
-
-        if path_vec.len() == 1 {
-            return Ok(self.clone())
-        }
-
-        let mut xpriv = self.clone();
-        for (i, child_str) in path_vec[1..].iter_mut().enumerate() {
-            let mut child_num = 0u32;
-
-            // Add 2^31 for hardened paths
-            if child_str.contains("'") {
-                let child_num_trimmed: u32 =  match child_str.trim_end_matches("'").parse() {
-                    Ok(num) => num,
-                    Err(_) => return Err(ExtendedPrivateKeyError::InvalidDerivationPath("number".into(), path_vec[i+1].into()))
-                };
-
-                child_num.add_assign(child_num_trimmed);
-                child_num.add_assign(2u32.pow(31));
-            } else {
-                let child_num_u32: u32 = match child_str.parse() {
-                    Ok(num) => num,
-                    Err(_) => return Err(ExtendedPrivateKeyError::InvalidDerivationPath("number".into(), path_vec[i+1].into()))
-                };
-                child_num.add_assign(child_num_u32);
-            }
-            xpriv = xpriv.ckd_priv(child_num)?;
-        }
-
-        Ok(xpriv)
-    }
-
-    /// Returns the child extended private key for the given child number.
-    pub fn ckd_priv(&self, child_number: u32) -> Result<Self, ExtendedPrivateKeyError> {
-        if self.depth >= 255 {
-            return Err(ExtendedPrivateKeyError::MaximumChildDepthReached(self.depth))
-        }
-
-        let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
-        let public_key_serialized = &PublicKey::from_secret_key(
-            &Secp256k1::new(), &self.private_key.0).serialize()[..];
-
-        // Check whether i ≥ 2^31 (whether the child is a hardened key).
-        //
-        // If so (hardened child):
-        //     let I = HMAC-SHA512(Key = cpar, Data = 0x00 || ser256(kpar) || ser32(i)).
-        //     (Note: The 0x00 pads the private key to make it 33 bytes long.)
-        // If not (normal child):
-        //     let I = HMAC-SHA512(Key = cpar, Data = serP(point(kpar)) || ser32(i)).
-        //
-        if child_number >= 2_u32.pow(31) {
-            let mut private_key_bytes = [0u8; 33];
-            private_key_bytes[1..33].copy_from_slice(&self.private_key.0[..]);
-            mac.input(&private_key_bytes[..]);
-        } else {
-            mac.input(public_key_serialized);
-        }
-
-        let mut child_num_big_endian = [0u8; 4];
-        BigEndian::write_u32(&mut child_num_big_endian, child_number);
-        mac.input(&child_num_big_endian);
-
-        let result = mac.result().code();
-
-        let (mut private_key, chain_code) =
-            EthereumExtendedPrivateKey::derive_private_key_and_chain_code(&result)?;
-        private_key.0.add_assign( &self.private_key.0[..])?;
-
-        let mut parent_fingerprint = [0u8; 4];
-        parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
-
-        Ok(Self {
-            private_key,
-            chain_code,
-            depth: self.depth + 1,
-            parent_fingerprint,
-            child_number,
-        })
-    }
-
-    /// Returns the extended private key and chain code.
-    pub fn derive_private_key_and_chain_code(
-        result: &[u8]
-    ) -> Result<(EthereumPrivateKey, [u8; 32]), ExtendedPrivateKeyError> {
-        let private_key = EthereumPrivateKey::from_secret_key(
-            SecretKey::from_slice(&result[0..32])?);
-
-        let mut chain_code = [0u8; 32];
-        chain_code[0..32].copy_from_slice(&result[32..]);
-
-        return Ok((private_key, chain_code))
     }
 }
 
@@ -211,7 +166,7 @@ impl FromStr for EthereumExtendedPrivateKey {
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
 
-        let child_number: u32 = Cursor::new(&data[9..13]).read_u32::<BigEndian>()?;
+        let child_index = ChildIndex::from(Cursor::new(&data[9..13]).read_u32::<BigEndian>()?);
 
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
@@ -226,12 +181,13 @@ impl FromStr for EthereumExtendedPrivateKey {
             let found = checksum.to_base58();
             return Err(ExtendedPrivateKeyError::InvalidChecksum(expected, found))
         }
+
         Ok(Self {
-            private_key,
-            chain_code,
             depth,
             parent_fingerprint,
-            child_number,
+            child_index,
+            chain_code,
+            private_key,
         })
     }
 }
@@ -245,7 +201,7 @@ impl Display for EthereumExtendedPrivateKey {
         result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
 
-        BigEndian::write_u32(&mut result[9..13], u32::from(self.child_number));
+        BigEndian::write_u32(&mut result[9..13], u32::from(self.child_index));
 
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45] = 0;
@@ -276,7 +232,7 @@ mod tests {
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(expected_depth, xpriv.depth);
         assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
-        assert_eq!(expected_child_number, xpriv.child_number);
+        assert_eq!(expected_child_number, u32::from(xpriv.child_index));
         assert_eq!(expected_xpriv_serialized, xpriv.to_string());
     }
 
@@ -293,52 +249,13 @@ mod tests {
         assert_eq!(expected_chain_code, hex::encode(xpriv.chain_code));
         assert_eq!(0, xpriv.depth);
         assert_eq!(expected_parent_fingerprint, hex::encode(xpriv.parent_fingerprint));
-        assert_eq!(0, xpriv.child_number);
+        assert_eq!(0, u32::from(xpriv.child_index));
         assert_eq!(expected_xpriv_serialized, xpriv.to_string());
     }
 
     fn test_to_xpub(expected_xpub_serialized: &str, xpriv: &EthereumExtendedPrivateKey) {
         let xpub = xpriv.to_extended_public_key();
         assert_eq!(expected_xpub_serialized, xpub.to_string());
-    }
-
-    fn test_ckd_priv(
-        expected_secret_key: &str,
-        expected_chain_code: &str,
-        expected_parent_fingerprint: &str,
-        expected_xpriv_serialized: &str,
-        expected_xpub_serialized: &str,
-        parent_xpriv: &EthereumExtendedPrivateKey,
-        child_number: u32,
-    ) -> EthereumExtendedPrivateKey {
-        let child_xpriv = parent_xpriv.ckd_priv(child_number).expect("error generating child key");
-        assert_eq!(expected_secret_key, child_xpriv.private_key.0.to_string());
-        assert_eq!(expected_chain_code, hex::encode(child_xpriv.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(child_xpriv.parent_fingerprint));
-        assert_eq!(expected_xpriv_serialized, child_xpriv.to_string());
-        assert_eq!(expected_xpub_serialized, child_xpriv.to_extended_public_key().to_string());
-        assert_eq!(child_number, child_xpriv.child_number);
-
-        child_xpriv
-    }
-
-    fn test_derivation_path(
-        expected_secret_key: &str,
-        expected_chain_code: &str,
-        expected_parent_fingerprint: &str,
-        expected_child_number: u32,
-        expected_xpriv_serialized: &str,
-        expected_xpub_serialized: &str,
-        master_xpriv: &EthereumExtendedPrivateKey,
-        path: &str,
-    ) {
-        let derived_xpriv = master_xpriv.derivation_path(path).expect("error generating extended private key from path");
-        assert_eq!(expected_secret_key, derived_xpriv.private_key.0.to_string());
-        assert_eq!(expected_chain_code, hex::encode(derived_xpriv.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(derived_xpriv.parent_fingerprint));
-        assert_eq!(expected_child_number, derived_xpriv.child_number);
-        assert_eq!(expected_xpriv_serialized, derived_xpriv.to_string());
-        assert_eq!(expected_xpub_serialized, derived_xpriv.to_extended_public_key().to_string());
     }
 
     /// Test vectors from https://en.bitcoin.it/wiki/BIP_0032_TestVectors
@@ -460,21 +377,6 @@ mod tests {
             )
         ];
 
-        const TEST_VECTOR_3: [(&str, &str, &str, &str); 2] = [
-            (
-                "m",
-                "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
-                "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6",
-                "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
-            ),
-            (
-                "m/0'",
-                "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be",
-                "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L",
-                "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
-            )
-        ];
-
         #[test]
         fn test_from_str_tv1() {
             let (
@@ -570,163 +472,6 @@ mod tests {
             let xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
             test_to_xpub(xpub_serialized, &xpriv);
         }
-
-        #[test]
-        fn test_ckd_priv_tv1() {
-            let (_, _, _, _, _, xpriv_serialized, _) = TEST_VECTOR_1[0];
-            let mut parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            for (_,
-                (
-                    _,
-                    child_number,
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    xpriv,
-                    xpub
-                )
-            ) in TEST_VECTOR_1[1..].iter_mut().enumerate() {
-                let child_number_u32: u32 = child_number.parse().unwrap();
-                parent_xpriv = test_ckd_priv(
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    xpriv,
-                    xpub,
-                    &parent_xpriv,
-                    child_number_u32,
-                );
-            }
-        }
-
-        #[test]
-        fn test_ckd_priv_tv2() {
-            let (_, _, _, _, _, xpriv_serialized, _) = TEST_VECTOR_2[0];
-            let mut parent_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            for (_,
-                (
-                    _,
-                    child_number,
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    xpriv,
-                    xpub
-                )
-            ) in TEST_VECTOR_2[1..].iter_mut().enumerate() {
-                let child_num_u32: u32 = child_number.parse().unwrap();
-                parent_xpriv = test_ckd_priv(
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    xpriv,
-                    xpub,
-                    &parent_xpriv,
-                    child_num_u32,
-                );
-            }
-        }
-
-        #[test]
-        fn test_derivation_path_master() {
-            let (_, _, _, _, _, xpriv_master, _) = TEST_VECTOR_1[0];
-            let xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_master).unwrap();
-            let (
-                path,
-                _,
-                private_key,
-                chain_code,
-                parent_fingerprint,
-                xpriv_serialized,
-                xpub_serialized,
-            ) = TEST_VECTOR_1[0];
-
-            test_derivation_path(
-                private_key,
-                chain_code,
-                parent_fingerprint,
-                0,
-                xpriv_serialized,
-                xpub_serialized,
-                &xpriv,
-                path,
-            );
-        }
-
-        #[test]
-        fn test_derivation_path_tv1() {
-            let (_, _, _, _, _, xpriv_serialized, _) = TEST_VECTOR_1[0];
-            let master_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            for (_,
-                (
-                    path,
-                    child_number,
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    xpriv_serialized,
-                    xpub_serialized
-                )
-            ) in TEST_VECTOR_1[1..].iter_mut().enumerate() {
-                let child_number_u32: u32 = child_number.parse().unwrap();
-                test_derivation_path(
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    child_number_u32,
-                    &xpriv_serialized,
-                    &xpub_serialized,
-                    &master_xpriv,
-                    path,
-                );
-            }
-        }
-
-        #[test]
-        fn test_derivation_path_tv2() {
-            let (_, _, _, _, _, xpriv_serialized, _) = TEST_VECTOR_2[0];
-            let master_xpriv = EthereumExtendedPrivateKey::from_str(&xpriv_serialized).unwrap();
-            for (_,
-                (
-                    path,
-                    child_number,
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    xpriv_serialized,
-                    xpub_serialized
-                )
-            ) in TEST_VECTOR_2[1..].iter_mut().enumerate() {
-                let child_number_u32: u32 = child_number.parse().unwrap();
-                test_derivation_path(
-                    secret_key,
-                    chain_code,
-                    parent_fingerprint,
-                    child_number_u32,
-                    &xpriv_serialized,
-                    &xpub_serialized,
-                    &master_xpriv,
-                    path,
-                );
-            }
-        }
-
-        #[test]
-        fn test_vector_3() {
-            // this tests for the retention of leading zeros
-            let (path, seed, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[0];
-            let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
-            let master_xpriv = EthereumExtendedPrivateKey::new_master(&seed_bytes, &PhantomData).unwrap();
-            assert_eq!(master_xpriv.to_string(), xpriv_serialized);
-            assert_eq!(master_xpriv.derivation_path(path).unwrap().to_string(), xpriv_serialized);
-            assert_eq!(master_xpriv.to_extended_public_key().to_string(), xpub_serialized);
-
-            let (path, _, xpriv_serialized, xpub_serialized) = TEST_VECTOR_3[1];
-            let child_xpriv = master_xpriv.ckd_priv(2147483648).unwrap();
-            assert_eq!(child_xpriv.to_string(), xpriv_serialized);
-            assert_eq!(master_xpriv.derivation_path(path).unwrap().to_string(), xpriv_serialized);
-            assert_eq!(child_xpriv.to_extended_public_key().to_string(), xpub_serialized);
-        }
     }
 
     mod bip44 {
@@ -738,7 +483,7 @@ mod tests {
             let path = "m/44'/0'/0/1";
             let expected_xpriv_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
             let master_xpriv = EthereumExtendedPrivateKey::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
-            let xpriv = master_xpriv.derivation_path(path).expect("error deriving extended private key from path");
+            let xpriv = master_xpriv.derive(&EthereumDerivationPath::from_str(path).unwrap()).expect("error deriving extended private key from path");
             assert_eq!(expected_xpriv_serialized, xpriv.to_string());
         }
     }
@@ -746,14 +491,10 @@ mod tests {
     mod test_invalid {
         use super::*;
 
-        const INVALID_PATH: &str = "/0";
-        const INVALID_PATH_HARDENED: &str = "m/a'";
-        const INVALID_PATH_NORMAL: &str = "m/a";
         const INVALID_XPRIV_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
         const INVALID_XPRIV_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
         const INVALID_XPRIV_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
         const VALID_XPRIV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-        const VALID_XPRIV_FINAL: &str = "xprvJ9DiCzes6yvKjEy8duXR1Qg6Et6CBmrR4yFJvnburXG4X6VnKbNxoTYhvVdpsxkjdXwX3D2NJHFCAnnN1DdAJCVQitnFbFWv3fL3oB2BFo4";
 
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
@@ -785,38 +526,6 @@ mod tests {
             let mut string = String::from(VALID_XPRIV);
             string.push('a');
             let _result = EthereumExtendedPrivateKey::from_str(&string).unwrap();
-        }
-
-        #[test]
-        #[should_panic(expected = "MaximumChildDepthReached(255)")]
-        fn ckd_priv_max_depth() {
-            let mut xpriv = EthereumExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            for _ in 0..255 {
-                xpriv = xpriv.ckd_priv(0).expect("Error deriving child key");
-            }
-            assert_eq!(xpriv.to_string(), VALID_XPRIV_FINAL);
-            let _result = xpriv.ckd_priv(0).unwrap();
-        }
-
-        #[test]
-        #[should_panic(expected = "InvalidDerivationPath(\"m\", \"\")")]
-        fn derivation_path_invalid() {
-            let xpriv = EthereumExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            let _result = xpriv.derivation_path(INVALID_PATH).unwrap();
-        }
-
-        #[test]
-        #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\")")]
-        fn derivation_path_invalid_digit_normal() {
-            let xpriv = EthereumExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            let _result = xpriv.derivation_path(INVALID_PATH_NORMAL).unwrap();
-        }
-
-        #[test]
-        #[should_panic(expected = "InvalidDerivationPath(\"number\", \"a\\'\")")]
-        fn derivation_path_invalid_digit_hardened() {
-            let xpriv = EthereumExtendedPrivateKey::from_str(VALID_XPRIV).unwrap();
-            let _result = xpriv.derivation_path(INVALID_PATH_HARDENED).unwrap();
         }
     }
 }
