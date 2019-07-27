@@ -39,8 +39,6 @@ impl TryFrom<Vec<ChildIndex>> for ZcashDerivationPath {
         if !primary.iter().filter(|&&index| index.is_normal()).collect::<Vec<_>>().is_empty() {
             return Err(DerivationPathError::ExpectedHardenedPath)
         }
-
-        println!("{:?}", path);
         Ok(Self(path))
     }
 }
