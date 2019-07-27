@@ -32,10 +32,4 @@ pub trait ZcashNetwork: Network {
 
     /// Returns the network of the given extended public key prefix.
     fn from_extended_public_key_prefix(prefix: &str) -> Result<Self, NetworkError>;
-
-    /// Returns the coin type of the given network.
-    fn to_coin_type() -> u8;
-
-    /// Returns the network of the given coin type.
-    fn from_coin_type(prefix: u8) -> Result<Self, NetworkError>;
 }

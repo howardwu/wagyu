@@ -72,21 +72,6 @@ impl ZcashNetwork for Mainnet {
             _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into()))
         }
     }
-
-    /// Returns the coin type of the given network.
-    /// https://github.com/satoshilabs/slips/blob/master/slip-0044.md
-    fn to_coin_type() -> u8 {
-        133
-    }
-
-    /// Returns the network of the given coin type.
-    /// https://github.com/satoshilabs/slips/blob/master/slip-0044.md
-    fn from_coin_type(index: u8) -> Result<Self, NetworkError> {
-        match index {
-            133 => Ok(Self),
-            _ => return Err(NetworkError::InvalidCoinType(index))
-        }
-    }
 }
 
 impl FromStr for Mainnet {
