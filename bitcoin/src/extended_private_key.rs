@@ -1,11 +1,12 @@
 use crate::address::{BitcoinAddress, Format};
-use crate::derivation_path::{BitcoinDerivationPath, ChildIndex};
+use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_public_key::BitcoinExtendedPublicKey;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use wagu_model::{
     AddressError,
+    ChildIndex,
     ExtendedPublicKey,
     ExtendedPrivateKey,
     ExtendedPrivateKeyError,
@@ -181,7 +182,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPrivateKey<N> {
         chain_code.copy_from_slice(&data[13..45]);
 
         let private_key =
-            Self::PrivateKey::from_secret_key(SecretKey::from_slice(&data[46..78])?, true);
+            BitcoinPrivateKey::from_secret_key(SecretKey::from_slice(&data[46..78])?, true);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];

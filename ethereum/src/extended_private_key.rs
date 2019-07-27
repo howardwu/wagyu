@@ -1,10 +1,11 @@
 use crate::address::EthereumAddress;
-use crate::derivation_path::{ChildIndex, EthereumDerivationPath};
+use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_public_key::EthereumExtendedPublicKey;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use wagu_model::{
     AddressError,
+    ChildIndex,
     ExtendedPrivateKey,
     ExtendedPublicKey,
     ExtendedPrivateKeyError,

@@ -3,13 +3,13 @@ use wagu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathErro
 use std::fmt;
 use std::str::FromStr;
 
-/// Represents a Ethereum derivation path
+/// Represents a Zcash derivation path
 #[derive(Clone, PartialEq, Eq)]
-pub struct EthereumDerivationPath(pub(crate) Vec<ChildIndex>);
+pub struct ZcashDerivationPath(pub(crate) Vec<ChildIndex>);
 
-impl DerivationPath for EthereumDerivationPath {}
+impl DerivationPath for ZcashDerivationPath {}
 
-impl FromStr for EthereumDerivationPath {
+impl FromStr for ZcashDerivationPath {
     type Err = DerivationPathError;
 
     fn from_str(path: &str) -> Result<Self, Self::Err> {
@@ -24,31 +24,31 @@ impl FromStr for EthereumDerivationPath {
     }
 }
 
-impl From<Vec<ChildIndex>> for EthereumDerivationPath {
+impl From<Vec<ChildIndex>> for ZcashDerivationPath {
     fn from(path: Vec<ChildIndex>) -> Self {
         Self(path)
     }
 }
 
-impl Into<Vec<ChildIndex>> for EthereumDerivationPath {
+impl Into<Vec<ChildIndex>> for ZcashDerivationPath {
     fn into(self) -> Vec<ChildIndex> {
         self.0
     }
 }
 
-impl<'a> From<&'a [ChildIndex]> for EthereumDerivationPath {
+impl<'a> From<&'a [ChildIndex]> for ZcashDerivationPath {
     fn from(path: &'a [ChildIndex]) -> Self {
         Self(path.to_vec())
     }
 }
 
-impl fmt::Debug for EthereumDerivationPath {
+impl fmt::Debug for ZcashDerivationPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self, f)
     }
 }
 
-impl fmt::Display for EthereumDerivationPath {
+impl fmt::Display for ZcashDerivationPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("m")?;
         for index in self.0.iter() {

@@ -36,7 +36,7 @@ impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
 
     /// Returns the address of the corresponding private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        Self::Address::<N>::from_public_key(self, format)
+        Self::Address::from_public_key(self, format)
     }
 }
 
