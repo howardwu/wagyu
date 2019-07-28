@@ -25,6 +25,7 @@ matrix:
         - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
     - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
+      dist: trusty
       script:
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
