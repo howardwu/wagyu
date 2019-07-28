@@ -2,7 +2,6 @@ use crate::address::EthereumAddress;
 use crate::public_key::EthereumPublicKey;
 use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
-use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
 use std::marker::PhantomData;
@@ -19,9 +18,8 @@ impl PrivateKey for EthereumPrivateKey {
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
-    fn new() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
         Ok(Self(secp256k1::SecretKey::from_slice(&random)?))
     }
 
