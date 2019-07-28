@@ -28,8 +28,7 @@ impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         match private_key.format() {
             Format::Subaddress(major, minor) if major != 0 || minor != 0 => {
-                let subaddress_view_key = private_key.to_subaddress_private_view_key(major, minor);
-                Self::to_subaddress_public_key(private_key, subaddress_view_key, Format::Subaddress(major, minor))
+                Self::from_subaddress_private_key(private_key, major, minor)
             }
             _ => {
                 let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_spend_key());
@@ -95,12 +94,13 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         compressed
     }
 
-    /// Returns a Monero subaddress public key given a private key and subaddress private view key.
-    pub fn to_subaddress_public_key(
+    /// Returns a Monero subaddress public key given a private key
+    pub fn from_subaddress_private_key(
         private_key: &<Self as PublicKey>::PrivateKey,
-        subaddress_private_view: [u8; 32],
-        format: Format
+        major: u32,
+        minor: u32
     ) -> Self {
+        let subaddress_private_view = private_key.to_subaddress_private_view_key(major, minor);
         let standard_public_spend = &Scalar::from_bits(private_key.to_private_spend_key()) * &ED25519_BASEPOINT_TABLE;
         let mg = &Scalar::from_bits(subaddress_private_view) * &ED25519_BASEPOINT_TABLE;
 
@@ -110,7 +110,7 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         Self {
             spend_key: *subaddress_public_spend.compress().as_bytes(),
             view_key: *subaddress_public_view.compress().as_bytes(),
-            format,
+            format: private_key.format(),
             _network: PhantomData
         }
     }
