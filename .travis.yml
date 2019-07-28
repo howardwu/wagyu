@@ -5,17 +5,25 @@ env:
     - CRATE_NAME=wagu
 matrix:
   include:
+    - rust: stable
+      env: TEST_COVERAGE=1
+      addons:
+        apt:
+          packages:
+            - libssl-dev
+      after_success:
+        - cargo tarpaulin --all --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
     - rust: beta
     - rust: nightly
-    # deployments
-    - env: DEPLOY=1 TARGET=x86_64-apple-darwin
-      rust: stable
+    # Deployments
+    - rust: stable
+      env: DEPLOY=1 TARGET=x86_64-apple-darwin
       script: 
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
-    - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
-      rust: stable
+    - rust: stable
+      env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
       script:
         - rustup target add x86_64-unknown-linux-musl
         - cargo build --release --target $TARGET
@@ -24,18 +32,6 @@ matrix:
         apt:
           packages:
           - musl-tools
-    # test coverage
-    - env: TEST_COVERAGE=1
-      rust: stable
-      addons:
-        apt:
-          packages:
-          - libssl-dev
-      after_success: 
-        - |
-          if [ "$TRAVIS_RUST_VERSION" == stable ]; then 
-            cargo tarpaulin --all --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-          fi
 
 script:
   - cargo build --verbose
@@ -54,7 +50,6 @@ before_deploy:
     cp target/$TARGET/release/wagu $name/
     tar czvf $name.tar.gz $name
     echo -n $(shasum -ba 256 "$name.tar.gz" | cut -d " " -f 1) > $name.tar.gz.sha256
-
 
 deploy:
   api_key:
