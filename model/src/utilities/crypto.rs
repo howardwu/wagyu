@@ -1,5 +1,6 @@
 use ripemd160::Ripemd160;
 use sha2::{Digest, Sha256};
+use base58::{ToBase58};
 
 pub fn checksum(data: &[u8]) -> Vec<u8> {
     let hash_once = Sha256::digest(&data);
@@ -11,6 +12,23 @@ pub fn hash160(bytes: &[u8]) -> Vec<u8> {
     let sha256 = Sha256::digest(&bytes);
     let ripemd160 = Ripemd160::digest(&sha256);
     ripemd160.to_vec()
+}
+
+pub fn base58_encode_check(bytes: &[u8]) -> String {
+    let mut check = [0u8; 32];
+    let mut sha = Sha256::new();
+    sha.input(bytes);
+    check.copy_from_slice(sha.result().as_slice());
+    sha = Sha256::new();
+    sha.input(&check);
+    check.copy_from_slice(sha.result().as_slice());
+
+    let mut output = bytes.to_vec();
+    for &b in check.iter().take(4) {
+        output.push(b);
+    }
+
+    output.to_base58()
 }
 
 #[cfg(test)]
