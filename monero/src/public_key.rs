@@ -73,6 +73,27 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         }
     }
 
+    /// Returns a subaddress public key given a Monero private key.
+    pub fn from_subaddress_private_key(
+        private_key: &<Self as PublicKey>::PrivateKey,
+        major: u32,
+        minor: u32
+    ) -> Self {
+        let subaddress_private_view = private_key.to_subaddress_private_view_key(major, minor);
+        let standard_public_spend = &Scalar::from_bits(private_key.to_private_spend_key()) * &ED25519_BASEPOINT_TABLE;
+        let mg = &Scalar::from_bits(subaddress_private_view) * &ED25519_BASEPOINT_TABLE;
+
+        let subaddress_public_spend = standard_public_spend + mg;
+        let subaddress_public_view = &Scalar::from_bits(private_key.to_private_view_key()) * subaddress_public_spend;
+
+        Self {
+            spend_key: *subaddress_public_spend.compress().as_bytes(),
+            view_key: *subaddress_public_view.compress().as_bytes(),
+            format: Format::Subaddress(major, minor),
+            _network: PhantomData
+        }
+    }
+
     /// Returns the public spend key of the Monero public key.
     pub fn to_public_spend_key(&self) -> [u8; 32] {
         self.spend_key
@@ -92,27 +113,6 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
         let compressed = *point.compress().as_bytes();
         compressed
-    }
-
-    /// Returns a Monero subaddress public key given a private key
-    pub fn from_subaddress_private_key(
-        private_key: &<Self as PublicKey>::PrivateKey,
-        major: u32,
-        minor: u32
-    ) -> Self {
-        let subaddress_private_view = private_key.to_subaddress_private_view_key(major, minor);
-        let standard_public_spend = &Scalar::from_bits(private_key.to_private_spend_key()) * &ED25519_BASEPOINT_TABLE;
-        let mg = &Scalar::from_bits(subaddress_private_view) * &ED25519_BASEPOINT_TABLE;
-
-        let subaddress_public_spend = standard_public_spend + mg;
-        let subaddress_public_view = &Scalar::from_bits(private_key.to_private_view_key()) * subaddress_public_spend;
-
-        Self {
-            spend_key: *subaddress_public_spend.compress().as_bytes(),
-            view_key: *subaddress_public_view.compress().as_bytes(),
-            format: Format::Subaddress(major, minor),
-            _network: PhantomData
-        }
     }
 }
 
