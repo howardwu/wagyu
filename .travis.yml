@@ -9,11 +9,13 @@ matrix:
     - rust: nightly
     # deployments
     - env: DEPLOY=1 TARGET=x86_64-apple-darwin
+      rust: stable
       script: 
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
     - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
+      rust: stable
       script:
         - rustup target add x86_64-unknown-linux-musl
         - cargo build --release --target $TARGET
@@ -23,9 +25,7 @@ matrix:
           packages:
           - musl-tools
     # test coverage
-    - env: 
-        - TARGET=x86_64-unknown-linux-musl
-        - TEST_COVERAGE=1
+    - env: TEST_COVERAGE=1
       rust: stable
       addons:
         apt:
