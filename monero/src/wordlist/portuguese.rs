@@ -1,5 +1,5 @@
 use crate::wordlist::MoneroWordlist;
-use wagu_model::{wordlist::Wordlist, monero::PORTUGUESE};
+use wagu_model::{monero::PORTUGUESE, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Portuguese;

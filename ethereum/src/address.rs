@@ -1,6 +1,6 @@
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{Address, AddressError, PrivateKey, to_hex_string};
+use wagu_model::{to_hex_string, Address, AddressError, PrivateKey};
 
 use regex::Regex;
 use serde::Serialize;
@@ -19,18 +19,12 @@ impl Address for EthereumAddress {
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(
-        private_key: &Self::PrivateKey,
-        _: &Self::Format
-    ) -> Result<Self, AddressError> {
+    fn from_private_key(private_key: &Self::PrivateKey, _: &Self::Format) -> Result<Self, AddressError> {
         Self::from_public_key(&private_key.to_public_key(), &PhantomData)
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(
-        public_key: &Self::PublicKey,
-        _: &Self::Format,
-    ) -> Result<Self, AddressError> {
+    fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
         Ok(Self::checksum_address(public_key))
     }
 }
@@ -93,18 +87,12 @@ mod tests {
     use super::*;
     use wagu_model::public_key::PublicKey;
 
-    fn test_from_private_key(
-        expected_address: &str,
-        private_key: &EthereumPrivateKey
-    ) {
+    fn test_from_private_key(expected_address: &str, private_key: &EthereumPrivateKey) {
         let address = EthereumAddress::from_private_key(private_key, &PhantomData).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
-    fn test_from_public_key(
-        expected_address: &str,
-        public_key: &EthereumPublicKey,
-    ) {
+    fn test_from_public_key(expected_address: &str, public_key: &EthereumPublicKey) {
         let address = EthereumAddress::from_public_key(public_key, &PhantomData).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
@@ -124,24 +112,24 @@ mod tests {
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "f89f23eaeac18252fedf81bb8318d3c111d48c19b0680dcf6e0a8d5136caf287",
-                "0x9141B7539E7902872095C408BfA294435e2b8c8a"
+                "0x9141B7539E7902872095C408BfA294435e2b8c8a",
             ),
             (
                 "a93701ea343247db13466f6448ffbca658726e2b4a77530db3eca3c9250b4f0d",
-                "0xa0967B1F698DC497A694FE955666D1dDd398145C"
+                "0xa0967B1F698DC497A694FE955666D1dDd398145C",
             ),
             (
                 "de61e35e2e5eb9504d52f5042126591d80144d49f74b8ced68f4959a3e8edffd",
-                "0xD5d13d1dD277BB9041e560A63ee29c086D370b0A"
+                "0xD5d13d1dD277BB9041e560A63ee29c086D370b0A",
             ),
             (
                 "56f01d5e01b6fd1cc123d8d1eae0d148e00c025b5be2ef624775f7a1b802e9c1",
-                "0xc4488ebbE882fa2aF1D466CB2C8ecafE316c067a"
+                "0xc4488ebbE882fa2aF1D466CB2C8ecafE316c067a",
             ),
             (
                 "363af8b4d3ff22bb0e4ffc2ff198b4b5be0316f8a507ad5fe32f021c3d1ae8ad",
-                "0xF9001e6AEE6EA439D713fBbF960EbA76f4770E2B"
-            )
+                "0xF9001e6AEE6EA439D713fBbF960EbA76f4770E2B",
+            ),
         ];
 
         #[test]
@@ -179,7 +167,6 @@ mod tests {
 
     #[test]
     fn test_checksum_address_invalid() {
-
         // Mismatched keypair
 
         let private_key = "f89f23eaeac18252fedf81bb8318d3c111d48c19b0680dcf6e0a8d5136caf287";
@@ -209,6 +196,5 @@ mod tests {
 
         let address = "0x9141B7539E7902872095C408BfA294435e2b8c8a0x9141B7539E7902872095C408BfA294435e2b8c8a";
         assert!(EthereumAddress::from_str(address).is_err());
-
     }
 }

@@ -6,10 +6,10 @@ use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
-use monero::{MoneroAddress, MoneroPrivateKey, Mainnet as MoneroMainnet, Testnet as MoneroTestnet};
+use monero::{Mainnet as MoneroMainnet, MoneroAddress, MoneroPrivateKey, Testnet as MoneroTestnet};
 use wagu_model::{Address, PrivateKey};
 use zcash::address::Format as ZcashFormat;
-use zcash::{ZcashAddress, ZcashPrivateKey, Mainnet as ZcashMainnet, Testnet as ZcashTestnet};
+use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashPrivateKey};
 
 use clap::{App, Arg, SubCommand, AppSettings};
 use serde::Serialize;

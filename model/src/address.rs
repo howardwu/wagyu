@@ -1,38 +1,32 @@
-use crate::private_key::PrivateKey;
+use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::{PublicKey, PublicKeyError};
 
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
-    str::FromStr
+    str::FromStr,
 };
 
 /// The interface for a generic address.
-pub trait Address:
-    Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash
-{
+pub trait Address: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash {
     type Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(
-        private_key: &Self::PrivateKey,
-        format: &Self::Format
-    ) -> Result<Self, AddressError>;
+    fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Result<Self, AddressError>;
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(
-        public_key: &Self::PublicKey,
-        format: &Self::Format
-    ) -> Result<Self, AddressError>;
+    fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError>;
 }
 
 #[derive(Debug, Fail)]
 pub enum AddressError {
-    
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
+
+    #[fail(display = "invalid format conversion from {:?} to {:?}", _0, _1)]
+    IncompatibleFormats(String, String),
 
     #[fail(display = "invalid address: {}", _0)]
     InvalidAddress(String),
@@ -59,18 +53,15 @@ pub enum AddressError {
     Message(String),
 
     #[fail(display = "{}", _0)]
+    PrivateKeyError(PrivateKeyError),
+
+    #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
 }
 
 impl From<&'static str> for AddressError {
     fn from(msg: &'static str) -> Self {
         AddressError::Message(msg.into())
-    }
-}
-
-impl From<PublicKeyError> for AddressError {
-    fn from(error: PublicKeyError) -> Self {
-        AddressError::PublicKeyError(error)
     }
 }
 
@@ -89,6 +80,18 @@ impl From<base58_monero::base58::Error> for AddressError {
 impl From<bech32::Error> for AddressError {
     fn from(error: bech32::Error) -> Self {
         AddressError::Crate("bech32", format!("{:?}", error))
+    }
+}
+
+impl From<PrivateKeyError> for AddressError {
+    fn from(error: PrivateKeyError) -> Self {
+        AddressError::PrivateKeyError(error)
+    }
+}
+
+impl From<PublicKeyError> for AddressError {
+    fn from(error: PublicKeyError) -> Self {
+        AddressError::PublicKeyError(error)
     }
 }
 

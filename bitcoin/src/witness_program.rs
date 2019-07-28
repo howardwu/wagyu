@@ -45,10 +45,13 @@ impl WitnessProgram {
             return Err("Mismatched program length");
         }
 
-        let program = WitnessProgram { version: program[0], program: data };
+        let program = WitnessProgram {
+            version: program[0],
+            program: data,
+        };
         match program.validate() {
             Ok(()) => Ok(program),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
@@ -82,11 +85,14 @@ impl WitnessProgram {
     /// A BIP173 version conversion utility function.
     /// Convert a given version to a value between 0 and 16 or OP_1 through OP_16.
     pub fn convert_version(version: u8) -> u8 {
-        if version > 0x00 && version <= 0x10 { // encode OP_1 through OP_16
+        if version > 0x00 && version <= 0x10 {
+            // encode OP_1 through OP_16
             version + 0x50
-        } else if version > 0x50 { // decode OP_1 through OP_16
+        } else if version > 0x50 {
+            // decode OP_1 through OP_16
             version - 0x50
-        } else { // OP_0
+        } else {
+            // OP_0
             version
         }
     }
@@ -99,7 +105,7 @@ impl FromStr for WitnessProgram {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         WitnessProgram::new(&match hex::decode(s) {
             Ok(bytes) => bytes,
-            Err(_) => return Err("Error decoding hex string")
+            Err(_) => return Err("Error decoding hex string"),
         })
     }
 }

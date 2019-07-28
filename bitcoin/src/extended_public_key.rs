@@ -4,19 +4,14 @@ use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagu_model::{
-    AddressError,
-    ChildIndex,
-    ExtendedPrivateKey,
-    ExtendedPublicKey,
-    ExtendedPublicKeyError,
-    PublicKey,
-    crypto::{checksum, hash160}
+    crypto::{checksum, hash160},
+    AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
 };
 
-use base58::{ToBase58, FromBase58};
+use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
-use secp256k1::{Secp256k1, SecretKey, PublicKey as Secp256k1_PublicKey};
+use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
 use std::fmt;
 use std::io::Cursor;
@@ -41,10 +36,10 @@ pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
     /// The Bitcoin public key
     public_key: BitcoinPublicKey<N>,
     /// PhantomData
-    _network: PhantomData<N>
+    _network: PhantomData<N>,
 }
 
-impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
+impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type Address = BitcoinAddress<N>;
     type DerivationPath = BitcoinDerivationPath;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
@@ -60,14 +55,14 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             child_index: extended_private_key.child_index,
             chain_code: extended_private_key.chain_code,
             public_key: extended_private_key.to_public_key(),
-            _network: PhantomData
+            _network: PhantomData,
         }
     }
 
     /// Returns the extended public key for the given derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth == 255 {
-            return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth))
+            return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth));
         }
 
         let mut extended_public_key = self.clone();
@@ -80,7 +75,9 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
                 // HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i))
                 ChildIndex::Normal(_) => mac.input(public_key_serialized),
                 // Return failure
-                ChildIndex::Hardened(_) => return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)))
+                ChildIndex::Hardened(_) => {
+                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)))
+                }
             }
             let mut index_be = [0; 4];
             BigEndian::write_u32(&mut index_be, u32::from(*index));
@@ -91,7 +88,7 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             chain_code[0..32].copy_from_slice(&hmac[32..]);
 
             let mut public_key = self.public_key.to_secp256k1_public_key();
-            public_key.add_exp_assign(&Secp256k1::new(), &SecretKey::from_slice( &hmac[..32])?[..])?;
+            public_key.add_exp_assign(&Secp256k1::new(), &SecretKey::from_slice(&hmac[..32])?[..])?;
             let public_key = Self::PublicKey::from_secp256k1_public_key(public_key, true);
 
             let mut parent_fingerprint = [0u8; 4];
@@ -104,7 +101,7 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
                 child_index: *index,
                 chain_code,
                 public_key,
-                _network: PhantomData
+                _network: PhantomData,
             };
         }
 
@@ -122,13 +119,13 @@ impl <N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     }
 }
 
-impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
+impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
     type Err = ExtendedPublicKeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let data = s.from_base58()?;
         if data.len() != 82 {
-            return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()))
+            return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()));
         }
 
         // Check that the version bytes correspond with the correct network.
@@ -156,7 +153,7 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
         if *expected != *checksum {
             let expected = expected.to_base58();
             let found = checksum.to_base58();
-            return Err(ExtendedPublicKeyError::InvalidChecksum(expected, found))
+            return Err(ExtendedPublicKeyError::InvalidChecksum(expected, found));
         }
 
         Ok(Self {
@@ -166,19 +163,19 @@ impl <N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
             child_index,
             chain_code,
             public_key,
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 }
 
-impl <N: BitcoinNetwork> fmt::Display for BitcoinExtendedPublicKey<N> {
+impl<N: BitcoinNetwork> fmt::Display for BitcoinExtendedPublicKey<N> {
     /// BIP32 serialization format
     /// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
         result[0..4].copy_from_slice(match &N::to_extended_public_key_version_bytes(&self.format) {
             Ok(version) => version,
-            Err(_) => return Err(fmt::Error)
+            Err(_) => return Err(fmt::Error),
         });
         result[4] = self.depth;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
@@ -209,22 +206,28 @@ mod tests {
         expected_child_index: u32,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
-        extended_private_key: &str
+        extended_private_key: &str,
     ) {
         let extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(extended_private_key).unwrap();
         let extended_public_key = BitcoinExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
-        assert_eq!(expected_public_key, extended_public_key.public_key.to_secp256k1_public_key().to_string());
+        assert_eq!(
+            expected_public_key,
+            extended_public_key.public_key.to_secp256k1_public_key().to_string()
+        );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(extended_public_key.parent_fingerprint));
+        assert_eq!(
+            expected_parent_fingerprint,
+            hex::encode(extended_public_key.parent_fingerprint)
+        );
     }
 
     // Check: (extended_private_key1 -> extended_private_key2 -> extended_public_key2) == (expected_extended_public_key2)
     fn test_derive<N: BitcoinNetwork>(
         expected_extended_private_key1: &str,
         expected_extended_public_key2: &str,
-        expected_child_index2: u32
+        expected_child_index2: u32,
     ) {
         let path = vec![ChildIndex::from(expected_child_index2)].into();
 
@@ -232,14 +235,27 @@ mod tests {
         let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
         let extended_public_key2 = extended_private_key2.to_extended_public_key();
 
-        let expected_extended_public_key2 = BitcoinExtendedPublicKey::<N>::from_str(&expected_extended_public_key2).unwrap();
+        let expected_extended_public_key2 =
+            BitcoinExtendedPublicKey::<N>::from_str(&expected_extended_public_key2).unwrap();
 
         assert_eq!(expected_extended_public_key2, extended_public_key2);
-        assert_eq!(expected_extended_public_key2.public_key, extended_public_key2.public_key);
+        assert_eq!(
+            expected_extended_public_key2.public_key,
+            extended_public_key2.public_key
+        );
         assert_eq!(expected_extended_public_key2.depth, extended_public_key2.depth);
-        assert_eq!(expected_extended_public_key2.child_index, extended_public_key2.child_index);
-        assert_eq!(expected_extended_public_key2.chain_code, extended_public_key2.chain_code);
-        assert_eq!(expected_extended_public_key2.parent_fingerprint, extended_public_key2.parent_fingerprint);
+        assert_eq!(
+            expected_extended_public_key2.child_index,
+            extended_public_key2.child_index
+        );
+        assert_eq!(
+            expected_extended_public_key2.chain_code,
+            extended_public_key2.chain_code
+        );
+        assert_eq!(
+            expected_extended_public_key2.parent_fingerprint,
+            extended_public_key2.parent_fingerprint
+        );
     }
 
     fn test_from_str<N: BitcoinNetwork>(
@@ -247,13 +263,19 @@ mod tests {
         expected_child_index: u32,
         expected_chain_code: &str,
         expected_parent_fingerprint: &str,
-        extended_public_key: &str
+        extended_public_key: &str,
     ) {
         let extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(&extended_public_key).unwrap();
-        assert_eq!(expected_public_key, extended_public_key.public_key.to_secp256k1_public_key().to_string());
+        assert_eq!(
+            expected_public_key,
+            extended_public_key.public_key.to_secp256k1_public_key().to_string()
+        );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
-        assert_eq!(expected_parent_fingerprint, hex::encode(extended_public_key.parent_fingerprint));
+        assert_eq!(
+            expected_parent_fingerprint,
+            hex::encode(extended_public_key.parent_fingerprint)
+        );
     }
 
     fn test_to_string<N: BitcoinNetwork>(expected_extended_public_key: &str) {
@@ -392,15 +414,27 @@ mod tests {
 
         #[test]
         fn from_extended_private_key() {
-            KEYPAIRS.iter().for_each(|(_, _, child_index, public_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)| {
-                test_from_extended_private_key::<N>(
-                    extended_public_key,
+            KEYPAIRS.iter().for_each(
+                |(
+                    _,
+                    _,
+                    child_index,
                     public_key,
-                    child_index.parse().unwrap(),
                     chain_code,
                     parent_fingerprint,
-                    extended_private_key);
-            });
+                    extended_private_key,
+                    extended_public_key,
+                )| {
+                    test_from_extended_private_key::<N>(
+                        extended_public_key,
+                        public_key,
+                        child_index.parse().unwrap(),
+                        chain_code,
+                        parent_fingerprint,
+                        extended_private_key,
+                    );
+                },
+            );
         }
 
         #[test]
@@ -418,14 +452,17 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, _, child_index, public_key, chain_code, parent_fingerprint, _, extended_public_key)| {
-                test_from_str::<N>(
-                    public_key,
-                    child_index.parse().unwrap(),
-                    chain_code,
-                    parent_fingerprint,
-                    extended_public_key);
-            });
+            KEYPAIRS.iter().for_each(
+                |(_, _, child_index, public_key, chain_code, parent_fingerprint, _, extended_public_key)| {
+                    test_from_str::<N>(
+                        public_key,
+                        child_index.parse().unwrap(),
+                        chain_code,
+                        parent_fingerprint,
+                        extended_public_key,
+                    );
+                },
+            );
         }
 
         #[test]

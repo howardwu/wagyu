@@ -4,20 +4,13 @@ use crate::extended_private_key::ExtendedPrivateKey;
 use crate::network::NetworkError;
 use crate::public_key::{PublicKey, PublicKeyError};
 
-use std::{fmt::{Debug, Display}, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 /// The interface for a generic extended public key.
-pub trait ExtendedPublicKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait ExtendedPublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type DerivationPath: DerivationPath;
     type ExtendedPrivateKey: ExtendedPrivateKey;
@@ -39,7 +32,6 @@ pub trait ExtendedPublicKey:
 
 #[derive(Debug, Fail)]
 pub enum ExtendedPublicKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -49,7 +41,10 @@ pub enum ExtendedPublicKeyError {
     #[fail(display = "invalid byte length: {}", _0)]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[fail(
+        display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}",
+        _0, _1
+    )]
     InvalidChecksum(String, String),
 
     #[fail(display = "invalid child number: {{ expected: {:?}, found: {:?} }}", _0, _1)]
@@ -71,7 +66,7 @@ pub enum ExtendedPublicKeyError {
     PublicKeyError(PublicKeyError),
 
     #[fail(display = "unsupported format: {}", _0)]
-    UnsupportedFormat(String)
+    UnsupportedFormat(String),
 }
 
 impl From<DerivationPathError> for ExtendedPublicKeyError {

@@ -1,16 +1,11 @@
 use crate::address::EthereumAddress;
 use crate::private_key::EthereumPrivateKey;
-use wagu_model::{
-    Address,
-    AddressError,
-    PublicKey,
-    PublicKeyError
-};
+use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
-use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::{fmt, fmt::Display};
 
 /// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -23,7 +18,10 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        Self(secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &private_key.to_secp256k1_secret_key()))
+        Self(secp256k1::PublicKey::from_secret_key(
+            &secp256k1::Secp256k1::new(),
+            &private_key.to_secp256k1_secret_key(),
+        ))
     }
 
     /// Returns the address of the corresponding private key.
@@ -48,7 +46,9 @@ impl FromStr for EthereumPublicKey {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(secp256k1::PublicKey::from_str(format!("04{}", public_key).as_str())?))
+        Ok(Self(secp256k1::PublicKey::from_str(
+            format!("04{}", public_key).as_str(),
+        )?))
     }
 }
 
@@ -70,18 +70,12 @@ mod tests {
         assert_eq!(*expected_public_key, public_key);
     }
 
-    fn test_to_address(
-        expected_address: &EthereumAddress,
-        public_key: &EthereumPublicKey
-    ) {
+    fn test_to_address(expected_address: &EthereumAddress, public_key: &EthereumPublicKey) {
         let address = public_key.to_address(&PhantomData).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str(
-        expected_public_key: &str,
-        expected_address: &str
-    ) {
+    fn test_from_str(expected_public_key: &str, expected_address: &str) {
         let public_key = EthereumPublicKey::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(&PhantomData).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
@@ -144,9 +138,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(
-                    expected_public_key,
-                    expected_address);
+                test_from_str(expected_public_key, expected_address);
             });
         }
 
@@ -161,7 +153,6 @@ mod tests {
 
     #[test]
     fn test_checksum_address_invalid() {
-
         // Invalid public key length
 
         let public_key = "0";
@@ -178,6 +169,5 @@ mod tests {
 
         let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c";
         assert!(EthereumPublicKey::from_str(public_key).is_err());
-
     }
 }

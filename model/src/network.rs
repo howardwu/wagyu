@@ -1,7 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
-    str::FromStr
+    str::FromStr,
 };
 
 /// The interface for a generic network.
@@ -9,7 +9,6 @@ pub trait Network: Copy + Clone + Debug + Display + FromStr + Send + Sync + 'sta
 
 #[derive(Debug, Fail)]
 pub enum NetworkError {
-
     #[fail(display = "invalid extended private key prefix: {}", _0)]
     InvalidExtendedPrivateKeyPrefix(String),
 

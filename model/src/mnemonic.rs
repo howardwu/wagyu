@@ -5,20 +5,13 @@ use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::wordlist::WordlistError;
 
-use std::{fmt::{Debug, Display}, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 /// The interface for a generic mnemonic.
-pub trait Mnemonic:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait Mnemonic: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;
@@ -31,44 +24,23 @@ pub trait Mnemonic:
     fn to_public_key(&self, password: Option<&str>) -> Result<Self::PublicKey, MnemonicError>;
 
     /// Returns the address of the corresponding mnemonic.
-    fn to_address(
-        &self,
-        password: Option<&str>,
-        format: &Self::Format
-    ) -> Result<Self::Address, MnemonicError>;
+    fn to_address(&self, password: Option<&str>, format: &Self::Format) -> Result<Self::Address, MnemonicError>;
 }
 
 /// The interface for a generic mnemonic for extended keys.
-pub trait MnemonicExtended:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait MnemonicExtended: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type ExtendedPrivateKey: ExtendedPrivateKey;
     type ExtendedPublicKey: ExtendedPublicKey;
 
     /// Returns the extended private key of the corresponding mnemonic.
-    fn to_extended_private_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::ExtendedPrivateKey, MnemonicError>;
+    fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError>;
 
     /// Returns the extended public key of the corresponding mnemonic.
-    fn to_extended_public_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::ExtendedPublicKey, MnemonicError>;
+    fn to_extended_public_key(&self, password: Option<&str>) -> Result<Self::ExtendedPublicKey, MnemonicError>;
 }
 
 #[derive(Debug, Fail)]
 pub enum MnemonicError {
-
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
 

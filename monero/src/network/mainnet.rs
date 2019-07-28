@@ -17,8 +17,8 @@ impl MoneroNetwork for Mainnet {
     fn to_address_prefix(format: &Format) -> u8 {
         match format {
             Format::Standard => 18,
-            Format::Integrated => 19,
-            Format::Subaddress => 24
+            Format::Integrated(_) => 19,
+            Format::Subaddress(_, _) => 42,
         }
     }
 
@@ -26,8 +26,8 @@ impl MoneroNetwork for Mainnet {
     /// https://github.com/monero-project/monero/blob/3ad4ecd4ff52f011ee94e0e80754b965b82f072b/src/cryptonote_config.h#L153&L155
     fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
         match prefix {
-            18 | 19 | 24 => Ok(Self),
-            _ => Err(AddressError::InvalidPrefix(vec![prefix]))
+            18 | 19 | 42 => Ok(Self),
+            _ => Err(AddressError::InvalidPrefix(vec![prefix])),
         }
     }
 }
@@ -38,7 +38,7 @@ impl FromStr for Mainnet {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "mainnet" => Ok(Self),
-            _ => Err(NetworkError::InvalidNetwork(s.into()))
+            _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
 }

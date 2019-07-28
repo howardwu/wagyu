@@ -1,4 +1,4 @@
-use crate::address::{MoneroAddress, Format};
+use crate::address::{Format, MoneroAddress};
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
@@ -6,8 +6,8 @@ use crate::wordlist::MoneroWordlist;
 use wagu_model::{Mnemonic, MnemonicError, PrivateKey};
 
 use crc::{crc32, Hasher32};
-use rand::Rng;
 use rand::rngs::OsRng;
+use rand::Rng;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str;
@@ -26,7 +26,7 @@ pub struct MoneroMnemonic<N: MoneroNetwork, W: MoneroWordlist> {
     _wordlist: PhantomData<W>,
 }
 
-impl <N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
+impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     type Address = MoneroAddress<N>;
     type Format = Format;
     type PrivateKey = MoneroPrivateKey<N>;
@@ -34,7 +34,11 @@ impl <N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
-        Ok(MoneroPrivateKey::from_seed(hex::encode(&self.seed).as_str())?)
+        //TODO Phase out hard coded formating
+        Ok(MoneroPrivateKey::from_seed(
+            hex::encode(&self.seed).as_str(),
+            &Format::Standard,
+        )?)
     }
 
     /// Returns the public key of the corresponding mnemonic.
@@ -43,16 +47,12 @@ impl <N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     }
 
     /// Returns the address of the corresponding mnemonic.
-    fn to_address(
-        &self,
-        _: Option<&str>,
-        _: &Self::Format
-    ) -> Result<Self::Address, MnemonicError> {
+    fn to_address(&self, _: Option<&str>, _: &Self::Format) -> Result<Self::Address, MnemonicError> {
         Ok(self.to_private_key(None)?.to_address(&Format::Standard)?)
     }
 }
 
-impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
+impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     /// Returns a new mnemonic phrase given the word count.
     pub fn new() -> Result<Self, MnemonicError> {
         let mut seed = [0u8; 32];
@@ -66,7 +66,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
             seed: Self::to_seed(phrase)?,
             phrase: phrase.to_owned(),
             _network: PhantomData,
-            _wordlist: PhantomData
+            _wordlist: PhantomData,
         })
     }
 
@@ -79,12 +79,15 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
         // Reverse the endian in 4 byte intervals
         let length = 1626;
-        let inputs = seed.chunks(4).map(|chunk| {
-            let mut input: [u8; 4] = [0u8; 4];
-            input.copy_from_slice(chunk);
+        let inputs = seed
+            .chunks(4)
+            .map(|chunk| {
+                let mut input: [u8; 4] = [0u8; 4];
+                input.copy_from_slice(chunk);
 
-            u32::from_le_bytes(input)
-        }).collect::<Vec<u32>>();
+                u32::from_le_bytes(input)
+            })
+            .collect::<Vec<u32>>();
 
         // Generate three words from every 4 byte interval
         let mut phrase = vec![];
@@ -105,7 +108,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
             seed: *seed,
             phrase: phrase.join(" "),
             _network: PhantomData,
-            _wordlist: PhantomData
+            _wordlist: PhantomData,
         })
     }
 
@@ -116,14 +119,14 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
         let mut phrase = words.iter().map(|word| word.to_string()).collect::<Vec<String>>();
 
         if phrase.len() % 3 == 2 {
-            return Err(MnemonicError::MissingWord)
+            return Err(MnemonicError::MissingWord);
         } else if phrase.len() % 3 == 0 {
-            return Err(MnemonicError::MissingChecksumWord)
+            return Err(MnemonicError::MissingChecksumWord);
         }
 
         let checksum = match phrase.pop() {
             Some(word) => word,
-            _ => return Err(MnemonicError::MissingWord)
+            _ => return Err(MnemonicError::MissingWord),
         };
 
         // Decode the phrase
@@ -138,7 +141,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
             let x = w1 + n * (((n - w1) + w2) % n) + n * n * (((n - w2) + w3) % n);
 
             if x % n != w1 {
-                return Err(MnemonicError::InvalidDecoding)
+                return Err(MnemonicError::InvalidDecoding);
             }
 
             buffer.extend_from_slice(&u32::to_le_bytes(x as u32));
@@ -149,7 +152,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
         if expected_checksum[0..W::PREFIX_LENGTH] != checksum[0..W::PREFIX_LENGTH] {
             let expected = &expected_checksum[0..W::PREFIX_LENGTH];
             let found = &checksum[0..W::PREFIX_LENGTH];
-            return Err(MnemonicError::InvalidChecksumWord(expected.into(), found.into()))
+            return Err(MnemonicError::InvalidChecksumWord(expected.into(), found.into()));
         }
 
         let mut data = [0u8; 32];
@@ -160,9 +163,10 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
     /// Returns the checksum word for a given phrase.
     fn checksum_word(phrase: &Vec<String>) -> String {
-        let phrase_trimmed = phrase.iter().map(|word| {
-            word[0..W::PREFIX_LENGTH].to_string()
-        }).collect::<Vec<String>>();
+        let phrase_trimmed = phrase
+            .iter()
+            .map(|word| word[0..W::PREFIX_LENGTH].to_string())
+            .collect::<Vec<String>>();
 
         let mut digest = crc32::Digest::new(crc32::IEEE);
         digest.write(phrase_trimmed.concat().as_bytes());
@@ -170,7 +174,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     }
 }
 
-impl <N: MoneroNetwork, W: MoneroWordlist> FromStr for MoneroMnemonic<N, W> {
+impl<N: MoneroNetwork, W: MoneroWordlist> FromStr for MoneroMnemonic<N, W> {
     type Err = MnemonicError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -178,7 +182,7 @@ impl <N: MoneroNetwork, W: MoneroWordlist> FromStr for MoneroMnemonic<N, W> {
     }
 }
 
-impl <N: MoneroNetwork, W: MoneroWordlist> fmt::Display for MoneroMnemonic<N, W> {
+impl<N: MoneroNetwork, W: MoneroWordlist> fmt::Display for MoneroMnemonic<N, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.phrase)
     }
@@ -196,18 +200,12 @@ mod tests {
         test_from_seed::<N, W>(&result.phrase, &result.seed);
     }
 
-    fn test_from_seed<N: MoneroNetwork, W: MoneroWordlist>(
-        expected_phrase: &str,
-        seed: &[u8; 32]
-    ) {
+    fn test_from_seed<N: MoneroNetwork, W: MoneroWordlist>(expected_phrase: &str, seed: &[u8; 32]) {
         let result = MoneroMnemonic::<N, W>::from_seed(seed).unwrap();
         assert_eq!(expected_phrase, result.phrase);
     }
 
-    fn test_from_phrase<N: MoneroNetwork, W: MoneroWordlist>(
-        expected_seed: &[u8; 32],
-        phrase: &str
-    ) {
+    fn test_from_phrase<N: MoneroNetwork, W: MoneroWordlist>(expected_seed: &[u8; 32], phrase: &str) {
         let result = MoneroMnemonic::<N, W>::from_phrase(phrase).unwrap();
         assert_eq!(&expected_seed[..], &result.seed[..]);
         assert_eq!(phrase, result.phrase);
@@ -217,10 +215,7 @@ mod tests {
         assert!(MoneroMnemonic::<N, W>::verify_phrase(phrase));
     }
 
-    fn test_to_seed<N: MoneroNetwork, W: MoneroWordlist>(
-        expected_seed: &[u8; 32],
-        phrase: &str
-    ) {
+    fn test_to_seed<N: MoneroNetwork, W: MoneroWordlist>(expected_seed: &[u8; 32], phrase: &str) {
         let result = MoneroMnemonic::<N, W>::to_seed(phrase).unwrap();
         assert_eq!(&expected_seed[..], &result[..]);
     }
@@ -228,12 +223,18 @@ mod tests {
     fn test_to_private_key<N: MoneroNetwork, W: MoneroWordlist>(
         expected_private_spend_key: &str,
         expected_private_view_key: &str,
-        phrase: &str
+        phrase: &str,
     ) {
         let mnemonic = MoneroMnemonic::<N, W>::from_phrase(phrase).unwrap();
         let private_key = mnemonic.to_private_key(None).unwrap();
-        assert_eq!(expected_private_spend_key, hex::encode(private_key.to_private_spend_key()));
-        assert_eq!(expected_private_view_key, hex::encode(private_key.to_private_view_key()));
+        assert_eq!(
+            expected_private_spend_key,
+            hex::encode(private_key.to_private_spend_key())
+        );
+        assert_eq!(
+            expected_private_view_key,
+            hex::encode(private_key.to_private_view_key())
+        );
     }
 
     mod english {
@@ -273,7 +274,7 @@ mod tests {
 
         #[test]
         fn new() {
-            (0..10).for_each(|_| { test_new::<N, W>() })
+            (0..10).for_each(|_| test_new::<N, W>())
         }
 
         #[test]
@@ -312,12 +313,11 @@ mod tests {
 
         #[test]
         fn to_private_key() {
-            KEYPAIRS.iter().for_each(|(_, phrase, (expected_private_spend_key, expected_private_view_key))| {
-                test_to_private_key::<N, W>(
-                    expected_private_spend_key,
-                    expected_private_view_key,
-                    phrase);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, phrase, (expected_private_spend_key, expected_private_view_key))| {
+                    test_to_private_key::<N, W>(expected_private_spend_key, expected_private_view_key, phrase);
+                });
         }
     }
 }

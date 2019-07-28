@@ -1,5 +1,5 @@
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::{wordlist::Wordlist, bip39::CHINESE_TRADITIONAL};
+use wagu_model::{bip39::CHINESE_TRADITIONAL, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChineseTraditional;
