@@ -1,4 +1,4 @@
-# wagu_model
+# wagu-zcash
 
 [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
 [![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](../AUTHORS)

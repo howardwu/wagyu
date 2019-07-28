@@ -12,9 +12,9 @@ use std::str::FromStr;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroPublicKey<N: MoneroNetwork> {
     /// The public spending key
-    pub spend_key: [u8; 32],
+    spend_key: [u8; 32],
     /// The public viewing key
-    pub view_key: [u8; 32],
+    view_key: [u8; 32],
     /// PhantomData
     _network: PhantomData<N>
 }
@@ -26,8 +26,8 @@ impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.spend_key);
-        let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.view_key);
+        let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_spend_key());
+        let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_view_key());
         Self { spend_key, view_key, _network: PhantomData }
     }
 
@@ -58,6 +58,16 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         view_key.copy_from_slice(public_view_key.as_slice());
 
         Ok(Self { spend_key, view_key, _network: PhantomData })
+    }
+
+    /// Returns the public spend key of the Monero public key.
+    pub fn to_public_spend_key(&self) -> [u8; 32] {
+        self.spend_key
+    }
+
+    /// Returns the public spend key of the Monero public key.
+    pub fn to_public_view_key(&self) -> [u8; 32] {
+        self.view_key
     }
 
     fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
@@ -133,7 +143,7 @@ mod tests {
         assert_eq!(expected_public_spend_key, hex::encode(public_key.spend_key));
         assert_eq!(expected_public_view_key, hex::encode(public_key.view_key));
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*expected_format, address.format);
+        assert_eq!(*expected_format, address.format());
     }
 
     fn test_to_str<N: MoneroNetwork>(

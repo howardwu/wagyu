@@ -27,9 +27,9 @@ const PBKDF2_BYTES: usize = 64;
 /// Represents a Bitcoin mnemonic
 pub struct BitcoinMnemonic<N: BitcoinNetwork, W: BitcoinWordlist> {
     /// Initial entropy in multiples of 32 bits
-    pub entropy: Vec<u8>,
+    entropy: Vec<u8>,
     /// The mnemonic phrase
-    pub phrase: String,
+    phrase: String,
     /// PhantomData
     _network: PhantomData<N>,
     /// PhantomData
