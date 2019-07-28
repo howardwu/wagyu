@@ -7,6 +7,15 @@
 pub mod address;
 pub use self::address::*;
 
+pub mod derivation_path;
+pub use self::derivation_path::*;
+
+pub mod extended_private_key;
+pub use self::extended_private_key::*;
+
+pub mod extended_public_key;
+pub use self::extended_public_key::*;
+
 pub mod network;
 pub use self::network::*;
 

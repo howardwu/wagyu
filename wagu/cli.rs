@@ -18,12 +18,10 @@ use std::marker::PhantomData;
 fn main() {
     let network_vals = ["mainnet", "testnet"];
     let matches = App::new("wagu")
-       .version("v0.6.0")
-       .about("Generate a wallet for any cryptocurrency
-
-Supported Currencies: Bitcoin, Ethereum, Monero, Zcash")
-       .author("Argus Developer <team@argus.dev>")
-       .arg(Arg::with_name("currency")
+        .version("v0.6.0")
+        .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
+        .author("Argus <team@argus.dev>")
+        .arg(Arg::with_name("currency")
             .required(true)
             .help("Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)"))
         .arg(Arg::with_name("network")
@@ -32,7 +30,7 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash")
             .takes_value(true)
             .possible_values(&network_vals)
             .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"))
-       .arg(Arg::with_name("count") 
+        .arg(Arg::with_name("count")
             .short("n")
             .long("count")
             .takes_value(true)
@@ -53,7 +51,7 @@ Supported Currencies: Bitcoin, Ethereum, Monero, Zcash")
             .long("bech32")
             .conflicts_with("segwit")
             .help("Enabling this flag generates a wallet with a Bech32 (SegWit enabled) address"))
-       .get_matches();
+        .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
 //    let mut compressed = matches.is_present("compressed");
@@ -104,7 +102,7 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
             private_key: private_key.to_string(),
             address: address.to_string(),
             network: "testnet".into(),
-            compressed: private_key.compressed,
+            compressed: private_key.is_compressed(),
         }
     } else {
         let private_key = BitcoinPrivateKey::<BitcoinMainnet>::new().unwrap();
@@ -114,7 +112,7 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
             private_key: private_key.to_string(),
             address: address.to_string(),
             network: "mainnet".into(),
-            compressed: private_key.compressed,
+            compressed: private_key.is_compressed(),
         }
     };
 
@@ -147,7 +145,7 @@ fn print_ethereum_wallet(count: usize, json: bool) {
 
     let wallet = Wallet {
         private_key: private_key.to_string(),
-        address: address.address,
+        address: address.to_string(),
     };
 
     for _ in 0..count {

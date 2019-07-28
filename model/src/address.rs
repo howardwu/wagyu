@@ -7,7 +7,6 @@ use std::{
     str::FromStr
 };
 
-
 /// The interface for a generic address.
 pub trait Address:
     Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash

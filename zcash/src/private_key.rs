@@ -17,9 +17,9 @@ use zcash_primitives::keys::ExpandedSpendingKey;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P2PKHSpendingKey<N: ZcashNetwork> {
     /// The ECDSA private key
-    pub secret_key: secp256k1::SecretKey,
+    pub(super) secret_key: secp256k1::SecretKey,
     /// If true, the private key is serialized in compressed form
-    pub compressed: bool,
+    pub(super) compressed: bool,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -64,8 +64,8 @@ pub struct SproutSpendingKey {}
 
 #[derive(Clone)]
 pub struct SaplingSpendingKey {
-    pub(crate) spending_key: Option<[u8; 32]>,
-    pub(crate) expanded_spending_key: ExpandedSpendingKey<Bls12>,
+    pub(super) spending_key: Option<[u8; 32]>,
+    pub(super) expanded_spending_key: ExpandedSpendingKey<Bls12>,
 }
 
 impl Debug for SaplingSpendingKey {
@@ -133,7 +133,7 @@ pub enum SpendingKey<N: ZcashNetwork> {
 
 /// Represents a Zcash Private Key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZcashPrivateKey<N: ZcashNetwork>(pub(crate) SpendingKey<N>, PhantomData<N>);
+pub struct ZcashPrivateKey<N: ZcashNetwork>(SpendingKey<N>, PhantomData<N>);
 
 impl <N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type Address = ZcashAddress<N>;
@@ -160,6 +160,15 @@ impl <N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
 }
 
 impl <N: ZcashNetwork> ZcashPrivateKey<N> {
+    /// Returns a Zcash private key given a spending key.
+    pub fn from_spending_key(spending_key: SpendingKey<N>) -> Self {
+        Self(spending_key, PhantomData)
+    }
+
+    /// Returns the spending key of the Zcash private key.
+    pub fn to_spending_key(&self) -> SpendingKey<N> {
+        self.0.clone()
+    }
 
     /// Returns either a Zcash private key struct or errors.
     pub fn from(s: &str, format: &Format) -> Result<Self, PrivateKeyError> {
@@ -686,8 +695,8 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
-                let private_key = ZcashPrivateKey::<N>::from(&private_key, &address.format).unwrap();
-                test_to_address(&address, &address.format, &private_key);
+                let private_key = ZcashPrivateKey::<N>::from(&private_key, &address.format()).unwrap();
+                test_to_address(&address, &address.format(), &private_key);
             });
         }
 
@@ -766,8 +775,8 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
-                let private_key = ZcashPrivateKey::<N>::from(&private_key, &address.format).unwrap();
-                test_to_address(&address, &address.format, &private_key);
+                let private_key = ZcashPrivateKey::<N>::from(&private_key, &address.format()).unwrap();
+                test_to_address(&address, &address.format(), &private_key);
             });
         }
 

@@ -1,6 +1,8 @@
 use crate::address::{Address, AddressError};
-use crate::public_key::{PublicKey, PublicKeyError};
+use crate::derivation_path::{DerivationPath, DerivationPathError};
 use crate::extended_private_key::ExtendedPrivateKey;
+use crate::network::NetworkError;
+use crate::public_key::{PublicKey, PublicKeyError};
 
 use std::{fmt::{Debug, Display}, str::FromStr};
 
@@ -17,12 +19,16 @@ pub trait ExtendedPublicKey:
     + Sized
 {
     type Address: Address;
+    type DerivationPath: DerivationPath;
     type ExtendedPrivateKey: ExtendedPrivateKey;
     type Format;
     type PublicKey: PublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
-    fn from_extended_private_key(private_key: &Self::ExtendedPrivateKey) -> Self;
+    fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self;
+
+    /// Returns the extended public key for the given derivation path.
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError>;
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey;
@@ -37,6 +43,9 @@ pub enum ExtendedPublicKeyError {
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
+    #[fail(display = "{}", _0)]
+    DerivationPathError(DerivationPathError),
+
     #[fail(display = "invalid byte length: {}", _0)]
     InvalidByteLength(usize),
 
@@ -45,9 +54,6 @@ pub enum ExtendedPublicKeyError {
 
     #[fail(display = "invalid child number: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     InvalidChildNumber(u32, u32),
-
-    #[fail(display = "invalid derivation path: {{ expected: {:?}, found: {:?} }}", _0, _1)]
-    InvalidDerivationPath(String, String),
 
     #[fail(display = "invalid version bytes: {:?}", _0)]
     InvalidVersionBytes(Vec<u8>),
@@ -59,10 +65,25 @@ pub enum ExtendedPublicKeyError {
     Message(String),
 
     #[fail(display = "{}", _0)]
+    NetworkError(NetworkError),
+
+    #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
 
     #[fail(display = "unsupported format: {}", _0)]
     UnsupportedFormat(String)
+}
+
+impl From<DerivationPathError> for ExtendedPublicKeyError {
+    fn from(error: DerivationPathError) -> Self {
+        ExtendedPublicKeyError::DerivationPathError(error)
+    }
+}
+
+impl From<NetworkError> for ExtendedPublicKeyError {
+    fn from(error: NetworkError) -> Self {
+        ExtendedPublicKeyError::NetworkError(error)
+    }
 }
 
 impl From<PublicKeyError> for ExtendedPublicKeyError {
@@ -74,6 +95,12 @@ impl From<PublicKeyError> for ExtendedPublicKeyError {
 impl From<base58::FromBase58Error> for ExtendedPublicKeyError {
     fn from(error: base58::FromBase58Error) -> Self {
         ExtendedPublicKeyError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for ExtendedPublicKeyError {
+    fn from(error: bech32::Error) -> Self {
+        ExtendedPublicKeyError::Crate("bech32", format!("{:?}", error))
     }
 }
 

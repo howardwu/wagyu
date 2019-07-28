@@ -53,9 +53,9 @@ impl Format {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashAddress<N: ZcashNetwork> {
     /// The Zcash address
-    pub address: String,
+    address: String,
     /// The format of the address
-    pub format: Format,
+    format: Format,
     /// The network on which this address is usable
     _network: PhantomData<N>,
 }
@@ -70,7 +70,7 @@ impl <N: ZcashNetwork> Address for ZcashAddress<N> {
         private_key: &Self::PrivateKey,
         format: &Self::Format
     ) -> Result<Self, AddressError> {
-        match private_key.to_public_key().0 {
+        match private_key.to_public_key().to_viewing_key() {
             ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
             ViewingKey::P2SH(_) => Ok(Self::p2sh()),
             ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key)),
@@ -83,7 +83,7 @@ impl <N: ZcashNetwork> Address for ZcashAddress<N> {
         public_key: &Self::PublicKey,
         format: &Self::Format,
     ) -> Result<Self, AddressError> {
-        match &public_key.0 {
+        match &public_key.to_viewing_key() {
             ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
             ViewingKey::P2SH(_) => Ok(Self::p2sh()),
             ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key)),
@@ -159,12 +159,18 @@ impl <N: ZcashNetwork> ZcashAddress<N> {
         })
     }
 
+    /// Returns the diversifier of a given Zcash Sapling address.
     pub fn get_diversifier(address: &str) -> Result<[u8; 11], AddressError> {
         let address = Bech32::from_str(address)?;
         let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
         let mut diversifier = [0u8; 11];
         diversifier.copy_from_slice(&buffer[0..11]);
         Ok(diversifier)
+    }
+
+    /// Returns the format of the Monero address.
+    pub fn format(&self) -> Format {
+        self.format.clone()
     }
 }
 

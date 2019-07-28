@@ -29,12 +29,12 @@ impl Format {
     pub fn from_address(address: &[u8]) -> Result<Self, AddressError> {
         match address[0] {
             18 | 24 | 53 => Ok(Format::Standard),
-            42 | 36 | 63 => Ok(Format::Subaddress(u32::max_value(), u32::max_value())),
             19 | 25 | 54 => {
                 let mut data = [0u8; 8];
                 data.copy_from_slice(&address[65..73]);
                 Ok(Format::Integrated(data))
             },
+            42 | 36 | 63 => Ok(Format::Subaddress(u32::max_value(), u32::max_value())),
             _ => return Err(AddressError::InvalidPrefix(vec![address[0]]))
         }
     }
@@ -54,7 +54,7 @@ impl fmt::Display for Format {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroAddress<N: MoneroNetwork> {
     /// The Monero address
-    pub address: String,
+    address: String,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -69,17 +69,19 @@ impl <N: MoneroNetwork> Address for MoneroAddress<N> {
         private_key: &Self::PrivateKey,
         format: &Self::Format
     ) -> Result<Self, AddressError> {
-        let mut private_key = private_key.clone();
-        match (private_key.format, format) {
+        match (private_key.format(), format) {
             (Format::Standard, _) | (Format::Subaddress(_, _), Format::Subaddress(_, _)) => {
-                private_key.format = *format;
+                let private_key = Self::PrivateKey::from_private_spend_key(
+                    &hex::encode(private_key.to_private_spend_key()), format).unwrap();
+                Self::from_public_key(&private_key.to_public_key(), format)
             },
             (Format::Integrated(_), Format::Standard) |
             (Format::Integrated(_), Format::Integrated(_)) |
-            (Format::Subaddress(_, _), &Format::Standard) => {},
-            _ => return Err(AddressError::IncompatibleFormats(private_key.format.to_string(), format.to_string()))
-        };
-        Self::from_public_key(&private_key.to_public_key(), format)
+            (Format::Subaddress(_, _), &Format::Standard) => {
+                Self::from_public_key(&private_key.to_public_key(), format)
+            },
+            _ => return Err(AddressError::IncompatibleFormats(private_key.format().to_string(), format.to_string()))
+        }
     }
 
     /// Returns the address corresponding to the given Monero public key.
@@ -97,9 +99,8 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
         public_key: &MoneroPublicKey<N>,
         format: &Format
     ) -> Result<Self, AddressError> {
-
         let mut format = format;
-        match (public_key.format, format) {
+        match (public_key.format(), format) {
             (Format::Subaddress(_, _), Format::Subaddress(major, minor)) |
             (Format::Standard, Format::Subaddress(major, minor)) =>
                 if *major == 0 && *minor == 0 {
@@ -109,12 +110,12 @@ impl <N: MoneroNetwork> MoneroAddress<N> {
             (Format::Integrated(_), Format::Integrated(_)) |
             (Format::Standard, _) |
             (_, &Format::Standard) => {},
-            _ => return Err(AddressError::IncompatibleFormats(public_key.format.to_string(), format.to_string()))
+            _ => return Err(AddressError::IncompatibleFormats(public_key.format().to_string(), format.to_string()))
         };
 
         let mut bytes = vec![format.to_address_prefix::<N>()];
-        bytes.extend_from_slice(&public_key.spend_key);
-        bytes.extend_from_slice(&public_key.view_key);
+        bytes.extend_from_slice(&public_key.to_public_spend_key());
+        bytes.extend_from_slice(&public_key.to_public_view_key());
 
         let checksum_bytes = match format {
             Format::Standard | Format::Subaddress(_, _)=> &bytes[0..65],

@@ -10,11 +10,11 @@ use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroPublicKey<N: MoneroNetwork> {
     /// The public spending key
-    pub spend_key: [u8; 32],
+    spend_key: [u8; 32],
     /// The public viewing key
-    pub view_key: [u8; 32],
+    view_key: [u8; 32],
     /// Format
-    pub format: Format,
+    format: Format,
     /// PhantomData
     _network: PhantomData<N>
 }
@@ -26,15 +26,15 @@ impl <N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        match private_key.format {
+        match private_key.format() {
             Format::Subaddress(major, minor) if major != 0 || minor != 0 => {
                 let subaddress_view_key = private_key.clone().to_subaddress_private_view_key(major, minor);
                 Self::to_subaddress_public_key(private_key, subaddress_view_key)
             }
             _ => {
-                let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.spend_key);
-                let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.view_key);
-                Self { spend_key, view_key, format: private_key.format, _network: PhantomData }
+                let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_spend_key());
+                let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_view_key());
+                Self { spend_key, view_key, format: private_key.format(), _network: PhantomData }
             }
         }
     }
@@ -74,6 +74,21 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         }
     }
 
+    /// Returns the public spend key of the Monero public key.
+    pub fn to_public_spend_key(&self) -> [u8; 32] {
+        self.spend_key
+    }
+
+    /// Returns the public spend key of the Monero public key.
+    pub fn to_public_view_key(&self) -> [u8; 32] {
+        self.view_key
+    }
+
+    /// Returns the format of the Monero address.
+    pub fn format(&self) -> Format {
+        self.format.clone()
+    }
+
     fn scalar_mul_by_b_compressed(bits: &[u8; 32]) -> [u8; 32] {
         let point = &Scalar::from_bits(*bits) * &ED25519_BASEPOINT_TABLE;
         let compressed = *point.compress().as_bytes();
@@ -85,16 +100,16 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         private_key: &<Self as PublicKey>::PrivateKey,
         subaddress_private_view: [u8; 32]
     ) -> Self {
-        let standard_public_spend = &Scalar::from_bits(private_key.spend_key) * &ED25519_BASEPOINT_TABLE;
+        let standard_public_spend = &Scalar::from_bits(private_key.to_private_spend_key()) * &ED25519_BASEPOINT_TABLE;
         let mg = &Scalar::from_bits(subaddress_private_view) * &ED25519_BASEPOINT_TABLE;
 
         let subaddress_public_spend = standard_public_spend + mg;
-        let subaddress_public_view = &Scalar::from_bits(private_key.view_key) * subaddress_public_spend;
+        let subaddress_public_view = &Scalar::from_bits(private_key.to_private_view_key()) * subaddress_public_spend;
 
         Self {
             spend_key: *subaddress_public_spend.compress().as_bytes(),
             view_key: *subaddress_public_view.compress().as_bytes(),
-            format: private_key.format,
+            format: private_key.format(),
             _network: PhantomData
         }
     }

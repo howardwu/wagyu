@@ -17,9 +17,9 @@ use std::str::FromStr;
 /// Represents a Monero mnemonic
 pub struct MoneroMnemonic<N: MoneroNetwork, W: MoneroWordlist> {
     /// Initial 256-bit seed
-    pub seed: [u8; 32],
+    seed: [u8; 32],
     /// The mnemonic phrase
-    pub phrase: String,
+    phrase: String,
     /// PhantomData
     _network: PhantomData<N>,
     /// PhantomData
@@ -47,9 +47,9 @@ impl <N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     fn to_address(
         &self,
         _: Option<&str>,
-        format: &Self::Format
+        _: &Self::Format
     ) -> Result<Self::Address, MnemonicError> {
-        Ok(self.to_private_key(None)?.to_address(format)?)
+        Ok(self.to_private_key(None)?.to_address(&Format::Standard)?)
     }
 }
 
@@ -233,8 +233,8 @@ mod tests {
     ) {
         let mnemonic = MoneroMnemonic::<N, W>::from_phrase(phrase).unwrap();
         let private_key = mnemonic.to_private_key(None).unwrap();
-        assert_eq!(expected_private_spend_key, hex::encode(private_key.spend_key));
-        assert_eq!(expected_private_view_key, hex::encode(private_key.view_key));
+        assert_eq!(expected_private_spend_key, hex::encode(private_key.to_private_spend_key()));
+        assert_eq!(expected_private_view_key, hex::encode(private_key.to_private_view_key()));
     }
 
     mod english {

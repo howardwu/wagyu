@@ -27,9 +27,9 @@ const PBKDF2_BYTES: usize = 64;
 /// Represents a Bitcoin mnemonic
 pub struct BitcoinMnemonic<N: BitcoinNetwork, W: BitcoinWordlist> {
     /// Initial entropy in multiples of 32 bits
-    pub entropy: Vec<u8>,
+    entropy: Vec<u8>,
     /// The mnemonic phrase
-    pub phrase: String,
+    phrase: String,
     /// PhantomData
     _network: PhantomData<N>,
     /// PhantomData
@@ -45,7 +45,7 @@ impl <N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemoni
         &self,
         password: Option<&str>
     ) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
-        Ok(Self::ExtendedPrivateKey::new(self.to_seed(password)?.as_slice(), &Format::P2PKH)?)
+        Ok(Self::ExtendedPrivateKey::new_master(self.to_seed(password)?.as_slice(), &Format::P2PKH)?)
     }
 
     /// Returns the extended public key of the corresponding mnemonic.
@@ -64,18 +64,12 @@ impl <N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> 
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the private key of the corresponding mnemonic.
-    fn to_private_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PrivateKey, MnemonicError> {
+    fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_private_key())
     }
 
     /// Returns the public key of the corresponding mnemonic.
-    fn to_public_key(
-        &self,
-        password: Option<&str>
-    ) -> Result<Self::PublicKey, MnemonicError> {
+    fn to_public_key(&self, password: Option<&str>) -> Result<Self::PublicKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_public_key())
     }
 

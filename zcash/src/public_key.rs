@@ -16,9 +16,9 @@ use sapling_crypto::jubjub::JubjubBls12;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P2PKHViewingKey {
     /// The ECDSA public key
-    pub public_key: secp256k1::PublicKey,
+    pub(super) public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
-    pub compressed: bool
+    pub(super) compressed: bool
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -28,7 +28,7 @@ pub struct P2SHViewingKey {}
 pub struct SproutViewingKey {}
 
 #[derive(Debug, Clone)]
-pub struct SaplingViewingKey(pub(crate) FullViewingKey<Bls12>);
+pub struct SaplingViewingKey(pub(super) FullViewingKey<Bls12>);
 
 impl PartialEq for SaplingViewingKey {
     fn eq(&self, other: &Self) -> bool {
@@ -52,7 +52,7 @@ pub enum ViewingKey {
 
 ///Represents a Zcash public key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZcashPublicKey<N: ZcashNetwork>(pub(crate) ViewingKey, PhantomData<N>);
+pub struct ZcashPublicKey<N: ZcashNetwork>(ViewingKey, PhantomData<N>);
 
 impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     type Address = ZcashAddress<N>;
@@ -61,7 +61,7 @@ impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        match &private_key.0 {
+        match &private_key.to_spending_key() {
             SpendingKey::P2PKH(spending_key) => Self(ViewingKey::P2PKH(P2PKHViewingKey {
                 public_key: secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &spending_key.secret_key),
                 compressed: spending_key.compressed
@@ -77,6 +77,18 @@ impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     /// Returns the address of the corresponding private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         ZcashAddress::<N>::from_public_key(self, format)
+    }
+}
+
+impl <N: ZcashNetwork> ZcashPublicKey<N> {
+    /// Returns a Zcash public key given a viewing key.
+    pub fn from_viewing_key(viewing_key: ViewingKey) -> Self {
+        Self(viewing_key, PhantomData)
+    }
+
+    /// Returns the viewing key of the Zcash public key.
+    pub fn to_viewing_key(&self) -> ViewingKey {
+        self.0.clone()
     }
 }
 
@@ -155,7 +167,7 @@ mod tests {
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*expected_format, address.format);
+        assert_eq!(*expected_format, address.format());
     }
 
     fn test_to_str<N: ZcashNetwork>(expected_public_key: &str, public_key: &ZcashPublicKey<N>) {

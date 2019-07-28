@@ -1,7 +1,6 @@
 use crate::address::EthereumAddress;
 use crate::private_key::EthereumPrivateKey;
 use wagu_model::{
-    //    bytes::{FromBytes, ToBytes},
     Address,
     AddressError,
     PublicKey,
@@ -15,7 +14,7 @@ use std::str::FromStr;
 
 /// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EthereumPublicKey(pub(crate) secp256k1::PublicKey);
+pub struct EthereumPublicKey(secp256k1::PublicKey);
 
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
@@ -24,7 +23,7 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        Self(secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &private_key.0))
+        Self(secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &private_key.to_secp256k1_secret_key()))
     }
 
     /// Returns the address of the corresponding private key.
@@ -33,33 +32,17 @@ impl PublicKey for EthereumPublicKey {
     }
 }
 
-//impl FromBytes for EthereumPublicKey {
-//    #[inline]
-//    fn read<R: Read>(reader: R) -> IoResult<Self> {
-//        let mut f = reader;
-//        let mut buffer = Vec::new();
-//        f.read_to_end(&mut buffer)?;
-//
-//        let compressed: bool = match buffer.len() {
-//            33 => true,
-//            65 => false,
-//            len =>  { return Err(String::from_usize(len)); },
-//        };
-//
-//        let secp = secp256k1::Secp256k1::new();
-//        let public_key = secp256k1::PublicKey::from_slice(&secp, buffer.as_slice())?;
-//        Ok(Self { public_key, compressed })
-//    }
-//}
-//
-//impl ToBytes for EthereumPublicKey {
-//    #[inline]
-//    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
-//        let mut buf = Vec::new();
-//        self.write_into(&mut buf);
-//        buf
-//    }
-//}
+impl EthereumPublicKey {
+    /// Returns a public key given a secp256k1 public key.
+    pub fn from_secp256k1_public_key(public_key: secp256k1::PublicKey) -> Self {
+        Self(public_key)
+    }
+
+    /// Returns the secp256k1 public key of the public key
+    pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
+        self.0.clone()
+    }
+}
 
 impl FromStr for EthereumPublicKey {
     type Err = PublicKeyError;

@@ -13,11 +13,11 @@ use tiny_keccak::keccak256;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MoneroPrivateKey<N: MoneroNetwork> {
     /// The private spending key
-    pub spend_key: [u8; 32],
+    spend_key: [u8; 32],
     /// The private viewing key
-    pub view_key: [u8; 32],
+    view_key: [u8; 32],
     /// Format
-    pub format: Format,
+    format: Format,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -55,27 +55,21 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
 
         let mut s = [0u8; 32];
         s.copy_from_slice(seed.as_slice());
-
         let spend_key = Scalar::from_bytes_mod_order(s).to_bytes();
 
-        match format {
+        let format = match format {
             Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
-                Ok(Self {
-                    spend_key,
-                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-                    format: Format::Standard,
-                    _network: PhantomData
-                })
+                Format::Standard
             }
-            _ => {
-                Ok(Self {
-                    spend_key,
-                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-                    format: *format,
-                    _network: PhantomData
-                })
-            }
-        }
+            _ => { *format }
+        };
+
+        Ok(Self {
+            spend_key,
+            view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+            format,
+            _network: PhantomData
+        })
     }
 
     /// Returns a private key given a private spend key.
@@ -91,24 +85,19 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
         let mut spend_key = [0u8; 32];
         spend_key.copy_from_slice(key.as_slice());
 
-        match format {
+        let format = match format {
             Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => {
-                Ok(Self {
-                    spend_key,
-                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-                    format: Format::Standard,
-                    _network: PhantomData
-                })
+                Format::Standard
             }
-            _ => {
-                Ok(Self {
-                    spend_key,
-                    view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
-                    format: *format,
-                    _network: PhantomData
-                })
-            }
-        }
+            _ => { *format }
+        };
+
+        Ok(Self {
+            spend_key,
+            view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+            format,
+            _network: PhantomData
+        })
     }
 
     /// Update the private key format and returns a subaddress private view key.
@@ -125,6 +114,21 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
             self.format = Format::Subaddress(major, minor);
             Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes()
         }
+    }
+
+    /// Returns the private spend key of the Monero private key.
+    pub fn to_private_spend_key(&self) -> [u8; 32] {
+        self.spend_key
+    }
+
+    /// Returns the private spend key of the Monero private key.
+    pub fn to_private_view_key(&self) -> [u8; 32] {
+        self.view_key
+    }
+
+    /// Returns the format of the Monero address.
+    pub fn format(&self) -> Format {
+        self.format.clone()
     }
 }
 

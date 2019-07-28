@@ -48,8 +48,8 @@ impl BitcoinNetwork for Mainnet {
         format: &Format
     ) -> Result<Vec<u8>, ExtendedPrivateKeyError> {
         match format {
-            Format::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]), // xpriv
-            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // ypriv
+            Format::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]), // xprv
+            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // yprv
             _ => Err(ExtendedPrivateKeyError::UnsupportedFormat(format.to_string()))
         }
     }
