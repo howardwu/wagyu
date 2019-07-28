@@ -110,7 +110,7 @@ impl <N: MoneroNetwork> MoneroPublicKey<N> {
         Self {
             spend_key: *subaddress_public_spend.compress().as_bytes(),
             view_key: *subaddress_public_view.compress().as_bytes(),
-            format: private_key.format(),
+            format: Format::Subaddress(major, minor),
             _network: PhantomData
         }
     }
