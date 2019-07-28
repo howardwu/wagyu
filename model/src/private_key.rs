@@ -1,6 +1,7 @@
 use crate::address::{Address, AddressError};
 use crate::public_key::PublicKey;
 
+use rand::Rng;
 use std::{
     fmt::{Debug, Display},
     str::FromStr,
@@ -13,7 +14,7 @@ pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static 
     type PublicKey: PublicKey;
 
     /// Returns a randomly-generated private key.
-    fn new() -> Result<Self, PrivateKeyError>;
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError>;
 
     /// Returns the public key of the corresponding private key.
     fn to_public_key(&self) -> Self::PublicKey;
