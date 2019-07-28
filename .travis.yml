@@ -11,6 +11,8 @@ matrix:
         apt:
           packages:
             - libssl-dev
+      before_cache:
+        - cargo install cargo-tarpaulin -f
       after_success:
         - cargo tarpaulin --all --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
     - rust: beta
@@ -36,12 +38,6 @@ matrix:
 script:
   - cargo build --verbose
   - RUST_BACKTRACE=1 cargo test --all --verbose
-
-before_cache:
-  - |
-    if [[ $TEST_COVERAGE == 1 ]]; then
-      cargo install cargo-tarpaulin -f;
-    fi
 
 before_deploy:
   - |
