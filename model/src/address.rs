@@ -1,4 +1,4 @@
-use crate::private_key::PrivateKey;
+use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::{PublicKey, PublicKeyError};
 
 use std::{
@@ -62,18 +62,15 @@ pub enum AddressError {
     Message(String),
 
     #[fail(display = "{}", _0)]
+    PrivateKeyError(PrivateKeyError),
+
+    #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
 }
 
 impl From<&'static str> for AddressError {
     fn from(msg: &'static str) -> Self {
         AddressError::Message(msg.into())
-    }
-}
-
-impl From<PublicKeyError> for AddressError {
-    fn from(error: PublicKeyError) -> Self {
-        AddressError::PublicKeyError(error)
     }
 }
 
@@ -92,6 +89,18 @@ impl From<base58_monero::base58::Error> for AddressError {
 impl From<bech32::Error> for AddressError {
     fn from(error: bech32::Error) -> Self {
         AddressError::Crate("bech32", format!("{:?}", error))
+    }
+}
+
+impl From<PrivateKeyError> for AddressError {
+    fn from(error: PrivateKeyError) -> Self {
+        AddressError::PrivateKeyError(error)
+    }
+}
+
+impl From<PublicKeyError> for AddressError {
+    fn from(error: PublicKeyError) -> Self {
+        AddressError::PublicKeyError(error)
     }
 }
 

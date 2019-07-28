@@ -101,9 +101,8 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
     }
 
     /// Update the private key format and returns a subaddress private view key.
-    pub fn to_subaddress_private_view_key(&mut self, major: u32, minor: u32) -> [u8; 32] {
+    pub fn to_subaddress_private_view_key(&self, major: u32, minor: u32) -> [u8; 32] {
         if major == 0 && minor == 0 {
-            self.format = Format::Standard;
             [0u8; 32]
         } else {
             let mut derivation: Vec<u8> = b"SubAddr\x00"[..].into();
@@ -111,7 +110,6 @@ impl <N: MoneroNetwork> MoneroPrivateKey<N> {
             derivation.extend(&major.to_le_bytes());
             derivation.extend(&minor.to_le_bytes());
 
-            self.format = Format::Subaddress(major, minor);
             Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes()
         }
     }
@@ -483,9 +481,9 @@ mod tests {
         #[test]
         fn to_public_key() {
             KEYPAIRS.iter().for_each(|(seed, _, (public_spend_key, public_view_key), major, minor, _)| {
-                let mut private_key = MoneroPrivateKey::<N>::from_seed(seed, &Format::Standard).unwrap();
-                private_key.to_subaddress_private_view_key(*major, *minor);
                 let format = &Format::Subaddress(*major, *minor);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
+                private_key.to_subaddress_private_view_key(*major, *minor);
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                 test_to_public_key(&public_key, &private_key);
             });
@@ -494,9 +492,9 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(seed, _, _, major, minor, expected_address)| {
-                let mut private_key = MoneroPrivateKey::<N>::from_seed(seed, &Format::Standard).unwrap();
-                private_key.to_subaddress_private_view_key(*major, *minor);
                 let format = &Format::Subaddress(*major, *minor);
+                let private_key = MoneroPrivateKey::<N>::from_seed(seed, format).unwrap();
+                private_key.to_subaddress_private_view_key(*major, *minor);
                 test_to_address(expected_address, format, &private_key);
             });
         }

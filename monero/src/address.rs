@@ -72,7 +72,7 @@ impl <N: MoneroNetwork> Address for MoneroAddress<N> {
         match (private_key.format(), format) {
             (Format::Standard, _) | (Format::Subaddress(_, _), Format::Subaddress(_, _)) => {
                 let private_key = Self::PrivateKey::from_private_spend_key(
-                    &hex::encode(private_key.to_private_spend_key()), format).unwrap();
+                    &hex::encode(private_key.to_private_spend_key()), format)?;
                 Self::from_public_key(&private_key.to_public_key(), format)
             },
             (Format::Integrated(_), Format::Standard) |
