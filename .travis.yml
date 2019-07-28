@@ -6,7 +6,9 @@ env:
 matrix:
   include:
     - rust: stable
-      env: TARGET=x86_64-unknown-linux-musl
+      env: 
+        - TARGET=x86_64-unknown-linux-musl
+        - TEST_COVERAGE=1
       addons:
         apt:
           packages:
@@ -18,10 +20,14 @@ matrix:
           fi
     # deployments
     - env: DEPLOY=1 TARGET=x86_64-apple-darwin
-      script: cargo build --release --target $TARGET
+      script: 
+        - cargo build --release --target $TARGET
+        - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
     - env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
-      script: cargo build --release --target $TARGET
+      script:
+        - cargo build --release --target $TARGET
+        - RUST_BACKTRACE=1 cargo test --all --verbose
       addons:
         apt:
           packages:
@@ -30,21 +36,19 @@ matrix:
 script:
   - cargo build --verbose
   - RUST_BACKTRACE=1 cargo test --all --verbose
-  - RUST_BACKTRACE=1 cargo test --all --verbose
 
 before_deploy:
   - |
     name="wagu-$TRAVIS_TAG-$TARGET"
     mkdir $name
-    cp target/$TARGET/release/sccache $name/
-    cp README.md LICENSE $name/
+    cp target/$TARGET/release/wagu $name/
     tar czvf $name.tar.gz $name
     echo -n $(shasum -ba 256 "$name.tar.gz" | cut -d " " -f 1) > $name.tar.gz.sha256
 
 
 deploy:
   api_key:
-    secure: LXMQT+GSw6ZtPA0Q+hnh6RSanesSWukR0NjstnMtXFx+gx9efFd9vyeuvyl46yUNvP1yXoe/U3fjwpH9cPWNQSHvmHU0onm+uulkmZ1lAHIuC7AwVQX4VY0yoDBZhrRJYBfy9GGEFvgYuvMHoEd57p98Jc3P7deZnOZbeqX1IMvFYh9nqa5LsJwMIKWWd/TiIR5+TByKbcy0FKQfoD5iGdlQgTT+XvqQ9Akg7qH1JCHxH+mVxp3anVtEPt6/Oll/E6geVet0qv4aHZUVgirnZgz0ucp+oCe8Dc/GZs3USKMaSg58AJkH5XQXbFnYj2+eVI0WLCww2UoY765Zbb9TmzQq/6r0ZGGtRTS6vsljAl2pJrzQYhNg3taAtbvGM0oy9kDyE+toMolzajyeSWtNdoXF/aGg9q6dddaAQ3A3R2mrNOZyC5JHRtrxWAOwrLHyvtstqPmvxYfrdtceb8T9tR8TDEarMIatEDj1+0CKvsg9LGzlr1nlcRHKHooiYpYigmv6tlROQ+bVWRfDNknDv4xVvffiKDsTFvMNBIi2xjjJsX7EQzgAgkmqJqBjGLbyYzdGLzW1AV7WjmwFMtfpdGALBysQ2YA27Khyr/OqBM91Qi5HMIYxE+oqjT5y+1eCiV6e3xY1zo74CcRB8fkL2jB46SoBoYw3B4lCbryT/u4=
+    secure: "Wc4CI2DQ8EyfhHKc+nBzewCu2fAK1Fz2XlKBs02haxAnqoxi3uDjCCzlGOJmwMcg0DCvpKlyqtmMFV1i1/3zPTd+SKTMiuJQfuWhSAtDuKXyBKdiHe9mLzZqle5VSliiLLxCWuqgDeMdiU3+0zWIwjM3wwzyzzCnNg3N0H9KyuJE+0HFvgCmpSt1XilRbIl/D8ihXpZZqIz832/1EXtbHcWIpa7+dcjPuGA6GRXWccLgehBC6tR4e2CviFLsXZ1/B1cLcNZmCEj2yxkvbF913sBjXGK1Y5I9pihZ3w58ZBzbjqj5B23+WN6zUNsxE9TqsafJU/XRlcXvRI2NNxKMRHyVb8ZswJo+W21Kzi0AezHfHY+HI0ntcyutWXEFYTVxVwamYPisYkq6hZK6uS/58HXLh59FcHbn3xomRwKRAtuJ5rhosvGXBBfuvgo5azRkSkCdGwXwsdOM6kgP1wGoRm0bKUe1JlAkC51bWIWHhkKFjOmyjbCo05pqhP9UxV/6lNVt2aemY7I/c7EAKHk5VlRdA7AGsmFWivMr1KPc6HjZzl3/pcMWQlaklZNEevzgDdqIeTl5iFDSJfg02+gWoDV90pyk8NhdKK9jxlhIJMihZWrbcaqwOdNaw4DJSH4+tQ2qANp7GChySPYEdZdaA87dzvQMWbhnYkJqD/qKxpQ="
   file_glob: true
   file:
     - wagu-$TRAVIS_TAG-$TARGET.tar.gz
@@ -52,26 +56,12 @@ deploy:
   on:
     condition: $DEPLOY = 1
     tags: true
-    repo: ArgusHQ/wagu-release-test
+    repo: ArgusHQ/wagu
   provider: releases
   skip_cleanup: true
 
 before_cache:
   - |
-    if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
-      if [[ "$TARGET" == x86_64-unknown-linux-musl ]]; then
-            cargo install cargo-tarpaulin -f;
-        else
-            echo "not installing cargo-tarpaulin: not supported on $TARGET"
-        fi
+    if [[ $TEST_COVERAGE == 1 ]]; then
+      cargo install cargo-tarpaulin -f;
     fi
-
-branches:
-  only:
-    # release tags
-    - /^v\d+\.\d+\.\d+.*$/
-    - master
-
-notifications:
-  email:
-    on_success: never
