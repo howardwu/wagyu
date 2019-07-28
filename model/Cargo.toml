@@ -29,8 +29,5 @@ ripemd160 = { version = "0.8" }
 secp256k1 = { version = "0.14.1" }
 sha2 = { version = "0.8" }
 
-[dev-dependencies]
-hex = { version = "0.3.2" }
-
 [badges]
 travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
