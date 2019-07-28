@@ -29,7 +29,7 @@ fn main() {
                 .long("network")
                 .takes_value(true)
                 .possible_values(&network_vals)
-                .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"))
+                .help("Network of wallet(s) to generate"))
             .arg(Arg::with_name("count")
                 .short("n")
                 .long("count")
@@ -65,12 +65,6 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("monero")
             .about("Generate a Monero wallet (run with -h for additional options)")
-            .arg(Arg::with_name("network")
-                .short("N")
-                .long("network")
-                .takes_value(true)
-                .possible_values(&network_vals)
-                .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"))
             .arg(Arg::with_name("count")
                 .short("n")
                 .long("count")
@@ -80,6 +74,26 @@ fn main() {
                 .short("j")
                 .long("json")
                 .help("Enabling this flag prints the wallet in JSON format"))
+            .arg(Arg::with_name("network")
+                .short("N")
+                .long("network")
+                .takes_value(true)
+                .possible_values(&network_vals)
+                .help("Network of wallet(s) to generate"))
+            .arg(Arg::with_name("integrated")
+                .short("i")
+                .long("integrated")
+                .takes_value(true)
+                .value_name("Payment ID")
+                .help("Enabling this flag generates a wallet with an integrated address - Requires a paymentID"))
+            .arg(Arg::with_name("subaddress")
+                .short("s")
+                .long("subaddress")
+                .takes_value(true)
+                .value_names(&["Major index", "Minor index"])
+                .conflicts_with("integrated")
+                .number_of_values(2)
+                .help("Enabling this flag generates a wallet with a subaddress - Requires a major (account) and minor index"))
         )
         .subcommand(SubCommand::with_name("zcash")
             .about("Generate a Zcash wallet (run with -h for additional options)")
@@ -88,7 +102,7 @@ fn main() {
                 .long("network")
                 .takes_value(true)
                 .possible_values(&network_vals)
-                .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"))
+                .help("Network of wallet(s) to generate"))
             .arg(Arg::with_name("count")
                 .short("n")
                 .long("count")
@@ -134,13 +148,24 @@ fn main() {
             let json = monero_matches.is_present("json");
             let count = clap::value_t!(monero_matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
 
+            let monero_address_type = if monero_matches.is_present("subaddress") {
+                let indexes: Vec<u32> = monero_matches.values_of("subaddress").unwrap().into_iter().map(|index| index.to_owned().parse().unwrap()).collect();
+                MoneroFormat::Subaddress(indexes[0], indexes[1])
+            } else if monero_matches.is_present("integrated") {
+                let mut payment_id = [0u8; 8];
+                payment_id.copy_from_slice(&hex::decode(monero_matches.value_of("integrated").unwrap()).unwrap());
+                MoneroFormat::Integrated(payment_id)
+            } else {
+                MoneroFormat::Standard
+            };
+
             let testnet = match monero_matches.value_of("network") {
                 Some("mainnet") => false,
                 Some("testnet") => true,
                 _ => false,
             };
 
-            print_monero_wallet(count, testnet, json);
+            print_monero_wallet(count, testnet, &monero_address_type, json);
         },
         ("zcash", Some(zcash_matches)) => {
             let json = zcash_matches.is_present("json");
@@ -242,7 +267,7 @@ fn print_ethereum_wallet(count: usize, json: bool) {
     }
 }
 
-fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
+fn print_monero_wallet(count: usize, testnet: bool, format: &MoneroFormat, json: bool) {
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
@@ -250,10 +275,9 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
         network: String,
     };
 
-    // TODO (howardwu): Add support for all Monero formats.
     let wallet = if testnet {
         let private_key = MoneroPrivateKey::<MoneroTestnet>::new().unwrap();
-        let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
+        let address = MoneroAddress::from_private_key(&private_key, format).unwrap();
 
         Wallet {
             private_key: private_key.to_string(),
@@ -262,7 +286,7 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
         }
     } else {
         let private_key = MoneroPrivateKey::<MoneroMainnet>::new().unwrap();
-        let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
+        let address = MoneroAddress::from_private_key(&private_key, format).unwrap();
 
         Wallet {
             private_key: private_key.to_string(),
