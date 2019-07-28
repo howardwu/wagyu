@@ -17,8 +17,8 @@ impl MoneroNetwork for Stagenet {
     fn to_address_prefix(format: &Format) -> u8 {
         match format {
             Format::Standard => 24,
-            Format::Integrated => 25,
-            Format::Subaddress => 36
+            Format::Integrated(_) => 25,
+            Format::Subaddress(_, _) => 36
         }
     }
 
