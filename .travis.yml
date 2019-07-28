@@ -50,6 +50,7 @@ before_deploy:
 deploy:
   api_key:
     secure: "Wc4CI2DQ8EyfhHKc+nBzewCu2fAK1Fz2XlKBs02haxAnqoxi3uDjCCzlGOJmwMcg0DCvpKlyqtmMFV1i1/3zPTd+SKTMiuJQfuWhSAtDuKXyBKdiHe9mLzZqle5VSliiLLxCWuqgDeMdiU3+0zWIwjM3wwzyzzCnNg3N0H9KyuJE+0HFvgCmpSt1XilRbIl/D8ihXpZZqIz832/1EXtbHcWIpa7+dcjPuGA6GRXWccLgehBC6tR4e2CviFLsXZ1/B1cLcNZmCEj2yxkvbF913sBjXGK1Y5I9pihZ3w58ZBzbjqj5B23+WN6zUNsxE9TqsafJU/XRlcXvRI2NNxKMRHyVb8ZswJo+W21Kzi0AezHfHY+HI0ntcyutWXEFYTVxVwamYPisYkq6hZK6uS/58HXLh59FcHbn3xomRwKRAtuJ5rhosvGXBBfuvgo5azRkSkCdGwXwsdOM6kgP1wGoRm0bKUe1JlAkC51bWIWHhkKFjOmyjbCo05pqhP9UxV/6lNVt2aemY7I/c7EAKHk5VlRdA7AGsmFWivMr1KPc6HjZzl3/pcMWQlaklZNEevzgDdqIeTl5iFDSJfg02+gWoDV90pyk8NhdKK9jxlhIJMihZWrbcaqwOdNaw4DJSH4+tQ2qANp7GChySPYEdZdaA87dzvQMWbhnYkJqD/qKxpQ="
+  draft: true
   file_glob: true
   file:
     - wagu-$TRAVIS_TAG-$TARGET.tar.gz
