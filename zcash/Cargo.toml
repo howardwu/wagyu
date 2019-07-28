@@ -23,7 +23,7 @@ pairing = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" 
 sapling-crypto = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
 zcash_primitives = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
 
-bech32 = { version = "0.6" }
+bech32 = { version = "0.7" }
 base58 = { version = "0.1" }
 hex = { version = "0.3.2" }
 rand = { version = "0.7" }

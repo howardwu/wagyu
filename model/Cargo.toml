@@ -19,7 +19,7 @@ edition = "2018"
 [dependencies]
 base58 = { version = "0.1" }
 base58-monero = { version = "0.1.1" }
-bech32 = { version = "0.6" }
+bech32 = { version = "0.7" }
 byteorder = { version = "1" }
 crypto-mac = { version = "0.7.0" }
 failure = { version = "0.1.5" }
