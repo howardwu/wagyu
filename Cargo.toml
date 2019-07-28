@@ -38,7 +38,7 @@ zcash = { path = "./zcash" }
 
 arrayvec = "0.4.7"
 base58 = "0.1"
-clap = "~2.27.0"
+clap = "~2.33.0"
 digest = "0.7.5"
 either = "1.5.0"
 lazy_static = "1.1.0"
