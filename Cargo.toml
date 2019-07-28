@@ -36,16 +36,18 @@ wagu-model = { path = "./model" }
 monero = { path = "./monero" }
 zcash = { path = "./zcash" }
 
-arrayvec = "0.4.7"
-base58 = "0.1"
-clap = "~2.33.0"
-digest = "0.7.5"
-either = "1.5.0"
-lazy_static = "1.1.0"
-safemem = "0.3.0"
+arrayvec = { version = "0.4.7" }
+base58 = { version = "0.1" }
+clap = { version = "~2.33.0" }
+digest = { version = "0.7.5" }
+either = { version = "1.5.0" }
+lazy_static = { version = "1.1.0" }
+rand = { version = "0.7" }
+rand_core = { version = "0.5.0" }
+safemem = { version = "0.3.0" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tiny-keccak = "1.4"
+serde_json = { version = "1.0" }
+tiny-keccak = { version = "1.4" }
 
 [profile.release]
 opt-level = 3

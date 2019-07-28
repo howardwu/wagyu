@@ -12,6 +12,8 @@ use zcash::address::Format as ZcashFormat;
 use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashPrivateKey};
 
 use clap::{App, Arg};
+use rand::rngs::StdRng;
+use rand_core::SeedableRng;
 use serde::Serialize;
 use std::marker::PhantomData;
 
@@ -109,7 +111,8 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
     };
 
     let wallet = if testnet {
-        let private_key = BitcoinPrivateKey::<BitcoinTestnet>::new().unwrap();
+        let rng = &mut StdRng::from_entropy();
+        let private_key = BitcoinPrivateKey::<BitcoinTestnet>::new(rng).unwrap();
         let address = BitcoinAddress::from_private_key(&private_key, &format).unwrap();
 
         Wallet {
@@ -119,7 +122,8 @@ fn print_bitcoin_wallet(count: usize, testnet: bool, format: &BitcoinFormat, jso
             compressed: private_key.is_compressed(),
         }
     } else {
-        let private_key = BitcoinPrivateKey::<BitcoinMainnet>::new().unwrap();
+        let rng = &mut StdRng::from_entropy();
+        let private_key = BitcoinPrivateKey::<BitcoinMainnet>::new(rng).unwrap();
         let address = BitcoinAddress::from_private_key(&private_key, &format).unwrap();
 
         Wallet {
@@ -154,7 +158,8 @@ fn print_ethereum_wallet(count: usize, json: bool) {
         address: String,
     };
 
-    let private_key = EthereumPrivateKey::new().unwrap();
+    let rng = &mut StdRng::from_entropy();
+    let private_key = EthereumPrivateKey::new(rng).unwrap();
     let address = EthereumAddress::from_private_key(&private_key, &PhantomData).unwrap();
 
     let wallet = Wallet {
@@ -187,7 +192,8 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
 
     // TODO (howardwu): Add support for all Monero formats.
     let wallet = if testnet {
-        let private_key = MoneroPrivateKey::<MoneroTestnet>::new().unwrap();
+        let rng = &mut StdRng::from_entropy();
+        let private_key = MoneroPrivateKey::<MoneroTestnet>::new(rng).unwrap();
         let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
 
         Wallet {
@@ -196,7 +202,8 @@ fn print_monero_wallet(count: usize, testnet: bool, json: bool) {
             network: "testnet".into(),
         }
     } else {
-        let private_key = MoneroPrivateKey::<MoneroMainnet>::new().unwrap();
+        let rng = &mut StdRng::from_entropy();
+        let private_key = MoneroPrivateKey::<MoneroMainnet>::new(rng).unwrap();
         let address = MoneroAddress::from_private_key(&private_key, &MoneroFormat::Standard).unwrap();
 
         Wallet {
@@ -230,7 +237,8 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
     };
 
     let wallet = if testnet {
-        let private_key = ZcashPrivateKey::<ZcashTestnet>::new().unwrap();
+        let rng = &mut StdRng::from_entropy();
+        let private_key = ZcashPrivateKey::<ZcashTestnet>::new(rng).unwrap();
         let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
 
         Wallet {
@@ -239,7 +247,8 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
             network: "testnet".into(),
         }
     } else {
-        let private_key = ZcashPrivateKey::<ZcashMainnet>::new().unwrap();
+        let rng = &mut StdRng::from_entropy();
+        let private_key = ZcashPrivateKey::<ZcashMainnet>::new(rng).unwrap();
         let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
 
         Wallet {

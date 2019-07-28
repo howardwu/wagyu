@@ -8,8 +8,8 @@ use wagu_model::{
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
+use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
-use rand::{Rng, rngs::StdRng};
 use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
 use std::fmt;
