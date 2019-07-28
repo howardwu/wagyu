@@ -1,20 +1,13 @@
 use crate::address::{Address, AddressError};
 use crate::public_key::PublicKey;
 
-use std::{fmt::{Debug, Display}, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 /// The interface for a generic private key.
-pub trait PrivateKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type Format;
     type PublicKey: PublicKey;
@@ -31,7 +24,6 @@ pub trait PrivateKey:
 
 #[derive(Debug, Fail)]
 pub enum PrivateKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 

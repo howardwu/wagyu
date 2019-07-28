@@ -1,7 +1,7 @@
 use std::{
     fmt,
     fmt::{Debug, Display},
-    str::FromStr
+    str::FromStr,
 };
 
 /// The interface for a generic derivation path.
@@ -9,7 +9,6 @@ pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'sta
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum DerivationPathError {
-
     #[fail(display = "expected hardened path")]
     ExpectedHardenedPath,
 
@@ -93,11 +92,11 @@ impl FromStr for ChildIndex {
     fn from_str(inp: &str) -> Result<Self, Self::Err> {
         Ok(match inp.chars().last().map_or(false, |l| l == '\'' || l == 'h') {
             true => Self::from_hardened(
-                inp[0..inp.len() - 1].parse().map_err(|_| DerivationPathError::InvalidChildNumberFormat)?
+                inp[0..inp.len() - 1]
+                    .parse()
+                    .map_err(|_| DerivationPathError::InvalidChildNumberFormat)?,
             )?,
-            false => Self::from_normal(
-                inp.parse().map_err(|_| DerivationPathError::InvalidChildNumberFormat)?
-            )?,
+            false => Self::from_normal(inp.parse().map_err(|_| DerivationPathError::InvalidChildNumberFormat)?)?,
         })
     }
 }

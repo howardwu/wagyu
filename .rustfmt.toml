@@ -1,12 +1,16 @@
-# https://github.com/rust-lang/rustfmt/blob/master/Configurations.md
+## https://github.com/rust-lang/rustfmt/blob/master/Configurations.md
+
+## Stable configurations
 edition = "2018"
-format_code_in_doc_comments=true
 max_width = 120
 merge_derives = true
-merge_imports = true
-normalize_comments = true
-overflow_delimited_expr = true
-reorder_impl_items = true
 use_field_init_shorthand = true
 use_try_shorthand = true
-version = "Two"
+
+## Nightly configurations
+# format_code_in_doc_comments=true
+# merge_imports = true
+# normalize_comments = true
+# overflow_delimited_expr = true
+# reorder_impl_items = true
+# version = "Two"

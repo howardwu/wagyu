@@ -6,10 +6,10 @@ use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
 use pairing::bls12_381::Bls12;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
-use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
-use zcash_primitives::{JUBJUB, keys::FullViewingKey};
+use std::{fmt, fmt::Display};
+use zcash_primitives::{keys::FullViewingKey, JUBJUB};
 
 use sapling_crypto::jubjub::JubjubBls12;
 
@@ -18,7 +18,7 @@ pub struct P2PKHViewingKey {
     /// The ECDSA public key
     pub(super) public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
-    pub(super) compressed: bool
+    pub(super) compressed: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -54,7 +54,7 @@ pub enum ViewingKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZcashPublicKey<N: ZcashNetwork>(ViewingKey, PhantomData<N>);
 
-impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
+impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     type Address = ZcashAddress<N>;
     type Format = Format;
     type PrivateKey = ZcashPrivateKey<N>;
@@ -62,15 +62,25 @@ impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         match &private_key.to_spending_key() {
-            SpendingKey::P2PKH(spending_key) => Self(ViewingKey::P2PKH(P2PKHViewingKey {
-                public_key: secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &spending_key.secret_key),
-                compressed: spending_key.compressed
-            }), PhantomData),
+            SpendingKey::P2PKH(spending_key) => Self(
+                ViewingKey::P2PKH(P2PKHViewingKey {
+                    public_key: secp256k1::PublicKey::from_secret_key(
+                        &secp256k1::Secp256k1::new(),
+                        &spending_key.secret_key,
+                    ),
+                    compressed: spending_key.compressed,
+                }),
+                PhantomData,
+            ),
             SpendingKey::P2SH(_) => Self(ViewingKey::P2SH(P2SHViewingKey {}), PhantomData),
             SpendingKey::Sprout(_) => Self(ViewingKey::Sprout(SproutViewingKey {}), PhantomData),
-            SpendingKey::Sapling(spending_key) => Self(ViewingKey::Sapling(SaplingViewingKey(
-                FullViewingKey::<Bls12>::from_expanded_spending_key(&spending_key.expanded_spending_key, &JUBJUB)
-            )), PhantomData)
+            SpendingKey::Sapling(spending_key) => Self(
+                ViewingKey::Sapling(SaplingViewingKey(FullViewingKey::<Bls12>::from_expanded_spending_key(
+                    &spending_key.expanded_spending_key,
+                    &JUBJUB,
+                ))),
+                PhantomData,
+            ),
         }
     }
 
@@ -80,7 +90,7 @@ impl <N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     }
 }
 
-impl <N: ZcashNetwork> ZcashPublicKey<N> {
+impl<N: ZcashNetwork> ZcashPublicKey<N> {
     /// Returns a Zcash public key given a viewing key.
     pub fn from_viewing_key(viewing_key: ViewingKey) -> Self {
         Self(viewing_key, PhantomData)
@@ -92,26 +102,29 @@ impl <N: ZcashNetwork> ZcashPublicKey<N> {
     }
 }
 
-impl <N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
+impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         match public_key.len() {
-            66 | 130 => Ok(Self(ViewingKey::P2PKH(P2PKHViewingKey {
-                public_key: secp256k1::PublicKey::from_str(public_key)?,
-                compressed: public_key.len() == 66
-            }), PhantomData)),
+            66 | 130 => Ok(Self(
+                ViewingKey::P2PKH(P2PKHViewingKey {
+                    public_key: secp256k1::PublicKey::from_str(public_key)?,
+                    compressed: public_key.len() == 66,
+                }),
+                PhantomData,
+            )),
             192 => {
                 let data = hex::decode(public_key)?;
                 let fvk = FullViewingKey::read(&data[..], &JubjubBls12::new())?;
                 Ok(Self(ViewingKey::Sapling(SaplingViewingKey(fvk)), PhantomData))
-            },
-            _ => Err(PublicKeyError::InvalidCharacterLength(public_key.len()))
+            }
+            _ => Err(PublicKeyError::InvalidCharacterLength(public_key.len())),
         }
     }
 }
 
-impl <N: ZcashNetwork> Display for ZcashPublicKey<N> {
+impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             ViewingKey::P2PKH(p2pkh) => {
@@ -124,13 +137,13 @@ impl <N: ZcashNetwork> Display for ZcashPublicKey<N> {
                         write!(f, "{:02x}", s)?;
                     }
                 }
-            },
+            }
             ViewingKey::Sapling(sapling) => {
                 for s in &sapling.0.to_bytes()[..] {
                     write!(f, "{:02x}", s)?;
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
         Ok(())
     }
@@ -143,7 +156,7 @@ mod tests {
 
     fn test_from_private_key<N: ZcashNetwork>(
         expected_public_key: &ZcashPublicKey<N>,
-        private_key: &ZcashPrivateKey<N>
+        private_key: &ZcashPrivateKey<N>,
     ) {
         let public_key = ZcashPublicKey::<N>::from_private_key(private_key);
         assert_eq!(*expected_public_key, public_key);
@@ -152,17 +165,13 @@ mod tests {
     fn test_to_address<N: ZcashNetwork>(
         expected_address: &ZcashAddress<N>,
         expected_format: &Format,
-        public_key: &ZcashPublicKey<N>
+        public_key: &ZcashPublicKey<N>,
     ) {
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str<N: ZcashNetwork>(
-        expected_public_key: &str,
-        expected_address: &str,
-        expected_format: &Format,
-    ) {
+    fn test_from_str<N: ZcashNetwork>(expected_public_key: &str, expected_address: &str, expected_format: &Format) {
         let public_key = ZcashPublicKey::<N>::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
@@ -183,28 +192,28 @@ mod tests {
             (
                 "L3a3yRcYATnZQt7ams14Pe5KCyRzrrCSejDyeQzHXGntToffVH4g",
                 "0310d63f8c2f0a6efd13ce8a77776de26eba1816f73aa73e73a4da3f2368fcc949",
-                "t1JwBjJWgNQVqWxGha2RsPZMhVGgfRg2pod"
+                "t1JwBjJWgNQVqWxGha2RsPZMhVGgfRg2pod",
             ),
             (
                 "Kx7f3xE2TmhczSkFUxxSajE2vuuLrrqinAbTZBxqxHj6XGbhoyrQ",
                 "02f4bf56c9c8389b04752236a4f2419367e3a4e36fe80da6162a0b530ca91262b0",
-                "t1VnZLVwvaUsnYt34XJHNTu24wn3kD8RwsE"
+                "t1VnZLVwvaUsnYt34XJHNTu24wn3kD8RwsE",
             ),
             (
                 "L46n9WGR671oANndbkxBBz9orQ36TQu98zeRJmp41tqk3HM6UpJk",
                 "031347c183c608c629e8bc0ad76718cc9f2a1ee9e53d45862a1b9c8fad25f8ab5b",
-                "t1N8HuTxFm9qS7yQCi3TsMGCQ8kPPTx5Me7"
+                "t1N8HuTxFm9qS7yQCi3TsMGCQ8kPPTx5Me7",
             ),
             (
                 "L2AMjT43hZQGATgtkakVMMMEguoJLwDAcZJVg1zsqjWeWaC4cTVd",
                 "03a0d8ab54a080f6e085777c2f5432b22b3543ad421aecc3f2136bcd2e1e2a59e4",
-                "t1PUKYyoqPZw43CHqjquU9PZE1GEvmHNbPa"
+                "t1PUKYyoqPZw43CHqjquU9PZE1GEvmHNbPa",
             ),
             (
                 "L53GxzD5rVaX6jY5ig1qNBqur5WyAeFn8sCo9VwU4J717ewDbgc6",
                 "020ceda15424ec7159f7ac5f6ad2654c93ab4cae7f9419de7aae39967f97907fd7",
-                "t1TqidZPmPSJsr1wcMuYwDDaa7D9ow5sWMx"
-            )
+                "t1TqidZPmPSJsr1wcMuYwDDaa7D9ow5sWMx",
+            ),
         ];
 
         #[test]
@@ -228,10 +237,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
             });
         }
 
@@ -298,10 +304,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
             });
         }
 
@@ -323,28 +326,28 @@ mod tests {
             (
                 "cNG7sM13VvGrhKgepLeEiiQAERXpGB6j5NuRwhh6sLh2skMTQf7M",
                 "02d327c40e543a08c17cda94d0b9660520bd075151280e487294e94eced3a283df",
-                "tmWT3bvWCHQkAXXucPjWHqLs9EyWUDdzSuN"
+                "tmWT3bvWCHQkAXXucPjWHqLs9EyWUDdzSuN",
             ),
             (
                 "cQXFXQHBzCuPbKYdeKERGeMrh8TJAsos7TLYDamQLXJiXY9sUkY6",
                 "038a2754d1b25a7d0cb3518ea92ca07de0fc21a56d920be6ca10857893c48989fb",
-                "tmAs578aq6jaXqmnXRrhWpjJsySFf7eXb5J"
+                "tmAs578aq6jaXqmnXRrhWpjJsySFf7eXb5J",
             ),
             (
                 "cQNALaabLLxMzdBkbCZvcTJtyvQ5zg4UhhskMk5R8Wu1ymSXCLsX",
                 "0309341fa999f0f2951eb9867f84b55781904fe2228b8ffc8dc1a8a47e1c357957",
-                "tmD8R6k2mTfTwGG24w5SBeAwQnqKGFx3cSg"
+                "tmD8R6k2mTfTwGG24w5SBeAwQnqKGFx3cSg",
             ),
             (
                 "cS6qPDRjncjCAe95SGKH81491NGkwzWqhAsGTEzkgVNC6ZdBpB4M",
                 "024e12c05184403e0243a1563b9ebaeda7b529bf1306abe55827d363697be936a4",
-                "tmPNWe7d4Hvkh4TEZ6Xd1ZQBje7VNQQ2Anb"
+                "tmPNWe7d4Hvkh4TEZ6Xd1ZQBje7VNQQ2Anb",
             ),
             (
                 "cRRjNZuyYu8aiqVLRLvj7PqTWKLELK2N257AgSvmPzMjfJ44oWtb",
                 "03d08c6748dcad37dbcad05d4cde25234107785a1c19b6edda8bfc199c91877d7d",
-                "tmRdRE5JAX6KX3c11GVgqc5R6JBRtfbuk8i"
-            )
+                "tmRdRE5JAX6KX3c11GVgqc5R6JBRtfbuk8i",
+            ),
         ];
 
         #[test]
@@ -368,10 +371,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
             });
         }
 
@@ -438,10 +438,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
             });
         }
 
@@ -501,7 +498,11 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::<N>::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())), &public_key);
+                test_to_address(
+                    &expected_address,
+                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())),
+                    &public_key,
+                );
             });
         }
 
@@ -511,7 +512,8 @@ mod tests {
                 test_from_str::<N>(
                     expected_public_key,
                     expected_address,
-                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())));
+                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
+                );
             });
         }
 
@@ -571,7 +573,11 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::<N>::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())), &public_key);
+                test_to_address(
+                    &expected_address,
+                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())),
+                    &public_key,
+                );
             });
         }
 
@@ -581,7 +587,8 @@ mod tests {
                 test_from_str::<N>(
                     expected_public_key,
                     expected_address,
-                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())));
+                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
+                );
             });
         }
 
@@ -596,7 +603,6 @@ mod tests {
 
     #[test]
     fn test_p2pkh_invalid() {
-
         type N = Mainnet;
 
         // Invalid public key length
@@ -610,11 +616,11 @@ mod tests {
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db";
         assert!(ZcashPublicKey::<N>::from_str(public_key).is_err());
 
-        let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44";
+        let public_key =
+            "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44";
         assert!(ZcashPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5";
         assert!(ZcashPublicKey::<N>::from_str(public_key).is_err());
-
     }
 }

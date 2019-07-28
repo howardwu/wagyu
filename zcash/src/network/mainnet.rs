@@ -18,19 +18,19 @@ impl ZcashNetwork for Mainnet {
             Format::P2PKH => vec![0x1C, 0xB8],
             Format::P2SH => vec![0x1C, 0xBD],
             Format::Sprout => vec![0x16, 0x9A],
-            Format::Sapling(_) => "zs".as_bytes().to_vec()
+            Format::Sapling(_) => "zs".as_bytes().to_vec(),
         }
     }
 
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, AddressError> {
         if prefix.len() < 2 {
-            return Err(AddressError::InvalidPrefixLength(prefix.len()))
+            return Err(AddressError::InvalidPrefixLength(prefix.len()));
         }
 
         match prefix[1] {
             0xB8 | 0xBD | 0x9A | 0x73 => Ok(Self),
-            _ => return Err(AddressError::InvalidPrefix(prefix.clone()))
+            _ => return Err(AddressError::InvalidPrefix(prefix.clone())),
         }
     }
 
@@ -43,7 +43,7 @@ impl ZcashNetwork for Mainnet {
     fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0x80 => Ok(Self),
-            _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix]))
+            _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix])),
         }
     }
 
@@ -56,7 +56,7 @@ impl ZcashNetwork for Mainnet {
     fn from_extended_private_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
         match prefix {
             "secret-extended-key-main" => Ok(Self),
-            _ => return Err(NetworkError::InvalidExtendedPrivateKeyPrefix(prefix.into()))
+            _ => return Err(NetworkError::InvalidExtendedPrivateKeyPrefix(prefix.into())),
         }
     }
 
@@ -69,7 +69,7 @@ impl ZcashNetwork for Mainnet {
     fn from_extended_public_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
         match prefix {
             "zviews" => Ok(Self),
-            _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into()))
+            _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into())),
         }
     }
 }
@@ -80,7 +80,7 @@ impl FromStr for Mainnet {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "mainnet" => Ok(Self),
-            _ => Err(NetworkError::InvalidNetwork(s.into()))
+            _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
 }

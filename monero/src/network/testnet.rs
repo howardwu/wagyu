@@ -18,7 +18,7 @@ impl MoneroNetwork for Testnet {
         match format {
             Format::Standard => 53,
             Format::Integrated(_) => 54,
-            Format::Subaddress(_, _) => 63
+            Format::Subaddress(_, _) => 63,
         }
     }
 
@@ -27,7 +27,7 @@ impl MoneroNetwork for Testnet {
     fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
         match prefix {
             53 | 54 | 63 => Ok(Self),
-            _ => Err(AddressError::InvalidPrefix(vec![prefix]))
+            _ => Err(AddressError::InvalidPrefix(vec![prefix])),
         }
     }
 }
@@ -38,7 +38,7 @@ impl FromStr for Testnet {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "testnet" => Ok(Self),
-            _ => Err(NetworkError::InvalidNetwork(s.into()))
+            _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
 }

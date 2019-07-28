@@ -18,7 +18,7 @@ impl MoneroNetwork for Stagenet {
         match format {
             Format::Standard => 24,
             Format::Integrated(_) => 25,
-            Format::Subaddress(_, _) => 36
+            Format::Subaddress(_, _) => 36,
         }
     }
 
@@ -27,7 +27,7 @@ impl MoneroNetwork for Stagenet {
     fn from_address_prefix(prefix: u8) -> Result<Self, AddressError> {
         match prefix {
             24 | 25 | 36 => Ok(Self),
-            _ => Err(AddressError::InvalidPrefix(vec![prefix]))
+            _ => Err(AddressError::InvalidPrefix(vec![prefix])),
         }
     }
 }
@@ -38,7 +38,7 @@ impl FromStr for Stagenet {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "stagenet" => Ok(Self),
-            _ => Err(NetworkError::InvalidNetwork(s.into()))
+            _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
 }

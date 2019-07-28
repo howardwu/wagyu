@@ -6,10 +6,10 @@ use bitcoin::address::Format as BitcoinFormat;
 use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
-use monero::{MoneroAddress, MoneroPrivateKey, Mainnet as MoneroMainnet, Testnet as MoneroTestnet};
+use monero::{Mainnet as MoneroMainnet, MoneroAddress, MoneroPrivateKey, Testnet as MoneroTestnet};
 use wagu_model::{Address, PrivateKey};
 use zcash::address::Format as ZcashFormat;
-use zcash::{ZcashAddress, ZcashPrivateKey, Mainnet as ZcashMainnet, Testnet as ZcashTestnet};
+use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashPrivateKey};
 
 use clap::{App, Arg};
 use serde::Serialize;
@@ -21,44 +21,58 @@ fn main() {
         .version("v0.6.0")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
         .author("Argus <team@argus.dev>")
-        .arg(Arg::with_name("currency")
-            .required(true)
-            .help("Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)"))
-        .arg(Arg::with_name("network")
-            .short("N")
-            .long("network")
-            .takes_value(true)
-            .possible_values(&network_vals)
-            .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"))
-        .arg(Arg::with_name("count")
-            .short("n")
-            .long("count")
-            .takes_value(true)
-            .help("Number of wallets to generate"))
-        .arg(Arg::with_name("compressed")
-            .short("c")
-            .long("compressed")
-            .help("Enabling this flag generates a wallet which corresponds to a compressed public key"))
-        .arg(Arg::with_name("json")
-            .short("j")
-            .long("json")
-            .help("Enabling this flag prints the wallet in JSON format"))
-        .arg(Arg::with_name("segwit")
-            .long("segwit")
-            .conflicts_with("network")
-            .help("Enabling this flag generates a wallet with a SegWit address"))
-        .arg(Arg::with_name("bech32")
-            .long("bech32")
-            .conflicts_with("segwit")
-            .help("Enabling this flag generates a wallet with a Bech32 (SegWit enabled) address"))
+        .arg(
+            Arg::with_name("currency")
+                .required(true)
+                .help("Name of the currency to generate a wallet for (e.g. bitcoin, ethereum, monero, zcash)"),
+        )
+        .arg(
+            Arg::with_name("network")
+                .short("N")
+                .long("network")
+                .takes_value(true)
+                .possible_values(&network_vals)
+                .help("Network of wallet(s) to generate (e.g. mainnet, testnet)"),
+        )
+        .arg(
+            Arg::with_name("count")
+                .short("n")
+                .long("count")
+                .takes_value(true)
+                .help("Number of wallets to generate"),
+        )
+        .arg(
+            Arg::with_name("compressed")
+                .short("c")
+                .long("compressed")
+                .help("Enabling this flag generates a wallet which corresponds to a compressed public key"),
+        )
+        .arg(
+            Arg::with_name("json")
+                .short("j")
+                .long("json")
+                .help("Enabling this flag prints the wallet in JSON format"),
+        )
+        .arg(
+            Arg::with_name("segwit")
+                .long("segwit")
+                .conflicts_with("network")
+                .help("Enabling this flag generates a wallet with a SegWit address"),
+        )
+        .arg(
+            Arg::with_name("bech32")
+                .long("bech32")
+                .conflicts_with("segwit")
+                .help("Enabling this flag generates a wallet with a Bech32 (SegWit enabled) address"),
+        )
         .get_matches();
 
     let currency = matches.value_of("currency").unwrap();
-//    let mut compressed = matches.is_present("compressed");
+    //    let mut compressed = matches.is_present("compressed");
     let json = matches.is_present("json");
     let count = clap::value_t!(matches.value_of("count"), usize).unwrap_or_else(|_e| 1);
     let bitcoin_address_type = if matches.is_present("segwit") {
-//        compressed = true;
+        //        compressed = true;
         BitcoinFormat::P2SH_P2WPKH
     } else if matches.is_present("bech32") {
         BitcoinFormat::Bech32
@@ -212,7 +226,7 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
     pub struct Wallet {
         private_key: String,
         address: String,
-        network: String
+        network: String,
     };
 
     let wallet = if testnet {
@@ -245,9 +259,7 @@ fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: b
         Address:        {}
         Network:        {}
         ",
-                wallet.private_key,
-                wallet.address,
-                wallet.network
+                wallet.private_key, wallet.address, wallet.network
             )
         }
     }

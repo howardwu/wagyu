@@ -1,5 +1,5 @@
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::{wordlist::Wordlist, bip39::SPANISH};
+use wagu_model::{bip39::SPANISH, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Spanish;

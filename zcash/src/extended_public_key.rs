@@ -1,22 +1,15 @@
-use crate::address::{ZcashAddress, Format};
+use crate::address::{Format, ZcashAddress};
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
 use crate::network::ZcashNetwork;
 use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
-use wagu_model::{
-    Address,
-    AddressError,
-    ChildIndex,
-    DerivationPathError,
-    ExtendedPublicKey,
-    ExtendedPublicKeyError,
-};
+use wagu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::cmp::Ordering;
-use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::{fmt, fmt::Display};
 use zcash_primitives::zip32::ExtendedFullViewingKey;
 
 /// Represents a Zcash extended public key
@@ -25,10 +18,10 @@ pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
     /// The extended full viewing key
     extended_full_viewing_key: ExtendedFullViewingKey,
     /// PhantomData
-    _network: PhantomData<N>
+    _network: PhantomData<N>,
 }
 
-impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     type Address = ZcashAddress<N>;
     type DerivationPath = ZcashDerivationPath;
     type ExtendedPrivateKey = ZcashExtendedPrivateKey<N>;
@@ -38,9 +31,8 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     /// Returns the extended public key of the corresponding extended private key.
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
-            extended_full_viewing_key:
-                ExtendedFullViewingKey::from(&extended_private_key.to_extended_spending_key()),
-            _network: PhantomData
+            extended_full_viewing_key: ExtendedFullViewingKey::from(&extended_private_key.to_extended_spending_key()),
+            _network: PhantomData,
         }
     }
 
@@ -50,13 +42,17 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
         for index in path.into_iter() {
             match index {
                 ChildIndex::Hardened(_) => return Err(DerivationPathError::ExpectedNormalPath.into()),
-                ChildIndex::Normal(number) => extended_public_key = Self {
-                    extended_full_viewing_key: match extended_public_key.extended_full_viewing_key.derive_child(
-                        zcash_primitives::zip32::ChildIndex::NonHardened(*number)) {
-                        Ok(extended_full_viewing_key) => extended_full_viewing_key,
-                        _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),
-                    },
-                    _network: PhantomData
+                ChildIndex::Normal(number) => {
+                    extended_public_key = Self {
+                        extended_full_viewing_key: match extended_public_key
+                            .extended_full_viewing_key
+                            .derive_child(zcash_primitives::zip32::ChildIndex::NonHardened(*number))
+                        {
+                            Ok(extended_full_viewing_key) => extended_full_viewing_key,
+                            _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),
+                        },
+                        _network: PhantomData,
+                    }
                 }
             }
         }
@@ -65,8 +61,9 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey {
-        ZcashPublicKey::from_viewing_key(
-            ViewingKey::Sapling(SaplingViewingKey(self.extended_full_viewing_key.fvk.clone())))
+        ZcashPublicKey::from_viewing_key(ViewingKey::Sapling(SaplingViewingKey(
+            self.extended_full_viewing_key.fvk.clone(),
+        )))
     }
 
     /// Returns the address of the corresponding extended public key.
@@ -75,14 +72,14 @@ impl <N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     }
 }
 
-impl <N: ZcashNetwork> ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> ZcashExtendedPublicKey<N> {
     /// Returns the extended full viewing key of the Zcash extended public key.
     pub fn to_extended_full_viewing_key(&self) -> ExtendedFullViewingKey {
         self.extended_full_viewing_key.clone()
     }
 }
 
-impl <N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
     type Err = ExtendedPublicKeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -93,59 +90,56 @@ impl <N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
         let data: Vec<u8> = FromBase32::from_base32(bech32.data())?;
         match ExtendedFullViewingKey::read(data.as_slice()) {
             Ok(extended_full_viewing_key) => Ok(Self {
-                extended_full_viewing_key, _network: PhantomData
+                extended_full_viewing_key,
+                _network: PhantomData,
             }),
-            Err(error) => Err(ExtendedPublicKeyError::Message(error.to_string()))
+            Err(error) => Err(ExtendedPublicKeyError::Message(error.to_string())),
         }
     }
 }
 
-impl <N: ZcashNetwork> Display for ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> Display for ZcashExtendedPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut data = vec![];
         match self.extended_full_viewing_key.write(&mut data) {
-            Ok(_) => (), Err(_) => return Err(fmt::Error)
+            Ok(_) => (),
+            Err(_) => return Err(fmt::Error),
         };
         match Bech32::new(N::to_extended_public_key_prefix(), data.to_base32()) {
             Ok(key) => write!(f, "{}", key),
-            _ => Err(fmt::Error)
+            _ => Err(fmt::Error),
         }
     }
 }
 
-impl <N: ZcashNetwork> PartialEq for ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> PartialEq for ZcashExtendedPublicKey<N> {
     fn eq(&self, other: &Self) -> bool {
         self.extended_full_viewing_key == other.extended_full_viewing_key
     }
 }
 
-impl <N: ZcashNetwork> Eq for ZcashExtendedPublicKey<N> {}
+impl<N: ZcashNetwork> Eq for ZcashExtendedPublicKey<N> {}
 
-impl <N: ZcashNetwork> PartialOrd for ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> PartialOrd for ZcashExtendedPublicKey<N> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.to_string().cmp(&other.to_string()))
     }
 }
 
-impl <N: ZcashNetwork> Ord for ZcashExtendedPublicKey<N> {
+impl<N: ZcashNetwork> Ord for ZcashExtendedPublicKey<N> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.to_string().cmp(&other.to_string())
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::extended_private_key::ExtendedPrivateKey;
     use hex;
+    use wagu_model::extended_private_key::ExtendedPrivateKey;
 
-    fn test_from_extended_private_key<N: ZcashNetwork>(
-        expected_extended_public_key: &str,
-        seed: &str,
-        path: &str
-    ) {
+    fn test_from_extended_private_key<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
         let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
@@ -153,11 +147,7 @@ mod tests {
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
 
-    fn test_to_address<N: ZcashNetwork>(
-        expected_address: &str,
-        seed: &str,
-        path: &str
-    ) {
+    fn test_to_address<N: ZcashNetwork>(expected_address: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
         let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();

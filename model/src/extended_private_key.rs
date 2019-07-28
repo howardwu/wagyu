@@ -6,20 +6,13 @@ use crate::private_key::PrivateKey;
 use crate::public_key::PublicKey;
 
 use crypto_mac;
-use std::{fmt::{Debug, Display}, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 /// The interface for a generic extended private key.
-pub trait ExtendedPrivateKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait ExtendedPrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type DerivationPath: DerivationPath;
     type ExtendedPublicKey: ExtendedPublicKey;
@@ -28,11 +21,7 @@ pub trait ExtendedPrivateKey:
     type PublicKey: PublicKey;
 
     /// Returns a new extended private key.
-    fn new(
-        seed: &[u8],
-        format: &Self::Format,
-        path: &Self::DerivationPath
-    ) -> Result<Self, ExtendedPrivateKeyError>;
+    fn new(seed: &[u8], format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns a new extended private key.
     fn new_master(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
@@ -55,7 +44,6 @@ pub trait ExtendedPrivateKey:
 
 #[derive(Debug, Fail)]
 pub enum ExtendedPrivateKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -65,7 +53,10 @@ pub enum ExtendedPrivateKeyError {
     #[fail(display = "invalid byte length: {}", _0)]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[fail(
+        display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}",
+        _0, _1
+    )]
     InvalidChecksum(String, String),
 
     #[fail(display = "invalid version bytes: {:?}", _0)]
@@ -81,7 +72,7 @@ pub enum ExtendedPrivateKeyError {
     NetworkError(NetworkError),
 
     #[fail(display = "unsupported format: {}", _0)]
-    UnsupportedFormat(String)
+    UnsupportedFormat(String),
 }
 
 impl From<DerivationPathError> for ExtendedPrivateKeyError {
