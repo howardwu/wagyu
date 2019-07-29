@@ -1,5 +1,5 @@
 <h1 align="center">
-    <img width="1330" alt="wagyu" src="https://user-images.githubusercontent.com/9260812/62023137-692f0780-b184-11e9-9b69-324d7fe8b4ce.png">
+    <img width="1346" alt="wagyu" src="https://user-images.githubusercontent.com/9260812/62023257-eb1f3080-b184-11e9-86e4-79b01f056d5d.png">
 </h1>
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
