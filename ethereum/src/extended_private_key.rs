@@ -3,7 +3,7 @@ use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_public_key::EthereumExtendedPublicKey;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey,
 };

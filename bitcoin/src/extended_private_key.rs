@@ -4,7 +4,7 @@ use crate::extended_public_key::BitcoinExtendedPublicKey;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey,
 };

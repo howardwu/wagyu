@@ -4,7 +4,7 @@ use crate::extended_public_key::EthereumExtendedPublicKey;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use crate::wordlist::EthereumWordlist;
-use wagu_model::{ExtendedPrivateKey, Mnemonic, MnemonicError, MnemonicExtended};
+use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicError, MnemonicExtended};
 
 use bitvec::cursor::BigEndian;
 use bitvec::prelude::*;

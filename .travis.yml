@@ -2,7 +2,7 @@ language: rust
 
 env:
   global:
-    - CRATE_NAME=wagu
+    - CRATE_NAME=wagyu
 matrix:
   include:
     - rust: beta
@@ -49,9 +49,9 @@ before_cache:
 
 before_deploy:
   - |
-    name="wagu-$TRAVIS_TAG-$TARGET"
+    name="wagyu-$TRAVIS_TAG-$TARGET"
     mkdir $name
-    cp target/$TARGET/release/wagu $name/
+    cp target/$TARGET/release/wagyu $name/
     tar czvf $name.tar.gz $name
     echo -n $(shasum -ba 256 "$name.tar.gz" | cut -d " " -f 1) > $name.tar.gz.sha256
 
@@ -62,11 +62,11 @@ deploy:
   draft: true
   file_glob: true
   file:
-    - wagu-$TRAVIS_TAG-$TARGET.tar.gz
-    - wagu-$TRAVIS_TAG-$TARGET.tar.gz.sha256
+    - wagyu-$TRAVIS_TAG-$TARGET.tar.gz
+    - wagyu-$TRAVIS_TAG-$TARGET.tar.gz.sha256
   on:
     condition: $DEPLOY = 1
     tags: true
-    repo: ArgusHQ/wagu
+    repo: ArgusHQ/wagyu
   provider: releases
   skip_cleanup: true
