@@ -1,4 +1,4 @@
-dist: bionic
+sudo: false
 language: rust
 
 env:
@@ -34,7 +34,7 @@ matrix:
       addons:
         apt:
           packages:
-          - musl-tools
+            - musl-tools
 
 script:
   - cargo build --verbose
