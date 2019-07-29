@@ -1,7 +1,6 @@
 <h1 align="center">
     <img width="1330" alt="wagyu" src="https://user-images.githubusercontent.com/9260812/62023137-692f0780-b184-11e9-9b69-324d7fe8b4ce.png">
 </h1>
-
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
     <a href="https://travis-ci.com/ArgusHQ/wagu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg"></a>
