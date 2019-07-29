@@ -4,7 +4,6 @@ use crate::public_key::BitcoinPublicKey;
 use wagu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
-use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
 use std::marker::PhantomData;
@@ -28,13 +27,10 @@ impl<N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns a randomly-generated compressed Bitcoin private key.
-    fn new() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
-        let secret_key = secp256k1::SecretKey::from_slice(&random)?;
-
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
         Ok(Self {
-            secret_key,
+            secret_key: secp256k1::SecretKey::from_slice(&random)?,
             compressed: true,
             _network: PhantomData,
         })

@@ -5,7 +5,7 @@ use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use curve25519_dalek::scalar::Scalar;
 use hex;
-use rand::{rngs::OsRng, Rng};
+use rand::Rng;
 use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
@@ -28,9 +28,8 @@ impl<N: MoneroNetwork> PrivateKey for MoneroPrivateKey<N> {
     type PublicKey = MoneroPublicKey<N>;
 
     /// Returns a randomly-generated Monero private key.
-    fn new() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
         Self::from_seed(hex::encode(random).as_str(), &Format::Standard)
     }
 

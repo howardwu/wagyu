@@ -10,7 +10,6 @@ use bitvec::cursor::BigEndian;
 use bitvec::prelude::*;
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::rngs::OsRng;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
 use std::fmt;
@@ -75,7 +74,7 @@ impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
 
 impl<W: EthereumWordlist> EthereumMnemonic<W> {
     /// Returns a new mnemonic phrase given the word count.
-    pub fn new(word_count: u8) -> Result<Self, MnemonicError> {
+    pub fn new<R: Rng>(word_count: u8, rng: &mut R) -> Result<Self, MnemonicError> {
         let length: usize = match word_count {
             12 => 16,
             15 => 20,
@@ -84,10 +83,7 @@ impl<W: EthereumWordlist> EthereumMnemonic<W> {
             24 => 32,
             wc => return Err(MnemonicError::InvalidWordCount(wc)),
         };
-
-        let mut entropy = [0u8; 32];
-        OsRng.try_fill(&mut entropy)?;
-
+        let entropy: [u8; 32] = rng.gen();
         Ok(Self::from_entropy(&entropy[0..length].to_vec())?)
     }
 
@@ -215,7 +211,8 @@ mod tests {
     use hex;
 
     fn test_new<W: EthereumWordlist>(word_count: u8) {
-        let result = EthereumMnemonic::<W>::new(word_count).unwrap();
+        let rng = &mut rand::thread_rng();
+        let result = EthereumMnemonic::<W>::new(word_count, rng).unwrap();
         test_from_entropy::<W>(&result.entropy, &result.phrase);
     }
 
@@ -505,7 +502,8 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidWordCount(11)")]
         fn new_invalid_word_count() {
-            let _result = EthereumMnemonic::<W>::new(INVALID_WORD_COUNT).unwrap();
+            let rng = &mut rand::thread_rng();
+            let _result = EthereumMnemonic::<W>::new(INVALID_WORD_COUNT, rng).unwrap();
         }
 
         #[test]

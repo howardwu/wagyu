@@ -5,7 +5,6 @@ use wagu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKey
 
 use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;
-use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
@@ -144,9 +143,16 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type Format = Format;
     type PublicKey = ZcashPublicKey<N>;
 
-    /// Returns a randomly-generated Zcash private key.
-    fn new() -> Result<Self, PrivateKeyError> {
-        Self::new_sapling()
+    /// Returns a randomly-generated compressed Zcash private key.
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
+        Ok(Self(
+            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
+                secp256k1::SecretKey::from_slice(&random)?,
+                true,
+            )),
+            PhantomData,
+        ))
     }
 
     /// Returns the public key of the corresponding Zcash private key.
@@ -162,9 +168,8 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
 
 impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     /// Returns a randomly-generated Zcash P2PKH private key.
-    pub fn new_p2pkh() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
+    pub fn new_p2pkh<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
         Ok(Self(
             SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
                 secp256k1::SecretKey::from_slice(&random)?,
@@ -175,9 +180,8 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     }
 
     /// Returns a randomly-generated Zcash Sapling private key.
-    pub fn new_sapling() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
+    pub fn new_sapling<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
         Self::sapling(&hex::encode(random))
     }
 
