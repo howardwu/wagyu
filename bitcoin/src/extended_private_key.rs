@@ -326,10 +326,40 @@ mod tests {
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
+    fn test_extended_private_and_public_keys(
+        expected_extended_private_key: &str,
+        expected_extended_public_key: &str,
+        path: &BitcoinDerivationPath,
+        master_extended_private_key: &BitcoinExtendedPrivateKey<Mainnet>,
+    ) {
+        let extended_private_key = master_extended_private_key.derive(path).unwrap();
+        let extended_public_key = extended_private_key.to_extended_public_key();
+        assert_eq!(expected_extended_private_key, extended_private_key.to_string());
+        assert_eq!(expected_extended_public_key, extended_public_key.to_string());
+    }
+
+    fn test_account_private_key(
+        expected_private_key: &str,
+        account_path: &BitcoinDerivationPath,
+        master_extended_private_key: &BitcoinExtendedPrivateKey<Mainnet>,
+    ) {
+        //        type N = Mainnet;
+        //        let account_path = "m/44'/0'/0'/0/0";
+        //        let expected_private_key = "L26cVSpWFkJ6aQkPkKmTzLqTdLJ923e6CzrVh9cmx21QHsoUmrEE";
+        //        let master_extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+        let account_extended_private_key = master_extended_private_key.derive(account_path).unwrap();
+        assert_eq!(
+            account_extended_private_key.private_key.to_string(),
+            expected_private_key
+        );
+    }
+
     mod bip32_mainnet {
         use super::*;
 
         type N = Mainnet;
+
+        const MASTER_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K2jkGDCeTLgRewT9F2pH5JZs2zDmmjXes34geVnFiuNa8KTvY5WoYvdn4Ag6oYRoB6cXtc43NgJAEqDXf51xPm6fhiMCKwpi";
 
         // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
         const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 12] = [
@@ -521,43 +551,160 @@ mod tests {
                 test_to_string::<N>(extended_private_key);
             });
         }
+
+        mod bitcoin_core {
+            use super::*;
+
+            #[test]
+            fn extended_private_and_public_keys() {
+                let path = &BitcoinDerivationPath::from_str("m/0'/0'").unwrap();
+                let expected_extended_private_key = "xprv9w3SqtfiugdcXh7MJqHdgRKQZPX1CtMYuo4zJHpGCvSJJzrtXejwgAchPXsBG8ZRrKiSKmY1ehX3JT56CqTMZqhpdUJhLDGwsJGPMagDoNG";
+                let expected_extended_public_key = "xpub6A2oFQCck4BukBBpQrpe3ZG97RMVcM5QH1zb6gDsmFyHBoC35C4CDxwBEofGDLdKVhuc8PqzAxFkfZJ1x7cVRd2f1cB8mjstGsRLxyHqsKD";
+                let master_extended_private_key =
+                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+
+                test_extended_private_and_public_keys(
+                    expected_extended_private_key,
+                    expected_extended_public_key,
+                    path,
+                    &master_extended_private_key,
+                );
+            }
+
+            #[test]
+            fn account_private_key() {
+                let account_path = &BitcoinDerivationPath::from_str("m/0'/0'/0'").unwrap();
+                let expected_private_key = "KxwbSoFNiiRmJHBt44XmJxaDUZNdYVmxgvBY6M4VriMRSAzmSfsz";
+                let master_extended_private_key =
+                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+                test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
+            }
+        }
+
+        mod multibit {
+            use super::*;
+
+            #[test]
+            fn extended_private_and_public_keys() {
+                let path = &BitcoinDerivationPath::from_str("m/0'/0").unwrap();
+                let expected_extended_private_key = "xprv9w3Sqtfaa26eMCjLzWiMptASpL17gb23RkjF4uYBN4yNKFTWwzWRzvA7jjiDVhCSEHBeM2wYY5GyjsT75S76xeqjrzm6qsJdXJQcBVwRGAR";
+                let expected_extended_public_key = "xpub6A2oFQCUQPewZgop6YFNC27BNMqc63jtnyeqsHwnvQWMC3nfVXpgYiUbayzRZ4qsu24vd2PDz4wtCK9q7CbqsC4mxwJ34sVFPcnqSrDGx1R";
+                let master_extended_private_key =
+                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+
+                test_extended_private_and_public_keys(
+                    expected_extended_private_key,
+                    expected_extended_public_key,
+                    path,
+                    &master_extended_private_key,
+                );
+            }
+
+            #[test]
+            fn account_private_key() {
+                let account_path = &BitcoinDerivationPath::from_str("m/0'/0/0'").unwrap();
+                let expected_private_key = "L3e3ugN7UGKtSaheMZg2TNFqhMQvWuZnuEVshWPhUY53C3vf1jG2";
+                let master_extended_private_key =
+                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+                test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
+            }
+        }
+
+        mod blockchain_info {
+            use super::*;
+
+            #[test]
+            fn extended_private_and_public_keys() {
+                let path = &BitcoinDerivationPath::from_str("m/44'/0'/0'").unwrap();
+                let expected_extended_private_key = "xprv9yzrnt4zWVJUr1k2VxSPy9ettKz5PpeDMgaVG7UKedhqnw1tDkxP2UyYNhuNSumk2sLE5ctwKZs9vwjsq3e1vo9egCK6CzP87H2cVYXpfwQ";
+                let expected_extended_public_key = "xpub6CzDCPbtLrrn4VpVbyyQLHbdSMpZoHN4iuW64VswCyEpfjM2mJGdaHJ2DyuZwtst96E16VvcERb8BBeJdHSCVmAq9RhtRQg6eAZFrTKCNqf";
+                let master_extended_private_key =
+                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+
+                test_extended_private_and_public_keys(
+                    expected_extended_private_key,
+                    expected_extended_public_key,
+                    path,
+                    &master_extended_private_key,
+                );
+            }
+
+            #[test]
+            fn account_private_key() {
+                let account_path = &BitcoinDerivationPath::from_str("m/44'/0'/0'/0'").unwrap();
+                let expected_private_key = "L1eCCGu1ThtPSRzQwhwjRNsbK1dKcMrfn2S9WpnF8vFdQHskVtVB";
+                let master_extended_private_key =
+                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+                test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
+            }
+        }
     }
 
     mod bip44 {
         use super::*;
 
+        type N = Mainnet;
+
+        const MASTER_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K2jkGDCeTLgRewT9F2pH5JZs2zDmmjXes34geVnFiuNa8KTvY5WoYvdn4Ag6oYRoB6cXtc43NgJAEqDXf51xPm6fhiMCKwpi";
+
         #[test]
-        fn test_derivation_path() {
-            type N = Mainnet;
-            let path = "m/44'/0'/0/1";
-            let expected_extended_private_key_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
-            let master_extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
-            let extended_private_key = master_extended_private_key
-                .derive(&BitcoinDerivationPath::from_str(path).unwrap())
-                .unwrap();
-            assert_eq!(expected_extended_private_key_serialized, extended_private_key.to_string());
+        fn extended_private_and_public_keys() {
+            let path = &BitcoinDerivationPath::from_str("m/44'/0'/0'/0").unwrap();
+            let expected_extended_private_key = "xprvA2DxxvPZcyRvYgZMGS53nadR32mVDeCyqQYyFhrCVbJNjPoxMeVf7QT5g7mQASbTf9Kp4cryvcXnu2qurjWKcrdsr91jXymdCDNxKgLFKJG";
+            let expected_extended_public_key = "xpub6FDKNRvTTLzDmAdpNTc49ia9b4byd6vqCdUa46Fp3vqMcC96uBoufCmZXQLiN5AK3iSCJMhf9gT2sxkpyaPepRuA7W3MujV5tGmF5VfbueM";
+            let master_extended_private_key =
+                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+
+            test_extended_private_and_public_keys(
+                expected_extended_private_key,
+                expected_extended_public_key,
+                path,
+                &master_extended_private_key,
+            );
+        }
+
+        #[test]
+        fn account_private_key() {
+            let account_path = &BitcoinDerivationPath::from_str("m/44'/0'/0'/0/0").unwrap();
+            let expected_private_key = "L26cVSpWFkJ6aQkPkKmTzLqTdLJ923e6CzrVh9cmx21QHsoUmrEE";
+            let master_extended_private_key =
+                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+            test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
         }
     }
 
-    //    mod bip49 {
-    //        use super::*;
-    //
-    //        #[test]
-    //        fn test_bip49() {
-    //            let seed = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd";
-    //            let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
-    //            let master_extended_private_key = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
-    //            let root_path = "m/49'/1'/0'";
-    //            let expected_extended_private_key_serialized = "tprv8gRrNu65W2Msef2BdBSUgFdRTGzC8EwVXnV7UGS3faeXtuMVtGfEdidVeGbThs4ELEoayCAzZQ4uUji9DUiAs7erdVskqju7hrBcDvDsdbY";
-    //            let root_extended_private_key = master_extended_private_key.derivation_path(&root_path);
-    //            assert_eq!(root_extended_private_key.to_string(), expected_extended_private_key_serialized);
-    //
-    //            let account_path = "m/49'/1'/0'/0/0";
-    //            let expected_private_key = "cULrpoZGXiuC19Uhvykx7NugygA3k86b3hmdCeyvHYQZSxojGyXJ";
-    //            let account_extended_private_key = master_extended_private_key.derivation_path(&account_path);
-    //            assert_eq!(account_extended_private_key.private_key.to_string(), expected_private_key);
-    //        }
-    //    }
+    mod bip49 {
+        use super::*;
+
+        type N = Mainnet;
+
+        const MASTER_EXTENDED_PRIVATE_KEY: &str = "yprvABrGsX5C9jant2wP3ZS5YmXA7RHgySGaDgPFmcff7Y2k6AVskSRHXSEGLft85RTULGtrv9hN169iyu9TKkTPUXqqhZE5evmt2pjM6un8eUP";
+
+        #[test]
+        fn extended_private_and_public_keys() {
+            let path = &BitcoinDerivationPath::from_str("m/49'/0'/0'/0").unwrap();
+            let expected_extended_private_key = "yprvALYB4DYRG6CzzVgzQZwwqjAA2wjBGC3iEd7KYYScpoDdmf75qMRWZWxoFcRXBJjgEXdFqJ9vDRGRLJQsrL22Su5jMbNFeM9vetaGVqy9Qy2";
+            let expected_extended_public_key = "ypub6ZXXTj5K6TmJCymTWbUxCs6tayZffemZbr2vLvrEP8kceTSENtjm7KHH6thvAKxVar9fGe8rgsPEX369zURLZ68b4f7Vexz7RuXsjQ69YDt";
+            let master_extended_private_key =
+                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+
+            test_extended_private_and_public_keys(
+                expected_extended_private_key,
+                expected_extended_public_key,
+                path,
+                &master_extended_private_key,
+            );
+        }
+
+        #[test]
+        fn account_private_key() {
+            let account_path = &BitcoinDerivationPath::from_str("m/49'/0'/0'/0/0").unwrap();
+            let expected_private_key = "KxKTsBB6gmqBPgPCHTfdaUmqksHMhbinWSgPj4c7YDHHmXjumwCo";
+            let master_extended_private_key =
+                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+            test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
+        }
+    }
 
     mod test_invalid {
         use super::*;

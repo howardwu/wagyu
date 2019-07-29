@@ -511,7 +511,10 @@ mod tests {
             let extended_private_key = master_extended_private_key
                 .derive(&EthereumDerivationPath::from_str(path).unwrap())
                 .expect("error deriving extended private key from path");
-            assert_eq!(expected_extended_private_key_serialized, extended_private_key.to_string());
+            assert_eq!(
+                expected_extended_private_key_serialized,
+                extended_private_key.to_string()
+            );
         }
     }
 
