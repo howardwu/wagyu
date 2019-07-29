@@ -9,8 +9,6 @@
 </p>
 
 <p align="center">
-    Wagyu is a wallet generation utility for cryptocurrencies.
-    <br/><br/>
     <img src="https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif">
 </p>
 
