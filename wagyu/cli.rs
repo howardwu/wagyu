@@ -1,4 +1,4 @@
-//! # Wagu CLI
+//! # Wagyu CLI
 //!
 //! A command-line tool to generate cryptocurrency wallets.
 
