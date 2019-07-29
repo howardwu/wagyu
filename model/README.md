@@ -1,4 +1,4 @@
-# wagyu_model
+# wagyu-model
 
 [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)
 [![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](../AUTHORS)
