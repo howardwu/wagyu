@@ -4,6 +4,9 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+#[macro_use]
+extern crate failure;
+
 pub mod address;
 pub use self::address::*;
 

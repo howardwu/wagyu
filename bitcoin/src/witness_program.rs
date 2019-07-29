@@ -20,6 +20,8 @@
 //! If the version byte is 0, but the witness program is neither 20 nor 32 bytes, the script must fail.
 //!
 
+use wagu_model::AddressError;
+
 use hex;
 use std::fmt;
 use std::str::FromStr;
@@ -31,18 +33,42 @@ pub struct WitnessProgram {
     pub program: Vec<u8>,
 }
 
+#[derive(Debug, Fail, PartialEq, Eq)]
+pub enum WitnessProgramError {
+    #[fail(display = "expected program with length at least 2, at most 40, actual program was length {}", _0)]
+    InvalidProgramLength(usize),
+
+    #[fail(display = "invalid program length {} for script version {}", _0, _1)]
+    InvalidProgramLengthForVersion(usize, u8),
+
+    #[fail(display = "expected version no greater than 16")]
+    InvalidVersion(u8),
+
+    #[fail(display = "expected program length {} to equal length {} as specified by input", _0, _1)]
+    MismatchedProgramLength(usize, usize),
+
+    #[fail(display = "error decoding program from hex string")]
+    ProgramDecodingError,
+}
+
+impl From<WitnessProgramError> for AddressError {
+    fn from(error: WitnessProgramError) -> Self {
+        AddressError::Crate("WitnessProgram", format!("{:?}", error))
+    }
+}
+
 impl WitnessProgram {
     /// Returns a new witness program given a program with a version byte, data size, and data.
-    pub fn new(program: &[u8]) -> Result<WitnessProgram, &'static str> {
+    pub fn new(program: &[u8]) -> Result<WitnessProgram, WitnessProgramError> {
         if program.len() < 2 {
-            return Err("Invalid program");
+            return Err(WitnessProgramError::InvalidProgramLength(program.len()));
         }
 
         // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Decoding
         let data_size = program[1] as usize;
         let data = program[2..].to_vec();
         if data_size != data.len() {
-            return Err("Mismatched program length");
+            return Err(WitnessProgramError::MismatchedProgramLength(data.len(), data_size));
         }
 
         let program = WitnessProgram {
@@ -55,20 +81,20 @@ impl WitnessProgram {
         }
     }
 
-    pub fn validate(&self) -> Result<(), &'static str> {
+    pub fn validate(&self) -> Result<(), WitnessProgramError> {
         if self.program.len() < 2 || self.program.len() > 40 {
-            return Err("Invalid program length");
+            return Err(WitnessProgramError::InvalidProgramLength(self.program.len()));
         }
 
         if self.version > 16 {
-            return Err("Invalid version");
+            return Err(WitnessProgramError::InvalidVersion(self.version));
         }
 
         // P2SH_P2WPKH start with 0x0014
         // P2SH_P2WSH starts with 0x0020
         // https://bitcoincore.org/en/segwit_wallet_dev/#creation-of-p2sh-p2wpkh-address
         if self.version == 0 && !(self.program.len() == 20 || self.program.len() == 32) {
-            return Err("Invalid program length for witness version 0");
+            return Err(WitnessProgramError::InvalidProgramLengthForVersion(self.program.len(), self.version));
         }
 
         Ok(())
@@ -99,13 +125,13 @@ impl WitnessProgram {
 }
 
 impl FromStr for WitnessProgram {
-    type Err = &'static str;
+    type Err = WitnessProgramError;
 
     /// Returns a witness program given its hex representation.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         WitnessProgram::new(&match hex::decode(s) {
             Ok(bytes) => bytes,
-            Err(_) => return Err("Error decoding hex string"),
+            Err(_) => return Err(WitnessProgramError::ProgramDecodingError),
         })
     }
 }
