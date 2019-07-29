@@ -1,5 +1,5 @@
 use crate::address::Format;
-use wagu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError};
+use wagyu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError};
 
 pub mod mainnet;
 pub use self::mainnet::*;

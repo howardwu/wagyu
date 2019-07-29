@@ -2,7 +2,7 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, PrivateKey,
 };
@@ -247,7 +247,7 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: BitcoinNetwork>(
         expected_address: &str,

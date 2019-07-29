@@ -1,7 +1,7 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
-use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
 use std::marker::PhantomData;

@@ -2,7 +2,7 @@ use crate::address::EthereumAddress;
 use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
 };
@@ -180,7 +180,7 @@ impl fmt::Display for EthereumExtendedPublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wagu_model::extended_private_key::ExtendedPrivateKey;
+    use wagyu_model::extended_private_key::ExtendedPrivateKey;
 
     use hex;
 

@@ -1,7 +1,7 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
-use wagu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;

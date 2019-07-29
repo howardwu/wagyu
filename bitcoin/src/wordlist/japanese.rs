@@ -1,5 +1,5 @@
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::{bip39::JAPANESE, wordlist::Wordlist};
+use wagyu_model::{bip39::JAPANESE, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Japanese;

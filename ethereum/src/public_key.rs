@@ -1,6 +1,6 @@
 use crate::address::EthereumAddress;
 use crate::private_key::EthereumPrivateKey;
-use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
 use std::marker::PhantomData;

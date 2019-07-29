@@ -3,7 +3,7 @@ use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
 };
@@ -196,7 +196,7 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinExtendedPublicKey<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::extended_private_key::ExtendedPrivateKey;
+    use wagyu_model::extended_private_key::ExtendedPrivateKey;
 
     use hex;
 

@@ -3,7 +3,7 @@ use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
 use crate::network::ZcashNetwork;
 use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
-use wagu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
+use wagyu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::cmp::Ordering;
@@ -137,7 +137,7 @@ mod tests {
     use super::*;
     use crate::network::*;
     use hex;
-    use wagu_model::extended_private_key::ExtendedPrivateKey;
+    use wagyu_model::extended_private_key::ExtendedPrivateKey;
 
     fn test_from_extended_private_key<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();

@@ -3,7 +3,7 @@ language: rust
 
 env:
   global:
-    - CRATE_NAME=wagu
+    - CRATE_NAME=wagyu
 matrix:
   include:
     - rust: stable
@@ -53,11 +53,11 @@ deploy:
   draft: true
   file_glob: true
   file:
-    - wagu-$TRAVIS_TAG-$TARGET.tar.gz
-    - wagu-$TRAVIS_TAG-$TARGET.tar.gz.sha256
+    - wagyu-$TRAVIS_TAG-$TARGET.tar.gz
+    - wagyu-$TRAVIS_TAG-$TARGET.tar.gz.sha256
   on:
     condition: $DEPLOY = 1
     tags: true
-    repo: ArgusHQ/wagu
+    repo: ArgusHQ/wagyu
   provider: releases
   skip_cleanup: true

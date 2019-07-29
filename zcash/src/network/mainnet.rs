@@ -1,6 +1,6 @@
 use super::*;
 use crate::address::Format;
-use wagu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
 use std::fmt;

@@ -5,7 +5,7 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::{ExtendedPrivateKey, Mnemonic, MnemonicError, MnemonicExtended};
+use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicError, MnemonicExtended};
 
 use bitvec::cursor::BigEndian;
 use bitvec::prelude::*;

@@ -7,7 +7,7 @@ use bitcoin::{BitcoinAddress, BitcoinPrivateKey, Mainnet as BitcoinMainnet, Test
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
 use monero::{Mainnet as MoneroMainnet, MoneroAddress, MoneroPrivateKey, Testnet as MoneroTestnet};
-use wagu_model::{Address, PrivateKey};
+use wagyu_model::{Address, PrivateKey};
 use zcash::address::Format as ZcashFormat;
 use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashPrivateKey};
 
@@ -19,7 +19,7 @@ use std::marker::PhantomData;
 
 fn main() {
     let network_vals = ["mainnet", "testnet"];
-    let matches = App::new("wagu")
+    let matches = App::new("wagyu")
         .version("v0.6.0")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
         .author("Argus <team@argus.dev>")
