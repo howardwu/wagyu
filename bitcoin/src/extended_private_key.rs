@@ -530,12 +530,12 @@ mod tests {
         fn test_derivation_path() {
             type N = Mainnet;
             let path = "m/44'/0'/0/1";
-            let expected_xpriv_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
-            let master_xpriv = BitcoinExtendedPrivateKey::<N>::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
-            let xpriv = master_xpriv
+            let expected_extended_private_key_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
+            let master_extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
+            let extended_private_key = master_extended_private_key
                 .derive(&BitcoinDerivationPath::from_str(path).unwrap())
                 .unwrap();
-            assert_eq!(expected_xpriv_serialized, xpriv.to_string());
+            assert_eq!(expected_extended_private_key_serialized, extended_private_key.to_string());
         }
     }
 
@@ -546,16 +546,16 @@ mod tests {
     //        fn test_bip49() {
     //            let seed = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd";
     //            let seed_bytes = hex::decode(seed).expect("Error decoding hex seed");
-    //            let master_xpriv = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
+    //            let master_extended_private_key = BitcoinExtendedPrivateKey::new(&seed_bytes, &Network::Mainnet);
     //            let root_path = "m/49'/1'/0'";
-    //            let expected_xpriv_serialized = "tprv8gRrNu65W2Msef2BdBSUgFdRTGzC8EwVXnV7UGS3faeXtuMVtGfEdidVeGbThs4ELEoayCAzZQ4uUji9DUiAs7erdVskqju7hrBcDvDsdbY";
-    //            let root_xpriv = master_xpriv.derivation_path(&root_path);
-    //            assert_eq!(root_xpriv.to_string(), expected_xpriv_serialized);
+    //            let expected_extended_private_key_serialized = "tprv8gRrNu65W2Msef2BdBSUgFdRTGzC8EwVXnV7UGS3faeXtuMVtGfEdidVeGbThs4ELEoayCAzZQ4uUji9DUiAs7erdVskqju7hrBcDvDsdbY";
+    //            let root_extended_private_key = master_extended_private_key.derivation_path(&root_path);
+    //            assert_eq!(root_extended_private_key.to_string(), expected_extended_private_key_serialized);
     //
     //            let account_path = "m/49'/1'/0'/0/0";
     //            let expected_private_key = "cULrpoZGXiuC19Uhvykx7NugygA3k86b3hmdCeyvHYQZSxojGyXJ";
-    //            let account_xpriv = master_xpriv.derivation_path(&account_path);
-    //            assert_eq!(account_xpriv.private_key.to_string(), expected_private_key);
+    //            let account_extended_private_key = master_extended_private_key.derivation_path(&account_path);
+    //            assert_eq!(account_extended_private_key.private_key.to_string(), expected_private_key);
     //        }
     //    }
 
@@ -564,39 +564,39 @@ mod tests {
 
         type N = Mainnet;
 
-        const INVALID_XPRIV_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
-        const INVALID_XPRIV_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-        const INVALID_XPRIV_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
-        const VALID_XPRIV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+        const INVALID_EXTENDED_PRIVATE_KEY_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
+        const INVALID_EXTENDED_PRIVATE_KEY_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+        const INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
+        const VALID_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_XPRIV_SECRET_KEY).unwrap();
+            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECRET_KEY).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidVersionBytes([4, 136, 173, 227])")]
         fn from_str_invalid_version() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_XPRIV_NETWORK).unwrap();
+            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_NETWORK).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidChecksum(\"6vCfku\", \"6vCfkt\")")]
         fn from_str_invalid_checksum() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_XPRIV_CHECKSUM).unwrap();
+            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(&VALID_XPRIV[1..]).unwrap();
+            let _result = BitcoinExtendedPrivateKey::<N>::from_str(&VALID_EXTENDED_PRIVATE_KEY[1..]).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(83)")]
         fn from_str_long() {
-            let mut string = String::from(VALID_XPRIV);
+            let mut string = String::from(VALID_EXTENDED_PRIVATE_KEY);
             string.push('a');
             let _result = BitcoinExtendedPrivateKey::<N>::from_str(&string).unwrap();
         }
