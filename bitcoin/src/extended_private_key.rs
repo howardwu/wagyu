@@ -326,43 +326,15 @@ mod tests {
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
-    fn test_extended_private_and_public_keys(
-        expected_extended_private_key: &str,
-        expected_extended_public_key: &str,
-        path: &BitcoinDerivationPath,
-        master_extended_private_key: &BitcoinExtendedPrivateKey<Mainnet>,
-    ) {
-        let extended_private_key = master_extended_private_key.derive(path).unwrap();
-        let extended_public_key = extended_private_key.to_extended_public_key();
-        assert_eq!(expected_extended_private_key, extended_private_key.to_string());
-        assert_eq!(expected_extended_public_key, extended_public_key.to_string());
-    }
-
-    fn test_account_private_key(
-        expected_private_key: &str,
-        account_path: &BitcoinDerivationPath,
-        master_extended_private_key: &BitcoinExtendedPrivateKey<Mainnet>,
-    ) {
-        //        type N = Mainnet;
-        //        let account_path = "m/44'/0'/0'/0/0";
-        //        let expected_private_key = "L26cVSpWFkJ6aQkPkKmTzLqTdLJ923e6CzrVh9cmx21QHsoUmrEE";
-        //        let master_extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-        let account_extended_private_key = master_extended_private_key.derive(account_path).unwrap();
-        assert_eq!(
-            account_extended_private_key.private_key.to_string(),
-            expected_private_key
-        );
-    }
-
-    mod bip32_mainnet {
+    mod p2pkh_mainnet {
         use super::*;
 
         type N = Mainnet;
 
-        const MASTER_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K2jkGDCeTLgRewT9F2pH5JZs2zDmmjXes34geVnFiuNa8KTvY5WoYvdn4Ag6oYRoB6cXtc43NgJAEqDXf51xPm6fhiMCKwpi";
-
         // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
-        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 12] = [
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 26] = [
+
+            // BIP32 Derivation Paths
             (
                 "m",
                 "000102030405060708090a0b0c0d0e0f",
@@ -483,6 +455,154 @@ mod tests {
                 "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j",
                 "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
             ),
+
+            // BIP 44 Derivation Paths
+            (
+                "m/44'/0'/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "4338d5f49fecfe380b9e60e032b7da0845e7f9d441ac78bd58ab1af423187d7d",
+                "c2c14ca7969bfea1753c39eb5238cb948dc3202478b414e0e924e7a21f4fe654",
+                "929c7e3c",
+                "xprvA1d47WXmiQZzV33ywwsbBhbtLg7f9XzMv6xdEbP6yJSxw38RhQzarwW3GDKvYnfvY67fWjEsF5ySDnXZ9sVwsw9A7sYE1gTBKkTkhxM3Foz",
+                "xpub6EcQX24fYn8HhX8T3yQbYqYcthx9YziDHKtE2yniXdywoqTaExJqQjpX7WwBmeVH2D3U8CXiADcvBHSCQ3UKNUxh2w8pZFNAnjEFD89Qh1x"
+            ),
+            (
+                "m/44'/0'/0'/0/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "0075bcd6a7c659d8336141ad6a3103a34a9a3a5a6dfdcab7df9670646f0b6761",
+                "c96ae85842d7d557c15a09e19286475ede2b895b91a277a4c624a974b0a3811d",
+                "09d96c42",
+                "xprvA2VtPkeWPbFDHmZhGCEcFMX65Xmrp1iSA3zWbqXKDfJnBHzqZHdBbDeJQdt6KVYTftnXVWTaDS1b59etrug5kJRLFQjtKyzvKaCyti9gkU3",
+                "xpub6FVEoGBQDxoWWFeANDmccVTpdZcMDUSHXGv7QDvvmzqm46Kz6pwS91xnFwNnL8T9c7nLCH54EQ13ADTwjGuNDCFVsRmSWKCgcejAQES4Eyu"
+            ),
+            (
+                "m/44'/0'/0'/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "f29d6ddd6b0cd1fd59ed99900edd5a53e905b87dfe06824751010feb5228d960",
+                "0674ec59dbc724f29fea71d771b62aba454732067055e3d29fe640c3c4cef2a4",
+                "929c7e3c",
+                "xprvA1d47WXmiQZzVi9TCYLCjYPsi5t1iTdFqsxh1BRjQM773CPwhnwEruxGViVVXqPcyP3NYQroJjHNjUG1WFKgDPNB97F5SFUtKpECsNSskGZ",
+                "xpub6EcQX24fYn8HiCDvJZsD6gLcG7iW7vM7D6tHoZqLxge5uzj6FLFVQiGkLyZbHbQE7otB7LfSYsbJnNbxyjGnr1ubGC2XfTXXwH86Nf6p5DF"
+            ),
+            (
+                "m/44'/0'/0'/1/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "41429c1338d0b8b0a3ef984f02b9e0f05100e45f4c639937191e400345402764",
+                "e35471cdbd74303352b18df7efbfc0144da3cb416f8cc15ea90ca18357e89607",
+                "411064ed",
+                "xprvA2uRdfuKqiFoqcU4BrnVttrwRbg4mJCBgwAuGqNh8rAZB2uge9sNUh9UQtQ1Xfjsys6V38yfn3PcNvupTm6kpDBscEAfVTMWCQeMdQxUgTD",
+                "xpub6Ftn3BSDg5p746YXHtKWG2ofydWZAkv34A6W5DnJhBhY3qEqBhBd2VTxGArPq7BjJRjKmvWHN8chjNLchv3xFh5Xc7Vut8DNvXPvErVtMzE"
+            ),
+            (
+                "m/44'/0'/1'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "95ee1cfd2375843a1f4e59af8e6ca43c179bf19779b188031ccc9285dbea8073",
+                "2f87b7dcaa60ad05af4f207f1e5c336b0727eaf5bbe80aa555e5e725d58b45fa",
+                "67384ff6",
+                "xprvA1JZDdbTugxrS1djWVMi4PBwuj3ZQpbBU8svUHAJvXmpPhBiEPmdpbZ5gqP6R6ZPKT6oLa7g63NzLHZPPvxbNuL9fp3Cb4dVgrWPpKnSpYi",
+                "xpub6EHud98Mk4X9eViCcWtiRX8gTkt3pHK2qMoXGfZvUsJoGVWrmw5tNPsZY89jdJxruFzNAx21AHDXNBKZq26rvTadEUJzr3N681oCMdPvCti"
+            ),
+            (
+                "m/44'/0'/1'/0/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "dec327ab861f7b4da1ea67b45516f0b6d71b93ba4f3de22dd2b1e12203ca1f02",
+                "976331516208a95719780daaaaaff9dbd22665cf17370009abbbb4855569cf89",
+                "c014feb5",
+                "xprvA3qaHECwxhyhico68CLW3Ea3AYqySdqMF3VpkD4u3myo5PFM1CbX4cgLW854YRu6caycEjFiiBWDzxYBq4hhWRMCf73JTMRPCCPzHFRAfRv",
+                "xpub6Gpvgjjqo5Xzw6sZEDsWQNWmiagTr6ZCcGRRYbUWc7WmxBaVYjumcQzpMNPYRnRq3amgFU4wBLmEgc2Q4RMSuVsTcDTsYTM9sS531imfqu9"
+            ),
+            (
+                "m/44'/0'/1'/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "b86188deda09b95d38290624b326f36e233ad87c7b74fdabaa0078f5187b0838",
+                "6ebc69c29028acba7b300da6f21f3482bb99cb13948f4d95e63e18478135e55f",
+                "67384ff6",
+                "xprvA1JZDdbTugxrVBxbzConV3CE4EhxEtr2j5fxeZwCSuWTZu9zwYmJpUyccKVpN1M3RjozbZugobPpECXN1vFcZPh6T5X4545Z6PaaaVqzxhw",
+                "xpub6EHud98Mk4X9hg356ELnrB8xcGYSeMZt6JbZSxLp1F3SShV9V65ZNHJ6TbPy5otasZ7HTgTC4CL27FEB4qMiuTfqTFwuHTNHZubbseiZ7eG"
+            ),
+            (
+                "m/44'/0'/1'/1/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "398ade967bd6c3e7131647a5f819746624e419eae739d757bde2506fc0aec8bf",
+                "19debf400dd10bfe2b72813a7e21cde2dba9f9830c5b5264d4f6c11f52814086",
+                "b4a881d9",
+                "xprvA3khpHeVPioNS7K9GYyRATZjy5fUuGC6kfC8hqafn5dt6AGttDjMdXDmGZJxqaqGRJEfSwgDKh4cLengDF5jhVdsutdK8p4skfYjjgFVJKs",
+                "xpub6Gk4DoBPE6MfebPcNaWRXbWUX7VyJiux7t7jWDzHLRArxxc3Rm3cBKYF7qJdsM25tGn757PavnGhAiQxToSzDxx7eGukDY5WQEhAL7fb3Ar"
+            ),
+
+            // Bitcoin Core Derivation Paths
+            (
+                "m/0'/0'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483648",
+                "f0ba40d643ad82ccf5b6228cd0b723144d6a2b6af3daec5c57631f54b4619e77",
+                "7db48bfda81e8d1c18aa9f8649dea892c8abea84d54d0c0e895857c16fc585df",
+                "2b889e8f",
+                "xprv9w6qhRqTDF9JBxEwxukUTL6Yi24XZ5sYyGZAoR3LtzT9BBrnz72HibYxcQnQMCEEyGMLDSubfSCufC8H5sFCzofrkGa4GhskZrYxW6anz1P",
+                "xpub6A6C6wNM3chbQSKR4wHUpU3HG3u1xYbQLVUmboSxTKz83zBwXeLYGPsSTgBXeXE3Lkaf5M9oCPKwg3WxJZHqA35R7WVYkZyAUYq4xJNq5fy"
+            ),
+            (
+                "m/0'/0'/0'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483648",
+                "b33f5ac29e0b36a65ed527e8f7d394a33a6767031e68afe6df8f366c09547e30",
+                "3601dd1853197d38d4f9d4f8b5cbbc4d2062768dc6279c68b2bd085345ca71f2",
+                "2e494d03",
+                "xprv9y19cq5eXQFfNDsNmLKiYMxPPN4odkFfRmL1RqJEheTMtHFVY8vm1xWYkCN6Zznp13m34qxbc9S2LXhd56Vk1P3qnURBmTg4B2dpkMs9Gzv",
+                "xpub6BzW2LcYMmoxahwqsMriuVu7wPuJ3CyWnzFcEDhrFyzLm5ae5gF1Zkq2bSR4U1S6psBQzosfXAFqSb9YzHvd6LVAe7fHgtkjPKM8wPBhyRk"
+            ),
+
+            // Multibit Derivation Paths
+            (
+                "m/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "74d29dfbbc821a973c87ec53ff446369cb4639ad6a4c74e08ec771d052c56ccf",
+                "402baa6c2837a364e0ee384afd99a339a9f01b68c42eba5fd840a7475392e87b",
+                "2b889e8f",
+                "xprv9w6qhRqJsacL14RFPYGwMtGPnCrRaRdW97quivF9gFzy2Gzu4zxrwr65KRUzBDGmbLr61jnAQkvrz4wu7UApPPTSZfq7NZUndMPWrJ5LRty",
+                "xpub6A6C6wNChxAdDYViVZowj2D8LEguytMMWLmWXJemEbXwu5L3cYH7VeQZAgSWtrGQ783strAoBQrSTpfUxnf2QaSC9ExhuXDEooZGKWrUkey"
+            ),
+            (
+                "m/0'/0/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "05b232fd66616e350c2db176aa650f3f642df22e0efb7831d5c3ee5206639cdb",
+                "fd9a583afe8f38d077335f4bdf96146070782581aa174bf2ade5a7009e6247f6",
+                "c677886d",
+                "xprv9z82SKRcnNidyodMRmo4T96QD481VWNAxK7LgJghFdgDvsc95AuBFbjUuqhzkynYgx2ay1VN5J6yAUwpCPo4L9pjUoX1HwNx9xBFKR4y8yv",
+                "xpub6D7NqpxWckGwCHhpXoL4pH38m5xVty62KY2wUh6JoyDCofwHciDRoQ3xm7WAg2ffpHaC6X4bEociYq81niyNUGhCxEs6fDFAd1LPbEmzcAm"
+            ),
+
+            // Block Explorer Derivation Paths (example: blockchain.info)
+            (
+                "m/44'/0'/0'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483648",
+                "47beaf6a6be527c151297bba99b3da1cd02fa88f6278d550cd5a282123283c9f",
+                "d4297bd8126147c4da781f78af3d5e92992fb799a0fa73cb254bfc5b4358167d",
+                "88d9ebc3",
+                "xprv9yfkvkuXqXhVbpVNpCoEPUUxZfKPC51DPDMYEWmmbYChi8ovEmcwnVQpFAjgXXjuoRkCDy3iJkyndER6XrLWCf7v2BcsoVdbuNER96UuU5H",
+                "xpub6Cf7LGSRfuFnpJZqvELEkcRh7h9sbXj4kSH92uBP9sjgaw94nJwCLHjJ6SnnqpLtYmdencmUKm91AMWWZAqEPYUKVvWso4M572aRrm7NGxV"
+            ),
+            (
+                "m/44'/0'/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "4338d5f49fecfe380b9e60e032b7da0845e7f9d441ac78bd58ab1af423187d7d",
+                "c2c14ca7969bfea1753c39eb5238cb948dc3202478b414e0e924e7a21f4fe654",
+                "929c7e3c",
+                "xprvA1d47WXmiQZzV33ywwsbBhbtLg7f9XzMv6xdEbP6yJSxw38RhQzarwW3GDKvYnfvY67fWjEsF5ySDnXZ9sVwsw9A7sYE1gTBKkTkhxM3Foz",
+                "xpub6EcQX24fYn8HhX8T3yQbYqYcthx9YziDHKtE2yniXdywoqTaExJqQjpX7WwBmeVH2D3U8CXiADcvBHSCQ3UKNUxh2w8pZFNAnjEFD89Qh1x"
+            )
         ];
 
         #[test]
@@ -551,158 +671,164 @@ mod tests {
                 test_to_string::<N>(extended_private_key);
             });
         }
-
-        mod bitcoin_core {
-            use super::*;
-
-            #[test]
-            fn extended_private_and_public_keys() {
-                let path = &BitcoinDerivationPath::from_str("m/0'/0'").unwrap();
-                let expected_extended_private_key = "xprv9w3SqtfiugdcXh7MJqHdgRKQZPX1CtMYuo4zJHpGCvSJJzrtXejwgAchPXsBG8ZRrKiSKmY1ehX3JT56CqTMZqhpdUJhLDGwsJGPMagDoNG";
-                let expected_extended_public_key = "xpub6A2oFQCck4BukBBpQrpe3ZG97RMVcM5QH1zb6gDsmFyHBoC35C4CDxwBEofGDLdKVhuc8PqzAxFkfZJ1x7cVRd2f1cB8mjstGsRLxyHqsKD";
-                let master_extended_private_key =
-                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-
-                test_extended_private_and_public_keys(
-                    expected_extended_private_key,
-                    expected_extended_public_key,
-                    path,
-                    &master_extended_private_key,
-                );
-            }
-
-            #[test]
-            fn account_private_key() {
-                let account_path = &BitcoinDerivationPath::from_str("m/0'/0'/0'").unwrap();
-                let expected_private_key = "KxwbSoFNiiRmJHBt44XmJxaDUZNdYVmxgvBY6M4VriMRSAzmSfsz";
-                let master_extended_private_key =
-                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-                test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
-            }
-        }
-
-        mod multibit {
-            use super::*;
-
-            #[test]
-            fn extended_private_and_public_keys() {
-                let path = &BitcoinDerivationPath::from_str("m/0'/0").unwrap();
-                let expected_extended_private_key = "xprv9w3Sqtfaa26eMCjLzWiMptASpL17gb23RkjF4uYBN4yNKFTWwzWRzvA7jjiDVhCSEHBeM2wYY5GyjsT75S76xeqjrzm6qsJdXJQcBVwRGAR";
-                let expected_extended_public_key = "xpub6A2oFQCUQPewZgop6YFNC27BNMqc63jtnyeqsHwnvQWMC3nfVXpgYiUbayzRZ4qsu24vd2PDz4wtCK9q7CbqsC4mxwJ34sVFPcnqSrDGx1R";
-                let master_extended_private_key =
-                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-
-                test_extended_private_and_public_keys(
-                    expected_extended_private_key,
-                    expected_extended_public_key,
-                    path,
-                    &master_extended_private_key,
-                );
-            }
-
-            #[test]
-            fn account_private_key() {
-                let account_path = &BitcoinDerivationPath::from_str("m/0'/0/0'").unwrap();
-                let expected_private_key = "L3e3ugN7UGKtSaheMZg2TNFqhMQvWuZnuEVshWPhUY53C3vf1jG2";
-                let master_extended_private_key =
-                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-                test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
-            }
-        }
-
-        mod blockchain_info {
-            use super::*;
-
-            #[test]
-            fn extended_private_and_public_keys() {
-                let path = &BitcoinDerivationPath::from_str("m/44'/0'/0'").unwrap();
-                let expected_extended_private_key = "xprv9yzrnt4zWVJUr1k2VxSPy9ettKz5PpeDMgaVG7UKedhqnw1tDkxP2UyYNhuNSumk2sLE5ctwKZs9vwjsq3e1vo9egCK6CzP87H2cVYXpfwQ";
-                let expected_extended_public_key = "xpub6CzDCPbtLrrn4VpVbyyQLHbdSMpZoHN4iuW64VswCyEpfjM2mJGdaHJ2DyuZwtst96E16VvcERb8BBeJdHSCVmAq9RhtRQg6eAZFrTKCNqf";
-                let master_extended_private_key =
-                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-
-                test_extended_private_and_public_keys(
-                    expected_extended_private_key,
-                    expected_extended_public_key,
-                    path,
-                    &master_extended_private_key,
-                );
-            }
-
-            #[test]
-            fn account_private_key() {
-                let account_path = &BitcoinDerivationPath::from_str("m/44'/0'/0'/0'").unwrap();
-                let expected_private_key = "L1eCCGu1ThtPSRzQwhwjRNsbK1dKcMrfn2S9WpnF8vFdQHskVtVB";
-                let master_extended_private_key =
-                    BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-                test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
-            }
-        }
     }
 
-    mod bip44 {
+    mod p2sh_p2wpkh_mainnet {
         use super::*;
 
         type N = Mainnet;
 
-        const MASTER_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K2jkGDCeTLgRewT9F2pH5JZs2zDmmjXes34geVnFiuNa8KTvY5WoYvdn4Ag6oYRoB6cXtc43NgJAEqDXf51xPm6fhiMCKwpi";
+        // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 8] = [
+
+            // BIP49 Derivation Paths
+            (
+                "m/49'/0'/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "00488e6935838afba847d9c12ed643fce921c87454418c2c5e4ac82bdf9ff351",
+                "6ce0dcd808c9ce2ac36191162f5b68b6b9c1319c9a7f2a55b8438b24ea061e91",
+                "ed088f15",
+                "yprvAM7sCKyfKPFyPT1kyKsHWEoWqJPKTAwgyRrVZLe3RaX6dd5EK1NE87WYsi3yGisqGsJoQ21v7WUercQsUdST2HeV91poWQY5mGrk4yWnuy5",
+                "ypub6a7DbqWZ9kpGbw6E5MQHsNkFPLDordfYLen6Mj3eyv45WRQNrYgUfuq2izWkWnBbFsv7vHcPbs2gzJwEYqRobMGiJVFqSAm9w8jiKXYNV92"
+            ),
+            (
+                "m/49'/0'/0'/0/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "128316419b0dcca64fa60960a8fcd633539bc18322636e03d1e5c3c576135d22",
+                "b3bc049be87695ae3bd66e12ab37bc629a3f7d8c59c4b1fb69250f9dd0f60b22",
+                "226587c8",
+                "yprvAMWceuThEayAsqgfGZcWQHBPMobihTywY7GTXtFikg64qqjqC5xxMuSz6jdFpo5ArMjRMui5fMX9E9GToPXJqg8bMpZzyPzbm9fJxUYPVu5",
+                "ypub6aVy4Qzb4xXU6Km8Nb9WmR87uqSD6vhnuLC4LGfLK1d3ie4yjdHCuhmTx2RPAJwrZaAXpqhDWJ3pM5VmjzvTcJNAqNHfvxVcaXT3h1VXR5b"
+            ),
+            (
+                "m/49'/0'/0'/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "b962720ba4e38e3cea5b7c5e4582bde83641cf2a153e60ae8fd4bb7711645aa5",
+                "d532957b2cfb9d5d640494d17f216011f35e1fc0a6b574e16d222075d86ec2c1",
+                "ed088f15",
+                "yprvAM7sCKyfKPFyT35btaVetbAMNSxBAiX9QAqPQQPytDwVD3ddBsxMbUf9MzVUfJMzFsPaTes5qYe8cp9pGXfZycs5dp8frX6NC3HYnXHnKun",
+                "ypub6a7DbqWZ9kpGfXA4zc2fFj75vUnfaBEzmPkzCnobSZUU5qxmjRGc9GydDFP8kUUddcazkH5nrPi4nT3QbQ4SQTj2jEsnZ2EXFsB7qvoxExH"
+            ),
+            (
+                "m/49'/0'/0'/1/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "9db56d12672cd6adcabc637dcc23ce19813b28c8812226153f3bae1c72d62877",
+                "b149f3908b23ec6af124c9237d902a0e83e44d10a9043950785ae7129e70a57b",
+                "854920fd",
+                "yprvANEmnYaG6PyXCHrLbJ9vDpjQpc145pqmH9H2biR7B5xDgVoRTKMUjXhGQPbPcDUo7TuY6VryGxpe9YwB3JM8MaK4P1MtEkctwxZahrSkTjt",
+                "ypub6bE8C479vmXpQmvohKgvaxg9NdqYVHZceNCdQ6pijRVCZJ8ZzrfjHL1kFfPNPdDj9Xmd2ntEXqJ3UsmWd74NQt2kpAzTpTWjH4HrCcb4kbD"
+            ),
+            (
+                "m/49'/0'/1'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "1c8b1cb1af5d7ec0f7c5bff350bbad9c62d81751b50a434941001ef50c422edd",
+                "7f8790af54660ad2c31a0d4854f462e74c56eabf89c23c015daf2557dd22c805",
+                "c4bd345b",
+                "yprvALpgsrPPYqg9VeEVcvVnzjTvBRGJk1FPAZh4rMcBpKAHNavJJKzJPeQMbYpWHgR54DQUiQ6MaVKXxELVQXcHpM2QyajifGoGyxaJCEXKUU1",
+                "ypub6Zp3HMvHPDESi8Jxix2oMsQejT6o9TyEXncfek1oNehGFPFSqsJYwSiqSpT65DYQyqDUUsrLg2saWwcMkdNGdVGt67gCv7ycXfvw3RUCWJc"
+            ),
+            (
+                "m/49'/0'/1'/0/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "078e5b6108f5171b9514bbe42b371fcae78332de86d6a8c377fc350c6761f649",
+                "4926d4cf1f0e246e5e84b51a564889350c8ce9d0f9357f5e925a89ced2b384d1",
+                "0bffe647",
+                "yprvAMM4sBZ5DwaqiWMcdoxmMS736ixPeDPeUdzusQkPFXcYJtsLSpNmuwaXibu3pRfYaTDZ9o6Pv8wWacVBLPNGyp9XPF9ETX7cc4KjMdZmBBw",
+                "ypub6aLRGh5y4K98vzS5jqVmia3meknt3g7VqrvWfo9zos9XBhCUzMh2Tju1ZtkQRMpHi42tDYXUvJR46exugN8Gz1kxu3zpuckVR444tE6t89L"
+            ),
+            (
+                "m/49'/0'/1'/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "d2d6415f3a8533dbf3c2a930553bafb97c0c21782f65fa218ccc46a8cde16aa1",
+                "97acdd147742d49c9bbe2ed118152f1501c0159009450bc16f7c2cacef085e97",
+                "c4bd345b",
+                "yprvALpgsrPPYqg9YS1AATRMs4e8p5KDoGTdsB3PRcebfgFmc8idEFDwoGUzcqEgBtoB1TeLzWKN9y8wpb8so57f2uq1QvuXoqZHiNGKY7CKJWH",
+                "ypub6Zp3HMvHPDESkv5dGUxNECasN79iCjBVEPxzE14DE1nkUw3mmnYCM4oUU88wfKVginVPsPax4MZxuEmgxAwcH48PKLUxqGh2ZBaFgPQWczF"
+            ),
+            (
+                "m/49'/0'/1'/1/1",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "1",
+                "7cee168da33dad928d22d0d629d88c74d20ea02b5d1ae742d97e98e9f6b9a2a3",
+                "d9ccf85ebdf4308622b63da49d3017f0fcb1e7c5c32d46c998291a5a5a082368",
+                "e1a183e9",
+                "yprvANv97foamnucG4mLwkifvFmEez9XDYfmFH3tUWh4U16Qsau6KmwZ7iRyu4byPtYTFfeFv9i3hK472wkNH8ZK2667RoR9mEyNCK1HimnKv9h",
+                "ypub6buVXBLUcATuUYqp3nFgHPhyD1z1d1PccVyVGu6g2LdPkPEEsKFofWkTkLM4YeWoQDwEfsezCmjJbqjr6Tajv7Q8ktnHFkE3FiaS7fUFyYh"
+            ),
+        ];
 
         #[test]
-        fn extended_private_and_public_keys() {
-            let path = &BitcoinDerivationPath::from_str("m/44'/0'/0'/0").unwrap();
-            let expected_extended_private_key = "xprvA2DxxvPZcyRvYgZMGS53nadR32mVDeCyqQYyFhrCVbJNjPoxMeVf7QT5g7mQASbTf9Kp4cryvcXnu2qurjWKcrdsr91jXymdCDNxKgLFKJG";
-            let expected_extended_public_key = "xpub6FDKNRvTTLzDmAdpNTc49ia9b4byd6vqCdUa46Fp3vqMcC96uBoufCmZXQLiN5AK3iSCJMhf9gT2sxkpyaPepRuA7W3MujV5tGmF5VfbueM";
-            let master_extended_private_key =
-                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-
-            test_extended_private_and_public_keys(
-                expected_extended_private_key,
-                expected_extended_public_key,
-                path,
-                &master_extended_private_key,
+        fn new() {
+            KEYPAIRS.iter().for_each(
+                |(path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
+                    test_new::<N>(
+                        extended_private_key,
+                        parent_fingerprint,
+                        child_index.parse().unwrap(),
+                        chain_code,
+                        secret_key,
+                        seed,
+                        &Format::P2SH_P2WPKH,
+                        &BitcoinDerivationPath::from_str(path).unwrap(),
+                    );
+                },
             );
         }
 
         #[test]
-        fn account_private_key() {
-            let account_path = &BitcoinDerivationPath::from_str("m/44'/0'/0'/0/0").unwrap();
-            let expected_private_key = "L26cVSpWFkJ6aQkPkKmTzLqTdLJ923e6CzrVh9cmx21QHsoUmrEE";
-            let master_extended_private_key =
-                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-            test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
+        fn derive() {
+            KEYPAIRS.chunks(2).for_each(|pair| {
+                let (_, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
+                let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
+                test_derive::<N>(
+                    expected_extended_private_key1,
+                    expected_extended_private_key2,
+                    expected_child_index2.parse().unwrap(),
+                );
+            });
         }
-    }
-
-    mod bip49 {
-        use super::*;
-
-        type N = Mainnet;
-
-        const MASTER_EXTENDED_PRIVATE_KEY: &str = "yprvABrGsX5C9jant2wP3ZS5YmXA7RHgySGaDgPFmcff7Y2k6AVskSRHXSEGLft85RTULGtrv9hN169iyu9TKkTPUXqqhZE5evmt2pjM6un8eUP";
 
         #[test]
-        fn extended_private_and_public_keys() {
-            let path = &BitcoinDerivationPath::from_str("m/49'/0'/0'/0").unwrap();
-            let expected_extended_private_key = "yprvALYB4DYRG6CzzVgzQZwwqjAA2wjBGC3iEd7KYYScpoDdmf75qMRWZWxoFcRXBJjgEXdFqJ9vDRGRLJQsrL22Su5jMbNFeM9vetaGVqy9Qy2";
-            let expected_extended_public_key = "ypub6ZXXTj5K6TmJCymTWbUxCs6tayZffemZbr2vLvrEP8kceTSENtjm7KHH6thvAKxVar9fGe8rgsPEX369zURLZ68b4f7Vexz7RuXsjQ69YDt";
-            let master_extended_private_key =
-                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
+        fn to_extended_public_key() {
+            KEYPAIRS
+                .iter()
+                .for_each(|(path, seed, _, _, _, _, _, expected_public_key)| {
+                    test_to_extended_public_key::<N>(
+                        expected_public_key,
+                        seed,
+                        &Format::P2SH_P2WPKH,
+                        &BitcoinDerivationPath::from_str(path).unwrap(),
+                    );
+                });
+        }
 
-            test_extended_private_and_public_keys(
-                expected_extended_private_key,
-                expected_extended_public_key,
-                path,
-                &master_extended_private_key,
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(
+                |(_, _, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
+                    test_from_str::<N>(
+                        extended_private_key,
+                        parent_fingerprint,
+                        child_index.parse().unwrap(),
+                        chain_code,
+                        secret_key,
+                    );
+                },
             );
         }
 
         #[test]
-        fn account_private_key() {
-            let account_path = &BitcoinDerivationPath::from_str("m/49'/0'/0'/0/0").unwrap();
-            let expected_private_key = "KxKTsBB6gmqBPgPCHTfdaUmqksHMhbinWSgPj4c7YDHHmXjumwCo";
-            let master_extended_private_key =
-                BitcoinExtendedPrivateKey::<N>::from_str(MASTER_EXTENDED_PRIVATE_KEY).unwrap();
-            test_account_private_key(expected_private_key, account_path, &master_extended_private_key);
+        fn to_string() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_to_string::<N>(extended_private_key);
+            });
         }
     }
 
@@ -711,7 +837,7 @@ mod tests {
 
         type N = Mainnet;
 
-        const INVALID_EXTENDED_PRIVATE_KEY_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
+        const INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
         const INVALID_EXTENDED_PRIVATE_KEY_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
         const INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
         const VALID_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
@@ -719,7 +845,8 @@ mod tests {
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECRET_KEY).unwrap();
+            let _result =
+                BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY).unwrap();
         }
 
         #[test]

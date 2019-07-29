@@ -478,7 +478,7 @@ mod tests {
 
         type N = Mainnet;
 
-        const INVALID_EXTENDED_PUBLIC_KEY_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         const INVALID_EXTENDED_PUBLIC_KEY_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         const INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
         const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
@@ -486,7 +486,8 @@ mod tests {
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = BitcoinExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_PUBLIC_KEY).unwrap();
+            let _result =
+                BitcoinExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY).unwrap();
         }
 
         #[test]
