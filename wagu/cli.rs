@@ -3,7 +3,7 @@
 //! A command-line tool to generate cryptocurrency wallets.
 
 use bitcoin::address::Format as BitcoinFormat;
-use bitcoin::{BitcoinAddress, BitcoinMnemonic, BitcoinPrivateKey, Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet, BitcoinNetwork, English};
+use bitcoin::{BitcoinAddress, BitcoinMnemonic, BitcoinPrivateKey, Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet, BitcoinNetwork, English, BitcoinDerivationPath, BitcoinExtendedPrivateKey};
 use ethereum::{EthereumAddress, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
 use monero::{Mainnet as MoneroMainnet, MoneroAddress, MoneroPrivateKey, Testnet as MoneroTestnet};
@@ -17,11 +17,13 @@ use rand_core::SeedableRng;
 use serde::Serialize;
 use std::marker::PhantomData;
 use std::str::FromStr;
+use rand::Rng;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct BitcoinWallet {
     pub private_key: Option<String>,
     pub wallet_mnemonic: Option<WalletMnemonic>,
+    pub extended_private_key: Option<WalletExtendedPrivateKey>,
     pub count: usize,
     pub network: String,
     pub format: BitcoinFormat,
@@ -34,6 +36,13 @@ pub struct WalletMnemonic {
     pub word_count: u8,
     pub mnemonic: String,
     pub password: String,
+    pub path: Option<String>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct WalletExtendedPrivateKey {
+    pub key: Option<String>,
+    pub path: Option<String>,
 }
 
 fn main() {
@@ -73,6 +82,23 @@ fn main() {
                 .help("Generate a wallet with a SegWit address"))
             .subcommand(SubCommand::with_name("mnemonic")
                 .about("Generate a wallet using mnemonics")
+                .arg(Arg::with_name("import")
+                    .long("import")
+                    .takes_value(true)
+                    .number_of_values(1)
+                    .value_name("mnemonic")
+                    .help("Generate a wallet by importing a Mnemonic (in quotes)"))
+                .arg(Arg::with_name("path")
+                    .long("path")
+                    .takes_value(true)
+                    .number_of_values(1)
+                    .help("Specify a derivation path"))
+                .arg(Arg::with_name("password")
+                    .long("password")
+                    .takes_value(true)
+                    .number_of_values(1)
+                    .value_name("password")
+                    .help("Specify a password used for extended private key derivation"))
                 .arg(Arg::with_name("word count")
                     .long("word_count")
                     .takes_value(true)
@@ -80,20 +106,6 @@ fn main() {
                     .value_name("word count")
                     .conflicts_with("import")
                     .help("Generate a wallet with a new mnemonic with the specified word count"))
-                .arg(Arg::with_name("password")
-                    .long("password")
-                    .short("p")
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("password")
-                    .help("Specify a password used for extended private key derivation"))
-                .arg(Arg::with_name("import")
-                    .long("import")
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("mnemonic")
-                    .conflicts_with("new")
-                    .help("Generate a wallet by importing a Mnemonic (in quotes)"))
             )
             .subcommand(SubCommand::with_name("private_key")
                 .about("Generate a wallet by importing a private key")
@@ -103,6 +115,20 @@ fn main() {
                     .number_of_values(1)
                     .value_name("private key")
                     .help("Generate a wallet by importing a private key"))
+            )
+            .subcommand(SubCommand::with_name("extended_private_key")
+                .about("Generate a wallet from an extended key")
+                .arg(Arg::with_name("import")
+                    .long("import")
+                    .takes_value(true)
+                    .number_of_values(1)
+                    .value_name("extended private key")
+                    .help("Generate a wallet by importing an extended private key"))
+                .arg(Arg::with_name("path")
+                    .long("path")
+                    .takes_value(true)
+                    .number_of_values(1)
+                    .help("Specify a derivation path"))
             )
         )
         .subcommand(SubCommand::with_name("ethereum")
@@ -194,6 +220,7 @@ fn main() {
                     BitcoinWallet {
                         private_key: None,
                         wallet_mnemonic: None,
+                        extended_private_key: None,
                         count,
                         network: network.into(),
                         format: bitcoin_address_type,
@@ -206,6 +233,7 @@ fn main() {
                     BitcoinWallet {
                         private_key,
                         wallet_mnemonic: None,
+                        extended_private_key: None,
                         count,
                         network: network.into(),
                         format: bitcoin_address_type,
@@ -214,26 +242,43 @@ fn main() {
                 },
                 ("mnemonic", Some(mnemonic_matches)) => {
                     let password: String = mnemonic_matches.value_of("password").unwrap_or("").into();
+                    let path = mnemonic_matches.value_of("path").map(|s| s.to_string());
                     let wallet_mnemonic = if mnemonic_matches.is_present("import") {
                         let mnemonic_values: &str = mnemonic_matches.value_of("import").unwrap();
                         let words: Vec<_> = mnemonic_values.split(' ').collect();
-                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.into(), password })
+                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.into(), password, path })
                     } else if mnemonic_matches.is_present("word count") {
                         let word_count: u8 = mnemonic_matches.value_of("word count").unwrap().parse().unwrap();
-                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".into(), password })
+                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".into(), password, path })
                     } else {
-                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".into(), password })
+                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".into(), password, path })
                     };
 
                     BitcoinWallet {
                         private_key: None,
                         wallet_mnemonic,
+                        extended_private_key: None,
                         count,
                         network: network.into(),
                         format: bitcoin_address_type,
                         json
                     }
-                }
+                },
+                ("extended_private_key", Some(xpriv_matches)) => {
+                    let path = xpriv_matches.value_of("path").map(|s| s.to_string());
+                    let key = xpriv_matches.value_of("import").map(|s| s.to_string());
+                    let extended_private_key = Some( WalletExtendedPrivateKey { key, path });
+
+                    BitcoinWallet {
+                        private_key: None,
+                        wallet_mnemonic: None,
+                        extended_private_key,
+                        count,
+                        network: network.into(),
+                        format: bitcoin_address_type,
+                        json
+                    }
+                },
                 _ => unreachable!(),
             };
 
@@ -318,8 +363,8 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
     };
 
     for _ in 0..bitcoin_wallet.count {
-        match bitcoin_wallet.wallet_mnemonic.clone() {
-            None => {
+        match (bitcoin_wallet.wallet_mnemonic.clone(), bitcoin_wallet.extended_private_key.clone()) {
+            (None, None) => {
                 let private_key = match bitcoin_wallet.private_key.clone() {
                     None => {
                         let rng = &mut StdRng::from_entropy();
@@ -352,13 +397,17 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                     )
                 }
             },
-            Some(wallet_mnemonic) => {
+            (Some(wallet_mnemonic), None) => {
                 type W = English;
                 let rng = &mut StdRng::from_entropy();
                 let mnemonic = if wallet_mnemonic.new { BitcoinMnemonic::<N, W>::new(wallet_mnemonic.word_count, rng).unwrap()
                 } else { BitcoinMnemonic::<N, W>::from_phrase(&wallet_mnemonic.mnemonic).unwrap() };
 
-                let extended_private_key = mnemonic.to_extended_private_key(Some(&wallet_mnemonic.password)).unwrap();
+                let master_xpriv_key = mnemonic.to_extended_private_key(Some(&wallet_mnemonic.password)).unwrap();
+                let extended_private_key = match wallet_mnemonic.path {
+                    Some(path) => { master_xpriv_key.derive(&BitcoinDerivationPath::from_str(&path).unwrap()).unwrap() },
+                    None => { master_xpriv_key },
+                };
                 let private_key = extended_private_key.to_private_key();
                 let address = BitcoinAddress::from_private_key(&private_key, &bitcoin_wallet.format).unwrap();
 
@@ -388,7 +437,62 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                         mnemonic_wallet.phrase, mnemonic_wallet.extended_private_key, mnemonic_wallet.private_key, mnemonic_wallet.address, mnemonic_wallet.network, mnemonic_wallet.format, mnemonic_wallet.compressed
                     )
                 }
-            }
+            },
+            (None, Some(wallet_extended)) => {
+                let extended_private_key = match (wallet_extended.key, wallet_extended.path)  {
+                    (None, None) => {
+                        let rng = &mut StdRng::from_entropy();
+                        let seed: [u8; 32] = rng.gen();
+                        BitcoinExtendedPrivateKey::<N>::new_master(&seed, &bitcoin_wallet.format).unwrap()
+                    },
+                    (Some(key), None) => {
+                        BitcoinExtendedPrivateKey::<N>::from_str(&key).unwrap()
+                    },
+                    (None, Some(path)) => {
+                        let rng = &mut StdRng::from_entropy();
+                        let seed: [u8; 32] = rng.gen();
+                        BitcoinExtendedPrivateKey::<N>::new(
+                            &seed,
+                            &bitcoin_wallet.format,
+                            &BitcoinDerivationPath::from_str(&path).unwrap())
+                            .unwrap()
+                    },
+                    (Some(key), Some(path)) => {
+                        BitcoinExtendedPrivateKey::from_str(&key)
+                            .unwrap()
+                            .derive(&BitcoinDerivationPath::from_str(&path).unwrap()).unwrap()
+                    },
+                };
+                let private_key = extended_private_key.to_private_key();
+                let address = BitcoinAddress::from_private_key(&private_key, &bitcoin_wallet.format).unwrap();
+
+                let extended_wallet = ExtendedWallet {
+                    phrase:  "".into(),
+                    extended_private_key: extended_private_key.to_string(),
+                    private_key: private_key.to_string(),
+                    address: address.to_string(),
+                    network: bitcoin_wallet.network.clone(),
+                    format: address.format(),
+                    compressed: private_key.is_compressed(),
+                };
+
+                if bitcoin_wallet.json {
+                    println!("{}", serde_json::to_string_pretty(&extended_wallet).unwrap())
+                } else {
+                    println!(
+                            "
+                Extended private Key:   {}
+                Private Key:            {}
+                Address:                {}
+                Network:                {}
+                Format:                 {}
+                Compressed:             {}
+                ",
+                        extended_wallet.extended_private_key, extended_wallet.private_key, extended_wallet.address, extended_wallet.network, extended_wallet.format, extended_wallet.compressed
+                    )
+                }
+            },
+            _ => unreachable!(),
         };
     }
 }
