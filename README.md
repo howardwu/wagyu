@@ -1,14 +1,17 @@
-# wagyu
+<h1 align="center">
+    <img width="1346" alt="wagyu" src="https://user-images.githubusercontent.com/9260812/62023257-eb1f3080-b184-11e9-86e4-79b01f056d5d.png">
+</h1>
+<p align="center">
+    <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
+    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg"></a>
+    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0"></a>
+    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
+    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
+</p>
 
-[![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)
-![Travis (.com) branch](https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg)
-[![Coverage Status](https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0)](https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0)
-[![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
-[![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
-
-Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
+<p align="center">
+    <img src="https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif">
+</p>
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -27,10 +30,10 @@ Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet 
 
 ## 1. Overview
 
-Wagu is a lightweight command-line utility to generate a cryptocurrency wallet.
+Wagyu is a lightweight command-line utility to generate a cryptocurrency wallet.
 
 
-Wagu enables developers to build their own cryptocurrency application using the following modules.
+Wagyu enables developers to build their own cryptocurrency application using the following modules.
 
 | Library                                                                                                                                       | Doc                       | Standard Wallet                                                       | HD Wallet                     | Mnemonic                        | Network                                                         |
 |:---------------------------------------------------------------------------------------------------------------------------------------------:|---------------------------|-----------------------------------------------------------------------|-------------------------------|---------------------------------|-----------------------------------------------------------------|
@@ -39,7 +42,7 @@ Wagu enables developers to build their own cryptocurrency application using the 
 | [**wagyu-monero**](./monero)     <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)      | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>         | <br/><ul><li>Electrum</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
 | [**wagyu-zcash**](./zcash)       <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)      | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32</li></ul> | <br/><ul><li>N/A</li></ul>      | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
 
-Wagu can support new cryptocurrencies by implementing the model as outlined in this module.
+Wagyu can support new cryptocurrencies by implementing the model as outlined in this module.
 
 | Library                                                                                                                            | Standard Wallet                                                                                                                                                | HD Wallet                                                                                                                                             | Mnemonic                                                  | Network                                                   |
 |:----------------------------------------------------------------------------------------------------------------------------------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|-----------------------------------------------------------|
