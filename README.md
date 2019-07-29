@@ -1,14 +1,18 @@
-# wagyu
+<h1 align="center"><img width="1346" alt="Screen Shot 2019-07-28 at 9 54 51 PM" src="https://user-images.githubusercontent.com/9260812/62022781-b01bfd80-b182-11e9-98d1-909ab0b9ce14.png"></h1>
 
-[![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)
-![Travis (.com) branch](https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg)
-[![Coverage Status](https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0)](https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0)
-[![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
-[![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
+<p align="center">
+    <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
+    <a href="https://travis-ci.com/ArgusHQ/wagu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg"></a>
+    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0"></a>
+    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
+    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
+</p>
 
-Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
+<p align="center">
+    Wagyu is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
+    <br/><br/>
+    <img src="https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif">
+</p>
 
 ## <a name='TableofContents'></a>Table of Contents
 
