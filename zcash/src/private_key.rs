@@ -144,17 +144,9 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type Format = Format;
     type PublicKey = ZcashPublicKey<N>;
 
-    /// Returns a randomly-generated compressed Zcash private key.
+    /// Returns a randomly-generated Zcash private key.
     fn new() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
-        Ok(Self(
-            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
-                secp256k1::SecretKey::from_slice(&random)?,
-                true,
-            )),
-            PhantomData,
-        ))
+        Self::new_sapling()
     }
 
     /// Returns the public key of the corresponding Zcash private key.
@@ -169,6 +161,26 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
 }
 
 impl<N: ZcashNetwork> ZcashPrivateKey<N> {
+    /// Returns a randomly-generated Zcash P2PKH private key.
+    pub fn new_p2pkh() -> Result<Self, PrivateKeyError> {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random)?;
+        Ok(Self(
+            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
+                secp256k1::SecretKey::from_slice(&random)?,
+                true,
+            )),
+            PhantomData,
+        ))
+    }
+
+    /// Returns a randomly-generated Zcash Sapling private key.
+    pub fn new_sapling() -> Result<Self, PrivateKeyError> {
+        let mut random = [0u8; 32];
+        OsRng.try_fill(&mut random)?;
+        Self::sapling(&hex::encode(random))
+    }
+
     /// Returns a Zcash private key given a spending key.
     pub fn from_spending_key(spending_key: SpendingKey<N>) -> Self {
         Self(spending_key, PhantomData)
