@@ -1,14 +1,17 @@
-# wagu
+<h1 align="center">
+    <img width="1346" alt="wagyu" src="https://user-images.githubusercontent.com/9260812/62023257-eb1f3080-b184-11e9-86e4-79b01f056d5d.png">
+</h1>
+<p align="center">
+    <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
+    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg"></a>
+    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0"></a>
+    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
+    <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
+</p>
 
-[![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
-![Travis (.com) branch](https://img.shields.io/travis/com/ArgusHQ/wagu/v0.6.0.svg)
-[![Codecov](https://img.shields.io/codecov/c/github/ArgusHQ/wagu.svg)](https://codecov.io/gh/ArgusHQ/wagu)
-[![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](./AUTHORS)
-[![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
-
-Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet **g**eneration **u**tility for cryptocurrencies.
-
-[![Wagu Bitcoin Demo](https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif)](https://gyazo.com/134f7a29c4accef35ff730430cd87b52)
+<p align="center">
+    <img src="https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif">
+</p>
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -27,26 +30,23 @@ Wagu (pronounced  [wagyu](https://en.wikipedia.org/wiki/Wagyu)) is a **wa**llet 
 
 ## 1. Overview
 
-Wagu is a lightweight command-line utility to generate a cryptocurrency wallet.
+Wagyu is a lightweight command-line utility to generate a cryptocurrency wallet.
 
-| Library        | Crate                                                                                              | Cryptocurrency                                                                     | Address     | Public Key   | Private Key   | HD Wallet   |
-|:--------------:|:--------------------------------------------------------------------------------------------------:|------------------------------------------------------------------------------------|:-----------:|:------------:|:-------------:|:-----------:|
-| [**wagu**](.)  | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu) | <br/><ul><li>Bitcoin</li><li>Ethereum</li><li>Monero</li><li>Zcash</li></ul>       | Yes         | Yes          | Yes           | Yes         |
 
-Wagu enables developers to build their own cryptocurrency application using the following modules.
+Wagyu enables developers to build their own cryptocurrency application using the following modules.
 
-| Library                         | Crate                                                                                                   | Doc                       | Address Format                                                        | HD Wallet                                   | Network                                                         |
-|:-------------------------------:|---------------------------------------------------------------------------------------------------------|---------------------------|-----------------------------------------------------------------------|---------------------------------------------|-----------------------------------------------------------------|
-| [**wagu-bitcoin**](./bitcoin)   | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/bitcoin.md)   | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
-| [**wagu-ethereum**](./ethereum) | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/ethereum.md)  | <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>BIP-32</li></ul>               | <br/><ul><li>All</li></ul>                                      |
-| [**wagu-monero**](./monero)     | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>                       | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
-| [**wagu-zcash**](./zcash)       | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)      | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32 (in progress)</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+| Library                                                                                                                                       | Doc                       | Standard Wallet                                                       | HD Wallet                     | Mnemonic                        | Network                                                         |
+|:---------------------------------------------------------------------------------------------------------------------------------------------:|---------------------------|-----------------------------------------------------------------------|-------------------------------|---------------------------------|-----------------------------------------------------------------|
+| [**wagyu-bitcoin**](./bitcoin)   <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)      | [View](docs/bitcoin.md)   | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li></ul> | <br/><ul><li>BIP-39</li></ul>   | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+| [**wagyu-ethereum**](./ethereum) <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)      | [View](docs/ethereum.md)  | <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>BIP-32</li></ul> | <br/><ul><li>BIP-39</li></ul>   | <br/><ul><li>All</li></ul>                                      |
+| [**wagyu-monero**](./monero)     <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)      | [View](docs/monero.md)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>         | <br/><ul><li>Electrum</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
+| [**wagyu-zcash**](./zcash)       <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)      | [View](docs/zcash.md)     | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32</li></ul> | <br/><ul><li>N/A</li></ul>      | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
 
-Wagu can support new cryptocurrencies by implementing the model as outlined in this module.
+Wagyu can support new cryptocurrencies by implementing the model as outlined in this module.
 
-| Library                    | Crate                                                                                              | Standard Wallet                                                                                                                                                | HD Wallet                                                                                                                                             | Network                                                   |
-|:--------------------------:|:--------------------------------------------------------------------------------------------------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
-| [**wagu_model**](./model)  | [![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu) | <br/><ul><li>[Address](./model/src/address.rs)</li><li>[Public Key](./model/src/public_key.rs)</li><li>[Private Key](./model/src/private_key.rs)</li></ul>     | <br/><ul><li>[Extended Public Key](./model/src/extended_public_key.rs)</li><li>[Extended Private Key](./model/src/extended_private_key.rs)</li></ul>  | <br/><ul><li>[Network](./model/src/network.rs)</li></ul>  |
+| Library                                                                                                                            | Standard Wallet                                                                                                                                                | HD Wallet                                                                                                                                             | Mnemonic                                                  | Network                                                   |
+|:----------------------------------------------------------------------------------------------------------------------------------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|-----------------------------------------------------------|
+| [**wagyu_model**](./model) <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu) | <br/><ul><li>[Address](./model/src/address.rs)</li><li>[Public Key](./model/src/public_key.rs)</li><li>[Private Key](./model/src/private_key.rs)</li></ul>     | <br/><ul><li>[Derivation Path](./model/src/derivation_path.rs)</li><li>[Extended Public Key](./model/src/extended_public_key.rs)</li><li>[Extended Private Key](./model/src/extended_private_key.rs)</li></ul>  | <br/><ul><li>[Mnemonic](./model/src/mnemonic.rs)</li><li>[Wordlist](model/src/wordlist/wordlist.rs)</li></ul>  |<br/><ul><li>[Network](./model/src/network.rs)</li></ul>   |
 
 
 ## 2. Build Guide
@@ -70,47 +70,47 @@ We recommend installing Rust using [rustup](https://www.rustup.rs/). You can ins
 
 ### 2.2a Build from Crates.io
 
-We recommend installing `wagu` this way. In your terminal, run:
+We recommend installing `wagyu` this way. In your terminal, run:
 
 ```bash
-cargo install wagu
+cargo install wagyu
 ```
 
-Now to use `wagu`, in your terminal, run:
+Now to use `wagyu`, in your terminal, run:
 ```bash
-wagu
+wagyu
 ```
  
 ### 2.2b Build from Source Code
 
-Alternatively, you can install `wagu` by building from the source code as follows:
+Alternatively, you can install `wagyu` by building from the source code as follows:
 
 ```bash
 # Download the source code
-git clone https://github.com/ArgusHQ/wagu
-cd wagu
+git clone https://github.com/ArgusHQ/wagyu
+cd wagyu
 
 # Build in release mode
 $ cargo build --release
 ```
 
-This will generate an executable under the `./target/release` directory. To use wagu, run the following command:
+This will generate an executable under the `./target/release` directory. To use wagyu, run the following command:
 ```bash
-./target/release/wagu
+./target/release/wagyu
 ```
 
 ## 3. Features
 
-The following demonstrates the functionality of `wagu`. All examples are for the Bitcoin blockchain and more specific exampls can be found in the `/docs` folder.
+The following demonstrates the functionality of `wagyu`. All examples are for the Bitcoin blockchain and more specific exampls can be found in the `/docs` folder.
 
 ### 3.1 Generate a wallet with default options
 
 Generate a compressed mainnet private key and address with the following command:
 
-`wagu bitcoin`
+`wagyu bitcoin`
 
 ```bash
-╰─ wagu bitcoin
+╰─ wagyu bitcoin
 
         Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
         Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
@@ -122,10 +122,10 @@ Generate a compressed mainnet private key and address with the following command
 
 Generate a testnet private key and address with the following command:
 
-`wagu bitcoin --network testnet`
+`wagyu bitcoin --network testnet`
 
 ```bash
-╰─ wagu bitcoin --network testnet
+╰─ wagyu bitcoin --network testnet
 
         Private Key:    cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX,
         Address:        mwCDgjeRgGpfTMY1waYAJF2dGz4Q5XAx6w
@@ -137,10 +137,10 @@ Generate a testnet private key and address with the following command:
 
 Generate a compressed mainnet private key and address with the following command:
 
-`wagu bitcoin -j` OR `wagu bitcoin --json`
+`wagyu bitcoin -j` OR `wagyu bitcoin --json`
 
 ```bash
-╰─ wagu -j
+╰─ wagyu -j
 [
   {
     "privateKey": {
@@ -161,10 +161,10 @@ Generate a compressed mainnet private key and address with the following command
 
 Generates multiple wallets with the following command:
 
-`wagu bitcoin --count 3` OR `wagu bitcoin -n 3`
+`wagyu bitcoin --count 3` OR `wagyu bitcoin -n 3`
 
 ```bash
-╰─ wagu bitcoin -n 3
+╰─ wagyu bitcoin -n 3
 
         Private Key:    L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H
         Address:        1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U
@@ -188,10 +188,10 @@ Generates multiple wallets with the following command:
 
 Generate a SegWit mainnet private key and address with the following command:
 
-`wagu bitcoin --segwit`
+`wagyu bitcoin --segwit`
 
 ```bash
-╰─ wagu --segwit
+╰─ wagyu --segwit
 
         Private Key:    L13EzQBa7izHyXHdhAwBzApAPL1Q8rdVRpY7CASWXyFPyHTuPJxs
         Address:        3Qz5gtJ4GKoeSHHErF8Nvs9bDp5TQDw89o

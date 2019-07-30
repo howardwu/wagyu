@@ -6,6 +6,19 @@ use std::{
     str::FromStr,
 };
 
+/// The interface for a generic public key.
+pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
+    type Address: Address;
+    type Format;
+    type PrivateKey: PrivateKey;
+
+    /// Returns the address corresponding to the given public key.
+    fn from_private_key(private_key: &Self::PrivateKey) -> Self;
+
+    /// Returns the address of the corresponding private key.
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
+}
+
 #[derive(Debug, Fail)]
 pub enum PublicKeyError {
     #[fail(display = "{}: {}", _0, _1)]
@@ -19,7 +32,6 @@ pub enum PublicKeyError {
 
     #[fail(display = "invalid public key prefix: {:?}", _0)]
     InvalidPrefix(String),
-
 }
 
 impl From<base58::FromBase58Error> for PublicKeyError {
@@ -44,32 +56,4 @@ impl From<std::io::Error> for PublicKeyError {
     fn from(error: std::io::Error) -> Self {
         PublicKeyError::Crate("std::io", format!("{:?}", error))
     }
-}
-
-/// The interface for a generic public key.
-pub trait PublicKey:
-Clone
-+ Debug
-+ Display
-+ FromStr
-+ Send
-+ Sync
-+ 'static
-+ Eq
-+ Sized
-{
-    type Address: Address;
-    type Format;
-    type Network;
-    type PrivateKey: PrivateKey;
-
-    /// Returns the address corresponding to the given public key.
-    fn from_private_key(private_key: &Self::PrivateKey) -> Self;
-
-    /// Returns the address of the corresponding private key.
-    fn to_address(
-        &self,
-        format: &Self::Format,
-        network: &Self::Network,
-    ) -> Result<Self::Address, AddressError>;
 }

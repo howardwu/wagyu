@@ -1,11 +1,30 @@
 use crate::address::{Address, AddressError};
 use crate::public_key::PublicKey;
 
-use std::{fmt::{Debug, Display}, str::FromStr};
+use rand::Rng;
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
+
+/// The interface for a generic private key.
+pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
+    type Address: Address;
+    type Format;
+    type PublicKey: PublicKey;
+
+    /// Returns a randomly-generated private key.
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError>;
+
+    /// Returns the public key of the corresponding private key.
+    fn to_public_key(&self) -> Self::PublicKey;
+
+    /// Returns the address of the corresponding private key.
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
+}
 
 #[derive(Debug, Fail)]
 pub enum PrivateKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -29,7 +48,6 @@ pub enum PrivateKeyError {
 
     #[fail(display = "unsupported format")]
     UnsupportedFormat,
-
 }
 
 impl From<&'static str> for PrivateKeyError {
@@ -66,31 +84,4 @@ impl From<std::io::Error> for PrivateKeyError {
     fn from(error: std::io::Error) -> Self {
         PrivateKeyError::Crate("std::io", format!("{:?}", error))
     }
-}
-
-/// The interface for a generic private key.
-pub trait PrivateKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
-    type Address: Address;
-    type Format;
-    type Network;
-    type PublicKey: PublicKey;
-
-    /// Returns a randomly-generated private key.
-    fn new(network: &Self::Network) -> Result<Self, PrivateKeyError>;
-
-    /// Returns the public key of the corresponding private key.
-    fn to_public_key(&self) -> Self::PublicKey;
-
-    /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }

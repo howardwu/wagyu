@@ -1,35 +1,26 @@
 use crate::address::EthereumAddress;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{
-    //    bytes::{FromBytes, ToBytes},
-    Address,
-    AddressError,
-    PrivateKey,
-    PrivateKeyError,
-    PublicKey,
-};
+use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
-use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
-use secp256k1::Secp256k1;
-use std::{fmt, fmt::Display};
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::{fmt, fmt::Display};
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EthereumPrivateKey(pub(crate) secp256k1::SecretKey);
+pub struct EthereumPrivateKey(secp256k1::SecretKey);
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
     type Format = PhantomData<u8>;
-    type Network = PhantomData<u8>;
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
-    fn new(_network: &Self::Network) -> Result<Self, PrivateKeyError> {
-        Self::build()
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
+        Ok(Self(secp256k1::SecretKey::from_slice(&random)?))
     }
 
     /// Returns the public key of the corresponding Ethereum private key.
@@ -44,53 +35,27 @@ impl PrivateKey for EthereumPrivateKey {
 }
 
 impl EthereumPrivateKey {
-    /// Returns either a Ethereum private key struct or errors.
-    pub fn from(private_key: &str) -> Result<Self, PrivateKeyError> {
-        if private_key.len() != 64 {
-            return Err(PrivateKeyError::InvalidCharacterLength(private_key.len()))
-        }
-
-        let secret_key = hex::decode(private_key)?;
-        Ok(Self(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &secret_key)?))
-    }
-
-    /// Returns a private key given a secp256k1 secret key
-    pub fn from_secret_key(secret_key: secp256k1::SecretKey) -> Self {
+    /// Returns a private key given a secp256k1 secret key.
+    pub fn from_secp256k1_secret_key(secret_key: secp256k1::SecretKey) -> Self {
         Self(secret_key)
     }
 
-    /// Returns a randomly-generated Ethereum private key.
-    fn build() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
-        Ok(Self(secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?))
+    /// Returns the secp256k1 secret key of the private key.
+    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
+        self.0.clone()
     }
 }
-
-//impl FromBytes for EthereumPrivateKey {
-//    #[inline]
-//    fn read<R: Read>(reader: R) -> IoResult<Self> {
-//        let mut f = reader;
-//        let mut buffer = Vec::new();
-//        f.read_to_end(&mut buffer)?;
-//
-//        Self::from_str(buffer.to_base58().as_str())?
-//    }
-//}
-//
-//impl ToBytes for EthereumPrivateKey {
-//    #[inline]
-//    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
-//        let buffer = self.wif.as_str().from_base58()?.as_slice();
-//        buffer.write(writer)
-//    }
-//}
 
 impl FromStr for EthereumPrivateKey {
     type Err = PrivateKeyError;
 
-    fn from_str(s: &str) -> Result<Self, PrivateKeyError> {
-        Self::from(s)
+    fn from_str(private_key: &str) -> Result<Self, PrivateKeyError> {
+        if private_key.len() != 64 {
+            return Err(PrivateKeyError::InvalidCharacterLength(private_key.len()));
+        }
+
+        let secret_key = hex::decode(private_key)?;
+        Ok(Self(secp256k1::SecretKey::from_slice(&secret_key)?))
     }
 }
 
@@ -116,29 +81,35 @@ mod tests {
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from(
-        expected_secret_key: &secp256k1::SecretKey,
-        expected_public_key: &str,
-        expected_address: &str,
-        private_key: &str
-    ) {
-        let private_key = EthereumPrivateKey::from(private_key).unwrap();
-        assert_eq!(*expected_secret_key, private_key.0);
-        assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(&PhantomData).unwrap().to_string());
-    }
-
-    fn test_from_secret_key(
+    fn test_from_secp256k1_secret_key(
         expected_private_key: &str,
         expected_public_key: &str,
         expected_address: &str,
         secret_key: secp256k1::SecretKey,
     ) {
-        let private_key = EthereumPrivateKey::from_secret_key(secret_key);
+        let private_key = EthereumPrivateKey::from_secp256k1_secret_key(secret_key);
         assert_eq!(secret_key, private_key.0);
         assert_eq!(expected_private_key, private_key.to_string());
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
-        assert_eq!(expected_address, private_key.to_address(&PhantomData).unwrap().to_string());
+        assert_eq!(
+            expected_address,
+            private_key.to_address(&PhantomData).unwrap().to_string()
+        );
+    }
+
+    fn test_from_str(
+        expected_secret_key: &secp256k1::SecretKey,
+        expected_public_key: &str,
+        expected_address: &str,
+        private_key: &str,
+    ) {
+        let private_key = EthereumPrivateKey::from_str(private_key).unwrap();
+        assert_eq!(*expected_secret_key, private_key.0);
+        assert_eq!(expected_public_key, private_key.to_public_key().to_string());
+        assert_eq!(
+            expected_address,
+            private_key.to_address(&PhantomData).unwrap().to_string()
+        );
     }
 
     fn test_to_str(expected_private_key: &str, private_key: &EthereumPrivateKey) {
@@ -195,27 +166,33 @@ mod tests {
         }
 
         #[test]
-        fn from() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = EthereumPrivateKey::from_str(&private_key).unwrap();
-                test_from(
-                    &expected_private_key.0,
-                    expected_public_key,
-                    expected_address,
-                    &private_key);
-            });
+        fn from_secp256k1_secret_key() {
+            KEYPAIRS
+                .iter()
+                .for_each(|(expected_private_key, expected_public_key, expected_address)| {
+                    let private_key = EthereumPrivateKey::from_str(&expected_private_key).unwrap();
+                    test_from_secp256k1_secret_key(
+                        expected_private_key,
+                        expected_public_key,
+                        expected_address,
+                        private_key.0,
+                    );
+                });
         }
 
         #[test]
-        fn from_secret_key() {
-            KEYPAIRS.iter().for_each(|(expected_private_key, expected_public_key, expected_address)| {
-                let private_key = EthereumPrivateKey::from_str(&expected_private_key).unwrap();
-                test_from_secret_key(
-                    expected_private_key,
-                    expected_public_key,
-                    expected_address,
-                    private_key.0);
-            });
+        fn from_str() {
+            KEYPAIRS
+                .iter()
+                .for_each(|(private_key, expected_public_key, expected_address)| {
+                    let expected_private_key = EthereumPrivateKey::from_str(&private_key).unwrap();
+                    test_from_str(
+                        &expected_private_key.0,
+                        expected_public_key,
+                        expected_address,
+                        &private_key,
+                    );
+                });
         }
 
         #[test]
@@ -229,7 +206,6 @@ mod tests {
 
     #[test]
     fn test_checksum_address_invalid() {
-
         // Invalid private key length
 
         let private_key = "8";
@@ -241,11 +217,11 @@ mod tests {
         let private_key = "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac77";
         assert!(EthereumPrivateKey::from_str(private_key).is_err());
 
-        let private_key = "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac7718279d7c0ae2c3266b557845d50ede43";
+        let private_key =
+            "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac7718279d7c0ae2c3266b557845d50ede43";
         assert!(EthereumPrivateKey::from_str(private_key).is_err());
 
         let private_key = "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac7718279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac771";
         assert!(EthereumPrivateKey::from_str(private_key).is_err());
-
     }
 }
