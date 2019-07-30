@@ -9,7 +9,7 @@ use monero::address::Format as MoneroFormat;
 use monero::{English as MoneroEnglish, Mainnet as MoneroMainnet, MoneroAddress, MoneroNetwork, MoneroPrivateKey, Testnet as MoneroTestnet, MoneroMnemonic};
 use wagu_model::{Address, PrivateKey, Mnemonic, MnemonicExtended, ExtendedPrivateKey};
 use zcash::address::Format as ZcashFormat;
-use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashPrivateKey};
+use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashPrivateKey, ZcashNetwork, ZcashExtendedPrivateKey, ZcashDerivationPath};
 
 use clap::{App, Arg, SubCommand, AppSettings};
 use rand::rngs::StdRng;
@@ -46,6 +46,16 @@ pub struct MoneroWallet {
     pub count: usize,
     pub network: String,
     pub format: MoneroFormat,
+    pub json: bool,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct ZcashWallet {
+    pub private_key: Option<String>,
+    pub extended_private_key: Option<WalletExtendedPrivateKey>,
+    pub count: usize,
+    pub network: String,
+    pub format: ZcashFormat,
     pub json: bool,
 }
 
@@ -101,8 +111,7 @@ fn main() {
         .arg(&arg_import.clone().number_of_values(1).value_name("mnemonic")
             .help("Generate a wallet by importing a Mnemonic (in quotes)"))
         .arg(&arg_path)
-        .arg(&arg_password)
-        .arg(&arg_word_count);
+        .arg(&arg_password);
 
     let monero_mnemonic_subcommand = SubCommand::with_name("mnemonic")
         .about("Generate a wallet using mnemonics")
@@ -135,7 +144,9 @@ fn main() {
             .arg(&arg_network)
             .arg(&arg_segwit)
             .subcommand(extended_private_key_subcommand.to_owned())
-            .subcommand(mnemonic_subcommand.to_owned())
+            .subcommand(mnemonic_subcommand
+                .to_owned()
+                .arg(&arg_word_count))
             .subcommand(private_key_subcommand.to_owned())
         )
         .subcommand(SubCommand::with_name("ethereum")
@@ -143,7 +154,9 @@ fn main() {
             .arg(&arg_count)
             .arg(&arg_json)
             .subcommand(extended_private_key_subcommand.to_owned())
-            .subcommand(mnemonic_subcommand.to_owned())
+            .subcommand(mnemonic_subcommand
+                .to_owned()
+                .arg(&arg_word_count))
             .subcommand(private_key_subcommand.to_owned())
         )
         .subcommand(SubCommand::with_name("monero")
@@ -162,6 +175,8 @@ fn main() {
             .arg(&arg_count)
             .arg(&arg_json)
             .arg(&arg_shielded)
+            .subcommand(extended_private_key_subcommand.to_owned())
+            .subcommand(private_key_subcommand.to_owned())
         )
         .get_matches();
 
@@ -187,7 +202,7 @@ fn main() {
                         wallet_mnemonic: None,
                         extended_private_key: None,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: bitcoin_address_type,
                         json
                     }
@@ -200,23 +215,24 @@ fn main() {
                         wallet_mnemonic: None,
                         extended_private_key: None,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: bitcoin_address_type,
                         json
                     }
                 },
                 ("mnemonic", Some(mnemonic_matches)) => {
-                    let password: String = mnemonic_matches.value_of("password").unwrap_or("").into();
+                    let password: String = mnemonic_matches.value_of("password").unwrap_or("").to_owned();
                     let path = mnemonic_matches.value_of("path").map(|s| s.to_string());
                     let wallet_mnemonic = if mnemonic_matches.is_present("import") {
                         let mnemonic_values: &str = mnemonic_matches.value_of("import").unwrap();
-                        let words: Vec<_> = mnemonic_values.split(' ').collect();
-                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.into(), password, path })
+                        let words: Vec<_> = mnemonic_values.split(" ").collect();
+                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.to_owned(), password, path })
                     } else if mnemonic_matches.is_present("word count") {
                         let word_count: u8 = mnemonic_matches.value_of("word count").unwrap().parse().unwrap();
-                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".into(), password, path })
+                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".to_owned(), password, path })
                     } else {
-                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".into(), password, path })
+                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".to_owned
+                        (), password, path })
                     };
 
                     BitcoinWallet {
@@ -224,7 +240,7 @@ fn main() {
                         wallet_mnemonic,
                         extended_private_key: None,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: bitcoin_address_type,
                         json
                     }
@@ -239,7 +255,7 @@ fn main() {
                         wallet_mnemonic: None,
                         extended_private_key,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: bitcoin_address_type,
                         json
                     }
@@ -284,17 +300,17 @@ fn main() {
                     }
                 },
                 ("mnemonic", Some(mnemonic_matches)) => {
-                    let password: String = mnemonic_matches.value_of("password").unwrap_or("").into();
+                    let password: String = mnemonic_matches.value_of("password").unwrap_or("").to_owned();
                     let path = mnemonic_matches.value_of("path").map(|s| s.to_string());
                     let wallet_mnemonic = if mnemonic_matches.is_present("import") {
                         let mnemonic_values: &str = mnemonic_matches.value_of("import").unwrap();
-                        let words: Vec<_> = mnemonic_values.split(' ').collect();
-                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.into(), password, path })
+                        let words: Vec<_> = mnemonic_values.split(" ").collect();
+                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.to_owned(), password, path })
                     } else if mnemonic_matches.is_present("word count") {
                         let word_count: u8 = mnemonic_matches.value_of("word count").unwrap().parse().unwrap();
-                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".into(), password, path })
+                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".to_owned(), password, path })
                     } else {
-                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".into(), password, path })
+                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".to_owned(), password, path })
                     };
 
                     EthereumWallet {
@@ -349,7 +365,7 @@ fn main() {
                         private_key: None,
                         wallet_mnemonic: None,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: monero_address_type,
                         json
                     }
@@ -361,30 +377,30 @@ fn main() {
                         private_key,
                         wallet_mnemonic: None,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: monero_address_type,
                         json
                     }
                 },
                 ("mnemonic", Some(mnemonic_matches)) => {
-                    let password: String = mnemonic_matches.value_of("password").unwrap_or("").into();
+                    let password: String = mnemonic_matches.value_of("password").unwrap_or("").to_owned();
                     let path = mnemonic_matches.value_of("path").map(|s| s.to_string());
                     let wallet_mnemonic = if mnemonic_matches.is_present("import") {
                         let mnemonic_values: &str = mnemonic_matches.value_of("import").unwrap();
                         let words: Vec<_> = mnemonic_values.split(' ').collect();
-                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.into(), password, path })
+                        Some(WalletMnemonic { new: false, word_count: words.len() as u8, mnemonic: mnemonic_values.to_owned(), password, path })
                     } else if mnemonic_matches.is_present("word count") {
                         let word_count: u8 = mnemonic_matches.value_of("word count").unwrap().parse().unwrap();
-                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".into(), password, path })
+                        Some(WalletMnemonic { new: true, word_count, mnemonic: "".to_owned(), password, path })
                     } else {
-                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".into(), password, path })
+                        Some(WalletMnemonic { new: true, word_count: 12, mnemonic: "".to_owned(), password, path })
                     };
 
                     MoneroWallet {
                         private_key: None,
                         wallet_mnemonic,
                         count,
-                        network: network.into(),
+                        network: network.to_owned(),
                         format: monero_address_type,
                         json
                     }
@@ -412,13 +428,63 @@ fn main() {
             } else {
                 ZcashFormat::P2PKH
             };
-            let testnet = match zcash_matches.value_of("network") {
-                Some("mainnet") => false,
-                Some("testnet") => true,
-                _ => false,
+
+            let network = match zcash_matches.value_of("network") {
+                Some("testnet") => "testnet",
+                _ => "mainnet",
             };
 
-            print_zcash_wallet(count, testnet, &zcash_address_type, json);
+            let zcash_wallet = match zcash_matches.subcommand() {
+                ("", None) => {
+                    ZcashWallet {
+                        private_key: None,
+                        extended_private_key: None,
+                        count,
+                        network: network.to_owned(),
+                        format: zcash_address_type,
+                        json
+                    }
+                },
+                ("private_key", Some(private_key_matches)) => {
+                    let private_key: Option<String> = private_key_matches.value_of("import").map(|s| s.to_string());
+
+                    ZcashWallet {
+                        private_key,
+                        extended_private_key: None,
+                        count,
+                        network: network.to_owned(),
+                        format: zcash_address_type,
+                        json
+                    }
+                },
+                ("extended_private_key", Some(xpriv_matches)) => {
+                    let path = xpriv_matches.value_of("path").map(|s| s.to_string());
+                    let key = xpriv_matches.value_of("import").map(|s| s.to_string());
+                    let extended_private_key = Some( WalletExtendedPrivateKey { key, path });
+
+                    ZcashWallet {
+                        private_key: None,
+                        extended_private_key,
+                        count,
+                        network: network.to_owned(),
+                        format: zcash_address_type,
+                        json
+                    }
+                },
+                _ => unreachable!(),
+            };
+
+            match network {
+                "testnet" => {
+                    type N = ZcashTestnet;
+                    print_zcash_wallet::<N>(zcash_wallet);
+                },
+                _ => {
+                    type N = ZcashMainnet;
+                    print_zcash_wallet::<N>(zcash_wallet);
+                }
+            };
+
         },
         ("", None)   => println!("No subcommand was used"),
         _            => unreachable!(),
@@ -431,7 +497,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
         private_key: String,
         address: String,
         network: String,
-        format: BitcoinFormat,
+        format: String,
         compressed: bool,
     };
 
@@ -442,7 +508,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
         private_key: String,
         address: String,
         network: String,
-        format: BitcoinFormat,
+        format: String,
         compressed: bool,
     };
 
@@ -462,7 +528,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                     private_key: private_key.to_string(),
                     address: address.to_string(),
                     network: bitcoin_wallet.network.clone(),
-                    format: address.format(),
+                    format: address.format().to_string(),
                     compressed: private_key.is_compressed(),
                 };
 
@@ -471,12 +537,12 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                 } else {
                     println!(
                             "
-                Private Key:    {}
-                Address:        {}
-                Network:        {}
-                Format:         {}
-                Compressed:     {}
-                ",
+                    Private Key:    {}
+                    Address:        {}
+                    Network:        {}
+                    Format:         {}
+                    Compressed:     {}
+                    ",
                         wallet.private_key, wallet.address, wallet.network, wallet.format, wallet.compressed
                     )
                 }
@@ -501,7 +567,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                     private_key: private_key.to_string(),
                     address: address.to_string(),
                     network: bitcoin_wallet.network.clone(),
-                    format: address.format(),
+                    format: address.format().to_string(),
                     compressed: private_key.is_compressed(),
                 };
 
@@ -509,15 +575,15 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                     println!("{}", serde_json::to_string_pretty(&mnemonic_wallet).unwrap())
                 } else {
                     println!(
-                        "
-            Mnemonic:               {}
-            Extended private Key:   {}
-            Private Key:            {}
-            Address:                {}
-            Network:                {}
-            Format:                 {}
-            Compressed:             {}
-            ",
+                            "
+                    Mnemonic:               {}
+                    Extended private Key:   {}
+                    Private Key:            {}
+                    Address:                {}
+                    Network:                {}
+                    Format:                 {}
+                    Compressed:             {}
+                    ",
                         mnemonic_wallet.phrase, mnemonic_wallet.extended_private_key, mnemonic_wallet.private_key, mnemonic_wallet.address, mnemonic_wallet.network, mnemonic_wallet.format, mnemonic_wallet.compressed
                     )
                 }
@@ -551,12 +617,12 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                 let address = BitcoinAddress::from_private_key(&private_key, &bitcoin_wallet.format).unwrap();
 
                 let extended_wallet = ExtendedWallet {
-                    phrase:  "".into(),
+                    phrase:  "".to_owned(),
                     extended_private_key: extended_private_key.to_string(),
                     private_key: private_key.to_string(),
                     address: address.to_string(),
                     network: bitcoin_wallet.network.clone(),
-                    format: address.format(),
+                    format: address.format().to_string(),
                     compressed: private_key.is_compressed(),
                 };
 
@@ -565,13 +631,13 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                 } else {
                     println!(
                             "
-                Extended private Key:   {}
-                Private Key:            {}
-                Address:                {}
-                Network:                {}
-                Format:                 {}
-                Compressed:             {}
-                ",
+                    Extended private Key:   {}
+                    Private Key:            {}
+                    Address:                {}
+                    Network:                {}
+                    Format:                 {}
+                    Compressed:             {}
+                    ",
                         extended_wallet.extended_private_key, extended_wallet.private_key, extended_wallet.address, extended_wallet.network, extended_wallet.format, extended_wallet.compressed
                     )
                 };
@@ -619,9 +685,9 @@ fn print_ethereum_wallet(ethereum_wallet: EthereumWallet) {
                 } else {
                     println!(
                             "
-            Private Key:    {}
-            Address:        {}
-            ",
+                    Private Key:    {}
+                    Address:        {}
+                    ",
                         wallet.private_key, wallet.address
                     )
                 }
@@ -651,12 +717,12 @@ fn print_ethereum_wallet(ethereum_wallet: EthereumWallet) {
                     println!("{}", serde_json::to_string_pretty(&mnemonic_wallet).unwrap())
                 } else {
                     println!(
-                        "
-                Mnemonic:               {}
-                Extended private Key:   {}
-                Private Key:            {}
-                Address:                {}
-                ",
+                            "
+                    Mnemonic:               {}
+                    Extended private Key:   {}
+                    Private Key:            {}
+                    Address:                {}
+                    ",
                         mnemonic_wallet.phrase, mnemonic_wallet.extended_private_key, mnemonic_wallet.private_key, mnemonic_wallet.address
                     )
                 };
@@ -690,7 +756,7 @@ fn print_ethereum_wallet(ethereum_wallet: EthereumWallet) {
                 let address = EthereumAddress::from_private_key(&private_key, &PhantomData).unwrap();
 
                 let extended_wallet = ExtendedWallet {
-                    phrase:  "".into(),
+                    phrase:  "".to_owned(),
                     extended_private_key: extended_private_key.to_string(),
                     private_key: private_key.to_string(),
                     address: address.to_string(),
@@ -700,11 +766,11 @@ fn print_ethereum_wallet(ethereum_wallet: EthereumWallet) {
                     println!("{}", serde_json::to_string_pretty(&extended_wallet).unwrap())
                 } else {
                     println!(
-                        "
-                Extended private Key:   {}
-                Private Key:            {}
-                Address:                {}
-                ",
+                            "
+                    Extended private Key:   {}
+                    Private Key:            {}
+                    Address:                {}
+                    ",
                         extended_wallet.extended_private_key, extended_wallet.private_key, extended_wallet.address
                     )
                 };
@@ -720,7 +786,7 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_wallet: MoneroWallet) {
         private_key: String,
         address: String,
         network: String,
-        format: MoneroFormat,
+        format: String,
     };
 
     #[derive(Serialize, Debug)]
@@ -729,7 +795,7 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_wallet: MoneroWallet) {
         private_key: String,
         address: String,
         network: String,
-        format: MoneroFormat,
+        format: String,
     };
 
     for _ in 0..monero_wallet.count {
@@ -749,7 +815,7 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_wallet: MoneroWallet) {
                     private_key: private_key.to_string(),
                     address: address.to_string(),
                     network: monero_wallet.network.to_owned(),
-                    format: monero_wallet.format.to_owned(),
+                    format: monero_wallet.format.to_string(),
                 };
 
                 if monero_wallet.json {
@@ -757,12 +823,12 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_wallet: MoneroWallet) {
                 } else {
                     println!(
                             "
-            Private ( Spend, View ) Key:    {}
-            Address:                        {}
-            Network:                        {}
-            Format:                         {}
-            ",
-                        wallet.private_key, wallet.address, wallet.network, wallet.format.to_string()
+                    Private ( Spend, View ) Key:    {}
+                    Address:                        {}
+                    Network:                        {}
+                    Format:                         {}
+                    ",
+                        wallet.private_key, wallet.address, wallet.network, wallet.format
                     )
                 }
 
@@ -781,21 +847,21 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_wallet: MoneroWallet) {
                     private_key: private_key.to_string(),
                     address: address.to_string(),
                     network: monero_wallet.network.to_owned(),
-                    format: monero_wallet.format.to_owned(),
+                    format: monero_wallet.format.to_string(),
                 };
 
                 if monero_wallet.json {
                     println!("{}", serde_json::to_string_pretty(&mnemonic_wallet).unwrap())
                 } else {
                     println!(
-                        "
-                Mnemonic:                       {}
-                Private ( Spend, View ) Key:    {}
-                Address:                        {}
-                Network:                        {}
-                Format:                         {}
-                ",
-                        mnemonic_wallet.phrase, mnemonic_wallet.private_key, mnemonic_wallet.address, mnemonic_wallet.network, mnemonic_wallet.format.to_string()
+                            "
+                    Mnemonic:                       {}
+                    Private ( Spend, View ) Key:    {}
+                    Address:                        {}
+                    Network:                        {}
+                    Format:                         {}
+                    ",
+                        mnemonic_wallet.phrase, mnemonic_wallet.private_key, mnemonic_wallet.address, mnemonic_wallet.network, mnemonic_wallet.format
                     )
                 };
             }
@@ -803,53 +869,124 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_wallet: MoneroWallet) {
     }
 }
 
-fn print_zcash_wallet(count: usize, testnet: bool, format: &ZcashFormat, json: bool) {
+fn print_zcash_wallet<N: ZcashNetwork>(zcash_wallet: ZcashWallet) {
     #[derive(Serialize, Debug)]
     pub struct Wallet {
         private_key: String,
         address: String,
-        network: String
+        diversifier: String,
+        format: String,
+        network: String,
     };
 
-    for _ in 0..count {
-        let wallet = if testnet {
-            let rng = &mut StdRng::from_entropy();
-            let private_key = ZcashPrivateKey::<ZcashTestnet>::new(rng).unwrap();
-            let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
+    #[derive(Serialize, Debug)]
+    pub struct ExtendedWallet {
+        phrase: String,
+        extended_private_key: String,
+        private_key: String,
+        address: String,
+        diversifier: String,
+        format: String,
+        network: String,
+    };
 
-            Wallet {
-                private_key: private_key.to_string(),
-                address: address.to_string(),
-                network: "testnet".into(),
-            }
-        } else {
-            let rng = &mut StdRng::from_entropy();
-            let private_key = match format {
-                ZcashFormat::P2PKH => ZcashPrivateKey::<ZcashMainnet>::new_p2pkh(rng).unwrap(),
-                _ => ZcashPrivateKey::<ZcashMainnet>::new_sapling(rng).unwrap(),
-            };
-            let address = ZcashAddress::from_private_key(&private_key, &format).unwrap();
+    for _ in 0..zcash_wallet.count {
+        match zcash_wallet.extended_private_key.clone() {
+            None => {
+                let private_key = match zcash_wallet.private_key.clone() {
+                    None => {
+                        let rng = &mut StdRng::from_entropy();
+                        match zcash_wallet.format {
+                            ZcashFormat::P2PKH => ZcashPrivateKey::<N>::new_p2pkh(rng).unwrap(),
+                            _ => ZcashPrivateKey::<N>::new_sapling(rng).unwrap(),
+                        }
+                    },
+                    Some(key) => { ZcashPrivateKey::<N>::from_str(&key).unwrap() },
+                };
 
-            Wallet {
-                private_key: private_key.to_string(),
-                address: address.to_string(),
-                network: "mainnet".into(),
-            }
+                let address = ZcashAddress::from_private_key(&private_key, &zcash_wallet.format).unwrap();
+                let address_format = address.format().to_string();
+                let address_format: Vec<String> = address_format.split(" ").map(|s| s.to_owned()).collect();
+                let wallet = Wallet {
+                    private_key: private_key.to_string(),
+                    address: address.to_string(),
+                    diversifier: address_format.get(1).unwrap_or(&"".to_owned()).to_owned(),
+                    format: address_format[0].to_owned(),
+                    network: zcash_wallet.network.clone(),
+                };
+
+                if zcash_wallet.json {
+                    println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
+                } else {
+                    println!(
+                            "
+                    Private Key:    {}
+                    Address:        {}
+                    Diversifier:    {}
+                    Format:         {}
+                    Network:        {}
+                    ",
+                        wallet.private_key, wallet.address, wallet.diversifier, wallet.format, wallet.network
+                    )
+                }
+            },
+            Some(wallet_extended) => {
+                let extended_private_key = match (wallet_extended.key, wallet_extended.path)  {
+                    (None, None) => {
+                        let rng = &mut StdRng::from_entropy();
+                        let seed: [u8; 32] = rng.gen();
+                        ZcashExtendedPrivateKey::<N>::new_master(&seed, &zcash_wallet.format).unwrap()
+                    },
+                    (Some(key), None) => {
+                        ZcashExtendedPrivateKey::<N>::from_str(&key).unwrap()
+                    },
+                    (None, Some(path)) => {
+                        let rng = &mut StdRng::from_entropy();
+                        let seed: [u8; 32] = rng.gen();
+                        ZcashExtendedPrivateKey::<N>::new(
+                            &seed,
+                            &zcash_wallet.format,
+                            &ZcashDerivationPath::from_str(&path).unwrap())
+                            .unwrap()
+                    },
+                    (Some(key), Some(path)) => {
+                        ZcashExtendedPrivateKey::<N>::from_str(&key)
+                            .unwrap()
+                            .derive(&ZcashDerivationPath::from_str(&path).unwrap()).unwrap()
+                    },
+                };
+
+                let private_key = extended_private_key.to_private_key();
+                let address = ZcashAddress::from_private_key(&private_key, &zcash_wallet.format).unwrap();
+                let address_format = address.format().to_string();
+                let address_format: Vec<String> = address_format.split(" ").map(|s| s.to_owned()).collect();
+
+                let extended_wallet = ExtendedWallet {
+                    phrase:  "".to_owned(),
+                    extended_private_key: extended_private_key.to_string(),
+                    private_key: private_key.to_string(),
+                    address: address.to_string(),
+                    diversifier: address_format.get(1).unwrap_or(&"".to_owned()).to_owned(),
+                    format: address_format[0].to_owned(),
+                    network: zcash_wallet.network.clone(),
+                };
+
+                if zcash_wallet.json {
+                    println!("{}", serde_json::to_string_pretty(&extended_wallet).unwrap())
+                } else {
+                    println!(
+                            "
+                    Extended private Key:   {}
+                    Private Key:            {}
+                    Address:                {}
+                    Diversifier:            {}
+                    Format:                 {}
+                    Network:                {}
+                    ",
+                        extended_wallet.extended_private_key, extended_wallet.private_key, extended_wallet.address, extended_wallet.diversifier, extended_wallet.format, extended_wallet.network,
+                    )
+                };
+            },
         };
-
-        if json {
-            println!("{}", serde_json::to_string_pretty(&wallet).unwrap())
-        } else {
-            println!(
-                "
-        Private Key:    {}
-        Address:        {}
-        Network:        {}
-        ",
-                wallet.private_key,
-                wallet.address,
-                wallet.network
-            )
-        }
     }
 }
