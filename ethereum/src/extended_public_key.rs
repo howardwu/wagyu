@@ -458,39 +458,40 @@ mod tests {
     mod test_invalid {
         use super::*;
 
-        const INVALID_XPUB_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-        const INVALID_XPUB_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-        const INVALID_XPUB_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
-        const VALID_XPUB: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY__SECP256K1_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
+        const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_PUBLIC_KEY).unwrap();
+            let _result =
+                EthereumExtendedPublicKey::from_str(INVALID_EXTENDED_PUBLIC_KEY__SECP256K1_PUBLIC_KEY).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidVersionBytes([4, 136, 178, 29])")]
         fn from_str_invalid_version() {
-            let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_NETWORK).unwrap();
+            let _result = EthereumExtendedPublicKey::from_str(INVALID_EXTENDED_PUBLIC_KEY_NETWORK).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidChecksum(\"5Nvot3\", \"5Nvot4\")")]
         fn from_str_invalid_checksum() {
-            let _result = EthereumExtendedPublicKey::from_str(INVALID_XPUB_CHECKSUM).unwrap();
+            let _result = EthereumExtendedPublicKey::from_str(INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
-            let _result = EthereumExtendedPublicKey::from_str(&VALID_XPUB[1..]).unwrap();
+            let _result = EthereumExtendedPublicKey::from_str(&VALID_EXTENDED_PUBLIC_KEY[1..]).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(83)")]
         fn from_str_long() {
-            let mut string = String::from(VALID_XPUB);
+            let mut string = String::from(VALID_EXTENDED_PUBLIC_KEY);
             string.push('a');
             let _result = EthereumExtendedPublicKey::from_str(&string).unwrap();
         }

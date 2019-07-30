@@ -310,7 +310,7 @@ mod tests {
         use super::*;
 
         // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
-        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 12] = [
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 18] = [
             (
                 "m",
                 "000102030405060708090a0b0c0d0e0f",
@@ -431,6 +431,72 @@ mod tests {
                 "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j",
                 "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
             ),
+
+            // Ethereum Derivation Paths
+            (
+                "m/44'/60'/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "39095b7dddd80c60473297772536fa1350d3ecf8d0bced02ff601c0c428af1e3",
+                "2276cdb0e042e524e767a875544c3f92fbea560d9d77447de54c9b4afabedfdb",
+                "997d7b25",
+                "xprvA1fzCYJXXiAYQ5epqaDqgkPGeTUkwHRuzqGVWKZEtBSSEXKu91wrPhfihHJRHQtXXcRfLbMitd64PJeiL7upKh81RoSxHmNXLgQanCtbTK2",
+                "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
+            ),
+            (
+                "m/44'/60'/0'/0/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "f62a8ea4ab7025d151ccd84981c66278d0d3cd58ff837467cdc51229915a22d1",
+                "ab62505ed816d7e57fd23580f87688abf2e419ef788baf079b6e862eee6f0a79",
+                "1c7a091b",
+                "xprvA2dpyTTnuc4DpVWb1cGwu7ibggAxLHn8wRHDdwXsBGGdSUpq1VXt5wegJ7aL9VpX7QjYWocZTomGQ4Zh1woawPJDtFzFdqDr86jbRasrVHE",
+                "xpub6FdBNxzgjycX2yb47doxGFfLEi1SjkVzJeCpSKwUjbocKH9yZ2r8djyA9Md5oDG846jjJGBGE5hBuxtyWdHHoLWcZUrBq2RCLTUKxusyGvX"
+            ),
+
+            // Ethereum (Ledger) Derivation Paths
+            (
+                "m/44'/60'/0'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483648",
+                "2d103433c67eaf9a829f76090ab3e867e74247a7433346963815db6ae1577a78",
+                "6d20171efe0658e3d4c948b0224cba50a0122358562f166b43b57cae25c41fcb",
+                "68bd693b",
+                "xprv9yS4waAqz3vsbKmE4J2GAfbtm8uLqPvcdbnbFGd77e4zCFYriZLzZ76fhyq97qsgegXX9eFJdAGA8VQhrQrnDhu1ZXX73YESwHpqdTFuiEB",
+                "xpub6CRRM5hjpRVAooqhAKZGXoYdKAjqEreTzpiC3f2ifyby53t1G6fF6uR9ZFgYC8Ccwi7AbBLNKGP5oTYvNCcpuAcnUifyNZaj7yK32nXSyYL"
+            ),
+            (
+                "m/44'/60'/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "39095b7dddd80c60473297772536fa1350d3ecf8d0bced02ff601c0c428af1e3",
+                "2276cdb0e042e524e767a875544c3f92fbea560d9d77447de54c9b4afabedfdb",
+                "997d7b25",
+                "xprvA1fzCYJXXiAYQ5epqaDqgkPGeTUkwHRuzqGVWKZEtBSSEXKu91wrPhfihHJRHQtXXcRfLbMitd64PJeiL7upKh81RoSxHmNXLgQanCtbTK2",
+                "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
+            ),
+
+            // Ethereum (Ledger Live, KeepKey) Derivation Paths
+            (
+                "m/44'/60'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483708",
+                "c00ba4d8319dd38c07884f18cc9811f537dc6130f3003aed4d0be8b7c7d8289f",
+                "b1d4797738fd5a81f38a79c33dc6d03ebee13cfdfd42cd1f0dbe24c3051ab70d",
+                "754aeee2",
+                "xprv9weHTtsPstnRCTvCNduPo9AZRGJX27e65kNZVzX18XafdqJQ2HKfYnYkS2xQh9MWRnhsNGfR1WdrHK16c3So8WqXeGKi43CD8QbqdBr8J6i",
+                "xpub6AddsQQHiGLiQwzfUfSQAH7HyJ91RaMwSyJAJNvcgs7eWddYZpdv6asEHH2eWBFQCaZ5K8ddKpKxpedZ1AXwaTDcNpW5ToKo6NiWxf8GCuh"
+            ),
+            (
+                "m/44'/60'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "e99402522166f472ab14fd43b5aa95aa0c646b38959b0fc8424d1edb7ba7c440",
+                "7725e5d1302ad41a5e865deb7ed7178518085754b2a196c03f731db99ed11e65",
+                "68bd693b",
+                "xprv9yS4waAhePPuR9G8db9MA5Nz67JXcybm7CB5wVsiXtAnfQj895J2xrKiGRE6hgkAUVedGEJ3eJT4MhkUJaZD5p4j3t2Rn4LGiPsNqtPUeow",
+                "xpub6CRRM5hbUkxCddLbjcgMXDKie9922SKcUR6gjtHL6DhmYD4GgccHWeeC7huUgFoagyzVxa2qu7cdrpnQx6KDxqxsvXtBRA8z3xptPur93bf"
+            ),
         ];
 
         #[test]
@@ -506,51 +572,55 @@ mod tests {
         #[test]
         fn test_derivation_path() {
             let path = "m/44'/0'/0/1";
-            let expected_xpriv_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
-            let master_xpriv = EthereumExtendedPrivateKey::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
-            let xpriv = master_xpriv
+            let expected_extended_private_key_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
+            let master_extended_private_key = EthereumExtendedPrivateKey::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
+            let extended_private_key = master_extended_private_key
                 .derive(&EthereumDerivationPath::from_str(path).unwrap())
                 .expect("error deriving extended private key from path");
-            assert_eq!(expected_xpriv_serialized, xpriv.to_string());
+            assert_eq!(
+                expected_extended_private_key_serialized,
+                extended_private_key.to_string()
+            );
         }
     }
 
     mod test_invalid {
         use super::*;
 
-        const INVALID_XPRIV_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
-        const INVALID_XPRIV_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-        const INVALID_XPRIV_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
-        const VALID_XPRIV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+        const INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
+        const INVALID_EXTENDED_PRIVATE_KEY_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+        const INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
+        const VALID_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
         #[test]
         #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
         fn from_str_invalid_secret_key() {
-            let _result = EthereumExtendedPrivateKey::from_str(INVALID_XPRIV_SECRET_KEY).unwrap();
+            let _result =
+                EthereumExtendedPrivateKey::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidVersionBytes([4, 136, 173, 227])")]
         fn from_str_invalid_version() {
-            let _result = EthereumExtendedPrivateKey::from_str(INVALID_XPRIV_NETWORK).unwrap();
+            let _result = EthereumExtendedPrivateKey::from_str(INVALID_EXTENDED_PRIVATE_KEY_NETWORK).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidChecksum(\"6vCfku\", \"6vCfkt\")")]
         fn from_str_invalid_checksum() {
-            let _result = EthereumExtendedPrivateKey::from_str(INVALID_XPRIV_CHECKSUM).unwrap();
+            let _result = EthereumExtendedPrivateKey::from_str(INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(81)")]
         fn from_str_short() {
-            let _result = EthereumExtendedPrivateKey::from_str(&VALID_XPRIV[1..]).unwrap();
+            let _result = EthereumExtendedPrivateKey::from_str(&VALID_EXTENDED_PRIVATE_KEY[1..]).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidByteLength(83)")]
         fn from_str_long() {
-            let mut string = String::from(VALID_XPRIV);
+            let mut string = String::from(VALID_EXTENDED_PRIVATE_KEY);
             string.push('a');
             let _result = EthereumExtendedPrivateKey::from_str(&string).unwrap();
         }
