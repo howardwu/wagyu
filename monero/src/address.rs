@@ -44,8 +44,8 @@ impl fmt::Display for Format {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Format::Standard => write!(f, "Standard"),
-            Format::Integrated(_) => write!(f, "Integrated"),
-            Format::Subaddress(_, _) => write!(f, "Subaddress"),
+            Format::Integrated(payment_id) => write!(f, "Integrated({})", hex::encode(payment_id)),
+            Format::Subaddress(major, minor) => write!(f, "Subaddress({},{})", major, minor),
         }
     }
 }

@@ -33,7 +33,6 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
-        //TODO Phase out hard coded formating
         Ok(MoneroPrivateKey::from_seed(
             hex::encode(&self.seed).as_str(),
             &Format::Standard,
