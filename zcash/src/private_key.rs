@@ -2,12 +2,8 @@ use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{
-    Address,
-    AddressError,
-    PrivateKey,
-    PrivateKeyError,
-    PublicKey,
-    crypto::{checksum, base58_encode_check},
+    crypto::{base58_encode_check, checksum},
+    Address, AddressError, PrivateKey, PrivateKeyError, PublicKey,
 };
 
 use base58::{FromBase58, ToBase58};
@@ -333,7 +329,7 @@ impl<N: ZcashNetwork> Display for ZcashPrivateKey<N> {
             SpendingKey::P2PKH(p2pkh) => write!(f, "{}", p2pkh.to_string()),
             SpendingKey::Sprout(sprout) => write!(f, "{}", sprout.to_string()),
             SpendingKey::Sapling(sapling) => write!(f, "{}", sapling.to_string()),
-            _ => write!(f, "")
+            _ => write!(f, ""),
         }
     }
 }
@@ -730,28 +726,28 @@ mod tests {
             (
                 "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
                 "ZiVKYQyUcyAJLKwcosSeDxkGRhygFdAPWsr3m8UgjC5X85yqNyLTtJJJYNH83Wf2AQKU6TZsd65MXBZLFj6eSCAFcnCFuVCFS",
-                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5"
+                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
             ),
             (
                 "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
                 "ZiVKfdhhmQ1fpXaxyW5zRXw4Dhg9cbKRgK7mNFoBLiKjiBZiHJYJTpV2gNMDMPY9sRC96vnKZcnTMSi65SKPyL4WNQNm9PT5H",
-                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX"
+                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
             ),
             (
                 "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
                 "ZiVKkMUGwx4GgtwxTedRHYewVVskWicz8APQgdcYmvUsiLYgSh3cLAa8TwiR3shyNngGbLiUbYMkZ8F1giXmmcED98rDMwNSG",
-                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e"
+                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
             ),
             (
                 "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
                 "ZiVKkeb8STw7kpJQsjRCQKovQBciPcfjkpajuuS25DTXSQSVasnq4BkyaMLBBxAkZ8fv6f18woWgaA8W7kGvYp1C1ESaWGjwV",
-                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN"
+                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
             ),
             (
                 "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
                 "ZiVKvpWQiDpxAvWTMLkjjSbCiBGc4kXhtkgAJfW1JVbCTUY4YaAVvVZzCz6wspG9qttciRFLEXm3HLQAmssFbUp9uPEkP3uu5",
-                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok"
-            )
+                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
+            ),
         ];
 
         #[test]
@@ -774,17 +770,19 @@ mod tests {
 
         #[test]
         fn from() {
-            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-                let expected_private_key = ZcashPrivateKey::<N>::from(&private_key, &Format::Sprout).unwrap();
-                test_from(
-                    &expected_private_key.0,
-                    expected_public_key,
-                    expected_address,
-                    &Format::Sprout,
-                    &private_key);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(private_key, expected_public_key, expected_address)| {
+                    let expected_private_key = ZcashPrivateKey::<N>::from(&private_key, &Format::Sprout).unwrap();
+                    test_from(
+                        &expected_private_key.0,
+                        expected_public_key,
+                        expected_address,
+                        &Format::Sprout,
+                        &private_key,
+                    );
+                });
         }
-
 
         #[test]
         fn to_str() {

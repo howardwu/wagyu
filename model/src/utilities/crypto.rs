@@ -1,6 +1,6 @@
+use base58::ToBase58;
 use ripemd160::Ripemd160;
 use sha2::{Digest, Sha256};
-use base58::{ToBase58};
 
 pub fn checksum(data: &[u8]) -> Vec<u8> {
     Sha256::digest(&Sha256::digest(&data)).to_vec()

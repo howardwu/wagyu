@@ -2,16 +2,14 @@ use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
 use wagyu_model::{
-    Address,
-    AddressError,
-    PrivateKey,
-    crypto::{checksum, hash160, base58_encode_check}
+    crypto::{base58_encode_check, checksum, hash160},
+    Address, AddressError, PrivateKey,
 };
 
 use base58::{FromBase58, ToBase58};
+use bech32::{Bech32, FromBase32, ToBase32};
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::scalar::Scalar;
-use bech32::{Bech32, FromBase32, ToBase32};
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
@@ -114,7 +112,6 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 
     /// Returns a P2SH address.
-    // TODO (howardwu): implement address scheme
     pub fn p2sh() -> Self {
         unimplemented!("p2sh addresses are unimplemented");
     }
@@ -132,7 +129,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         Ok(Self {
             address: base58_encode_check(&address),
             format: Format::Sprout,
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 
@@ -554,24 +551,24 @@ mod tests {
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
-                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5"
+                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
             ),
             (
                 "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
-                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX"
+                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
             ),
             (
                 "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
-                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e"
+                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
             ),
             (
                 "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
-                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN"
+                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
             ),
             (
                 "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
-                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok"
-            )
+                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
+            ),
         ];
 
         #[test]
@@ -594,7 +591,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-               test_from_str::<N>(address, &Format::Sprout);
+                test_from_str::<N>(address, &Format::Sprout);
             });
         }
 
