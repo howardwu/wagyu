@@ -37,6 +37,5 @@ sha2 = { version = "0.7" }
 rust-crypto = { version = "0.2" }
 byteorder = { version = "1.1" }
 
-
 [badges]
 travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
