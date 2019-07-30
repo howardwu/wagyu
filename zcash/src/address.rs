@@ -230,8 +230,6 @@ impl FromStr for ZcashAddress {
             }
         }
 
-        //TODO (collin) implement for sprout
-
         // Shielded
         if &address[0..=0] == "z" && address.len() > 77 {
             if &address[0..12] == "ztestsapling" && address.len() > 87 {
@@ -585,12 +583,12 @@ mod tests {
             });
         }
 
-//        #[test]
-//        fn from_str() {
-//            KEYPAIRS.iter().for_each(|(_, address)| {
-//               test_from_str(address, &Format::Sprout, &Network::Mainnet);
-//            });
-//        }
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(_, address)| {
+               test_from_str(address, &Format::Sprout, &Network::Mainnet);
+            });
+        }
 
         #[test]
         fn to_str() {

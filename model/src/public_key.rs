@@ -3,12 +3,11 @@ use crate::private_key::PrivateKey;
 
 use std::{
     fmt::{Debug, Display},
-    str::FromStr
+    str::FromStr,
 };
 
 #[derive(Debug, Fail)]
 pub enum PublicKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -18,6 +17,15 @@ pub enum PublicKeyError {
     #[fail(display = "invalid character length: {}", _0)]
     InvalidCharacterLength(usize),
 
+    #[fail(display = "invalid public key prefix: {:?}", _0)]
+    InvalidPrefix(String),
+
+}
+
+impl From<base58::FromBase58Error> for PublicKeyError {
+    fn from(error: base58::FromBase58Error) -> Self {
+        PublicKeyError::Crate("base58", format!("{:?}", error))
+    }
 }
 
 impl From<hex::FromHexError> for PublicKeyError {
@@ -40,15 +48,15 @@ impl From<std::io::Error> for PublicKeyError {
 
 /// The interface for a generic public key.
 pub trait PublicKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
+Clone
++ Debug
++ Display
++ FromStr
++ Send
++ Sync
++ 'static
++ Eq
++ Sized
 {
     type Address: Address;
     type Format;
@@ -62,6 +70,6 @@ pub trait PublicKey:
     fn to_address(
         &self,
         format: &Self::Format,
-        network: &Self::Network
+        network: &Self::Network,
     ) -> Result<Self::Address, AddressError>;
 }

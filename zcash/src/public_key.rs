@@ -6,7 +6,7 @@ use wagu_model::{
     AddressError,
     PublicKey,
     PublicKeyError,
-    crypto::base58_encode_check
+    crypto::base58_encode_check,
 };
 
 use pairing::bls12_381::Bls12;
@@ -22,7 +22,7 @@ use crypto::sha2::sha256_digest_block;
 
 use sapling_crypto::jubjub::JubjubBls12;
 use crate::SproutSpendingKey;
-use base58::FromBase58;
+use base58::{FromBase58, ToBase58};
 
 //#[allow(unreadable_literal)]
 static H256: [u32; 8] = [
@@ -41,7 +41,7 @@ pub struct P2PKHViewingKey {
     /// The ECDSA public key
     pub public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
-    pub compressed: bool
+    pub compressed: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -50,7 +50,7 @@ pub struct P2SHViewingKey {}
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SproutViewingKey {
     pub key_a: [u8; 32],
-    pub key_b: [u8; 32]
+    pub key_b: [u8; 32],
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +91,7 @@ impl PublicKey for ZcashPublicKey {
         match &private_key.0 {
             SpendingKey::P2PKH(spending_key) => Self(ViewingKey::P2PKH(P2PKHViewingKey {
                 public_key: secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &spending_key.secret_key),
-                compressed: spending_key.compressed
+                compressed: spending_key.compressed,
             })),
             SpendingKey::P2SH(_) => Self(ViewingKey::P2SH(P2SHViewingKey {})),
             SpendingKey::Sprout(spending_key) => Self(ViewingKey::Sprout(
@@ -106,14 +106,13 @@ impl PublicKey for ZcashPublicKey {
     fn to_address(
         &self,
         format: &Self::Format,
-        network: &Self::Network
+        network: &Self::Network,
     ) -> Result<Self::Address, AddressError> {
         ZcashAddress::from_public_key(self, format, network)
     }
 }
 
 impl ZcashPublicKey {
-
     /// Returns a sprout public key corresponding to a sprout private key
     pub fn from_sprout_spending_key(spending_key: &SproutSpendingKey) -> SproutViewingKey {
         let mut key_a = [0u8; 32];
@@ -125,7 +124,7 @@ impl ZcashPublicKey {
         key_b[31] &= 127;
         key_b[31] |= 64;
 
-        SproutViewingKey{key_a, key_b}
+        SproutViewingKey { key_a, key_b }
     }
 
     /// Returns output of pseudorandom function
@@ -162,28 +161,28 @@ impl FromStr for ZcashPublicKey {
         match public_key.len() {
             66 | 130 => Ok(Self(ViewingKey::P2PKH(P2PKHViewingKey {
                 public_key: secp256k1::PublicKey::from_str(public_key)?,
-                compressed: public_key.len() == 66
+                compressed: public_key.len() == 66,
             }))),
             97 => {
-                let data = public_key.from_base58().unwrap();
-                match &data[..3] == &[0xa8, 0xab, 0xd3] {
-                    true => println!("prefix okay"),
-                    false => println!("prefix bad")
+                let data = public_key.from_base58()?;
+                let prefix = &data[..3];
+                if prefix != &[0xa8, 0xab, 0xd3] {
+                    return Err(PublicKeyError::InvalidPrefix(prefix.to_base58()));
                 }
                 let mut key_a = [0u8; 32];
                 key_a.copy_from_slice(&data[3..35]);
-                let mut key_b= [0u8; 32];
+                let mut key_b = [0u8; 32];
                 key_b.copy_from_slice(&data[35..67]);
                 Ok(Self(ViewingKey::Sprout(SproutViewingKey {
                     key_a,
-                    key_b
+                    key_b,
                 })))
-            },
+            }
             192 => {
                 let data = hex::decode(public_key)?;
                 let fvk = FullViewingKey::read(&data[..], &JubjubBls12::new())?;
                 Ok(Self(ViewingKey::Sapling(SaplingViewingKey(fvk))))
-            },
+            }
             _ => Err(PublicKeyError::InvalidCharacterLength(public_key.len()))
         }
     }
@@ -202,7 +201,7 @@ impl Display for ZcashPublicKey {
                         write!(f, "{:02x}", s)?;
                     }
                 }
-            },
+            }
             ViewingKey::Sprout(sprout) => {
                 let mut data = [0u8; 67];
                 data[..3].copy_from_slice(&[0xa8, 0xab, 0xd3]);
@@ -210,12 +209,12 @@ impl Display for ZcashPublicKey {
                 data[35..].copy_from_slice(&sprout.key_b);
 
                 write!(f, "{}", base58_encode_check(&data))?
-            },
+            }
             ViewingKey::Sapling(sapling) => {
                 for s in &sapling.0.to_bytes()[..] {
                     write!(f, "{:02x}", s)?;
                 }
-            },
+            }
             _ => ()
         }
         Ok(())
@@ -235,7 +234,7 @@ mod tests {
         expected_address: &ZcashAddress,
         expected_format: &Format,
         expected_network: &Network,
-        public_key: &ZcashPublicKey
+        public_key: &ZcashPublicKey,
     ) {
         let address = public_key.to_address(expected_format, expected_network).unwrap();
         assert_eq!(*expected_address, address);
@@ -245,7 +244,7 @@ mod tests {
         expected_public_key: &str,
         expected_address: &str,
         expected_format: &Format,
-        expected_network: &Network
+        expected_network: &Network,
     ) {
         let public_key = ZcashPublicKey::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(expected_format, expected_network).unwrap();
@@ -565,14 +564,14 @@ mod tests {
             )
         ];
 
-//        #[test]
-//        fn from_private_key() {
-//            KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-//                let public_key = ZcashPublicKey::from_str(public_key).unwrap();
-//                let private_key = ZcashPrivateKey::from_str(private_key).unwrap();
-//                test_from_private_key(&public_key, &private_key);
-//            })
-//        }
+        #[test]
+        fn from_private_key() {
+            KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
+                let public_key = ZcashPublicKey::from_str(public_key).unwrap();
+                let private_key = ZcashPrivateKey::from_str(private_key).unwrap();
+                test_from_private_key(&public_key, &private_key);
+            })
+        }
 
         #[test]
         fn to_address() {
@@ -760,6 +759,5 @@ mod tests {
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5";
         assert!(ZcashPublicKey::from_str(public_key).is_err());
-
     }
 }

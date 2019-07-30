@@ -7,7 +7,7 @@ use wagu_model::{
     PrivateKey,
     PrivateKeyError,
     PublicKey,
-    crypto::{checksum, base58_encode_check}
+    crypto::{checksum, base58_encode_check},
 };
 
 use base58::{FromBase58, ToBase58};
@@ -28,7 +28,7 @@ pub struct P2PKHSpendingKey {
     /// If true, the private key is serialized in compressed form
     pub compressed: bool,
     /// The network of the private key
-    pub network: Network
+    pub network: Network,
 }
 
 impl Display for P2PKHSpendingKey {
@@ -37,7 +37,7 @@ impl Display for P2PKHSpendingKey {
         fn secret_key_to_wif(
             secret_key: &secp256k1::SecretKey,
             network: &Network,
-            compressed: bool
+            compressed: bool,
         ) -> String {
             let mut wif = [0u8; 38];
             wif[0] = network.to_wif_prefix();
@@ -64,7 +64,7 @@ pub struct P2SHSpendingKey {}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SproutSpendingKey {
     pub(crate) spending_key: [u8; 32],
-    pub(crate) network: Network
+    pub(crate) network: Network,
 }
 
 impl Display for SproutSpendingKey {
@@ -80,7 +80,7 @@ impl Display for SproutSpendingKey {
 pub struct SaplingSpendingKey {
     pub(crate) spending_key: Option<[u8; 32]>,
     pub(crate) expanded_spending_key: ExpandedSpendingKey<Bls12>,
-    pub(crate) network: Network
+    pub(crate) network: Network,
 }
 
 impl Debug for SaplingSpendingKey {
@@ -121,12 +121,12 @@ impl Display for SaplingSpendingKey {
 impl PartialEq for SaplingSpendingKey {
     fn eq(&self, other: &Self) -> bool {
         if self.network != other.network {
-            return false
+            return false;
         }
         if let Some(this) = self.spending_key {
             if let Some(that) = other.spending_key {
                 if this != that {
-                    return false
+                    return false;
                 }
             }
         }
@@ -147,7 +147,7 @@ pub enum SpendingKey {
     /// Sprout shielded spending key
     Sprout(SproutSpendingKey),
     /// Sapling shielded spending key
-    Sapling(SaplingSpendingKey)
+    Sapling(SaplingSpendingKey),
 }
 
 /// Represents a Zcash Private Key
@@ -161,18 +161,18 @@ impl PrivateKey for ZcashPrivateKey {
     type PublicKey = ZcashPublicKey;
 
     /// Returns a randomly-generated compressed Zcash private key.
-     fn new(network: &Network) -> Result<Self, PrivateKeyError> {
+    fn new(network: &Network) -> Result<Self, PrivateKeyError> {
         let mut random = [0u8; 32];
         OsRng.try_fill(&mut random)?;
         Ok(Self(SpendingKey::P2PKH(P2PKHSpendingKey {
             secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::new(), &random)?,
             compressed: true,
-            network: *network
+            network: *network,
         })))
     }
 
     /// Returns the public key of the corresponding Zcash private key.
-     fn to_public_key(&self) -> Self::PublicKey {
+    fn to_public_key(&self) -> Self::PublicKey {
         ZcashPublicKey::from_private_key(self)
     }
 
@@ -183,7 +183,6 @@ impl PrivateKey for ZcashPrivateKey {
 }
 
 impl ZcashPrivateKey {
-
     /// Returns either a Zcash private key struct or errors.
     pub fn from(s: &str, format: &Format, network: &Network) -> Result<Self, PrivateKeyError> {
         match format {
@@ -212,7 +211,7 @@ impl ZcashPrivateKey {
         let data = wif.from_base58()?;
         let len = data.len();
         if len != 37 && len != 38 {
-            return Err(PrivateKeyError::InvalidCharacterLength(len))
+            return Err(PrivateKeyError::InvalidCharacterLength(len));
         }
 
         let expected = &data[len - 4..][0..4];
@@ -220,30 +219,29 @@ impl ZcashPrivateKey {
         if *expected != *checksum {
             let expected = expected.to_base58();
             let found = checksum.to_base58();
-            return Err(PrivateKeyError::InvalidChecksum(expected, found))
+            return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
         if *network != Network::from_wif_prefix(data[0])? {
             let expected = network.to_string();
             let found = Network::from_wif_prefix(data[0])?.to_string();
-            return Err(PrivateKeyError::InvalidNetwork(expected, found))
+            return Err(PrivateKeyError::InvalidNetwork(expected, found));
         }
 
         Ok(Self(SpendingKey::P2PKH(P2PKHSpendingKey {
             secret_key: secp256k1::SecretKey::from_slice(&Secp256k1::without_caps(), &data[1..33])?,
             compressed: len == 38,
-            network: *network
+            network: *network,
         })))
     }
 
     /// Returns a Sprout private key from a given wif.
     fn sprout(wif: &str, network: &Network) -> Result<Self, PrivateKeyError> {
-        let mut data = [0u8; 32];
-        data.copy_from_slice(&wif.from_base58().unwrap()[2..34]);
-
-        if data.len() != 32 {
-            return Err(PrivateKeyError::InvalidByteLength(data.len()));
+        if wif.len() != 52 {
+            return Err(PrivateKeyError::InvalidByteLength(wif.len()));
         }
+        let mut data = [0u8; 32];
+        data.copy_from_slice(&wif.from_base58()?[2..34]);
 
         let mut sk = [0u8; 32];
         sk.copy_from_slice(&data);
@@ -251,7 +249,7 @@ impl ZcashPrivateKey {
 
         Ok(Self(SpendingKey::Sprout(SproutSpendingKey {
             spending_key: sk,
-            network: *network
+            network: *network,
         })))
     }
 
@@ -268,14 +266,14 @@ impl ZcashPrivateKey {
         Ok(Self(SpendingKey::Sapling(SaplingSpendingKey {
             spending_key: Some(sk),
             expanded_spending_key: ExpandedSpendingKey::from_spending_key(&sk[..]),
-            network: *network
+            network: *network,
         })))
     }
 
     /// Returns a Sapling private key from a given expanded spending key.
     fn sapling_expanded(
         expanded_spending_key: &str,
-        network: &Network
+        network: &Network,
     ) -> Result<Self, PrivateKeyError> {
         let data = hex::decode(expanded_spending_key)?;
         if data.len() != 96 {
@@ -285,7 +283,7 @@ impl ZcashPrivateKey {
         Ok(Self(SpendingKey::Sapling(SaplingSpendingKey {
             spending_key: None,
             expanded_spending_key: ExpandedSpendingKey::read(&data[..])?,
-            network: *network
+            network: *network,
         })))
     }
 }
@@ -297,24 +295,28 @@ impl FromStr for ZcashPrivateKey {
         let b58 = s.from_base58();
         let hex = hex::decode(s);
 
-        // Transparent
         if b58.is_ok() && hex.is_err() {
             let data = b58.unwrap();
             if data.len() != 37 && data.len() != 38 {
-                return Err(PrivateKeyError::InvalidByteLength(data.len()))
+                return Err(PrivateKeyError::InvalidByteLength(data.len()));
             }
-            return Self::p2pkh(s, &Network::from_wif_prefix(data[0])?)
+
+            // Sprout
+            if &s[..2] == "SK" {
+                return Self::sprout(s, &Network::Mainnet);
+            }
+
+            // Transparent
+            return Self::p2pkh(s, &Network::from_wif_prefix(data[0])?);
         }
 
-        //TODO (collin) handle sprout addresses
-
-        // Shielded
+        // Sapling
         if b58.is_err() && hex.is_ok() {
             let data = hex.unwrap();
             if data.len() == 32 {
-                return Self::sapling(s, &Network::Mainnet)
+                return Self::sapling(s, &Network::Mainnet);
             } else if data.len() == 96 {
-                return Self::sapling_expanded(s, &Network::Mainnet)
+                return Self::sapling_expanded(s, &Network::Mainnet);
             }
         }
 
@@ -328,7 +330,7 @@ impl Display for ZcashPrivateKey {
             SpendingKey::P2PKH(p2pkh) => write!(f, "{}", p2pkh.to_string()),
             SpendingKey::Sprout(sprout) => write!(f, "{}", sprout.to_string()),
             SpendingKey::Sapling(sapling) => write!(f, "{}", sapling.to_string()),
-            _ =>  write!(f, "")
+            _ => write!(f, "")
         }
     }
 }
@@ -345,7 +347,7 @@ mod tests {
     fn test_to_address(
         expected_address: &ZcashAddress,
         expected_format: &Format,
-        private_key: &ZcashPrivateKey
+        private_key: &ZcashPrivateKey,
     ) {
         let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
@@ -357,7 +359,7 @@ mod tests {
         expected_public_key: &str,
         expected_address: &str,
         expected_format: &Format,
-        seed: &str
+        seed: &str,
     ) {
         let private_key = ZcashPrivateKey::from(seed, expected_format, expected_network).unwrap();
         assert_eq!(*expected_spending_key, private_key.0);
@@ -729,38 +731,37 @@ mod tests {
             )
         ];
 
-//        #[test]
-//        fn to_public_key() {
-//            KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-//                let public_key = ZcashPublicKey::from_str(public_key).unwrap();
-//                let private_key = ZcashPrivateKey::from_str(&private_key).unwrap();
-//                test_to_public_key(&public_key, &private_key);
-//            });
-//        }
+        #[test]
+        fn to_public_key() {
+            KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
+                let public_key = ZcashPublicKey::from_str(public_key).unwrap();
+                let private_key = ZcashPrivateKey::from_str(&private_key).unwrap();
+                test_to_public_key(&public_key, &private_key);
+            });
+        }
 
-//        #[test]
-//        fn to_address() {
-//            KEYPAIRS.iter().for_each(|(private_key, _, address)| {
-//                let address = ZcashAddress::from_str(address).unwrap();
-//                let private_key = ZcashPrivateKey::from_str(&private_key).unwrap();
-//                test_to_address(&address, &Format::Sprout, &private_key);
-//            });
-//        }
+        #[test]
+        fn to_address() {
+            KEYPAIRS.iter().for_each(|(private_key, _, address)| {
+                let address = ZcashAddress::from_str(address).unwrap();
+                let private_key = ZcashPrivateKey::from_str(&private_key).unwrap();
+                test_to_address(&address, &Format::Sprout, &private_key);
+            });
+        }
 
-//        #[test]
-//        fn from() {
-//            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
-//                let expected_private_key = ZcashPrivateKey::from(&private_key, &Format::Sprout, &Network::Mainnet).unwrap();
-//                test_from(
-//                    &expected_private_key.0,
-//                    &Network::Mainnet,
-//                    expected_public_key,
-//                    expected_address,
-//                    &Format::Sprout,
-//                    &private_key);
-//            });
-//        }
-
+        #[test]
+        fn from() {
+            KEYPAIRS.iter().for_each(|(private_key, expected_public_key, expected_address)| {
+                let expected_private_key = ZcashPrivateKey::from(&private_key, &Format::Sprout, &Network::Mainnet).unwrap();
+                test_from(
+                    &expected_private_key.0,
+                    &Network::Mainnet,
+                    expected_public_key,
+                    expected_address,
+                    &Format::Sprout,
+                    &private_key);
+            });
+        }
 
 
         #[test]
@@ -774,7 +775,7 @@ mod tests {
         #[test]
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
-               test_invalid_spending_key_length(private_key);
+                test_invalid_spending_key_length(private_key);
             });
         }
     }
