@@ -52,6 +52,22 @@ impl Format {
     }
 }
 
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Format::P2PKH => write!(f, "p2pkh"),
+            Format::P2SH => write!(f, "p2sh"),
+            Format::Sprout => write!(f, "sprout"),
+            Format::Sapling(data) => {
+                match data {
+                    None => write!(f, "sapling", ),
+                    Some(data) => {write!(f, "sapling {}", hex::encode(data))}
+                }
+            },
+        }
+    }
+}
+
 /// Represents a Zcash address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashAddress<N: ZcashNetwork> {
