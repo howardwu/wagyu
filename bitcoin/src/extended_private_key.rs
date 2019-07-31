@@ -4,7 +4,11 @@ use crate::extended_public_key::BitcoinExtendedPublicKey;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use wagyu_model::{crypto::{checksum, hash160}, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey, DerivationPathError};
+use wagyu_model::{
+    crypto::{checksum, hash160},
+    AddressError, ChildIndex, DerivationPathError, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey,
+    PrivateKey,
+};
 
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
@@ -84,7 +88,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 &Secp256k1::new(),
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
             )
-                .serialize()[..];
+            .serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
@@ -156,11 +160,17 @@ impl<N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
 
         let actual = match path_iter.next() {
             Some(child_index) => child_index,
-            None => return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::InvalidChildNumberFormat))
+            None => {
+                return Err(ExtendedPrivateKeyError::DerivationPathError(
+                    DerivationPathError::InvalidChildNumberFormat,
+                ))
+            }
         };
 
         if expected != *actual {
-            return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::ExpectedBIP44Path));
+            return Err(ExtendedPrivateKeyError::DerivationPathError(
+                DerivationPathError::ExpectedBIP44Path,
+            ));
         }
 
         // Only Bitcoin mainnet extended private keys for now
@@ -168,11 +178,17 @@ impl<N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
 
         let actual = match path_iter.next() {
             Some(child_index) => child_index,
-            None => return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::InvalidChildNumberFormat))
+            None => {
+                return Err(ExtendedPrivateKeyError::DerivationPathError(
+                    DerivationPathError::InvalidChildNumberFormat,
+                ))
+            }
         };
 
         if expected != *actual {
-            return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::ExpectedBIP44Path));
+            return Err(ExtendedPrivateKeyError::DerivationPathError(
+                DerivationPathError::ExpectedBIP44Path,
+            ));
         }
 
         self.derive(path)
@@ -255,7 +271,6 @@ mod tests {
     use crate::network::*;
 
     use hex;
-    use std::string::String;
 
     fn test_new<N: BitcoinNetwork>(
         expected_extended_private_key: &str,
@@ -316,15 +331,10 @@ mod tests {
         );
     }
 
-    fn test_derive_bip44<N: BitcoinNetwork>(
-        expected_extended_private_key: &str,
-        seed: &str,
-        path: &str,
-    ) {
+    fn test_derive_bip44<N: BitcoinNetwork>(expected_extended_private_key: &str, seed: &str, path: &str) {
         let root_extended_private_key =
             BitcoinExtendedPrivateKey::<N>::new_master(&hex::decode(seed).unwrap(), &Format::P2PKH).unwrap();
-        let expected_extended_private_key =
-            BitcoinExtendedPrivateKey::from_str(expected_extended_private_key).unwrap();
+        let expected_extended_private_key = BitcoinExtendedPrivateKey::from_str(expected_extended_private_key).unwrap();
 
         let path = BitcoinDerivationPath::from_str(path).unwrap();
         let derived_extended_private_key = root_extended_private_key.derive_bip44(&path).unwrap();
@@ -387,8 +397,45 @@ mod tests {
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
+    fn test_invalid_secret_key<N: BitcoinNetwork>(extended_private_key: &str) {
+        let secret_key =
+            "24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
+        let modified_extended_private_key = format!("{}{}", &extended_private_key[..16], secret_key);
+
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err())
+    }
+
+    fn test_invalid_version<N: BitcoinNetwork>(extended_private_key: &str) {
+        let version = "xprv8";
+        let modified_extended_private_key = format!("{}{}", version, &extended_private_key[6..]);
+
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err())
+    }
+
+    fn test_invalid_checksum<N: BitcoinNetwork>(extended_private_key: &str) {
+        let mut s = extended_private_key.to_string();
+        let (first, last) = s.split_at_mut(78);
+
+        last.make_ascii_uppercase();
+
+        let modified_extended_private_key = format!("{}{}", first, last);
+
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err())
+    }
+
+    fn test_invalid_length<N: BitcoinNetwork>(extended_private_key: &str) {
+        let short = &extended_private_key[..81];
+
+        let mut long = extended_private_key.to_string();
+        long.push('a');
+
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(short).is_err());
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&long).is_err());
+    }
+
     fn test_invalid_bip44_path<N: BitcoinNetwork>(path: &str, seed: &str) {
-        let extended_private_key = BitcoinExtendedPrivateKey::<N>::new_master(&hex::decode(seed).unwrap(), &Format::P2PKH).unwrap();
+        let extended_private_key =
+            BitcoinExtendedPrivateKey::<N>::new_master(&hex::decode(seed).unwrap(), &Format::P2PKH).unwrap();
 
         let purpose = "m/49'";
         let modified_purpose = &format!("{}{}", purpose, &path[5..]);
@@ -644,6 +691,34 @@ mod tests {
                 test_to_string::<N>(extended_private_key);
             });
         }
+
+        #[test]
+        fn invalid_secret_key() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_secret_key::<N>(extended_private_key);
+            })
+        }
+
+        #[test]
+        fn invalid_version() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_version::<N>(extended_private_key);
+            })
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_checksum::<N>(extended_private_key);
+            })
+        }
+
+        #[test]
+        fn invalid_length() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_length::<N>(extended_private_key);
+            })
+        }
     }
 
     mod bip44_mainnet {
@@ -791,9 +866,11 @@ mod tests {
 
         #[test]
         fn derive_bip44() {
-            KEYPAIRS.iter().for_each(|(path, seed, _, _, _, _, extended_private_key, _)| {
-                test_derive_bip44::<N>(extended_private_key, seed, path);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(path, seed, _, _, _, _, extended_private_key, _)| {
+                    test_derive_bip44::<N>(extended_private_key, seed, path);
+                });
         }
 
         #[test]
@@ -830,6 +907,34 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
                 test_to_string::<N>(extended_private_key);
             });
+        }
+
+        #[test]
+        fn invalid_secret_key() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_secret_key::<N>(extended_private_key);
+            })
+        }
+
+        #[test]
+        fn invalid_version() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_version::<N>(extended_private_key);
+            })
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_checksum::<N>(extended_private_key);
+            })
+        }
+
+        #[test]
+        fn invalid_length() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_length::<N>(extended_private_key);
+            })
         }
 
         #[test]
@@ -997,49 +1102,33 @@ mod tests {
                 test_to_string::<N>(extended_private_key);
             });
         }
-    }
-
-    mod test_invalid {
-        use super::*;
-
-        type N = Mainnet;
-
-        const INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
-        const INVALID_EXTENDED_PRIVATE_KEY_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-        const INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
-        const VALID_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
         #[test]
-        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
-        fn from_str_invalid_secret_key() {
-            let _result =
-                BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY).unwrap();
+        fn invalid_secret_key() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_secret_key::<N>(extended_private_key);
+            })
         }
 
         #[test]
-        #[should_panic(expected = "InvalidVersionBytes([4, 136, 173, 227])")]
-        fn from_str_invalid_version() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_NETWORK).unwrap();
+        fn invalid_version() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_version::<N>(extended_private_key);
+            })
         }
 
         #[test]
-        #[should_panic(expected = "InvalidChecksum(\"6vCfku\", \"6vCfkt\")")]
-        fn from_str_invalid_checksum() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM).unwrap();
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_checksum::<N>(extended_private_key);
+            })
         }
 
         #[test]
-        #[should_panic(expected = "InvalidByteLength(81)")]
-        fn from_str_short() {
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(&VALID_EXTENDED_PRIVATE_KEY[1..]).unwrap();
-        }
-
-        #[test]
-        #[should_panic(expected = "InvalidByteLength(83)")]
-        fn from_str_long() {
-            let mut string = String::from(VALID_EXTENDED_PRIVATE_KEY);
-            string.push('a');
-            let _result = BitcoinExtendedPrivateKey::<N>::from_str(&string).unwrap();
+        fn invalid_length() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_invalid_length::<N>(extended_private_key);
+            })
         }
     }
 }
