@@ -9,6 +9,8 @@ pub use self::testnet::*;
 
 /// The interface for a Bitcoin network.
 pub trait BitcoinNetwork: Network {
+    const NAME: &'static str;
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> Vec<u8>;
 

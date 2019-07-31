@@ -9,6 +9,8 @@ pub use self::testnet::*;
 
 /// The interface for a Zcash network.
 pub trait ZcashNetwork: Network {
+    const NAME: &'static str;
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> Vec<u8>;
 
