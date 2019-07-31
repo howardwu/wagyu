@@ -838,16 +838,16 @@ fn print_zcash_wallet<N: ZcashNetwork>(zcash_wallet: ZcashWallet) {
                 };
 
                 let private_key = extended_private_key.to_private_key();
-                let address = ZcashAddress::from_private_key(&private_key, &zcash_wallet.format).unwrap();
-                let address_format = address.format().to_string();
-                let address_format: Vec<String> = address_format.split(" ").map(|s| s.to_owned()).collect();
+                let address = ZcashAddress::<N>::from_private_key(&private_key, &zcash_wallet.format).unwrap();
+                let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                let diversifier = hex::encode(ZcashAddress::<N>::get_diversifier(&address.to_string()).unwrap());
 
                 let extended_wallet = ExtendedWallet {
                     phrase:  "".to_owned(),
                     extended_private_key: extended_private_key.to_string(),
                     private_key: private_key.to_string(),
                     address: address.to_string(),
-                    diversifier: address_format.get(1).unwrap_or(&"".to_owned()).to_owned(),
+                    diversifier,
                     format: address_format[0].to_owned(),
                     network: zcash_wallet.network.to_owned(),
                 };
