@@ -10,23 +10,6 @@ pub fn hash160(bytes: &[u8]) -> Vec<u8> {
     Ripemd160::digest(&Sha256::digest(&bytes)).to_vec()
 }
 
-pub fn base58_encode_check(bytes: &[u8]) -> String {
-    let mut check = [0u8; 32];
-    let mut sha = Sha256::new();
-    sha.input(bytes);
-    check.copy_from_slice(sha.result().as_slice());
-    sha = Sha256::new();
-    sha.input(&check);
-    check.copy_from_slice(sha.result().as_slice());
-
-    let mut output = bytes.to_vec();
-    for &b in check.iter().take(4) {
-        output.push(b);
-    }
-
-    output.to_base58()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,10 +1,7 @@
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagyu_model::{
-    crypto::{base58_encode_check, checksum, hash160},
-    Address, AddressError, PrivateKey,
-};
+use wagyu_model::{crypto::{checksum, hash160}, Address, AddressError, PrivateKey};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
@@ -33,6 +30,9 @@ pub enum Format {
 }
 
 impl Format {
+    pub const SPROUT_SPENDING_KEY_PREFIX: [u8; 2] = [0xab, 0x36];
+    pub const SPROUT_VIEWING_KEY_PREFIX: [u8; 3] = [0xa8, 0xab, 0xd3];
+
     /// Returns the address prefix of the given network.
     pub fn to_address_prefix<N: ZcashNetwork>(&self) -> Vec<u8> {
         N::to_address_prefix(self)
@@ -75,7 +75,7 @@ impl<N: ZcashNetwork> Address for ZcashAddress<N> {
         match private_key.to_public_key().to_viewing_key() {
             ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
             ViewingKey::P2SH(_) => Ok(Self::p2sh()),
-            ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key)?),
+            ViewingKey::Sprout(public_key) => Self::sprout(&public_key),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format),
         }
     }
@@ -85,7 +85,7 @@ impl<N: ZcashNetwork> Address for ZcashAddress<N> {
         match &public_key.to_viewing_key() {
             ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
             ViewingKey::P2SH(_) => Ok(Self::p2sh()),
-            ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key)?),
+            ViewingKey::Sprout(public_key) => Self::sprout(&public_key),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format),
         }
     }
@@ -119,15 +119,17 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     /// Returns a shielded address from a given Zcash public key.
     pub fn sprout(public_key: &SproutViewingKey) -> Result<Self, AddressError> {
         let pk = &Scalar::from_bits(public_key.key_b) * &ED25519_BASEPOINT_TABLE;
-        let pk_enc = pk.to_montgomery();
 
-        let mut address = [0u8; 66];
+        let mut address = [0u8; 70];
         address[0..2].copy_from_slice(&N::to_address_prefix(&Format::Sprout));
         address[2..34].copy_from_slice(&public_key.key_a);
-        address[34..].copy_from_slice(pk_enc.as_bytes());
+        address[34..66].copy_from_slice(pk.to_montgomery().as_bytes());
+
+        let sum = &checksum(&address[0..66])[0..4];
+        address[66..].copy_from_slice(sum);
 
         Ok(Self {
-            address: base58_encode_check(&address),
+            address: address.to_base58(),
             format: Format::Sprout,
             _network: PhantomData,
         })
@@ -240,7 +242,11 @@ impl<N: ZcashNetwork> FromStr for ZcashAddress<N> {
                     format,
                     _network: PhantomData,
                 });
-            } else if &address[0..2] == "zt" && address.len() == 95 {
+            } else if &address[0..2] == "zt" && address.len() == 95 { //aren't these one off hardcode's
+                let data = address.from_base58()?;
+
+                // Check that the network bytes correspond with the correct network.
+                let _ = N::from_address_prefix(&data[0..2].to_vec())?; //are these necessary
                 let format = Format::Sprout;
 
                 return Ok(Self {
@@ -249,6 +255,10 @@ impl<N: ZcashNetwork> FromStr for ZcashAddress<N> {
                     _network: PhantomData,
                 });
             } else if &address[0..2] == "zc" && address.len() == 95 {
+                let data = address.from_base58()?;
+
+                // Check that the network bytes correspond with the correct network.
+                let _ = N::from_address_prefix(&data[0..2].to_vec())?;
                 let format = Format::Sprout;
 
                 return Ok(Self {

@@ -2,7 +2,7 @@ use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{
-    crypto::{base58_encode_check, checksum},
+    crypto::checksum,
     Address, AddressError, PrivateKey, PrivateKeyError, PublicKey,
 };
 
@@ -63,16 +63,18 @@ impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
 pub struct P2SHSpendingKey {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SproutSpendingKey {
-    pub(crate) spending_key: [u8; 32],
-}
+pub struct SproutSpendingKey(pub [u8; 32]);
 
 impl Display for SproutSpendingKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut wif = [0u8; 34];
-        wif[0..2].copy_from_slice(&[0xab, 0x36]); // spending key prefix
-        wif[2..].copy_from_slice(&self.spending_key);
-        write!(f, "{}", base58_encode_check(&wif))
+        let mut wif = [0u8; 38];
+        wif[0..2].copy_from_slice(&Format::SPROUT_SPENDING_KEY_PREFIX);
+        wif[2..34].copy_from_slice(&self.0);
+
+        let sum = &checksum(&wif[0..34])[0..4];
+        wif[34..].copy_from_slice(sum);
+
+        write!(f, "{}", wif.to_base58())
     }
 }
 
@@ -238,15 +240,12 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         if wif.len() != 52 {
             return Err(PrivateKeyError::InvalidByteLength(wif.len()));
         }
-        let mut data = [0u8; 32];
-        data.copy_from_slice(&wif.from_base58()?[2..34]);
-
         let mut sk = [0u8; 32];
-        sk.copy_from_slice(&data);
+        sk.copy_from_slice(&wif.from_base58()?[2..34]);
         sk[0] &= 0x0f;
 
         Ok(Self(
-            SpendingKey::Sprout(SproutSpendingKey { spending_key: sk }),
+            SpendingKey::Sprout(SproutSpendingKey(sk)),
             PhantomData,
         ))
     }
