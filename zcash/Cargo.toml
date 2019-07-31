@@ -8,8 +8,8 @@ authors = [
     "Howard Wu"
 ]
 description = "A library for generating Zcash wallets"
-homepage = "https://github.com/ArgusHQ/wagu"
-repository = "https://github.com/ArgusHQ/wagu"
+homepage = "https://github.com/ArgusHQ/wagyu"
+repository = "https://github.com/ArgusHQ/wagyu"
 categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 readme = "README.md"
@@ -17,7 +17,7 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-wagu-model = { path = "../model" }
+wagyu-model = { path = "../model" }
 
 pairing = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
 sapling-crypto = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
@@ -27,14 +27,12 @@ bech32 = { version = "0.6" }
 base58 = { version = "0.1" }
 hex = { version = "0.3.2" }
 rand = { version = "0.7" }
+rand_core = { version = "0.5.0" }
 ripemd160 = { version = "0.7" }
-secp256k1 = { version = "0.14.1" }
+secp256k1 = { version = "0.15.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.7" }
 
-[dev-dependencies]
-hex = "0.3.2"
-
 [badges]
-travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }

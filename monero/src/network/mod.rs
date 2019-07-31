@@ -1,5 +1,5 @@
 use crate::address::Format;
-use wagu_model::{AddressError, Network};
+use wagyu_model::{AddressError, Network};
 
 pub mod mainnet;
 pub use self::mainnet::*;
@@ -12,6 +12,8 @@ pub use self::testnet::*;
 
 /// The interface for a Monero network.
 pub trait MoneroNetwork: Network {
+    const NAME: &'static str;
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> u8;
 

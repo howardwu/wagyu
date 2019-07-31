@@ -1,4 +1,4 @@
-# `wagu zcash`
+# `wagyu zcash`
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -15,10 +15,10 @@
 
 Generate an uncompressed mainnet private key and address with the following command:
 
-`wagu zcash`
+`wagyu zcash`
 
 ```bash
-╰─ wagu zcash
+╰─ wagyu zcash
 
         Private Key:    5KPcKEuisYjGqqSfZyArrDFjR6xuNRSRotLTu6h4ciu9Qk15bSf
         Address:        t1gNVAzETZA6ygaiDPRrSrz2tqGMPxVCGUN
@@ -30,10 +30,10 @@ Generate an uncompressed mainnet private key and address with the following comm
 
 Generate a testnet private key and address with the following command:
 
-`wagu zcash --network testnet`
+`wagyu zcash --network testnet`
 
 ```bash
-╰─ wagu zcash --network testnet
+╰─ wagyu zcash --network testnet
 
         Private Key:    92YaFzZkMKFBkndQGsct96CQcLrcMgvsopv7hzHYvJ3HHVSk2Xu
         Address:        tmAMCGitxDgDTDFf6bwhqxAsmk8qGiXHYZv
@@ -45,10 +45,10 @@ Generate a testnet private key and address with the following command:
 
 Generate an uncompressed mainnet private key and address with the following command:
 
-`wagu zcash -j` OR `wagu zcash --json`
+`wagyu zcash -j` OR `wagyu zcash --json`
 
 ```bash
-╰─ wagu -j
+╰─ wagyu -j
 [
   {
     "privateKey": {
@@ -68,10 +68,10 @@ Generate an uncompressed mainnet private key and address with the following comm
 
 Generate a multiple wallets with the following command:
 
-`wagu zcash --count 3` OR `wagu zcash -n 3`
+`wagyu zcash --count 3` OR `wagyu zcash -n 3`
 
 ```bash
-╰─ wagu zcash -n 3
+╰─ wagyu zcash -n 3
 
         Private Key:    5K6unwsCYTnqbk2uyqNMJGRoHR3kGeBVKmHtTKPQpg6xTSz69Jw
         Address:        t1NNXgRsca1jT7WUEXV97dDn9pz7KNFPrLs
@@ -95,10 +95,10 @@ Generate a multiple wallets with the following command:
 
 Generate a compressed mainnet private key and address with the following command:
 
-`wagu zcash --compressed` OR `wagu zcash -c`
+`wagyu zcash --compressed` OR `wagyu zcash -c`
 
 ```bash
-╰─ wagu zcash -c
+╰─ wagyu zcash -c
 
         Private Key:    L4LwPgRwru6evQWqQZbqyW5JKePSF4rUBpF5nNaNDozxs2Z8PNpx
         Address:        t1h46b74XVAggQL6kcngVHaD7JxvebW7hP2

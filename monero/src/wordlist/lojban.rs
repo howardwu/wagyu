@@ -1,5 +1,5 @@
 use crate::wordlist::MoneroWordlist;
-use wagu_model::{wordlist::Wordlist, monero::LOJBAN};
+use wagyu_model::{monero::LOJBAN, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Lojban;

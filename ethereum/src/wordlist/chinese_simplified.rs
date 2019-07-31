@@ -1,5 +1,5 @@
 use crate::wordlist::EthereumWordlist;
-use wagu_model::{wordlist::Wordlist, bip39::CHINESE_SIMPLIFIED};
+use wagyu_model::{bip39::CHINESE_SIMPLIFIED, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChineseSimplified;

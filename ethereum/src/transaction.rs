@@ -8,7 +8,7 @@ use secp256k1;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
-use wagu_model::{Transaction, TransactionError};
+use wagyu_model::{Transaction, TransactionError};
 
 /// Represents a raw Ethereum transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -62,7 +62,7 @@ impl EthereumTransaction {
                 nonce: U256::from_dec_str(nonce)?,
                 gas_price: U256::from_dec_str(gas_price)?,
                 gas: U256::from_dec_str(gas)?,
-                to: hex::decode(&EthereumAddress::from_str(to)?.address[2..])?,
+                to: hex::decode(&EthereumAddress::from_str(to)?.to_string()[2..])?,
                 value: U256::from_dec_str(value)?,
                 data: data.as_bytes().to_vec()
             }
@@ -121,7 +121,7 @@ impl EthereumTransaction {
     /// Sign the transaction hash with a given private key
     fn ecdsa_sign(hash: &[u8], private_key: <Self as Transaction>::PrivateKey, chain_id: &u8) -> Result<EthereumTransactionSignature, TransactionError> {
         let message = secp256k1::Message::from_slice(hash)?;
-        let (v, signature) = secp256k1::Secp256k1::new().sign_recoverable(&message, &private_key.0).serialize_compact();
+        let (v, signature) = secp256k1::Secp256k1::new().sign_recoverable(&message, &private_key.to_secp256k1_secret_key()).serialize_compact();
         let protected_v = vec![(v.to_i32() as u8 + chain_id * 2 + 35)]; // EIP155
 
         Ok (

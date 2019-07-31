@@ -1,4 +1,4 @@
-use wagu_model::wordlist::{Wordlist, WordlistError};
+use wagyu_model::wordlist::{Wordlist, WordlistError};
 
 pub mod chinese_simplified;
 pub use self::chinese_simplified::*;
@@ -32,7 +32,7 @@ pub trait BitcoinWordlist: Wordlist {
     /// Returns the word of a given index from the word list.
     fn get(index: usize) -> Result<String, WordlistError> {
         if index >= 2048 {
-            return Err(WordlistError::InvalidIndex(index))
+            return Err(WordlistError::InvalidIndex(index));
         }
         Ok(Self::get_all()[index].into())
     }
@@ -41,7 +41,7 @@ pub trait BitcoinWordlist: Wordlist {
     fn get_index(word: &str) -> Result<usize, WordlistError> {
         match Self::get_all().iter().position(|element| element == &word) {
             Some(index) => Ok(index),
-            None => Err(WordlistError::InvalidWord(word.into()))
+            None => Err(WordlistError::InvalidWord(word.into())),
         }
     }
 

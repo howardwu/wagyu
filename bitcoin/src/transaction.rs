@@ -11,7 +11,7 @@ use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{fmt, marker::PhantomData, str::FromStr};
-use wagu_model::{PrivateKey, TransactionError, Transaction};
+use wagyu_model::{PrivateKey, TransactionError, Transaction};
 
 /// Represents the signature hash opcode
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -193,30 +193,30 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
                                 address_format: Format
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
-        let transaction_hash_preimage = match input.out_point.address.format {
+        let transaction_hash_preimage = match input.out_point.address.format() {
             Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
             _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code)?
         };
 
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
         let message = secp256k1::Message::from_slice(&transaction_hash)?;
-        let mut signature =  secp256k1::Secp256k1::signing_only().sign(&message, &private_key.secret_key).serialize_der().to_vec();
+        let mut signature =  secp256k1::Secp256k1::signing_only().sign(&message, &private_key.to_secp256k1_secret_key()).serialize_der().to_vec();
         signature.push(u32_to_bytes(input.sig_hash_code as u32)?[0]);
 
         let public_key = private_key.to_public_key();
-        let public_key_bytes = if address_format == Format::P2PKH && !public_key.compressed {
-            public_key.public_key.serialize_uncompressed().to_vec()
+        let public_key_bytes = if address_format == Format::P2PKH && !public_key.is_compressed() {
+            public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec()
         } else {
-            public_key.public_key.serialize().to_vec()
+            public_key.to_secp256k1_public_key().serialize().to_vec()
         };
 
         let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
         let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
-        if input.out_point.address.format == Format::P2PKH {
+        if input.out_point.address.format() == Format::P2PKH {
             self.inputs[input_index].script = [signature.clone(), public_key].concat();;
         } else {
-            if input.out_point.address.format == Format::P2SH_P2WPKH {
+            if input.out_point.address.format() == Format::P2SH_P2WPKH {
                 let input_script = input.out_point.redeem_script.clone();
                 self.inputs[input_index].script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();;
             }
@@ -282,7 +282,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let mut amount: Vec<u8> = Vec::new();
         amount.write_u64::<LittleEndian>(input.out_point.amount)?;
 
-        let script = match input.out_point.address.format {
+        let script = match input.out_point.address.format() {
             Format::Bech32 => input.out_point.script_pub_key.clone(),
             _ => input.out_point.redeem_script.clone()
         }[1..].to_vec();
@@ -335,9 +335,9 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let script_pub_key = script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.address)?);
+        let script_pub_key = script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.to_string())?);
         let (amount, redeem_script) = validate_address_format(
-            &address.format,
+            &address.format(),
             &amount,
             &redeem_script,
             &script_pub_key
@@ -358,7 +358,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
             serialized_input.extend(vec![0x00]);
         } else {
             if self.script.len() == 0 {
-                if self.out_point.address.format == Format::Bech32 {
+                if self.out_point.address.format() == Format::Bech32 {
                     serialized_input.extend(vec![0x00]);
                 } else {
                     let script_pub_key = &self.out_point.script_pub_key.clone();
@@ -408,10 +408,10 @@ fn u32_to_bytes(num: u32) -> Result<Vec<u8>, TransactionError> {
 pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u8>, TransactionError> {
     let address = BitcoinAddress::<N>::from_str(address)?;
     let mut script: Vec<u8> = Vec::new();
-    let format = address.format;
+    let format = address.format();
     match format {
         Format::P2PKH => {
-            let address_bytes = &address.address.from_base58()?;
+            let address_bytes = &address.to_string().from_base58()?;
             let pub_key_hash = address_bytes[1..(address_bytes.len()-4)].to_vec();
 
             script.push(OPCodes::OP_DUP as u8);
@@ -422,7 +422,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
             script.push(OPCodes::OP_CHECKSIG as u8);
         },
         Format::P2SH_P2WPKH => {
-            let script_bytes = &address.address.from_base58()?;
+            let script_bytes = &address.to_string().from_base58()?;
             let script_hash = script_bytes[1..(script_bytes.len()-4)].to_vec();
 
             script.push(OPCodes::OP_HASH160 as u8);
@@ -431,7 +431,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
             script.push(OPCodes::OP_EQUAL as u8);
         },
         Format::Bech32 => {
-            let bech32 = Bech32::from_str(&address.address)?;
+            let bech32 = Bech32::from_str(&address.to_string())?;
             let (v, program) = bech32.data().split_at(1);
             let program_bytes = Vec::from_base32(program)?;
 
@@ -505,7 +505,7 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wagu_model::crypto::hash160;
+    use wagyu_model::crypto::hash160;
     use crate::Mainnet;
 
     pub struct Transaction {
@@ -559,7 +559,7 @@ mod tests {
     ) {
         let mut input_vec: Vec<BitcoinTransactionInput<N>> = Vec::new();
         for input in &inputs {
-            let private_key = BitcoinPrivateKey::from_wif(input.private_key).unwrap();
+            let private_key = BitcoinPrivateKey::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
             let transaction_id = hex::decode(input.transaction_id).unwrap();
 
@@ -568,7 +568,7 @@ mod tests {
             } else {
                 if input.address_format == Format::P2SH_P2WPKH {
                     let mut redeem_script: Vec<u8> = vec![0x00, 0x14];
-                    redeem_script.extend(&hash160(&private_key.to_public_key().public_key.serialize()));
+                    redeem_script.extend(&hash160(&private_key.to_public_key().to_secp256k1_public_key().serialize()));
                     Some(redeem_script)
                 } else { None }
             };
@@ -608,7 +608,7 @@ mod tests {
 
         for (index, input) in inputs.iter().enumerate() {
             transaction.sign_raw_transaction(
-                BitcoinPrivateKey::from_wif(input.private_key).unwrap(),
+                BitcoinPrivateKey::from_str(input.private_key).unwrap(),
                 index,
                 input.address_format.clone()
             ).unwrap();
@@ -1315,7 +1315,7 @@ mod tests {
                     Some(seq.to_vec())
                 } else { None };
 
-                let private_key = BitcoinPrivateKey::<N>::from_wif(input.private_key).unwrap();
+                let private_key = BitcoinPrivateKey::<N>::from_str(input.private_key).unwrap();
                 let address = private_key.to_address(&input.address_format).unwrap();
                 let invalid_input = BitcoinTransactionInput::new(
                     address,

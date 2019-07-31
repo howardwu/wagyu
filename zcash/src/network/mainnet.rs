@@ -1,6 +1,6 @@
 use super::*;
 use crate::address::Format;
-use wagu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
 use std::fmt;
@@ -12,25 +12,27 @@ pub struct Mainnet;
 impl Network for Mainnet {}
 
 impl ZcashNetwork for Mainnet {
+    const NAME: &'static str = "mainnet";
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> Vec<u8> {
         match format {
             Format::P2PKH => vec![0x1C, 0xB8],
             Format::P2SH => vec![0x1C, 0xBD],
             Format::Sprout => vec![0x16, 0x9A],
-            Format::Sapling(_) => "zs".as_bytes().to_vec()
+            Format::Sapling(_) => "zs".as_bytes().to_vec(),
         }
     }
 
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, AddressError> {
         if prefix.len() < 2 {
-            return Err(AddressError::InvalidPrefixLength(prefix.len()))
+            return Err(AddressError::InvalidPrefixLength(prefix.len()));
         }
 
         match prefix[1] {
             0xB8 | 0xBD | 0x9A | 0x73 => Ok(Self),
-            _ => return Err(AddressError::InvalidPrefix(prefix.clone()))
+            _ => return Err(AddressError::InvalidPrefix(prefix.clone())),
         }
     }
 
@@ -43,7 +45,33 @@ impl ZcashNetwork for Mainnet {
     fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0x80 => Ok(Self),
-            _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix]))
+            _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix])),
+        }
+    }
+
+    /// Returns the extended private key prefix of the given network.
+    fn to_extended_private_key_prefix() -> String {
+        "secret-extended-key-main".into()
+    }
+
+    /// Returns the network of the given extended private key prefix.
+    fn from_extended_private_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
+        match prefix {
+            "secret-extended-key-main" => Ok(Self),
+            _ => return Err(NetworkError::InvalidExtendedPrivateKeyPrefix(prefix.into())),
+        }
+    }
+
+    /// Returns the extended public key prefix of the given network.
+    fn to_extended_public_key_prefix() -> String {
+        "zviews".into()
+    }
+
+    /// Returns the network of the given extended public key prefix.
+    fn from_extended_public_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
+        match prefix {
+            "zviews" => Ok(Self),
+            _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into())),
         }
     }
 }
@@ -53,14 +81,14 @@ impl FromStr for Mainnet {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "mainnet" => Ok(Self),
-            _ => Err(NetworkError::InvalidNetwork(s.into()))
+            Self::NAME => Ok(Self),
+            _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
 }
 
 impl fmt::Display for Mainnet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "mainnet")
+        write!(f, "{}", Self::NAME)
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "wagu-model"
+name = "wagyu-model"
 version = "0.6.0"
 authors = [
     "Collin Chin",
@@ -7,11 +7,11 @@ authors = [
     "Ali Mousa",
     "Howard Wu"
 ]
-description = "A model for cryptocurrency wallets"
-homepage = "https://github.com/ArgusHQ/wagu"
-repository = "https://github.com/ArgusHQ/wagu"
-categories = ["command-line-utilities"]
-keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+description = "A generic model for cryptocurrency wallets"
+homepage = "https://github.com/ArgusHQ/wagyu"
+repository = "https://github.com/ArgusHQ/wagyu"
+categories = ["command-line-utilities", "cryptocurrency"]
+keywords = ["bitcoin", "blockchain", "cryptocurrency", "ethereum", "wallet"]
 readme = "README.md"
 license = "MIT/Apache-2.0"
 edition = "2018"
@@ -25,14 +25,12 @@ crypto-mac = { version = "0.7.0" }
 ethereum-types = "0.6.0"
 failure = { version = "0.1.5" }
 hex = { version = "0.3.2" }
+rand = { version = "0.7" }
 rand_core = { version = "0.5.0" }
 ripemd160 = { version = "0.8" }
-secp256k1 = { version = "0.14.1" }
+secp256k1 = { version = "0.15.0" }
 sha2 = { version = "0.8" }
 uint = { version = "0.7.1" }
 
-[dev-dependencies]
-hex = { version = "0.3.2" }
-
 [badges]
-travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }

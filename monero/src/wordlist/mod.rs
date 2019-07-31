@@ -1,4 +1,4 @@
-use wagu_model::wordlist::{Wordlist, WordlistError};
+use wagyu_model::wordlist::{Wordlist, WordlistError};
 
 pub mod chinese_simplified;
 pub use self::chinese_simplified::*;
@@ -49,7 +49,7 @@ pub trait MoneroWordlist: Wordlist {
     /// Returns the word of a given index from the word list.
     fn get(index: usize) -> Result<String, WordlistError> {
         if index >= 1626 {
-            return Err(WordlistError::InvalidIndex(index))
+            return Err(WordlistError::InvalidIndex(index));
         }
         Ok(Self::get_all()[index].into())
     }
@@ -58,7 +58,7 @@ pub trait MoneroWordlist: Wordlist {
     fn get_index(word: &str) -> Result<usize, WordlistError> {
         match Self::get_all().iter().position(|e| e == &word) {
             Some(index) => Ok(index),
-            None => Err(WordlistError::InvalidWord(word.into()))
+            None => Err(WordlistError::InvalidWord(word.into())),
         }
     }
 
@@ -66,7 +66,7 @@ pub trait MoneroWordlist: Wordlist {
     fn get_index_trimmed(word: &str) -> Result<usize, WordlistError> {
         match Self::get_all_trimmed().iter().position(|e| e == &word) {
             Some(index) => Ok(index),
-            None => Err(WordlistError::InvalidWord(word.into()))
+            None => Err(WordlistError::InvalidWord(word.into())),
         }
     }
 
@@ -77,6 +77,9 @@ pub trait MoneroWordlist: Wordlist {
 
     /// Returns the word list as a string.
     fn get_all_trimmed() -> Vec<String> {
-        Self::get_all().iter().map(|word| word[0..Self::PREFIX_LENGTH].to_string()).collect()
+        Self::get_all()
+            .iter()
+            .map(|word| word[0..Self::PREFIX_LENGTH].to_string())
+            .collect()
     }
 }

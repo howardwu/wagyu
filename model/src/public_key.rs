@@ -3,21 +3,11 @@ use crate::private_key::PrivateKey;
 
 use std::{
     fmt::{Debug, Display},
-    str::FromStr
+    str::FromStr,
 };
 
 /// The interface for a generic public key.
-pub trait PublicKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;
@@ -31,7 +21,6 @@ pub trait PublicKey:
 
 #[derive(Debug, Fail)]
 pub enum PublicKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
