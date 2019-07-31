@@ -4,10 +4,7 @@ use crate::extended_public_key::BitcoinExtendedPublicKey;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
-use wagyu_model::{
-    crypto::{checksum, hash160},
-    AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey,
-};
+use wagyu_model::{crypto::{checksum, hash160}, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey, DerivationPathError};
 
 use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
@@ -74,7 +71,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
         })
     }
 
-    /// Returns the extended private key of the given derivation path.
+    /// Returns the extended private key of the given BIP32 derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
         if self.depth == 255 {
             return Err(ExtendedPrivateKeyError::MaximumChildDepthReached(self.depth));
@@ -87,7 +84,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 &Secp256k1::new(),
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
             )
-            .serialize()[..];
+                .serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
@@ -148,6 +145,37 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
     /// Returns the address of the corresponding extended private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         self.private_key.to_address(format)
+    }
+}
+
+impl<N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
+    /// Returns the extended private key of the given BIP44 derivation path.
+    pub fn derive_bip44(&self, path: &BitcoinDerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
+        let mut path_iter = path.into_iter();
+        let mut expected = ChildIndex::from_hardened(44)?;
+
+        let actual = match path_iter.next() {
+            Some(child_index) => child_index,
+            None => return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::InvalidChildNumberFormat))
+        };
+
+        if expected != *actual {
+            return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::ExpectedBIP44Path));
+        }
+
+        // Only Bitcoin mainnet extended private keys for now
+        expected = ChildIndex::from_hardened(0)?;
+
+        let actual = match path_iter.next() {
+            Some(child_index) => child_index,
+            None => return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::InvalidChildNumberFormat))
+        };
+
+        if expected != *actual {
+            return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::ExpectedBIP44Path));
+        }
+
+        self.derive(path)
     }
 }
 
@@ -288,6 +316,39 @@ mod tests {
         );
     }
 
+    fn test_derive_bip44<N: BitcoinNetwork>(
+        expected_extended_private_key: &str,
+        seed: &str,
+        path: &str,
+    ) {
+        let root_extended_private_key =
+            BitcoinExtendedPrivateKey::<N>::new_master(&hex::decode(seed).unwrap(), &Format::P2PKH).unwrap();
+        let expected_extended_private_key =
+            BitcoinExtendedPrivateKey::from_str(expected_extended_private_key).unwrap();
+
+        let path = BitcoinDerivationPath::from_str(path).unwrap();
+        let derived_extended_private_key = root_extended_private_key.derive_bip44(&path).unwrap();
+
+        assert_eq!(expected_extended_private_key, derived_extended_private_key);
+        assert_eq!(
+            expected_extended_private_key.private_key,
+            derived_extended_private_key.private_key
+        );
+        assert_eq!(expected_extended_private_key.depth, derived_extended_private_key.depth);
+        assert_eq!(
+            expected_extended_private_key.child_index,
+            derived_extended_private_key.child_index
+        );
+        assert_eq!(
+            expected_extended_private_key.chain_code,
+            derived_extended_private_key.chain_code
+        );
+        assert_eq!(
+            expected_extended_private_key.parent_fingerprint,
+            derived_extended_private_key.parent_fingerprint
+        );
+    }
+
     fn test_to_extended_public_key<N: BitcoinNetwork>(
         expected_extended_public_key: &str,
         seed: &str,
@@ -326,13 +387,29 @@ mod tests {
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
-    mod p2pkh_mainnet {
+    fn test_invalid_bip44_path<N: BitcoinNetwork>(path: &str, seed: &str) {
+        let extended_private_key = BitcoinExtendedPrivateKey::<N>::new_master(&hex::decode(seed).unwrap(), &Format::P2PKH).unwrap();
+
+        let purpose = "m/49'";
+        let modified_purpose = &format!("{}{}", purpose, &path[5..]);
+        let derivation_path = BitcoinDerivationPath::from_str(modified_purpose).unwrap();
+
+        assert!(extended_private_key.derive_bip44(&derivation_path).is_err());
+
+        let coin_type = "m/44'/1'";
+        let modified_coin_type = &format!("{}{}", coin_type, &path[8..]);
+        let derivation_path = BitcoinDerivationPath::from_str(modified_coin_type).unwrap();
+
+        assert!(extended_private_key.derive_bip44(&derivation_path).is_err());
+    }
+
+    mod bip32_mainnet {
         use super::*;
 
         type N = Mainnet;
 
         // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
-        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 26] = [
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 16] = [
 
             // BIP32 Derivation Paths
             (
@@ -456,6 +533,126 @@ mod tests {
                 "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
             ),
 
+            // Bitcoin Core Derivation Paths
+            (
+                "m/0'/0'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483648",
+                "f0ba40d643ad82ccf5b6228cd0b723144d6a2b6af3daec5c57631f54b4619e77",
+                "7db48bfda81e8d1c18aa9f8649dea892c8abea84d54d0c0e895857c16fc585df",
+                "2b889e8f",
+                "xprv9w6qhRqTDF9JBxEwxukUTL6Yi24XZ5sYyGZAoR3LtzT9BBrnz72HibYxcQnQMCEEyGMLDSubfSCufC8H5sFCzofrkGa4GhskZrYxW6anz1P",
+                "xpub6A6C6wNM3chbQSKR4wHUpU3HG3u1xYbQLVUmboSxTKz83zBwXeLYGPsSTgBXeXE3Lkaf5M9oCPKwg3WxJZHqA35R7WVYkZyAUYq4xJNq5fy"
+            ),
+            (
+                "m/0'/0'/0'",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "2147483648",
+                "b33f5ac29e0b36a65ed527e8f7d394a33a6767031e68afe6df8f366c09547e30",
+                "3601dd1853197d38d4f9d4f8b5cbbc4d2062768dc6279c68b2bd085345ca71f2",
+                "2e494d03",
+                "xprv9y19cq5eXQFfNDsNmLKiYMxPPN4odkFfRmL1RqJEheTMtHFVY8vm1xWYkCN6Zznp13m34qxbc9S2LXhd56Vk1P3qnURBmTg4B2dpkMs9Gzv",
+                "xpub6BzW2LcYMmoxahwqsMriuVu7wPuJ3CyWnzFcEDhrFyzLm5ae5gF1Zkq2bSR4U1S6psBQzosfXAFqSb9YzHvd6LVAe7fHgtkjPKM8wPBhyRk"
+            ),
+
+            // Multibit Derivation Paths
+            (
+                "m/0'/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "74d29dfbbc821a973c87ec53ff446369cb4639ad6a4c74e08ec771d052c56ccf",
+                "402baa6c2837a364e0ee384afd99a339a9f01b68c42eba5fd840a7475392e87b",
+                "2b889e8f",
+                "xprv9w6qhRqJsacL14RFPYGwMtGPnCrRaRdW97quivF9gFzy2Gzu4zxrwr65KRUzBDGmbLr61jnAQkvrz4wu7UApPPTSZfq7NZUndMPWrJ5LRty",
+                "xpub6A6C6wNChxAdDYViVZowj2D8LEguytMMWLmWXJemEbXwu5L3cYH7VeQZAgSWtrGQ783strAoBQrSTpfUxnf2QaSC9ExhuXDEooZGKWrUkey"
+            ),
+            (
+                "m/0'/0/0",
+                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
+                "0",
+                "05b232fd66616e350c2db176aa650f3f642df22e0efb7831d5c3ee5206639cdb",
+                "fd9a583afe8f38d077335f4bdf96146070782581aa174bf2ade5a7009e6247f6",
+                "c677886d",
+                "xprv9z82SKRcnNidyodMRmo4T96QD481VWNAxK7LgJghFdgDvsc95AuBFbjUuqhzkynYgx2ay1VN5J6yAUwpCPo4L9pjUoX1HwNx9xBFKR4y8yv",
+                "xpub6D7NqpxWckGwCHhpXoL4pH38m5xVty62KY2wUh6JoyDCofwHciDRoQ3xm7WAg2ffpHaC6X4bEociYq81niyNUGhCxEs6fDFAd1LPbEmzcAm"
+            )
+        ];
+
+        #[test]
+        fn new() {
+            KEYPAIRS.iter().for_each(
+                |(path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
+                    test_new::<N>(
+                        extended_private_key,
+                        parent_fingerprint,
+                        child_index.parse().unwrap(),
+                        chain_code,
+                        secret_key,
+                        seed,
+                        &Format::P2PKH,
+                        &BitcoinDerivationPath::from_str(path).unwrap(),
+                    );
+                },
+            );
+        }
+
+        #[test]
+        fn derive() {
+            KEYPAIRS.chunks(2).for_each(|pair| {
+                let (_, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
+                let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
+                test_derive::<N>(
+                    expected_extended_private_key1,
+                    expected_extended_private_key2,
+                    expected_child_index2.parse().unwrap(),
+                );
+            });
+        }
+
+        #[test]
+        fn to_extended_public_key() {
+            KEYPAIRS
+                .iter()
+                .for_each(|(path, seed, _, _, _, _, _, expected_public_key)| {
+                    test_to_extended_public_key::<N>(
+                        expected_public_key,
+                        seed,
+                        &Format::P2PKH,
+                        &BitcoinDerivationPath::from_str(path).unwrap(),
+                    );
+                });
+        }
+
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(
+                |(_, _, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
+                    test_from_str::<N>(
+                        extended_private_key,
+                        parent_fingerprint,
+                        child_index.parse().unwrap(),
+                        chain_code,
+                        secret_key,
+                    );
+                },
+            );
+        }
+
+        #[test]
+        fn to_string() {
+            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
+                test_to_string::<N>(extended_private_key);
+            });
+        }
+    }
+
+    mod bip44_mainnet {
+        use super::*;
+
+        type N = Mainnet;
+
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 10] = [
+
             // BIP 44 Derivation Paths
             (
                 "m/44'/0'/0'/0",
@@ -538,50 +735,6 @@ mod tests {
                 "xpub6Gk4DoBPE6MfebPcNaWRXbWUX7VyJiux7t7jWDzHLRArxxc3Rm3cBKYF7qJdsM25tGn757PavnGhAiQxToSzDxx7eGukDY5WQEhAL7fb3Ar"
             ),
 
-            // Bitcoin Core Derivation Paths
-            (
-                "m/0'/0'",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "2147483648",
-                "f0ba40d643ad82ccf5b6228cd0b723144d6a2b6af3daec5c57631f54b4619e77",
-                "7db48bfda81e8d1c18aa9f8649dea892c8abea84d54d0c0e895857c16fc585df",
-                "2b889e8f",
-                "xprv9w6qhRqTDF9JBxEwxukUTL6Yi24XZ5sYyGZAoR3LtzT9BBrnz72HibYxcQnQMCEEyGMLDSubfSCufC8H5sFCzofrkGa4GhskZrYxW6anz1P",
-                "xpub6A6C6wNM3chbQSKR4wHUpU3HG3u1xYbQLVUmboSxTKz83zBwXeLYGPsSTgBXeXE3Lkaf5M9oCPKwg3WxJZHqA35R7WVYkZyAUYq4xJNq5fy"
-            ),
-            (
-                "m/0'/0'/0'",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "2147483648",
-                "b33f5ac29e0b36a65ed527e8f7d394a33a6767031e68afe6df8f366c09547e30",
-                "3601dd1853197d38d4f9d4f8b5cbbc4d2062768dc6279c68b2bd085345ca71f2",
-                "2e494d03",
-                "xprv9y19cq5eXQFfNDsNmLKiYMxPPN4odkFfRmL1RqJEheTMtHFVY8vm1xWYkCN6Zznp13m34qxbc9S2LXhd56Vk1P3qnURBmTg4B2dpkMs9Gzv",
-                "xpub6BzW2LcYMmoxahwqsMriuVu7wPuJ3CyWnzFcEDhrFyzLm5ae5gF1Zkq2bSR4U1S6psBQzosfXAFqSb9YzHvd6LVAe7fHgtkjPKM8wPBhyRk"
-            ),
-
-            // Multibit Derivation Paths
-            (
-                "m/0'/0",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "0",
-                "74d29dfbbc821a973c87ec53ff446369cb4639ad6a4c74e08ec771d052c56ccf",
-                "402baa6c2837a364e0ee384afd99a339a9f01b68c42eba5fd840a7475392e87b",
-                "2b889e8f",
-                "xprv9w6qhRqJsacL14RFPYGwMtGPnCrRaRdW97quivF9gFzy2Gzu4zxrwr65KRUzBDGmbLr61jnAQkvrz4wu7UApPPTSZfq7NZUndMPWrJ5LRty",
-                "xpub6A6C6wNChxAdDYViVZowj2D8LEguytMMWLmWXJemEbXwu5L3cYH7VeQZAgSWtrGQ783strAoBQrSTpfUxnf2QaSC9ExhuXDEooZGKWrUkey"
-            ),
-            (
-                "m/0'/0/0",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "0",
-                "05b232fd66616e350c2db176aa650f3f642df22e0efb7831d5c3ee5206639cdb",
-                "fd9a583afe8f38d077335f4bdf96146070782581aa174bf2ade5a7009e6247f6",
-                "c677886d",
-                "xprv9z82SKRcnNidyodMRmo4T96QD481VWNAxK7LgJghFdgDvsc95AuBFbjUuqhzkynYgx2ay1VN5J6yAUwpCPo4L9pjUoX1HwNx9xBFKR4y8yv",
-                "xpub6D7NqpxWckGwCHhpXoL4pH38m5xVty62KY2wUh6JoyDCofwHciDRoQ3xm7WAg2ffpHaC6X4bEociYq81niyNUGhCxEs6fDFAd1LPbEmzcAm"
-            ),
-
             // Block Explorer Derivation Paths (example: blockchain.info)
             (
                 "m/44'/0'/0'",
@@ -637,6 +790,13 @@ mod tests {
         }
 
         #[test]
+        fn derive_bip44() {
+            KEYPAIRS.iter().for_each(|(path, seed, _, _, _, _, extended_private_key, _)| {
+                test_derive_bip44::<N>(extended_private_key, seed, path);
+            });
+        }
+
+        #[test]
         fn to_extended_public_key() {
             KEYPAIRS
                 .iter()
@@ -669,6 +829,13 @@ mod tests {
         fn to_string() {
             KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
                 test_to_string::<N>(extended_private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_bip44_path() {
+            KEYPAIRS.iter().for_each(|(path, seed, _, _, _, _, _, _)| {
+                test_invalid_bip44_path::<N>(path, seed);
             });
         }
     }
