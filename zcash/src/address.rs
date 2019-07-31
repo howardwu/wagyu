@@ -12,6 +12,7 @@ use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::{str, str::FromStr};
@@ -169,6 +170,14 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     /// Returns the format of the Monero address.
     pub fn format(&self) -> Format {
         self.format.clone()
+    }
+}
+
+impl <'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
     }
 }
 
