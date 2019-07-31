@@ -272,14 +272,14 @@ mod tests {
             "ftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         let modified_extended_public_key = format!("{}{}", &extended_public_key[..16], secret_key);
 
-        assert!(EthereumExtendedPublicKey::from_str(&modified_extended_public_key).is_err())
+        assert!(EthereumExtendedPublicKey::from_str(&modified_extended_public_key).is_err());
     }
 
     fn test_invalid_version(extended_public_key: &str) {
         let version = "xpub5";
         let modified_extended_public_key = format!("{}{}", version, &extended_public_key[6..]);
 
-        assert!(EthereumExtendedPublicKey::from_str(&modified_extended_public_key).is_err())
+        assert!(EthereumExtendedPublicKey::from_str(&modified_extended_public_key).is_err());
     }
 
     fn test_invalid_checksum(extended_public_key: &str) {
@@ -290,7 +290,7 @@ mod tests {
 
         let modified_extended_public_key = format!("{}{}", first, last);
 
-        assert!(EthereumExtendedPublicKey::from_str(&modified_extended_public_key).is_err())
+        assert!(EthereumExtendedPublicKey::from_str(&modified_extended_public_key).is_err());
     }
 
     fn test_invalid_length(extended_public_key: &str) {

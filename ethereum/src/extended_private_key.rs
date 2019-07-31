@@ -310,14 +310,14 @@ mod tests {
             "24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
         let modified_extended_private_key = format!("{}{}", &extended_private_key[..16], secret_key);
 
-        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err())
+        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err());
     }
 
     fn test_invalid_version(extended_private_key: &str) {
         let version = "xprv8";
         let modified_extended_private_key = format!("{}{}", version, &extended_private_key[6..]);
 
-        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err())
+        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err());
     }
 
     fn test_invalid_checksum(extended_private_key: &str) {
@@ -328,7 +328,7 @@ mod tests {
 
         let modified_extended_private_key = format!("{}{}", first, last);
 
-        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err())
+        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err());
     }
 
     fn test_invalid_length(extended_private_key: &str) {

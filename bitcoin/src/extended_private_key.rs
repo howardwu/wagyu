@@ -402,14 +402,14 @@ mod tests {
             "24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
         let modified_extended_private_key = format!("{}{}", &extended_private_key[..16], secret_key);
 
-        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err())
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err());
     }
 
     fn test_invalid_version<N: BitcoinNetwork>(extended_private_key: &str) {
         let version = "xprv8";
         let modified_extended_private_key = format!("{}{}", version, &extended_private_key[6..]);
 
-        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err())
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err());
     }
 
     fn test_invalid_checksum<N: BitcoinNetwork>(extended_private_key: &str) {
@@ -420,7 +420,7 @@ mod tests {
 
         let modified_extended_private_key = format!("{}{}", first, last);
 
-        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err())
+        assert!(BitcoinExtendedPrivateKey::<N>::from_str(&modified_extended_private_key).is_err());
     }
 
     fn test_invalid_length<N: BitcoinNetwork>(extended_private_key: &str) {
