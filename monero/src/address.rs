@@ -5,6 +5,7 @@ use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::{fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
@@ -135,6 +136,14 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
             address,
             _network: PhantomData,
         })
+    }
+}
+
+impl <'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
     }
 }
 

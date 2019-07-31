@@ -10,6 +10,7 @@ use wagyu_model::{
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -180,6 +181,14 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         redeem[1] = 0x14;
         redeem[2..].copy_from_slice(&hash160(&public_key.to_secp256k1_public_key().serialize()));
         redeem
+    }
+}
+
+impl <'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
     }
 }
 

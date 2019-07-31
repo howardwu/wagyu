@@ -4,6 +4,7 @@ use wagyu_model::{to_hex_string, Address, AddressError, PrivateKey};
 
 use regex::Regex;
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -47,6 +48,14 @@ impl EthereumAddress {
         }
 
         EthereumAddress(checksum_address)
+    }
+}
+
+impl <'a> TryFrom<&'a str> for EthereumAddress {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
     }
 }
 
