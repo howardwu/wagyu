@@ -1,4 +1,4 @@
-# `wagu monero`
+# `wagyu monero`
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -14,10 +14,10 @@
 
 Generate a mainnet spend key, viewing key, and address with the following command:
 
-`wagu monero`
+`wagyu monero`
 
 ```bash
-╰─ wagu monero
+╰─ wagyu monero
 
         Address:              47tePDVnheTZMKKAwsQb24XwN1ZtxW82VSpWu8y1RjLmjESinEb4L5d6WhQkPqracg3P5ZA9TMTpFaviU5ZEAVNBSm57jjr
         Private Spend Key:    e67bec328c3584d0bd55a880fea4a3c8024dd4420369ed7ed9af26e05466210b
@@ -29,10 +29,10 @@ Generate a mainnet spend key, viewing key, and address with the following comman
 
 Generate a testnet spend key, viewing key, and address with the following command:
 
-`wagu monero --network testnet`
+`wagyu monero --network testnet`
 
 ```bash
-╰─ wagu monero --network testnet
+╰─ wagyu monero --network testnet
 
         Address:              9tujjZKVyu5d9D2kqEDTLfUipPmtrd21A2RxMXhiwmUBgtySLfyF8wUbrh4ohjQ5KKPPnrQPxepYREuWmoM9kEnfBJX64W3
         Private Spend Key:    b0fceaf37b84d9f201d48c6f5a4e9a5eef536ba0d576955a74c6f8b0eb8ad805
@@ -44,10 +44,10 @@ Generate a testnet spend key, viewing key, and address with the following comman
 
 Generate a spend key, viewing key, and address as a json object with the following command:
 
-`wagu monero -j` OR `wagu monero --json`
+`wagyu monero -j` OR `wagyu monero --json`
 
 ```bash
-╰─ wagu -j
+╰─ wagyu -j
 [
   {
     "address": "42TPgwJZxhkF2BNPeZvv3ZYk1P3jjyZPb7F4qA1rdpnQjTezTRSpFJDW13nvckjXauJFET5mjNwZAPjh6JYzjXJHSu6J62p",
@@ -61,10 +61,10 @@ Generate a spend key, viewing key, and address as a json object with the followi
 
 Generate multiple wallets with the following command:
 
-`wagu monero --count 3` OR `wagu monero -n 3`
+`wagyu monero --count 3` OR `wagyu monero -n 3`
 
 ```bash
-╰─ wagu monero -n 3
+╰─ wagyu monero -n 3
 
         Address:              4ABpi3Xij4NjfEU8gTH62ncM16b45x1QedJaC6LoksDC2Ge33ws1ecEaZ3nVigJP6sAKnuZWXTmAihhKyivmf1aaRqfxm4h
         Private Spend Key:    4ddc66f907d6d7b52374bcb29038b634cd55a0e8bee0a7113539bf7dbc6d950a

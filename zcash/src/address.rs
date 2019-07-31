@@ -1,7 +1,7 @@
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
 };
@@ -281,7 +281,7 @@ impl<N: ZcashNetwork> fmt::Display for ZcashAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: ZcashNetwork>(
         expected_address: &str,

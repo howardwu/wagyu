@@ -1,7 +1,7 @@
 use crate::address::{Format, MoneroAddress};
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
-use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};

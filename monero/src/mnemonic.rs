@@ -3,7 +3,7 @@ use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use crate::wordlist::MoneroWordlist;
-use wagu_model::{Mnemonic, MnemonicError, PrivateKey};
+use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
 
 use crc::{crc32, Hasher32};
 use rand::Rng;

@@ -1,4 +1,4 @@
-//! # Wagu CLI
+//! # Wagyu CLI
 //!
 //! A command-line tool to generate cryptocurrency wallets.
 
@@ -7,7 +7,7 @@ use bitcoin::{BitcoinAddress, BitcoinMnemonic, BitcoinPrivateKey, Mainnet as Bit
 use ethereum::{English as EthereumEnglish, EthereumAddress, EthereumMnemonic, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumPrivateKey};
 use monero::address::Format as MoneroFormat;
 use monero::{English as MoneroEnglish, Mainnet as MoneroMainnet, MoneroAddress, MoneroMnemonic, MoneroNetwork, MoneroPrivateKey, Testnet as MoneroTestnet};
-use wagu_model::{Address, Mnemonic, MnemonicExtended, ExtendedPrivateKey, PrivateKey};
+use wagyu_model::{Address, Mnemonic, MnemonicExtended, ExtendedPrivateKey, PrivateKey};
 use zcash::address::Format as ZcashFormat;
 use zcash::{Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashNetwork, ZcashExtendedPrivateKey, ZcashDerivationPath, ZcashPrivateKey};
 
@@ -135,7 +135,7 @@ fn main() {
         .arg(&arg_path);
 
     // Construct Wagyu CLI
-    let wagyu_matches = App::new("wagu")
+    let wagyu_matches = App::new("wagyu")
         .version("v0.6.0")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
         .author("Argus <team@argus.dev>")

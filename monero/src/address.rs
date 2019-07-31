@@ -1,7 +1,7 @@
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use wagu_model::{Address, AddressError, PrivateKey};
+use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
@@ -181,7 +181,7 @@ impl<N: MoneroNetwork> fmt::Display for MoneroAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: MoneroNetwork>(
         expected_address: &str,
