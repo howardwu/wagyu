@@ -60,7 +60,34 @@ impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
 pub struct P2SHSpendingKey {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SproutSpendingKey {}
+pub struct SproutSpendingKey<N: ZcashNetwork> {
+    /// The spending key in bytes
+    pub(super) spending_key: [u8; 32],
+    /// PhantomData
+    _network: PhantomData<N>,
+}
+
+impl<N: ZcashNetwork> SproutSpendingKey<N> {
+    pub fn new(spending_key: [u8; 32]) -> Self {
+        Self {
+            spending_key,
+            _network: PhantomData,
+        }
+    }
+}
+
+impl<N: ZcashNetwork> Display for SproutSpendingKey<N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut wif = [0u8; 38];
+        wif[0..2].copy_from_slice(&N::to_sprout_spending_key_prefix());
+        wif[2..34].copy_from_slice(&self.spending_key);
+
+        let sum = &checksum(&wif[0..34])[0..4];
+        wif[34..].copy_from_slice(sum);
+
+        write!(f, "{}", wif.to_base58())
+    }
+}
 
 #[derive(Clone)]
 pub struct SaplingSpendingKey {
@@ -129,7 +156,7 @@ pub enum SpendingKey<N: ZcashNetwork> {
     /// P2SH transparent spending key
     P2SH(P2SHSpendingKey),
     /// Sprout shielded spending key
-    Sprout(SproutSpendingKey),
+    Sprout(SproutSpendingKey<N>),
     /// Sapling shielded spending key
     Sapling(SaplingSpendingKey),
 }
@@ -181,6 +208,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     pub fn from(s: &str, format: &Format) -> Result<Self, PrivateKeyError> {
         match format {
             Format::P2PKH => Self::p2pkh(s),
+            Format::Sprout => Self::sprout(s),
             Format::Sapling(_) => match hex::decode(s)?.len() {
                 32 => Self::sapling(s),
                 96 => Self::sapling_expanded(s),
@@ -206,14 +234,26 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
-        // Check that the network byte correspond with the correct network.
-        let _ = N::from_wif_prefix(data[0])?;
-
         Ok(Self(
             SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
                 secp256k1::SecretKey::from_slice(&data[1..33])?,
                 len == 38,
             )),
+            PhantomData,
+        ))
+    }
+
+    /// Returns a Sprout private key from a given wif.
+    fn sprout(wif: &str) -> Result<Self, PrivateKeyError> {
+        if wif.len() != 52 {
+            return Err(PrivateKeyError::InvalidByteLength(wif.len()));
+        }
+        let mut spending_key = [0u8; 32];
+        spending_key.copy_from_slice(&wif.from_base58()?[2..34]);
+        spending_key[0] &= 0x0f;
+
+        Ok(Self(
+            SpendingKey::<N>::Sprout(SproutSpendingKey::<N>::new(spending_key)),
             PhantomData,
         ))
     }
@@ -261,16 +301,28 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
         let b58 = s.from_base58();
         let hex = hex::decode(s);
 
-        // Transparent
         if b58.is_ok() && hex.is_err() {
             let data = b58.unwrap();
             if data.len() != 37 && data.len() != 38 {
                 return Err(PrivateKeyError::InvalidByteLength(data.len()));
             }
-            return Self::p2pkh(s);
+
+            let prefix = &data[0..2];
+
+            // Sprout
+            if prefix == N::to_sprout_spending_key_prefix() {
+                return Self::sprout(s);
+            }
+
+            // Transparent
+            // Check that the network byte correspond with the correct network.
+            if N::from_wif_prefix(data[0]).is_ok() {
+                return Self::p2pkh(s);
+            }
+            return Err(PrivateKeyError::UnsupportedFormat);
         }
 
-        // Shielded
+        // Sapling
         if b58.is_err() && hex.is_ok() {
             let data = hex.unwrap();
             if data.len() == 32 {
@@ -288,6 +340,7 @@ impl<N: ZcashNetwork> Display for ZcashPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             SpendingKey::P2PKH(p2pkh) => write!(f, "{}", p2pkh.to_string()),
+            SpendingKey::Sprout(sprout) => write!(f, "{}", sprout.to_string()),
             SpendingKey::Sapling(sapling) => write!(f, "{}", sapling.to_string()),
             _ => write!(f, ""),
         }
@@ -665,6 +718,89 @@ mod tests {
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
                 let private_key = ZcashPrivateKey::<N>::from_str(expected_private_key).unwrap();
+                test_to_str(expected_private_key, &private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_spending_key_length() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+    }
+
+    mod sprout_mainnet {
+        use super::*;
+
+        type N = Mainnet;
+
+        const KEYPAIRS: [(&str, &str, &str); 5] = [
+            (
+                "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
+                "ZiVKYQyUcyAJLKwcosSeDxkGRhygFdAPWsr3m8UgjC5X85yqNyLTtJJJYNH83Wf2AQKU6TZsd65MXBZLFj6eSCAFcnCFuVCFS",
+                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
+            ),
+            (
+                "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
+                "ZiVKfdhhmQ1fpXaxyW5zRXw4Dhg9cbKRgK7mNFoBLiKjiBZiHJYJTpV2gNMDMPY9sRC96vnKZcnTMSi65SKPyL4WNQNm9PT5H",
+                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
+            ),
+            (
+                "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
+                "ZiVKkMUGwx4GgtwxTedRHYewVVskWicz8APQgdcYmvUsiLYgSh3cLAa8TwiR3shyNngGbLiUbYMkZ8F1giXmmcED98rDMwNSG",
+                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
+            ),
+            (
+                "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
+                "ZiVKkeb8STw7kpJQsjRCQKovQBciPcfjkpajuuS25DTXSQSVasnq4BkyaMLBBxAkZ8fv6f18woWgaA8W7kGvYp1C1ESaWGjwV",
+                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
+            ),
+            (
+                "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
+                "ZiVKvpWQiDpxAvWTMLkjjSbCiBGc4kXhtkgAJfW1JVbCTUY4YaAVvVZzCz6wspG9qttciRFLEXm3HLQAmssFbUp9uPEkP3uu5",
+                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
+            ),
+        ];
+
+        #[test]
+        fn to_public_key() {
+            KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
+                let public_key = ZcashPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_to_public_key(&public_key, &private_key);
+            });
+        }
+
+        #[test]
+        fn to_address() {
+            KEYPAIRS.iter().for_each(|(private_key, _, address)| {
+                let address = ZcashAddress::from_str(address).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_to_address(&address, &Format::Sprout, &private_key);
+            });
+        }
+
+        #[test]
+        fn from() {
+            KEYPAIRS
+                .iter()
+                .for_each(|(private_key, expected_public_key, expected_address)| {
+                    let expected_private_key = ZcashPrivateKey::<N>::from(&private_key, &Format::Sprout).unwrap();
+                    test_from(
+                        &expected_private_key.0,
+                        expected_public_key,
+                        expected_address,
+                        &Format::Sprout,
+                        &private_key,
+                    );
+                });
+        }
+
+        #[test]
+        fn to_str() {
+            KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
+                let private_key = ZcashPrivateKey::<N>::from(&expected_private_key, &Format::Sprout).unwrap();
                 test_to_str(expected_private_key, &private_key);
             });
         }

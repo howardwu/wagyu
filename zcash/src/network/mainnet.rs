@@ -49,6 +49,16 @@ impl ZcashNetwork for Mainnet {
         }
     }
 
+    /// Returns the mainnet prefix for a sprout spending key
+    fn to_sprout_spending_key_prefix() -> [u8; 2] {
+        [0xAB, 0x36]
+    }
+
+    /// Returns the mainnet prefix for a sprout viewing key
+    fn to_sprout_viewing_key_prefix() -> [u8; 3] {
+        [0xA8, 0xAB, 0xD3]
+    }
+
     /// Returns the extended private key prefix of the given network.
     fn to_extended_private_key_prefix() -> String {
         "secret-extended-key-main".into()
