@@ -1,6 +1,6 @@
 use super::*;
 use crate::address::Format;
-use wagu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
 use std::fmt;
@@ -12,6 +12,8 @@ pub struct Testnet;
 impl Network for Testnet {}
 
 impl BitcoinNetwork for Testnet {
+    const NAME: &'static str = "testnet";
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> Vec<u8> {
         match format {
@@ -86,7 +88,7 @@ impl FromStr for Testnet {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "testnet" => Ok(Self),
+            Self::NAME => Ok(Self),
             _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
@@ -94,6 +96,6 @@ impl FromStr for Testnet {
 
 impl fmt::Display for Testnet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "testnet")
+        write!(f, "{}", Self::NAME)
     }
 }

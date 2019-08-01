@@ -1,4 +1,4 @@
-use wagu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
+use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
 use std::convert::TryFrom;
 use std::fmt;
@@ -88,7 +88,7 @@ impl fmt::Display for ZcashDerivationPath {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wagu_model::derivation_path::{ChildIndex, DerivationPathError};
+    use wagyu_model::derivation_path::{ChildIndex, DerivationPathError};
 
     use std::convert::TryInto;
     use std::str::FromStr;

@@ -1,4 +1,4 @@
-use wagu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
+use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
 use std::fmt;
 use std::str::FromStr;
@@ -71,7 +71,7 @@ impl fmt::Display for EthereumDerivationPath {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wagu_model::derivation_path::{ChildIndex, DerivationPathError};
+    use wagyu_model::derivation_path::{ChildIndex, DerivationPathError};
 
     use std::str::FromStr;
 

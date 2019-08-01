@@ -1,4 +1,4 @@
-# `wagu bitcoin`
+# `wagyu bitcoin`
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -16,10 +16,10 @@
 
 Generate an uncompressed mainnet private key and address with the following command:
 
-`wagu bitcoin`
+`wagyu bitcoin`
 
 ```bash
-╰─ wagu bitcoin
+╰─ wagyu bitcoin
 
         Private Key:    5JHwLmRafAxdtRddv3o2urYo2bfFUT2V29LSoDM3QFJPzoUoBJT
         Address:        1GMmaXUixBA2ZMqw9U1zX4cTCmhWtNhgTB
@@ -31,10 +31,10 @@ Generate an uncompressed mainnet private key and address with the following comm
 
 Generate a testnet private key and address with the following command:
 
-`wagu bitcoin --network testnet`
+`wagyu bitcoin --network testnet`
 
 ```bash
-╰─ wagu bitcoin --network testnet
+╰─ wagyu bitcoin --network testnet
 
         Private Key:    92Rk56bU8atxbM9mUyNJtijc8XFyw7UHrDaasyTzcn9iLn4M9Le
         Address:        myPXYe7NrVpq8oYBugTFtHwamejxB6wNC8
@@ -46,10 +46,10 @@ Generate a testnet private key and address with the following command:
 
 Generate an uncompressed mainnet private key and address with the following command:
 
-`wagu bitcoin -j` OR `wagu bitcoin --json`
+`wagyu bitcoin -j` OR `wagyu bitcoin --json`
 
 ```bash
-╰─ wagu -j
+╰─ wagyu -j
 [
   {
     "privateKey": {
@@ -70,10 +70,10 @@ Generate an uncompressed mainnet private key and address with the following comm
 
 Generate a multiple wallets with the following command:
 
-`wagu bitcoin --count 3` OR `wagu bitcoin -n 3`
+`wagyu bitcoin --count 3` OR `wagyu bitcoin -n 3`
 
 ```bash
-╰─ wagu bitcoin -n 3
+╰─ wagyu bitcoin -n 3
 
         Private Key:    5JsktgmsNQh3MbHMcwNWG3gd5awH59dnUa64Uih6rAssCsdjjU9
         Address:        1N4Ezyuo4K4FFvBnbeyPv5qPA93mBVi5P9
@@ -97,10 +97,10 @@ Generate a multiple wallets with the following command:
 
 Generate a SegWit mainnet private key and address with the following command:
 
-`wagu bitcoin --segwit`
+`wagyu bitcoin --segwit`
 
 ```bash
-╰─ wagu --segwit
+╰─ wagyu --segwit
 
         Private Key:    L13EzQBa7izHyXHdhAwBzApAPL1Q8rdVRpY7CASWXyFPyHTuPJxs
         Address:        3Qz5gtJ4GKoeSHHErF8Nvs9bDp5TQDw89o
@@ -112,10 +112,10 @@ Generate a SegWit mainnet private key and address with the following command:
 
 Generate a compressed mainnet private key and address with the following command:
 
-`wagu bitcoin --compressed` OR `wagu bitcoin -c`
+`wagyu bitcoin --compressed` OR `wagyu bitcoin -c`
 
 ```bash
-╰─ wagu bitcoin -c
+╰─ wagyu bitcoin -c
 
         Private Key:    KzpvjTPuU7p2GZFki2FRnnTceDn5jdVAYZkVvDBptWrHMcLeGWFn
         Address:        1G75ZLkSbTr6wBzr4pthM7eV9NzenMyZPC

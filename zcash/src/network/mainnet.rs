@@ -1,6 +1,6 @@
 use super::*;
 use crate::address::Format;
-use wagu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
 use std::fmt;
@@ -12,6 +12,8 @@ pub struct Mainnet;
 impl Network for Mainnet {}
 
 impl ZcashNetwork for Mainnet {
+    const NAME: &'static str = "mainnet";
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> Vec<u8> {
         match format {
@@ -79,7 +81,7 @@ impl FromStr for Mainnet {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "mainnet" => Ok(Self),
+            Self::NAME => Ok(Self),
             _ => Err(NetworkError::InvalidNetwork(s.into())),
         }
     }
@@ -87,6 +89,6 @@ impl FromStr for Mainnet {
 
 impl fmt::Display for Mainnet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "mainnet")
+        write!(f, "{}", Self::NAME)
     }
 }

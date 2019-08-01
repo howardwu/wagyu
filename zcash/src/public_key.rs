@@ -1,7 +1,7 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::private_key::{SpendingKey, ZcashPrivateKey};
-use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use pairing::bls12_381::Bls12;
 use secp256k1;

@@ -1,17 +1,18 @@
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
 };
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
-use rand::rngs::OsRng;
-use rand::Rng;
+use rand::{rngs::StdRng, Rng};
+use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::{str, str::FromStr};
@@ -123,9 +124,13 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
 
     /// Returns a shielded address from a given Zcash public key.
     pub fn sapling(public_key: &SaplingViewingKey, format: &Format) -> Result<Self, AddressError> {
-        let data = match format {
-            Format::Sapling(data) => data.unwrap_or([0u8; 11]),
-            _ => [0u8; 11],
+        // Randomness seeded by `getrandom`, which interfaces with the operating system
+        // https://docs.rs/getrandom/
+        let rng = &mut StdRng::from_entropy();
+
+        let mut data: [u8; 11] = match format {
+            Format::Sapling(data) => data.unwrap_or(rng.gen()),
+            _ => rng.gen(),
         };
 
         let address;
@@ -136,8 +141,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
                 diversifier = data;
                 break;
             }
-            let mut data = [0u8; 11];
-            OsRng.try_fill(&mut data)?;
+            data = rng.gen();
         }
 
         let mut checked_data = vec![0; 43];
@@ -166,6 +170,14 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     /// Returns the format of the Monero address.
     pub fn format(&self) -> Format {
         self.format.clone()
+    }
+}
+
+impl <'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
     }
 }
 
@@ -262,7 +274,7 @@ impl<N: ZcashNetwork> fmt::Display for ZcashAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: ZcashNetwork>(
         expected_address: &str,

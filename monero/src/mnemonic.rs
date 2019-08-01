@@ -3,10 +3,9 @@ use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use crate::wordlist::MoneroWordlist;
-use wagu_model::{Mnemonic, MnemonicError, PrivateKey};
+use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
 
 use crc::{crc32, Hasher32};
-use rand::rngs::OsRng;
 use rand::Rng;
 use std::fmt;
 use std::marker::PhantomData;
@@ -54,9 +53,8 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
 impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     /// Returns a new mnemonic phrase given the word count.
-    pub fn new() -> Result<Self, MnemonicError> {
-        let mut seed = [0u8; 32];
-        OsRng.try_fill(&mut seed)?;
+    pub fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
+        let seed: [u8; 32] = rng.gen();
         Ok(Self::from_seed(&seed)?)
     }
 
@@ -196,7 +194,8 @@ mod tests {
     use hex;
 
     fn test_new<N: MoneroNetwork, W: MoneroWordlist>() {
-        let result = MoneroMnemonic::<N, W>::new().unwrap();
+        let rng = &mut rand::thread_rng();
+        let result = MoneroMnemonic::<N, W>::new(rng).unwrap();
         test_from_seed::<N, W>(&result.phrase, &result.seed);
     }
 

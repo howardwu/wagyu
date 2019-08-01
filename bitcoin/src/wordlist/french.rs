@@ -1,5 +1,5 @@
 use crate::wordlist::BitcoinWordlist;
-use wagu_model::{bip39::FRENCH, wordlist::Wordlist};
+use wagyu_model::{bip39::FRENCH, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct French;

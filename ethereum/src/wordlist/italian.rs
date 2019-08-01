@@ -1,5 +1,5 @@
 use crate::wordlist::EthereumWordlist;
-use wagu_model::{bip39::ITALIAN, wordlist::Wordlist};
+use wagyu_model::{bip39::ITALIAN, wordlist::Wordlist};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Italian;

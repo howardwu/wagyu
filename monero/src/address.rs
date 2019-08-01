@@ -1,10 +1,11 @@
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use wagu_model::{Address, AddressError, PrivateKey};
+use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::{fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
@@ -138,6 +139,14 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     }
 }
 
+impl <'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
+    }
+}
+
 impl<N: MoneroNetwork> FromStr for MoneroAddress<N> {
     type Err = AddressError;
 
@@ -181,7 +190,7 @@ impl<N: MoneroNetwork> fmt::Display for MoneroAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: MoneroNetwork>(
         expected_address: &str,

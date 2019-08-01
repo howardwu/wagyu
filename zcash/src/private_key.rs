@@ -1,11 +1,10 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
-use wagu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;
-use rand::rngs::OsRng;
 use rand::Rng;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
@@ -145,9 +144,8 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type PublicKey = ZcashPublicKey<N>;
 
     /// Returns a randomly-generated compressed Zcash private key.
-    fn new() -> Result<Self, PrivateKeyError> {
-        let mut random = [0u8; 32];
-        OsRng.try_fill(&mut random)?;
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
         Ok(Self(
             SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
                 secp256k1::SecretKey::from_slice(&random)?,

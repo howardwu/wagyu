@@ -8,8 +8,8 @@ authors = [
     "Howard Wu"
 ]
 description = "A library for generating Bitcoin wallets"
-homepage = "https://github.com/ArgusHQ/wagu"
-repository = "https://github.com/ArgusHQ/wagu"
+homepage = "https://github.com/ArgusHQ/wagyu"
+repository = "https://github.com/ArgusHQ/wagyu"
 categories = ["command-line-utilities"]
 keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
 readme = "README.md"
@@ -17,7 +17,7 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-wagu-model = { path = "../model" }
+wagyu-model = { path = "../model" }
 
 base58 = { version = "0.1" }
 bech32 = { version = "0.6.0" }
@@ -37,4 +37,4 @@ sha2 = { version = "0.8" }
 tiny-keccak = { version = "1.4" }
 
 [badges]
-travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
