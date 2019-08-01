@@ -20,7 +20,7 @@
 //! If the version byte is 0, but the witness program is neither 20 nor 32 bytes, the script must fail.
 //!
 
-use wagu_model::AddressError;
+use wagyu_model::AddressError;
 
 use hex;
 use std::fmt;
