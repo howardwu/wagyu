@@ -110,6 +110,7 @@ pub struct GenericWallet {
     pub compressed: Option<bool>,
 }
 
+#[cfg_attr(tarpaulin, skip)]
 impl Display for GenericWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mnemonic = match &self.mnemonic {
@@ -294,6 +295,7 @@ fn main() {
 }
 
 /// Handle all CLI arguments and flags for Bitcoin
+#[cfg_attr(tarpaulin, skip)]
 fn handle_bitcoin_cases(bitcoin_matches: &ArgMatches) {
     let bitcoin_address_type = if bitcoin_matches.is_present("segwit") {
         BitcoinFormat::P2SH_P2WPKH
@@ -345,6 +347,7 @@ fn handle_bitcoin_cases(bitcoin_matches: &ArgMatches) {
 }
 
 /// Handle all CLI arguments and flags for Ethereum
+#[cfg_attr(tarpaulin, skip)]
 fn handle_ethereum_cases(ethereum_matches: &ArgMatches) {
     let mut ethereum_options = EthereumOptions {
         private_key: None,
@@ -380,6 +383,7 @@ fn handle_ethereum_cases(ethereum_matches: &ArgMatches) {
 }
 
 /// Handle all CLI arguments and flags for Monero
+#[cfg_attr(tarpaulin, skip)]
 fn handle_monero_cases(monero_matches: &ArgMatches) {
     let monero_address_type = match (monero_matches.values_of("subaddress"), monero_matches.value_of("integrated")) {
         (Some(indexes), None) => {
@@ -432,6 +436,7 @@ fn handle_monero_cases(monero_matches: &ArgMatches) {
 }
 
 /// Handle all CLI arguments and flags for Zcash
+#[cfg_attr(tarpaulin, skip)]
 fn handle_zcash_cases(zcash_matches: &ArgMatches) {
     let zcash_address_type = if zcash_matches.is_present("shielded") {
         ZcashFormat::Sapling(None)
@@ -472,6 +477,7 @@ fn handle_zcash_cases(zcash_matches: &ArgMatches) {
 }
 
 /// Generate the Bitcoin wallet and print the relevant fields
+#[cfg_attr(tarpaulin, skip)]
 fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_options: BitcoinOptions) {
     for _ in 0..bitcoin_options.count {
         let wallet = match (bitcoin_options.mnemonic_values.to_owned(), bitcoin_options.extended_private_key_values.to_owned()) {
@@ -567,6 +573,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_options: BitcoinOptions) {
 }
 
 /// Generate the Ethereum wallet and print the relevant fields
+#[cfg_attr(tarpaulin, skip)]
 fn print_ethereum_wallet(ethereum_options: EthereumOptions) {
     for _ in 0..ethereum_options.count {
         let wallet = match (ethereum_options.mnemonic_values.to_owned(), ethereum_options.extended_private_key_values.to_owned()) {
@@ -653,6 +660,7 @@ fn print_ethereum_wallet(ethereum_options: EthereumOptions) {
 }
 
 /// Generate the Monero wallet and print the relevant fields
+#[cfg_attr(tarpaulin, skip)]
 fn print_monero_wallet<N: MoneroNetwork>(monero_options: MoneroOptions) {
     for _ in 0..monero_options.count {
         let wallet = match monero_options.mnemonic_values.to_owned() {
@@ -702,6 +710,7 @@ fn print_monero_wallet<N: MoneroNetwork>(monero_options: MoneroOptions) {
 }
 
 /// Generate the Zcash wallet and print the relevant fields
+#[cfg_attr(tarpaulin, skip)]
 fn print_zcash_wallet<N: ZcashNetwork>(zcash_options: ZcashOptions) {
     for _ in 0..zcash_options.count {
         let wallet = match zcash_options.extended_private_key_values.to_owned() {
@@ -717,10 +726,13 @@ fn print_zcash_wallet<N: ZcashNetwork>(zcash_options: ZcashOptions) {
                     Some(key) => ZcashPrivateKey::<N>::from_str(&key).unwrap(),
                 };
 
-                let address = ZcashAddress::from_private_key(&private_key, &zcash_options.format).unwrap();
+                let address = ZcashAddress::<N>::from_private_key(&private_key, &zcash_options.format).unwrap();
                 let address_format = address.format().to_string();
                 let address_format: Vec<String> = address_format.split(" ").map(|s| s.to_owned()).collect();
-                let diversifier: Option<String> = address_format.get(1).map(|s| s.into());
+                let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                    Ok(diversifier) => Some(hex::encode(diversifier)),
+                    _ => None,
+                };
 
                 match private_key.to_spending_key() {
                     SpendingKey::P2PKH(p2pkh_spending_key)=> {
@@ -770,8 +782,10 @@ fn print_zcash_wallet<N: ZcashNetwork>(zcash_options: ZcashOptions) {
                 let private_key = extended_private_key.to_private_key();
                 let address = ZcashAddress::<N>::from_private_key(&private_key, &zcash_options.format).unwrap();
                 let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
-                let diversifier: Option<String> = address_format.get(1).map(|s| s.into());
-
+                let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                    Ok(diversifier) => Some(hex::encode(diversifier)),
+                    _ => None,
+                };
                 match private_key.to_spending_key() {
                     SpendingKey::P2PKH(p2pkh_spending_key)=> {
                         GenericWallet {
