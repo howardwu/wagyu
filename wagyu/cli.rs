@@ -170,6 +170,7 @@ impl Display for GenericWallet {
 }
 
 /// Wagyu CLI Interface
+#[cfg_attr(tarpaulin, skip)]
 fn main() {
     // Generic wallet arguments
     let arg_count = Arg::from_usage("[count] -n --count=[count] 'Number of wallets to generate'");
