@@ -20,11 +20,9 @@
 //! If the version byte is 0, but the witness program is neither 20 nor 32 bytes, the script must fail.
 //!
 
-use wagyu_model::AddressError;
-
-use hex;
-use std::fmt;
 use std::str::FromStr;
+
+use wagyu_model::AddressError;
 
 pub struct WitnessProgram {
     /// The version byte
@@ -58,7 +56,7 @@ impl From<WitnessProgramError> for AddressError {
 }
 
 impl WitnessProgram {
-    /// Returns a new witness program given a program with a version byte, data size, and data.
+    /// Returns a new witness program given a program with a version byte (where 0 <= version <= 16), data size, and data.
     pub fn new(program: &[u8]) -> Result<WitnessProgram, WitnessProgramError> {
         if program.len() < 2 {
             return Err(WitnessProgramError::InvalidProgramLength(program.len()));
@@ -100,28 +98,18 @@ impl WitnessProgram {
         Ok(())
     }
 
-    /// Returns the witness program as a byte vector.
-    pub fn to_vec(&self) -> Vec<u8> {
+    /// Returns the witness program's scriptpubkey as a byte vector.
+    pub fn to_scriptpubkey(&self) -> Vec<u8> {
         let mut output = Vec::with_capacity(self.program.len() + 2);
-        output.push(WitnessProgram::convert_version(self.version));
+        let encoded_version = if self.version > 0 {
+            self.version + 0x50
+        } else {
+            self.version
+        };
+        output.push(encoded_version);
         output.push(self.program.len() as u8);
         output.extend_from_slice(&self.program);
         output
-    }
-
-    /// A BIP173 version conversion utility function.
-    /// Convert a given version to a value between 0 and 16 or OP_1 through OP_16.
-    pub fn convert_version(version: u8) -> u8 {
-        if version > 0x00 && version <= 0x10 {
-            // encode OP_1 through OP_16
-            version + 0x50
-        } else if version > 0x50 {
-            // decode OP_1 through OP_16
-            version - 0x50
-        } else {
-            // OP_0
-            version
-        }
     }
 }
 
@@ -131,50 +119,18 @@ impl FromStr for WitnessProgram {
     /// Returns a witness program given its hex representation.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         WitnessProgram::new(&match hex::decode(s) {
-            Ok(mut bytes) => {
-                bytes[0] = WitnessProgram::convert_version(bytes[0]);
-                bytes
-            }
+            Ok(bytes) => bytes,
             Err(_) => return Err(WitnessProgramError::ProgramDecodingError),
         })
     }
 }
 
-impl fmt::Display for WitnessProgram {
-    /// Prints a witness program in hex representation.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", hex::encode(self.to_vec()))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    mod test_convert_version {
-        use crate::witness_program::WitnessProgram;
-
-        #[test]
-        fn test_v0() {
-            assert_eq!(0, WitnessProgram::convert_version(0));
-        }
-
-        #[test]
-        fn test_encode_op1_to_op16() {
-            for i in 1..=(16 as u8) {
-                assert_eq!(0x50 + i, WitnessProgram::convert_version(i));
-            }
-        }
-
-        #[test]
-        fn test_decode_op1_to_op16() {
-            for i in 1..=(16 as u8) {
-                assert_eq!(i, WitnessProgram::convert_version(0x50 + i));
-            }
-        }
-    }
-
     mod test_from_str {
-        use crate::witness_program::{WitnessProgram, WitnessProgramError};
         use std::str::FromStr;
+
+        use crate::witness_program::{WitnessProgram, WitnessProgramError};
 
         const VALID_P2SH_P2WPKH_PROGRAM: &str = "0014751e76e8199196d454941c45d1b3a323f1433bd6";
         const INVALID_P2SH_P2WPKH_PROGRAM_LENGTH: &str = "0014751e76e8199196d454941c45d1b3a323f143";
@@ -235,8 +191,8 @@ mod tests {
             }
         }
 
-        const VALID_OP_1_PROGRAM: &str = "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6";
-        const INVALID_OP_1_PROGRAM_LENGTH: &str = "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f143";
+        const VALID_OP_1_PROGRAM: &str = "0128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6";
+        const INVALID_OP_1_PROGRAM_LENGTH: &str = "0128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f143";
 
         #[test]
         fn from_str_invalid_op_1_program_len() {
@@ -332,10 +288,11 @@ mod tests {
         }
     }
 
-    mod test_to_vec {
+    mod test_to_scriptpubkey {
         use crate::witness_program::WitnessProgram;
+
         #[test]
-        fn to_vec_valid_p2sh_p2wpkh_program() {
+        fn to_scriptpubkey_valid_p2sh_p2wpkh_program() {
             let witness_program = WitnessProgram {
                 version: 0x00,
                 program: vec![
@@ -350,11 +307,11 @@ mod tests {
                             0x91, 0x96, 0xd4, 0x54, 0x94,
                             0x1c, 0x45, 0xd1, 0xb3, 0xa3,
                             0x23, 0xf1, 0x43, 0x3b, 0xd6
-            ], witness_program.to_vec());
+            ], witness_program.to_scriptpubkey());
         }
 
         #[test]
-        fn to_vec_valid_p2sh_p2wsh_program() {
+        fn to_scriptpubkey_valid_p2sh_p2wsh_program() {
             let witness_program = WitnessProgram {
                 version: 0x00,
                 program: vec![0x18, 0x63, 0x14, 0x3c, 0x14,
@@ -374,11 +331,11 @@ mod tests {
                             0xcd, 0x4d, 0x27, 0xa1, 0xb8,
                             0xc6, 0x32, 0x96, 0x04, 0x90,
                             0x32, 0x62
-            ], witness_program.to_vec());
+            ], witness_program.to_scriptpubkey());
         }
 
         #[test]
-        fn to_vec_valid_op_1_program() {
+        fn to_scriptpubkey_valid_op_1_program() {
             let witness_program = WitnessProgram {
                 version: 0x01,
                 program: vec![0x75, 0x1e, 0x76, 0xe8, 0x19,
@@ -400,57 +357,7 @@ mod tests {
                             0x91, 0x96, 0xd4, 0x54, 0x94,
                             0x1c, 0x45, 0xd1, 0xb3, 0xa3,
                             0x23, 0xf1, 0x43, 0x3b, 0xd6
-            ], witness_program.to_vec());
-        }
-    }
-
-    mod test_to_string {
-        use crate::witness_program::WitnessProgram;
-        #[test]
-        fn to_string_valid_p2sh_p2wpkh_program() {
-            let witness_program = WitnessProgram {
-                version: 0x00,
-                program: vec![
-                    0x75, 0x1e, 0x76, 0xe8, 0x19,
-                    0x91, 0x96, 0xd4, 0x54, 0x94,
-                    0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                    0x23, 0xf1, 0x43, 0x3b, 0xd6
-                ],
-            };
-            assert_eq!("0014751e76e8199196d454941c45d1b3a323f1433bd6".to_owned(), witness_program.to_string());
-        }
-
-        #[test]
-        fn to_string_valid_p2sh_p2wsh_program() {
-            let witness_program = WitnessProgram {
-                version: 0x00,
-                program: vec![0x18, 0x63, 0x14, 0x3c, 0x14,
-                              0xc5, 0x16, 0x68, 0x04, 0xbd,
-                              0x19, 0x20, 0x33, 0x56, 0xda,
-                              0x13, 0x6c, 0x98, 0x56, 0x78,
-                              0xcd, 0x4d, 0x27, 0xa1, 0xb8,
-                              0xc6, 0x32, 0x96, 0x04, 0x90,
-                              0x32, 0x62
-                ],
-            };
-            assert_eq!("00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262".to_owned(), witness_program.to_string());
-        }
-
-        #[test]
-        fn to_string_valid_op_1_program() {
-            let witness_program = WitnessProgram {
-                version: 0x01,
-                program: vec![0x75, 0x1e, 0x76, 0xe8, 0x19,
-                              0x91, 0x96, 0xd4, 0x54, 0x94,
-                              0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                              0x23, 0xf1, 0x43, 0x3b, 0xd6,
-                              0x75, 0x1e, 0x76, 0xe8, 0x19,
-                              0x91, 0x96, 0xd4, 0x54, 0x94,
-                              0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                              0x23, 0xf1, 0x43, 0x3b, 0xd6
-                ],
-            };
-            assert_eq!("5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6".to_owned(), witness_program.to_string());
+            ], witness_program.to_scriptpubkey());
         }
     }
 }
