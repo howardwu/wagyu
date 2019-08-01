@@ -47,6 +47,16 @@ impl ZcashNetwork for Testnet {
         }
     }
 
+    /// Returns the testnet prefix for a sprout spending key
+    fn to_sprout_spending_key_prefix() -> [u8; 2] {
+        [0xAC, 0x08]
+    }
+
+    /// Returns the testnet prefix for a sprout viewing key
+    fn to_sprout_viewing_key_prefix() -> [u8; 3] {
+        [0xA8, 0xAC, 0x0C]
+    }
+
     /// Returns the extended private key prefix of the given network.
     fn to_extended_private_key_prefix() -> String {
         "secret-extended-key-test".into()

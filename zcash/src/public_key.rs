@@ -3,22 +3,18 @@ use crate::network::ZcashNetwork;
 use crate::private_key::{SpendingKey, ZcashPrivateKey};
 use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};
 
+use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 use hex;
 use pairing::bls12_381::Bls12;
+use sapling_crypto::jubjub::JubjubBls12;
 use secp256k1;
-//use sha2::{Digest, Sha256};
 use std::cmp::{Eq, PartialEq};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Display};
 use zcash_primitives::{keys::FullViewingKey, JUBJUB};
-
-
-use crate::SproutSpendingKey;
-use base58::{FromBase58, ToBase58};
-use sapling_crypto::jubjub::JubjubBls12;
 
 static H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
@@ -88,7 +84,7 @@ impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
             ),
             SpendingKey::P2SH(_) => Self(ViewingKey::P2SH(P2SHViewingKey {}), PhantomData),
             SpendingKey::Sprout(spending_key) => Self(
-                ViewingKey::Sprout(SproutViewingKey::from_sprout_spending_key(spending_key)),
+                ViewingKey::Sprout(SproutViewingKey::from_sprout_spending_key(&spending_key.spending_key)),
                 PhantomData,
             ),
             SpendingKey::Sapling(spending_key) => Self(
@@ -121,12 +117,12 @@ impl<N: ZcashNetwork> ZcashPublicKey<N> {
 
 impl SproutViewingKey {
     /// Returns a sprout public key corresponding to a sprout private key
-    pub fn from_sprout_spending_key(spending_key: &SproutSpendingKey) -> SproutViewingKey {
+    pub fn from_sprout_spending_key(spending_key: &[u8; 32]) -> SproutViewingKey {
         let mut key_a = [0u8; 32];
         let mut key_b = [0u8; 32];
 
-        Self::prf(&mut key_a, &spending_key.0, 0);
-        Self::prf(&mut key_b, &spending_key.0, 1);
+        Self::prf(&mut key_a, &spending_key, 0);
+        Self::prf(&mut key_b, &spending_key, 1);
         key_b[0] &= 248;
         key_b[31] &= 127;
         key_b[31] |= 64;
@@ -141,17 +137,9 @@ impl SproutViewingKey {
         buf[0] = 0xc0 | (buf[0] & 0x0f);
         buf[32] = t;
 
-//        println!("");
-//        let mut hasher = Sha256::new();
-//        hasher.input(&buf);
-////        println!("sha-2:       {:?}", Sha256::digest(&buf));
-//        println!("sha-2:       {:?}", hasher.result_str());
-
         let mut state = H256;
         sha256_digest_block(&mut state, &buf);
         BigEndian::write_u32_into(&state, result);
-//        println!("rust-crypto: {:?}", hex::encode(result));
-//        println!("");
     }
 }
 
@@ -171,7 +159,7 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
                 let data = public_key.from_base58()?;
                 let prefix = &data[..3];
 
-                if prefix != &Format::SPROUT_VIEWING_KEY_PREFIX {
+                if prefix != N::to_sprout_viewing_key_prefix() {
                     return Err(PublicKeyError::InvalidPrefix(prefix.to_base58()));
                 }
 
@@ -209,7 +197,7 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
             }
             ViewingKey::Sprout(sprout) => {
                 let mut data = [0u8; 71];
-                data[..3].copy_from_slice(&Format::SPROUT_VIEWING_KEY_PREFIX);
+                data[..3].copy_from_slice(&N::to_sprout_viewing_key_prefix());
                 data[3..35].copy_from_slice(&sprout.key_a);
                 data[35..67].copy_from_slice(&sprout.key_b);
 

@@ -1,10 +1,7 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
-use wagyu_model::{
-    crypto::checksum,
-    Address, AddressError, PrivateKey, PrivateKeyError, PublicKey,
-};
+use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;
@@ -63,13 +60,27 @@ impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
 pub struct P2SHSpendingKey {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SproutSpendingKey(pub [u8; 32]);
+pub struct SproutSpendingKey<N: ZcashNetwork> {
+    /// The spending key in bytes
+    pub(super) spending_key: [u8; 32],
+    /// PhantomData
+    _network: PhantomData<N>,
+}
 
-impl Display for SproutSpendingKey {
+impl<N: ZcashNetwork> SproutSpendingKey<N> {
+    pub fn new(spending_key: [u8; 32]) -> Self {
+        Self {
+            spending_key,
+            _network: PhantomData,
+        }
+    }
+}
+
+impl<N: ZcashNetwork> Display for SproutSpendingKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut wif = [0u8; 38];
-        wif[0..2].copy_from_slice(&Format::SPROUT_SPENDING_KEY_PREFIX);
-        wif[2..34].copy_from_slice(&self.0);
+        wif[0..2].copy_from_slice(&N::to_sprout_spending_key_prefix());
+        wif[2..34].copy_from_slice(&self.spending_key);
 
         let sum = &checksum(&wif[0..34])[0..4];
         wif[34..].copy_from_slice(sum);
@@ -145,7 +156,7 @@ pub enum SpendingKey<N: ZcashNetwork> {
     /// P2SH transparent spending key
     P2SH(P2SHSpendingKey),
     /// Sprout shielded spending key
-    Sprout(SproutSpendingKey),
+    Sprout(SproutSpendingKey<N>),
     /// Sapling shielded spending key
     Sapling(SaplingSpendingKey),
 }
@@ -223,9 +234,6 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
-        // Check that the network byte correspond with the correct network.
-        let _ = N::from_wif_prefix(data[0])?;
-
         Ok(Self(
             SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
                 secp256k1::SecretKey::from_slice(&data[1..33])?,
@@ -240,12 +248,12 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         if wif.len() != 52 {
             return Err(PrivateKeyError::InvalidByteLength(wif.len()));
         }
-        let mut sk = [0u8; 32];
-        sk.copy_from_slice(&wif.from_base58()?[2..34]);
-        sk[0] &= 0x0f;
+        let mut spending_key = [0u8; 32];
+        spending_key.copy_from_slice(&wif.from_base58()?[2..34]);
+        spending_key[0] &= 0x0f;
 
         Ok(Self(
-            SpendingKey::Sprout(SproutSpendingKey(sk)),
+            SpendingKey::<N>::Sprout(SproutSpendingKey::<N>::new(spending_key)),
             PhantomData,
         ))
     }
@@ -299,13 +307,19 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
                 return Err(PrivateKeyError::InvalidByteLength(data.len()));
             }
 
+            let prefix = &data[0..2];
+
             // Sprout
-            if &s[..2] == "SK" {
+            if prefix == N::to_sprout_spending_key_prefix() {
                 return Self::sprout(s);
             }
 
             // Transparent
-            return Self::p2pkh(s);
+            // Check that the network byte correspond with the correct network.
+            if N::from_wif_prefix(data[0]).is_ok() {
+                return Self::p2pkh(s);
+            }
+            return Err(PrivateKeyError::UnsupportedFormat);
         }
 
         // Sapling

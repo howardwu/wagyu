@@ -1,7 +1,10 @@
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagyu_model::{crypto::{checksum, hash160}, Address, AddressError, PrivateKey};
+use wagyu_model::{
+    crypto::{checksum, hash160},
+    Address, AddressError, PrivateKey,
+};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
@@ -30,9 +33,6 @@ pub enum Format {
 }
 
 impl Format {
-    pub const SPROUT_SPENDING_KEY_PREFIX: [u8; 2] = [0xab, 0x36];
-    pub const SPROUT_VIEWING_KEY_PREFIX: [u8; 3] = [0xa8, 0xab, 0xd3];
-
     /// Returns the address prefix of the given network.
     pub fn to_address_prefix<N: ZcashNetwork>(&self) -> Vec<u8> {
         N::to_address_prefix(self)
@@ -242,11 +242,11 @@ impl<N: ZcashNetwork> FromStr for ZcashAddress<N> {
                     format,
                     _network: PhantomData,
                 });
-            } else if &address[0..2] == "zt" && address.len() == 95 { //aren't these one off hardcode's
+            } else if &address[0..2] == "zt" && address.len() == 95 {
                 let data = address.from_base58()?;
 
                 // Check that the network bytes correspond with the correct network.
-                let _ = N::from_address_prefix(&data[0..2].to_vec())?; //are these necessary
+                let _ = N::from_address_prefix(&data[0..2].to_vec())?;
                 let format = Format::Sprout;
 
                 return Ok(Self {

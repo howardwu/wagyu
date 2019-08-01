@@ -1,4 +1,3 @@
-use base58::ToBase58;
 use ripemd160::Ripemd160;
 use sha2::{Digest, Sha256};
 

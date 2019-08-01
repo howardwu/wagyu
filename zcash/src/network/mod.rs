@@ -21,6 +21,12 @@ pub trait ZcashNetwork: Network {
     /// Returns the network of the given wif prefix.
     fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError>;
 
+    /// Returns the network prefix for a sprout spending key
+    fn to_sprout_spending_key_prefix() -> [u8; 2];
+
+    /// Returns the network prefix for a sprout viewing key
+    fn to_sprout_viewing_key_prefix() -> [u8; 3];
+
     /// Returns the extended private key prefix of the given network.
     fn to_extended_private_key_prefix() -> String;
 
