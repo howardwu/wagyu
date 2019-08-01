@@ -24,6 +24,7 @@ use std::str::FromStr;
 
 use wagyu_model::AddressError;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WitnessProgram {
     /// The version byte
     pub version: u8,
