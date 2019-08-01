@@ -2,10 +2,7 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
-use wagyu_model::{
-    crypto::{checksum, hash160},
-    Address, AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, PrivateKey,
-};
+use wagyu_model::{crypto::{checksum, hash160}, Address, AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, PrivateKey, DerivationPathError};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
@@ -13,6 +10,7 @@ use serde::Serialize;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
+use crate::BitcoinDerivationPath;
 
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,6 +61,11 @@ impl Format {
             [0x04, 0x9D, 0x7C, 0xB2] | [0x04, 0x4A, 0x52, 0x62] => Ok(Format::P2SH_P2WPKH),
             _ => Err(ExtendedPublicKeyError::InvalidVersionBytes(prefix.to_vec())),
         }
+    }
+
+    /// Returns BIP44 derivation path
+    pub fn to_bip44_path() -> Result<BitcoinDerivationPath, DerivationPathError> {
+        BitcoinDerivationPath::from_str("m/44'/0'")
     }
 }
 

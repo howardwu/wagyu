@@ -88,7 +88,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 &Secp256k1::new(),
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
             )
-            .serialize()[..];
+                .serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
@@ -155,40 +155,13 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
 impl<N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
     /// Returns the extended private key of the given BIP44 derivation path.
     pub fn derive_bip44(&self, path: &BitcoinDerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut path_iter = path.into_iter();
-        let mut expected = ChildIndex::from_hardened(44)?;
+        let prefix = path.into_iter().take(2).collect::<Vec<_>>();
 
-        let actual = match path_iter.next() {
-            Some(child_index) => child_index,
-            None => {
-                return Err(ExtendedPrivateKeyError::DerivationPathError(
-                    DerivationPathError::InvalidChildNumberFormat,
-                ))
-            }
-        };
+        let bip44_path = Format::to_bip44_path()?;
+        let bip44 = bip44_path.into_iter().collect::<Vec<_>>();
 
-        if expected != *actual {
-            return Err(ExtendedPrivateKeyError::DerivationPathError(
-                DerivationPathError::ExpectedBIP44Path,
-            ));
-        }
-
-        // Only Bitcoin mainnet extended private keys for now
-        expected = ChildIndex::from_hardened(0)?;
-
-        let actual = match path_iter.next() {
-            Some(child_index) => child_index,
-            None => {
-                return Err(ExtendedPrivateKeyError::DerivationPathError(
-                    DerivationPathError::InvalidChildNumberFormat,
-                ))
-            }
-        };
-
-        if expected != *actual {
-            return Err(ExtendedPrivateKeyError::DerivationPathError(
-                DerivationPathError::ExpectedBIP44Path,
-            ));
+        if prefix != bip44 {
+            return Err(ExtendedPrivateKeyError::DerivationPathError(DerivationPathError::ExpectedBIP44Path));
         }
 
         self.derive(path)
