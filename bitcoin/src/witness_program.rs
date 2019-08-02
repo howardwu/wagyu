@@ -26,13 +26,13 @@ use wagyu_model::AddressError;
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum WitnessProgramError {
-    #[fail(display = "expected program with length at least 2, at most 40, actual program was length {}", _0)]
+    #[fail(display = "invalid program length {}", _0)]
     InvalidProgramLength(usize),
 
     #[fail(display = "invalid program length {} for script version {}", _0, _1)]
     InvalidProgramLengthForVersion(usize, u8),
 
-    #[fail(display = "expected version no greater than 16")]
+    #[fail(display = "invalid version {}", _0)]
     InvalidVersion(u8),
 
     #[fail(display = "invalid program length: {{ expected: {:?}, found: {:?} }}", _0, _1)]
