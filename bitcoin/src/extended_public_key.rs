@@ -76,7 +76,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
                 ChildIndex::Normal(_) => mac.input(public_key_serialized),
                 // Return failure
                 ChildIndex::Hardened(_) => {
-                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)));
+                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)))
                 }
             }
             let mut index_be = [0; 4];
