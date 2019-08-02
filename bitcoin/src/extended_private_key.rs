@@ -88,7 +88,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 &Secp256k1::new(),
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
             )
-                .serialize()[..];
+            .serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
