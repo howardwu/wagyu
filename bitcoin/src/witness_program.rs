@@ -128,207 +128,226 @@ impl FromStr for WitnessProgram {
 
 #[cfg(test)]
 mod tests {
-    mod test_from_str {
-        use std::str::FromStr;
+    use super::*;
 
-        use crate::witness_program::{WitnessProgram, WitnessProgramError};
-
-        const VALID_P2SH_P2WPKH_PROGRAM: &str = "0014751e76e8199196d454941c45d1b3a323f1433bd6";
-        const INVALID_P2SH_P2WPKH_PROGRAM_LENGTH: &str = "0014751e76e8199196d454941c45d1b3a323f143";
-
-        #[test]
-        fn from_str_invalid_p2sh_p2wpkh_program_len() {
-            match WitnessProgram::from_str(INVALID_P2SH_P2WPKH_PROGRAM_LENGTH) {
-                Ok(_) => assert_eq!(None, Some("Error, invalid program decoded successfully")),
-                Err(e) => {
-                    assert_eq!(WitnessProgramError::MismatchedProgramLength(18, 20), e)
-                }
-            }
-        }
-
-        #[test]
-        fn from_str_valid_p2sh_p2wpkh_program() {
-            let witness_program = WitnessProgram::from_str(VALID_P2SH_P2WPKH_PROGRAM).unwrap();
-            assert_eq!(0x00, witness_program.version);
-            assert_eq!(vec![0x75, 0x1e, 0x76, 0xe8, 0x19,
-                            0x91, 0x96, 0xd4, 0x54, 0x94,
-                            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                            0x23, 0xf1, 0x43, 0x3b, 0xd6
-            ], witness_program.program);
-        }
-
-        const VALID_P2SH_P2WSH_PROGRAM: &str = "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262";
-        const INVALID_P2SH_P2WSH_PROGRAM_LENGTH: &str = "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c632960490";
-
-        #[test]
-        fn from_str_invalid_p2sh_p2wsh_program_len() {
-            let witness_program_error = WitnessProgram::from_str(INVALID_P2SH_P2WSH_PROGRAM_LENGTH).unwrap_err();
-            assert_eq!(WitnessProgramError::MismatchedProgramLength(30, 32), witness_program_error);
-        }
-
-        #[test]
-        fn from_str_valid_p2sh_p2wsh_program() {
-            let witness_program = WitnessProgram::from_str(VALID_P2SH_P2WSH_PROGRAM).unwrap();
-            assert_eq!(0x00, witness_program.version);
-            assert_eq!(vec![0x18, 0x63, 0x14, 0x3c, 0x14,
-                            0xc5, 0x16, 0x68, 0x04, 0xbd,
-                            0x19, 0x20, 0x33, 0x56, 0xda,
-                            0x13, 0x6c, 0x98, 0x56, 0x78,
-                            0xcd, 0x4d, 0x27, 0xa1, 0xb8,
-                            0xc6, 0x32, 0x96, 0x04, 0x90,
-                            0x32, 0x62
-            ], witness_program.program);
-        }
-
-        const VALID_OP_1_PROGRAM: &str = "0128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6";
-        const INVALID_OP_1_PROGRAM_LENGTH: &str = "0128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f143";
-
-        #[test]
-        fn from_str_invalid_op_1_program_len() {
-            let witness_program_error = WitnessProgram::from_str(INVALID_OP_1_PROGRAM_LENGTH).unwrap_err();
-            assert_eq!(WitnessProgramError::MismatchedProgramLength(38, 40), witness_program_error);
-        }
-
-        #[test]
-        fn from_str_valid_op_1_program() {
-            let witness_program = WitnessProgram::from_str(VALID_OP_1_PROGRAM).unwrap();
-            assert_eq!(0x01, witness_program.version);
-            assert_eq!(vec![0x75, 0x1e, 0x76, 0xe8, 0x19,
-                            0x91, 0x96, 0xd4, 0x54, 0x94,
-                            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                            0x23, 0xf1, 0x43, 0x3b, 0xd6,
-                            0x75, 0x1e, 0x76, 0xe8, 0x19,
-                            0x91, 0x96, 0xd4, 0x54, 0x94,
-                            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                            0x23, 0xf1, 0x43, 0x3b, 0xd6
-            ], witness_program.program);
-        }
-
-        #[test]
-        fn from_str_invalid_hex_str() {
-            let witness_program_error = WitnessProgram::from_str("001122zzxxyy").unwrap_err();
-            assert_eq!(WitnessProgramError::ProgramDecodingError, witness_program_error);
-        }
+    fn test_from_str(program_str: &str, expected_version: u8, expected_program: &[u8]) {
+        let witness_program = WitnessProgram::from_str(program_str).unwrap();
+        assert_eq!(expected_version, witness_program.version);
+        assert_eq!(expected_program.to_vec(), witness_program.program);
     }
 
-    mod test_new {
-        use crate::witness_program::{WitnessProgram, WitnessProgramError};
-
-        const INVALID_VERSION_PROGRAM: &[u8] = &[0x19, 0x03, 0x00, 0x00, 0x00];
-
-        #[test]
-        fn new_invalid_version() {
-            let witness_program_error = WitnessProgram::new(INVALID_VERSION_PROGRAM).unwrap_err();
-            assert_eq!(WitnessProgramError::InvalidVersion(0x19), witness_program_error);
-        }
-
-        const INVALID_LENGTH_PROGRAM: &[u8] = &[0x19];
-
-        #[test]
-        fn new_invalid_length() {
-            let witness_program_error = WitnessProgram::new(INVALID_LENGTH_PROGRAM).unwrap_err();
-            assert_eq!(WitnessProgramError::InvalidProgramLength(1), witness_program_error);
-        }
-
-        const INVALID_LENGTH_FOR_VERSION: &[u8] = &[0x00, 0x0f, // Version 0, data length is incorrect
-            0x75, 0x1e, 0x76, 0xe8, 0x19,
-            0x91, 0x96, 0xd4, 0x54, 0x94,
-            0x1c, 0x45, 0xd1, 0xb3, 0xa3];
-
-        #[test]
-        fn new_invalid_program_length_for_version() {
-            let witness_program_error = WitnessProgram::new(INVALID_LENGTH_FOR_VERSION).unwrap_err();
-            assert_eq!(WitnessProgramError::InvalidProgramLengthForVersion(15, 0x00), witness_program_error);
-        }
-
-        const INVALID_LENGTH_PROGRAM_TOO_LONG: &[u8] = &[0x00, 0x29,
-            0x75, 0x1e, 0x76, 0xe8, 0x19,
-            0x91, 0x96, 0xd4, 0x54, 0x94,
-            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-            0x23, 0xf1, 0x43, 0x3b, 0xd6,
-            0x75, 0x1e, 0x76, 0xe8, 0x19,
-            0x91, 0x96, 0xd4, 0x54, 0x94,
-            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-            0x23, 0xf1, 0x43, 0x3b, 0xd6,
-            0x00];
-
-        #[test]
-        fn new_invalid_program_length_too_long() {
-            let witness_program_error = WitnessProgram::new(INVALID_LENGTH_PROGRAM_TOO_LONG).unwrap_err();
-            assert_eq!(WitnessProgramError::InvalidProgramLength(41), witness_program_error);
-        }
+    fn test_to_scriptpubkey(version: u8, program: &[u8], expected_scriptpubkey: &[u8]) {
+        let witness_program = WitnessProgram {
+            version,
+            program: program.to_vec(),
+        };
+        assert_eq!(expected_scriptpubkey.to_vec(), witness_program.to_scriptpubkey());
     }
 
-    mod test_to_scriptpubkey {
-        use crate::witness_program::WitnessProgram;
+    mod p2sh_p2wpkh {
+        use super::*;
 
-        #[test]
-        fn to_scriptpubkey_valid_p2sh_p2wpkh_program() {
-            let witness_program = WitnessProgram {
-                version: 0x00,
-                program: vec![
+        const VALID_P2SH_P2WPKH_PROGRAMS: [(&str, u8, &[u8], &[u8]); 1] = [
+            (
+                "0014751e76e8199196d454941c45d1b3a323f1433bd6",
+                0x00,
+                &[0x75, 0x1e, 0x76, 0xe8, 0x19,
+                    0x91, 0x96, 0xd4, 0x54, 0x94,
+                    0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                    0x23, 0xf1, 0x43, 0x3b, 0xd6],
+                &[0x00, 0x14,
                     0x75, 0x1e, 0x76, 0xe8, 0x19,
                     0x91, 0x96, 0xd4, 0x54, 0x94,
                     0x1c, 0x45, 0xd1, 0xb3, 0xa3,
                     0x23, 0xf1, 0x43, 0x3b, 0xd6
-                ],
-            };
-            assert_eq!(vec![0x00, 0x14,
-                            0x75, 0x1e, 0x76, 0xe8, 0x19,
-                            0x91, 0x96, 0xd4, 0x54, 0x94,
-                            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                            0x23, 0xf1, 0x43, 0x3b, 0xd6
-            ], witness_program.to_scriptpubkey());
+                ]
+            )
+        ];
+
+        #[test]
+        fn from_str() {
+            VALID_P2SH_P2WPKH_PROGRAMS.iter().for_each(
+                |&(program_str, expected_version, expected_program, _)| {
+                    test_from_str(program_str, expected_version, &expected_program);
+                });
         }
 
         #[test]
-        fn to_scriptpubkey_valid_p2sh_p2wsh_program() {
-            let witness_program = WitnessProgram {
-                version: 0x00,
-                program: vec![0x18, 0x63, 0x14, 0x3c, 0x14,
-                              0xc5, 0x16, 0x68, 0x04, 0xbd,
-                              0x19, 0x20, 0x33, 0x56, 0xda,
-                              0x13, 0x6c, 0x98, 0x56, 0x78,
-                              0xcd, 0x4d, 0x27, 0xa1, 0xb8,
-                              0xc6, 0x32, 0x96, 0x04, 0x90,
-                              0x32, 0x62
-                ],
-            };
-            assert_eq!(vec![0x00, 0x20,
-                            0x18, 0x63, 0x14, 0x3c, 0x14,
-                            0xc5, 0x16, 0x68, 0x04, 0xbd,
-                            0x19, 0x20, 0x33, 0x56, 0xda,
-                            0x13, 0x6c, 0x98, 0x56, 0x78,
-                            0xcd, 0x4d, 0x27, 0xa1, 0xb8,
-                            0xc6, 0x32, 0x96, 0x04, 0x90,
-                            0x32, 0x62
-            ], witness_program.to_scriptpubkey());
+        fn to_scriptpubkey() {
+            VALID_P2SH_P2WPKH_PROGRAMS.iter().for_each(
+                |&(_, version, program, expected_scriptpubkey)| {
+                    test_to_scriptpubkey(version, program, expected_scriptpubkey);
+                });
+        }
+    }
+
+    mod p2sh_p2wsh {
+        use super::*;
+
+        const VALID_P2SH_P2WSH_PROGRAMS: [(&str, u8, &[u8], &[u8]); 1] = [
+            (
+                "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
+                0x00,
+                &[0x18, 0x63, 0x14, 0x3c, 0x14,
+                    0xc5, 0x16, 0x68, 0x04, 0xbd,
+                    0x19, 0x20, 0x33, 0x56, 0xda,
+                    0x13, 0x6c, 0x98, 0x56, 0x78,
+                    0xcd, 0x4d, 0x27, 0xa1, 0xb8,
+                    0xc6, 0x32, 0x96, 0x04, 0x90,
+                    0x32, 0x62],
+                &[0x00, 0x20,
+                    0x18, 0x63, 0x14, 0x3c, 0x14,
+                    0xc5, 0x16, 0x68, 0x04, 0xbd,
+                    0x19, 0x20, 0x33, 0x56, 0xda,
+                    0x13, 0x6c, 0x98, 0x56, 0x78,
+                    0xcd, 0x4d, 0x27, 0xa1, 0xb8,
+                    0xc6, 0x32, 0x96, 0x04, 0x90,
+                    0x32, 0x62
+                ]
+            )
+        ];
+
+        #[test]
+        fn from_str() {
+            VALID_P2SH_P2WSH_PROGRAMS.iter().for_each(
+                |&(program_str, expected_version, expected_program, _)| {
+                    test_from_str(program_str, expected_version, expected_program);
+                });
         }
 
         #[test]
-        fn to_scriptpubkey_valid_op_1_program() {
-            let witness_program = WitnessProgram {
-                version: 0x01,
-                program: vec![0x75, 0x1e, 0x76, 0xe8, 0x19,
-                              0x91, 0x96, 0xd4, 0x54, 0x94,
-                              0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                              0x23, 0xf1, 0x43, 0x3b, 0xd6,
-                              0x75, 0x1e, 0x76, 0xe8, 0x19,
-                              0x91, 0x96, 0xd4, 0x54, 0x94,
-                              0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                              0x23, 0xf1, 0x43, 0x3b, 0xd6
-                ],
-            };
-            assert_eq!(vec![0x51, 0x28, // Encodes version and pushes correct length into vec
-                            0x75, 0x1e, 0x76, 0xe8, 0x19,
-                            0x91, 0x96, 0xd4, 0x54, 0x94,
-                            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                            0x23, 0xf1, 0x43, 0x3b, 0xd6,
-                            0x75, 0x1e, 0x76, 0xe8, 0x19,
-                            0x91, 0x96, 0xd4, 0x54, 0x94,
-                            0x1c, 0x45, 0xd1, 0xb3, 0xa3,
-                            0x23, 0xf1, 0x43, 0x3b, 0xd6
-            ], witness_program.to_scriptpubkey());
+        fn to_scriptpubkey() {
+            VALID_P2SH_P2WSH_PROGRAMS.iter().for_each(
+                |&(_, version, program, expected_scriptpubkey)| {
+                    test_to_scriptpubkey(version, program, expected_scriptpubkey);
+                });
+        }
+    }
+
+    mod version_1 {
+        use super::*;
+
+        const VALID_OP_1_PROGRAMS: [(&str, u8, &[u8], &[u8]); 1] = [
+            (
+                "0128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6",
+                0x01,
+                &[0x75, 0x1e, 0x76, 0xe8, 0x19,
+                    0x91, 0x96, 0xd4, 0x54, 0x94,
+                    0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                    0x23, 0xf1, 0x43, 0x3b, 0xd6,
+                    0x75, 0x1e, 0x76, 0xe8, 0x19,
+                    0x91, 0x96, 0xd4, 0x54, 0x94,
+                    0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                    0x23, 0xf1, 0x43, 0x3b, 0xd6],
+                &[0x51, 0x28,
+                    0x75, 0x1e, 0x76, 0xe8, 0x19,
+                    0x91, 0x96, 0xd4, 0x54, 0x94,
+                    0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                    0x23, 0xf1, 0x43, 0x3b, 0xd6,
+                    0x75, 0x1e, 0x76, 0xe8, 0x19,
+                    0x91, 0x96, 0xd4, 0x54, 0x94,
+                    0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                    0x23, 0xf1, 0x43, 0x3b, 0xd6
+                ]
+            )
+        ];
+
+        #[test]
+        fn from_str() {
+            VALID_OP_1_PROGRAMS.iter().for_each(
+                |&(program_str, expected_version, expected_program, _)| {
+                    test_from_str(program_str, expected_version, expected_program);
+                });
+        }
+
+        #[test]
+        fn to_scriptpubkey() {
+            VALID_OP_1_PROGRAMS.iter().for_each(
+                |&(_, version, program, expected_scriptpubkey)| {
+                    test_to_scriptpubkey(version, program, expected_scriptpubkey);
+                });
+        }
+    }
+
+    mod test_invalid {
+        use super::*;
+
+        mod new {
+            use super::*;
+
+            const INVALID_VERSION_PROGRAM: &[u8] = &[0x19, 0x03, 0x00, 0x00, 0x00];
+            const INVALID_LENGTH_FOR_VERSION: &[u8] = &[0x00, 0x0f, // Version 0, data length is incorrect
+                0x75, 0x1e, 0x76, 0xe8, 0x19,
+                0x91, 0x96, 0xd4, 0x54, 0x94,
+                0x1c, 0x45, 0xd1, 0xb3, 0xa3];
+            const INVALID_LENGTH_PROGRAM: &[u8] = &[0x19];
+            const INVALID_LENGTH_PROGRAM_TOO_LONG: &[u8] = &[0x00, 0x29,
+                0x75, 0x1e, 0x76, 0xe8, 0x19,
+                0x91, 0x96, 0xd4, 0x54, 0x94,
+                0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                0x23, 0xf1, 0x43, 0x3b, 0xd6,
+                0x75, 0x1e, 0x76, 0xe8, 0x19,
+                0x91, 0x96, 0xd4, 0x54, 0x94,
+                0x1c, 0x45, 0xd1, 0xb3, 0xa3,
+                0x23, 0xf1, 0x43, 0x3b, 0xd6,
+                0x00];
+
+            #[test]
+            fn new_invalid_version() {
+                let witness_program_error = WitnessProgram::new(INVALID_VERSION_PROGRAM).unwrap_err();
+                assert_eq!(WitnessProgramError::InvalidVersion(0x19), witness_program_error);
+            }
+
+            #[test]
+            fn new_invalid_length() {
+                let witness_program_error = WitnessProgram::new(INVALID_LENGTH_PROGRAM).unwrap_err();
+                assert_eq!(WitnessProgramError::InvalidProgramLength(1), witness_program_error);
+            }
+
+            #[test]
+            fn new_invalid_program_length_for_version() {
+                let witness_program_error = WitnessProgram::new(INVALID_LENGTH_FOR_VERSION).unwrap_err();
+                assert_eq!(WitnessProgramError::InvalidProgramLengthForVersion(15, 0x00), witness_program_error);
+            }
+
+            #[test]
+            fn new_invalid_program_length_too_long() {
+                let witness_program_error = WitnessProgram::new(INVALID_LENGTH_PROGRAM_TOO_LONG).unwrap_err();
+                assert_eq!(WitnessProgramError::InvalidProgramLength(41), witness_program_error);
+            }
+        }
+
+        mod from_str {
+            use super::*;
+
+            const INVALID_P2SH_P2WPKH_PROGRAM_LENGTH: &str = "0014751e76e8199196d454941c45d1b3a323f143";
+            const INVALID_P2SH_P2WSH_PROGRAM_LENGTH: &str = "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c632960490";
+            const INVALID_OP_1_PROGRAM_LENGTH: &str = "0128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f143";
+            const INVALID_HEX_STR: &str = "001122zzxxyy";
+
+            #[test]
+            fn from_str_invalid_p2sh_p2wpkh_program_len() {
+                let witness_program_error = WitnessProgram::from_str(INVALID_P2SH_P2WPKH_PROGRAM_LENGTH).unwrap_err();
+                assert_eq!(WitnessProgramError::MismatchedProgramLength(18, 20), witness_program_error);
+            }
+
+            #[test]
+            fn from_str_invalid_p2sh_p2wsh_program_len() {
+                let witness_program_error = WitnessProgram::from_str(INVALID_P2SH_P2WSH_PROGRAM_LENGTH).unwrap_err();
+                assert_eq!(WitnessProgramError::MismatchedProgramLength(30, 32), witness_program_error);
+            }
+
+            #[test]
+            fn from_str_invalid_op_1_program_len() {
+                let witness_program_error = WitnessProgram::from_str(INVALID_OP_1_PROGRAM_LENGTH).unwrap_err();
+                assert_eq!(WitnessProgramError::MismatchedProgramLength(38, 40), witness_program_error);
+            }
+
+            #[test]
+            fn from_str_invalid_hex_str() {
+                let witness_program_error = WitnessProgram::from_str(INVALID_HEX_STR).unwrap_err();
+                assert_eq!(WitnessProgramError::ProgramDecodingError, witness_program_error);
+            }
         }
     }
 }
