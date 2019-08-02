@@ -24,14 +24,6 @@ use std::str::FromStr;
 
 use wagyu_model::AddressError;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WitnessProgram {
-    /// The version byte
-    pub version: u8,
-    /// The witness program bytes
-    pub program: Vec<u8>,
-}
-
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum WitnessProgramError {
     #[fail(display = "expected program with length at least 2, at most 40, actual program was length {}", _0)]
@@ -43,7 +35,7 @@ pub enum WitnessProgramError {
     #[fail(display = "expected version no greater than 16")]
     InvalidVersion(u8),
 
-    #[fail(display = "expected program length {} to equal length {} as specified by input", _0, _1)]
+    #[fail(display = "invalid program length: {{ expected: {:?}, found: {:?} }}", _0, _1)]
     MismatchedProgramLength(usize, usize),
 
     #[fail(display = "error decoding program from hex string")]
@@ -54,6 +46,14 @@ impl From<WitnessProgramError> for AddressError {
     fn from(error: WitnessProgramError) -> Self {
         AddressError::Crate("WitnessProgram", format!("{:?}", error))
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WitnessProgram {
+    /// The version byte
+    pub version: u8,
+    /// The witness program bytes
+    pub program: Vec<u8>,
 }
 
 impl WitnessProgram {
