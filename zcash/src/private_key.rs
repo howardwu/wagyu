@@ -1,7 +1,7 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
-use wagu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use pairing::bls12_381::Bls12;
@@ -31,6 +31,12 @@ impl<N: ZcashNetwork> P2PKHSpendingKey<N> {
             _network: PhantomData,
         }
     }
+
+    /// Returns the p2pkh spending key (secp256k1 secret key)
+    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey { self.secret_key.clone() }
+
+    /// Returns `true` if the p2pkh spending key is in compressed form.
+    pub fn is_compressed(&self) -> bool { self.compressed }
 }
 
 impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {

@@ -2,7 +2,7 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, PrivateKey,
 };
@@ -10,6 +10,7 @@ use wagu_model::{
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -69,9 +70,9 @@ impl Format {
 impl fmt::Display for Format {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Format::P2PKH => write!(f, "P2PKH"),
-            Format::P2SH_P2WPKH => write!(f, "P2SH_P2WPKH"),
-            Format::Bech32 => write!(f, "Bech32"),
+            Format::P2PKH => write!(f, "p2pkh"),
+            Format::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),
+            Format::Bech32 => write!(f, "bech32"),
         }
     }
 }
@@ -183,6 +184,14 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     }
 }
 
+impl <'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
+    }
+}
+
 impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
     type Err = AddressError;
 
@@ -247,7 +256,7 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: BitcoinNetwork>(
         expected_address: &str,

@@ -1,6 +1,6 @@
 use crate::address::EthereumAddress;
 use crate::public_key::EthereumPublicKey;
-use wagu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use rand::Rng;
 use secp256k1;

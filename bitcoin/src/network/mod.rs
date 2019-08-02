@@ -1,5 +1,5 @@
 use crate::address::Format;
-use wagu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError};
+use wagyu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError};
 
 pub mod mainnet;
 pub use self::mainnet::*;
@@ -9,6 +9,8 @@ pub use self::testnet::*;
 
 /// The interface for a Bitcoin network.
 pub trait BitcoinNetwork: Network {
+    const NAME: &'static str;
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &Format) -> Vec<u8>;
 

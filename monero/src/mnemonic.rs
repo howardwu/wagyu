@@ -3,7 +3,7 @@ use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use crate::wordlist::MoneroWordlist;
-use wagu_model::{Mnemonic, MnemonicError, PrivateKey};
+use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
 
 use crc::{crc32, Hasher32};
 use rand::Rng;
@@ -33,7 +33,6 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
-        //TODO Phase out hard coded formating
         Ok(MoneroPrivateKey::from_seed(
             hex::encode(&self.seed).as_str(),
             &Format::Standard,
@@ -52,7 +51,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 }
 
 impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
-    /// Returns a new mnemonic phrase given the word count.
+    /// Returns a new mnemonic phrase.
     pub fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
         let seed: [u8; 32] = rng.gen();
         Ok(Self::from_seed(&seed)?)

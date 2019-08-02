@@ -1,7 +1,7 @@
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagu_model::{
+use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
 };
@@ -12,6 +12,7 @@ use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
+use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::{str, str::FromStr};
@@ -48,6 +49,22 @@ impl Format {
             0x9A | 0xB6 => Ok(Format::Sprout),
             0x73 | 0x74 => Ok(Format::Sapling(None)),
             _ => return Err(AddressError::InvalidPrefix(prefix.clone())),
+        }
+    }
+}
+
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Format::P2PKH => write!(f, "p2pkh"),
+            Format::P2SH => write!(f, "p2sh"),
+            Format::Sprout => write!(f, "sprout"),
+            Format::Sapling(data) => {
+                match data {
+                    None => write!(f, "sapling", ),
+                    Some(data) => {write!(f, "sapling {}", hex::encode(data))}
+                }
+            },
         }
     }
 }
@@ -172,6 +189,14 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 }
 
+impl <'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
+    type Error = AddressError;
+
+    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
+        Self::from_str(address)
+    }
+}
+
 impl<N: ZcashNetwork> FromStr for ZcashAddress<N> {
     type Err = AddressError;
 
@@ -265,7 +290,7 @@ impl<N: ZcashNetwork> fmt::Display for ZcashAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use wagu_model::public_key::PublicKey;
+    use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key<N: ZcashNetwork>(
         expected_address: &str,

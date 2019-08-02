@@ -1,6 +1,6 @@
-# wagu_model
+# wagyu-model
 
-[![Crates.io](https://img.shields.io/crates/v/wagu.svg?color=neon)](https://crates.io/crates/wagu)
+[![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)
 [![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](../AUTHORS)
 [![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
 

@@ -1,4 +1,4 @@
-# `wagu ethereum`
+# `wagyu ethereum`
 
 ## <a name='TableofContents'></a>Table of Contents
 
@@ -13,10 +13,10 @@
 
 Generate a mainnet spend key, viewing key, and address with the following command:
 
-`wagu ethereum`
+`wagyu ethereum`
 
 ```bash
-╰─ wagu ethereum
+╰─ wagyu ethereum
 
         Private Key:    1feff6005396b01f57a18df8bed2151b0f5f1dc409624773a910daf67121b300
         Address:        0x288786a40e8fc5E990C85bf7A029E4A34E633527
@@ -27,10 +27,10 @@ Generate a mainnet spend key, viewing key, and address with the following comman
 
 Generate a spend key, viewing key, and address as a json object with the following command:
 
-`wagu ethereum -j` OR `wagu ethereum --json`
+`wagyu ethereum -j` OR `wagyu ethereum --json`
 
 ```bash
-╰─ wagu -j
+╰─ wagyu -j
 [
   {
     "private_key": "e9569857471d6463e8b46642c57373d047211aac472a4c5e564b090ddd173ed2",
@@ -43,10 +43,10 @@ Generate a spend key, viewing key, and address as a json object with the followi
 
 Generate multiple wallets with the following command:
 
-`wagu ethereum --count 3` OR `wagu ethereum -n 3`
+`wagyu ethereum --count 3` OR `wagyu ethereum -n 3`
 
 ```bash
-╰─ wagu ethereum -n 3
+╰─ wagyu ethereum -n 3
 
         Private Key:    726c79c575d7d966af657cbe56ab23890d833b16f0cdb03bdc5526760f25d61a
         Address:        0xab0C8e649f19abb789A0ddBe74c2bef462Ebf937
