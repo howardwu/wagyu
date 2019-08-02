@@ -124,7 +124,6 @@ impl<N: MoneroNetwork> MoneroPrivateKey<N> {
 
 impl<N: MoneroNetwork> FromStr for MoneroPrivateKey<N> {
     type Err = PrivateKeyError;
-    // TODO (howardwu): Add parsing of mainnet or testnet as an option.
     fn from_str(seed: &str) -> Result<Self, PrivateKeyError> {
         Self::from_seed(seed, &Format::Standard)
     }

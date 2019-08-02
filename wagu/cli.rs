@@ -99,7 +99,7 @@ fn main() {
         .arg(&arg_path);
 
     // Final CLI app
-    let matches = App::new("wagu")
+    let matches = App::new("wagyu")
         .version("v0.6.0")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
         .author("Argus <team@argus.dev>")
@@ -367,7 +367,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                     println!(
                         "
             Mnemonic:               {}
-            Extended private Key:   {}
+            Extended Private Key:   {}
             Private Key:            {}
             Address:                {}
             Network:                {}
@@ -421,7 +421,7 @@ fn print_bitcoin_wallet<N: BitcoinNetwork>(bitcoin_wallet: BitcoinWallet) {
                 } else {
                     println!(
                             "
-                Extended private Key:   {}
+                Extended Private Key:   {}
                 Private Key:            {}
                 Address:                {}
                 Network:                {}
@@ -443,7 +443,6 @@ fn print_ethereum_wallet(count: usize, json: bool) {
         private_key: String,
         address: String,
     };
-
 
     for _ in 0..count {
         let rng = &mut StdRng::from_entropy();
@@ -472,7 +471,8 @@ fn print_ethereum_wallet(count: usize, json: bool) {
 fn print_monero_wallet(count: usize, testnet: bool, format: &MoneroFormat, json: bool) {
     #[derive(Serialize, Debug)]
     pub struct Wallet {
-        private_key: String,
+        private_spend_key: String,
+        private_view_key: String,
         address: String,
         network: String,
     };
@@ -484,7 +484,8 @@ fn print_monero_wallet(count: usize, testnet: bool, format: &MoneroFormat, json:
             let address = MoneroAddress::from_private_key(&private_key, format).unwrap();
 
             Wallet {
-                private_key: private_key.to_string(),
+                private_spend_key: hex::encode(private_key.to_private_spend_key()),
+                private_view_key: hex::encode(private_key.to_private_view_key()),
                 address: address.to_string(),
                 network: "testnet".into(),
             }
@@ -494,7 +495,8 @@ fn print_monero_wallet(count: usize, testnet: bool, format: &MoneroFormat, json:
             let address = MoneroAddress::from_private_key(&private_key, format).unwrap();
 
             Wallet {
-                private_key: private_key.to_string(),
+                private_spend_key: hex::encode(private_key.to_private_spend_key()),
+                private_view_key: hex::encode(private_key.to_private_view_key()),
                 address: address.to_string(),
                 network: "mainnet".into(),
             }
@@ -505,10 +507,12 @@ fn print_monero_wallet(count: usize, testnet: bool, format: &MoneroFormat, json:
         } else {
             println!(
                 "
-        Private ( Spend, View ) Key:    {}
+        Private Spend Key:    {}
+        Private View Key:     {}
         Address:              {}
+        Network:              {}
         ",
-                wallet.private_key, wallet.address
+                wallet.private_spend_key, wallet.private_view_key, wallet.address, wallet.network
             )
         }
     }
