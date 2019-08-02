@@ -21,7 +21,7 @@ path = "wagyu/lib.rs"
 
 [[bin]]
 name = "wagyu"
-path = "wagyu/cli.rs"
+path = "wagyu/main.rs"
 
 [workspace]
 members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]

@@ -59,11 +59,9 @@ impl fmt::Display for Format {
             Format::P2PKH => write!(f, "p2pkh"),
             Format::P2SH => write!(f, "p2sh"),
             Format::Sprout => write!(f, "sprout"),
-            Format::Sapling(data) => {
-                match data {
-                    None => write!(f, "sapling", ),
-                    Some(data) => {write!(f, "sapling {}", hex::encode(data))}
-                }
+            Format::Sapling(data) => match data {
+                None => write!(f, "sapling",),
+                Some(data) => write!(f, "sapling {}", hex::encode(data)),
             },
         }
     }
@@ -189,7 +187,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 }
 
-impl <'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
+impl<'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {

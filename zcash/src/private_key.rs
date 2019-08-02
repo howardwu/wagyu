@@ -33,10 +33,14 @@ impl<N: ZcashNetwork> P2PKHSpendingKey<N> {
     }
 
     /// Returns the p2pkh spending key (secp256k1 secret key)
-    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey { self.secret_key.clone() }
+    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
+        self.secret_key.clone()
+    }
 
     /// Returns `true` if the p2pkh spending key is in compressed form.
-    pub fn is_compressed(&self) -> bool { self.compressed }
+    pub fn is_compressed(&self) -> bool {
+        self.compressed
+    }
 }
 
 impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {

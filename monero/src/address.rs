@@ -139,7 +139,7 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     }
 }
 
-impl <'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
+impl<'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {
