@@ -28,6 +28,7 @@ fn main() {
             ZcashCLI::new(),
         ])
         .after_help("")
+        .set_term_width(0)
         .get_matches();
 
     match arguments.subcommand() {

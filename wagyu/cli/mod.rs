@@ -37,7 +37,6 @@ pub trait CLI {
             .map(|s| {
                 SubCommand::with_name(s.0)
                     .about(s.1)
-                    .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
                     .args(
                         &s.2.iter()
                             .map(|a| match a.2.len() > 0 {
@@ -46,6 +45,7 @@ pub trait CLI {
                             })
                             .collect::<Vec<Arg<'static, 'static>>>(),
                     )
+                    .settings(s.3)
                     .after_help("")
             })
             .collect::<Vec<App<'static, 'static>>>();

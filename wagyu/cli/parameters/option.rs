@@ -11,7 +11,7 @@ pub const COUNT: (&str, &[&'static str], &[&'static str]) = (
 pub const BITCOIN_FORMAT: (&str, &[&'static str], &[&'static str]) = (
     "[format] -f --format=[format] 'Generates a wallet with a specified format'",
     &[],
-    &["p2p2k", "segwit", "bech32"],
+    &["bech32", "legacy", "segwit"],
 );
 pub const BITCOIN_NETWORK: (&str, &[&'static str], &[&'static str]) = (
     "[network] -n --network=[network] 'Generates a wallet for a specified network'",
@@ -33,17 +33,17 @@ pub const ZCASH_NETWORK: (&str, &[&'static str], &[&'static str]) = (
 
 pub const ADDRESS: (&str, &[&'static str], &[&'static str]) = (
     "[address] --address=[address] 'Imports a partial wallet for a specified address'",
-    &["count", "private key", "public key", "word-count"],
+    &["count", "private key", "public key"],
     &[],
 );
 pub const PRIVATE: (&str, &[&'static str], &[&'static str]) = (
     "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
-    &["address", "count", "public key", "word-count"],
+    &["address", "count", "public key"],
     &[],
 );
 pub const PUBLIC: (&str, &[&'static str], &[&'static str]) = (
     "[public key] --public=[public key] 'Imports a partial wallet for a specified public key'",
-    &["address", "count", "private key", "word-count"],
+    &["address", "count", "private key"],
     &[],
 );
 
@@ -62,7 +62,7 @@ pub const PASSWORD_GENERATE: (&str, &[&'static str], &[&'static str]) = (
 pub const WORD_COUNT: (&str, &[&'static str], &[&'static str]) = (
     "[word count] -w --word-count=[word count] 'Generates an HD wallet with a specified word count'",
     &[],
-    &[],
+    &["12", "15", "18", "21", "24"],
 );
 
 // HD Import
@@ -89,7 +89,7 @@ pub const INDEX: (&str, &[&'static str], &[&'static str]) = (
 );
 pub const MNEMONIC: (&str, &[&'static str], &[&'static str]) = (
     "[mnemonic] --mnemonic=[mnemonic] 'Imports an HD wallet for a specified mnemonic (in quotes)'",
-    &["count", "extended private", "extended public", "word-count"],
+    &["count", "extended private", "extended public"],
     &[],
 );
 pub const PASSWORD_IMPORT: (&str, &[&'static str], &[&'static str]) = (

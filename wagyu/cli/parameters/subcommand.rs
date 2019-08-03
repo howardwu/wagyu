@@ -1,21 +1,26 @@
 use crate::cli::option;
 
-// Format
-// (name, about, options)
+use clap::{AppSettings};
 
-pub const HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])]) = (
+
+// Format
+// (name, about, options, settings)
+
+pub const HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &[AppSettings]) = (
     "hd",
     "Generates an HD wallet (include -h for more options)",
     &[option::DERIVATION, option::PASSWORD_GENERATE, option::WORD_COUNT],
+    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
 );
 
-pub const IMPORT: (&str, &str, &[(&str, &[&'static str], &[&'static str])]) = (
+pub const IMPORT: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &[AppSettings]) = (
     "import",
     "Imports a wallet (include -h for more options)",
     &[option::ADDRESS, option::PRIVATE, option::PUBLIC],
+    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion, AppSettings::SubcommandRequiredElseHelp],
 );
 
-pub const IMPORT_HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])]) = (
+pub const IMPORT_HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &[AppSettings]) = (
     "import-hd",
     "Imports an HD wallet (include -h for more options)",
     &[
@@ -26,4 +31,5 @@ pub const IMPORT_HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])]) =
         option::MNEMONIC,
         option::PASSWORD_IMPORT,
     ],
+    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion, AppSettings::SubcommandRequiredElseHelp],
 );

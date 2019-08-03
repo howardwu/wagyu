@@ -348,7 +348,7 @@ impl CLI for BitcoinCLI {
 
                         BitcoinWallet {
                             path: Some(path),
-                            password: Some(hd_values.password.unwrap_or("".to_string())),
+                            password: hd_values.password,
                             mnemonic: mnemonic.map(|key| key.to_string()),
                             extended_private_key: extended_private_key.map(|key| key.to_string()),
                             extended_public_key: Some(extended_public_key.to_string()),
