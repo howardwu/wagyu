@@ -96,19 +96,19 @@ impl Display for BitcoinWallet {
                 _ => "".to_owned(),
             },
             match &self.extended_private_key {
-                Some(extended_private_key) => format!("      Extended private key: {}\n", extended_private_key),
+                Some(extended_private_key) => format!("      Extended Private Key: {}\n", extended_private_key),
                 _ => "".to_owned(),
             },
             match &self.extended_public_key {
-                Some(extended_public_key) => format!("      Extended public key:  {}\n", extended_public_key),
+                Some(extended_public_key) => format!("      Extended Public Key:  {}\n", extended_public_key),
                 _ => "".to_owned(),
             },
             match &self.private_key {
-                Some(private_key) => format!("      Private key:          {}\n", private_key),
+                Some(private_key) => format!("      Private Key:          {}\n", private_key),
                 _ => "".to_owned(),
             },
             match &self.public_key {
-                Some(private_key) => format!("      Public key:           {}\n", private_key),
+                Some(private_key) => format!("      Public Key:           {}\n", private_key),
                 _ => "".to_owned(),
             },
             format!("      Address:              {}\n", self.address),
@@ -147,12 +147,7 @@ impl CLI for BitcoinCLI {
     /// Handle all CLI arguments and flags for Bitcoin
     #[cfg_attr(tarpaulin, skip)]
     fn parse(arguments: &ArgMatches) -> Self::Options {
-        let bitcoin_address_type = match arguments.value_of("format") {
-            Some("segwit") => BitcoinFormat::P2SH_P2WPKH,
-            Some("bech32") => BitcoinFormat::Bech32,
-            _ =>  BitcoinFormat::P2PKH,
-        };
-
+        let mut format = arguments.value_of("format");
         let network = match arguments.value_of("network") {
             Some("testnet") => "testnet",
             _ => "mainnet",
@@ -163,7 +158,7 @@ impl CLI for BitcoinCLI {
             hd_values: None,
             count: clap::value_t!(arguments.value_of("count"), usize).unwrap_or_else(|_e| 1),
             network: network.to_owned(),
-            format: bitcoin_address_type,
+            format: BitcoinFormat::P2PKH,
             json: arguments.is_present("json"),
         };
 
@@ -172,6 +167,11 @@ impl CLI for BitcoinCLI {
                 let password = hd_matches.value_of("password").map(|s| s.to_string());
                 let path = hd_matches.value_of("derivation").map(|s| s.to_string());
                 let word_count = hd_matches.value_of("word count").map(|s| s.parse().unwrap());
+
+                format = hd_matches.value_of("format").or(format);
+                options.count = clap::value_t!(hd_matches.value_of("count"), usize).unwrap_or(options.count);
+                options.json = options.json || hd_matches.is_present("json");
+                options.network = hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.hd_values = Some(HdValues {
                     word_count,
@@ -185,6 +185,10 @@ impl CLI for BitcoinCLI {
                 let address = import_matches.value_of("address").map(|s| s.to_string());
                 let public_key = import_matches.value_of("public key").map(|s| s.to_string());
                 let private_key = import_matches.value_of("private key").map(|s| s.to_string());
+
+                format = import_matches.value_of("format").or(format);
+                options.json = options.json || import_matches.is_present("json");
+                options.network = import_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.wallet_values = Some(WalletValues {
                     address,
@@ -200,6 +204,10 @@ impl CLI for BitcoinCLI {
                 let password = import_hd_matches.value_of("password").map(|s| s.to_string());
                 let path = import_hd_matches.value_of("derivation").map(|s| s.to_string());
 
+                format = import_hd_matches.value_of("format").or(format);
+                options.json = options.json || import_hd_matches.is_present("json");
+                options.network = import_hd_matches.value_of("network").unwrap_or(&options.network).to_string();
+
                 options.hd_values = Some(HdValues {
                     extended_private_key,
                     extended_public_key,
@@ -211,6 +219,12 @@ impl CLI for BitcoinCLI {
                 });
             }
             _ => {}
+        };
+
+        options.format = match format {
+            Some("segwit") => BitcoinFormat::P2SH_P2WPKH,
+            Some("bech32") => BitcoinFormat::Bech32,
+            _ =>  BitcoinFormat::P2PKH,
         };
 
         options
@@ -243,37 +257,74 @@ impl CLI for BitcoinCLI {
                         }
                     },
                     (Some(wallet_values), None) => {
-                        let (private_key, public_key, address) =
-                            match (wallet_values.private_key.clone(), wallet_values.public_key.clone(), wallet_values.address.clone()) {
+                        match (wallet_values.private_key.clone(), wallet_values.public_key.clone(), wallet_values.address.clone()) {
                             (Some(private_key), None, None) => {
-                                let private_key =  BitcoinPrivateKey::<N>::from_str(&private_key).unwrap();
-                                let public_key = private_key.to_public_key();
-                                let address = public_key.to_address(&options.format).unwrap();
+                                match BitcoinPrivateKey::<BitcoinMainnet>::from_str(&private_key) {
+                                    Ok(private_key) => {
+                                        let public_key = private_key.to_public_key();
+                                        let address = public_key.to_address(&options.format).unwrap();
 
-                                (Some(private_key), Some(public_key), address)
+                                        BitcoinWallet {
+                                            private_key: Some(private_key.to_string()),
+                                            public_key: Some(public_key.to_string()),
+                                            address: address.to_string(),
+                                            network: Some("mainnet".to_string()),
+                                            format: Some(options.format.to_string()),
+                                            compressed: Some(private_key.is_compressed()),
+                                            ..Default::default()
+                                        }
+                                    },
+                                    Err(_) => {
+                                        let private_key = BitcoinPrivateKey::<BitcoinTestnet>::from_str(&private_key).unwrap();
+                                        let public_key = private_key.to_public_key();
+                                        let address = public_key.to_address(&options.format).unwrap();
+
+                                        BitcoinWallet {
+                                            private_key: Some(private_key.to_string()),
+                                            public_key: Some(public_key.to_string()),
+                                            address: address.to_string(),
+                                            network: Some("testnet".to_string()),
+                                            format: Some(address.format().to_string()),
+                                            compressed: Some(private_key.is_compressed()),
+                                            ..Default::default()
+                                        }
+                                    },
+                                }
                             },
                             (None, Some(public_key), None) => {
                                 let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
                                 let address = public_key.to_address(&options.format).unwrap();
 
-                                (None, Some(public_key), address)
+                                BitcoinWallet {
+                                    public_key: Some(public_key.to_string()),
+                                    address: address.to_string(),
+                                    network: Some(options.network.to_string()),
+                                    format: Some(address.format().to_string()),
+                                    ..Default::default()
+                                }
                             },
                             (None, None, Some(address)) => {
-                                let address = BitcoinAddress::<N>::from_str(&address).unwrap();
-
-                                (None, None, address)
+                                match BitcoinAddress::<BitcoinMainnet>::from_str(&address) {
+                                    Ok(address) => {
+                                        BitcoinWallet {
+                                            address: address.to_string(),
+                                            network: Some("mainnet".to_string()),
+                                            format: Some(address.format().to_string()),
+                                            ..Default::default()
+                                        }
+                                    }
+                                    Err(_) => {
+                                        let address = BitcoinAddress::<BitcoinTestnet>::from_str(&address).unwrap();
+                                        BitcoinWallet {
+                                            address: address.to_string(),
+                                            network: Some("testnet".to_string()),
+                                            format: Some(address.format().to_string()),
+                                            ..Default::default()
+                                        }
+                                    }
+                                }
                             },
                             _ => unreachable!(),
-                        };
-
-                        BitcoinWallet {
-                            private_key: private_key.clone().map(|k| k.to_string()),
-                            public_key: public_key.map(|k| k.to_string()),
-                            address: address.to_string(),
-                            network: Some(options.network.to_owned()),
-                            format: Some(address.format().to_string()),
-                            compressed: private_key.clone().map(|key| key.is_compressed()),
-                            ..Default::default()
                         }
                     }
                     (None, Some(hd_values)) => {

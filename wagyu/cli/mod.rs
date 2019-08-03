@@ -23,7 +23,7 @@ pub trait CLI {
     fn new<'a, 'b>() -> App<'a, 'b> {
         let flags = &Self::FLAGS
             .iter()
-            .map(|a| Arg::from_usage(a))
+            .map(|a| Arg::from_usage(a).global(true))
             .collect::<Vec<Arg<'static, 'static>>>();
         let options = &Self::OPTIONS
             .iter()

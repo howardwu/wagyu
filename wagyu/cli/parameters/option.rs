@@ -33,12 +33,12 @@ pub const ZCASH_NETWORK: (&str, &[&'static str], &[&'static str]) = (
 
 pub const ADDRESS: (&str, &[&'static str], &[&'static str]) = (
     "[address] --address=[address] 'Imports a partial wallet for a specified address'",
-    &["count", "private key", "public key"],
+    &["count", "private key", "network", "public key"],
     &[],
 );
 pub const PRIVATE: (&str, &[&'static str], &[&'static str]) = (
     "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
-    &["address", "count", "public key"],
+    &["address", "count", "network", "public key"],
     &[],
 );
 pub const PUBLIC: (&str, &[&'static str], &[&'static str]) = (
@@ -50,7 +50,7 @@ pub const PUBLIC: (&str, &[&'static str], &[&'static str]) = (
 // HD
 
 pub const DERIVATION: (&str, &[&'static str], &[&'static str]) = (
-    "[derivation] -d --derivation=[path] 'Generates an HD wallet for a specified derivation path'",
+    "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes)'",
     &[],
     &[],
 );
@@ -68,32 +68,32 @@ pub const WORD_COUNT: (&str, &[&'static str], &[&'static str]) = (
 // HD Import
 
 pub const DERIVATION_IMPORT: (&str, &[&'static str], &[&'static str]) = (
-    "[derivation] -d --derivation=[path] 'Imports an HD wallet for a specified derivation path'",
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes)'",
     &[],
     &[],
 );
 pub const EXTENDED_PUBLIC: (&str, &[&'static str], &[&'static str]) = (
     "[extended public] --extended-public=[extended public] 'Imports a partial HD wallet for a specified extended public key'",
-    &["count", "extended private", "mnemonic"],
+    &["count", "extended private", "mnemonic", "password"],
     &[],
 );
 pub const EXTENDED_PRIVATE: (&str, &[&'static str], &[&'static str]) = (
     "[extended private] --extended-private=[extended private] 'Imports a partial HD wallet for a specified extended private key'",
-    &["count", "extended public", "mnemonic"],
+    &["count", "extended public", "mnemonic", "password"],
     &[],
 );
 pub const INDEX: (&str, &[&'static str], &[&'static str]) = (
-    "[index] --index=[index] 'Imports an HD wallet for a specified index'",
+    "[index] -i --index=[index] 'Imports an HD wallet for a specified index'",
     &[],
     &[],
 );
 pub const MNEMONIC: (&str, &[&'static str], &[&'static str]) = (
-    "[mnemonic] --mnemonic=[mnemonic] 'Imports an HD wallet for a specified mnemonic (in quotes)'",
+    "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports an HD wallet for a specified mnemonic (in quotes)'",
     &["count", "extended private", "extended public"],
     &[],
 );
 pub const PASSWORD_IMPORT: (&str, &[&'static str], &[&'static str]) = (
     "[password] -p --password=[password] 'Imports an HD wallet with a specified password'",
-    &[],
+    &["extended private", "extended public"],
     &[],
 );
