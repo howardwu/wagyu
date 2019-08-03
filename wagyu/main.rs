@@ -32,7 +32,7 @@ fn main() {
 
     match arguments.subcommand() {
         ("bitcoin", Some(arguments)) => BitcoinCLI::print(BitcoinCLI::parse(arguments)),
-        ("ethereum", Some(arguments)) => EthereumCLI::parse(arguments),
+        ("ethereum", Some(arguments)) => EthereumCLI::print(EthereumCLI::parse(arguments)),
         ("monero", Some(arguments)) => MoneroCLI::parse(arguments),
         ("zcash", Some(arguments)) => ZcashCLI::parse(arguments),
         _ => unreachable!(),

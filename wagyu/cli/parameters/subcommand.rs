@@ -19,6 +19,7 @@ pub const IMPORT_HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])]) =
     "import-hd",
     "Imports an HD wallet (include -h for more options)",
     &[
+        option::DERIVATION_IMPORT,
         option::EXTENDED_PUBLIC,
         option::EXTENDED_PRIVATE,
         option::INDEX,

@@ -27,7 +27,10 @@ pub trait CLI {
             .collect::<Vec<Arg<'static, 'static>>>();
         let options = &Self::OPTIONS
             .iter()
-            .map(|a| Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2))
+            .map(|a| match a.2.len() > 0 {
+                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2),
+                false => Arg::from_usage(a.0).conflicts_with_all(a.1)
+            })
             .collect::<Vec<Arg<'static, 'static>>>();
         let subcommands = Self::SUBCOMMANDS
             .iter()
@@ -37,7 +40,10 @@ pub trait CLI {
                     .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
                     .args(
                         &s.2.iter()
-                            .map(|a| Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2))
+                            .map(|a| match a.2.len() > 0 {
+                                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2),
+                                false => Arg::from_usage(a.0).conflicts_with_all(a.1)
+                            })
                             .collect::<Vec<Arg<'static, 'static>>>(),
                     )
                     .after_help("")
