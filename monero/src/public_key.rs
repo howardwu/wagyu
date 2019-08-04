@@ -218,8 +218,8 @@ mod tests {
         let public_key =
             MoneroPublicKey::<N>::from(expected_public_spend_key, expected_public_view_key, expected_format).unwrap();
         let address = public_key.to_address(expected_format).unwrap();
-        assert_eq!(expected_public_spend_key, hex::encode(public_key.spend_key));
-        assert_eq!(expected_public_view_key, hex::encode(public_key.view_key));
+        assert_eq!(expected_public_spend_key, hex::encode(public_key.spend_key.unwrap()));
+        assert_eq!(expected_public_view_key, hex::encode(public_key.view_key.unwrap()));
         assert_eq!(expected_address, address.to_string());
     }
 

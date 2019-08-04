@@ -213,7 +213,7 @@ impl CLI for ZcashCLI {
                     (None, None) => {
                         let private_key = match options.format {
                             ZcashFormat::Sapling(_) => ZcashPrivateKey::<N>::new_sapling(&mut StdRng::from_entropy()).unwrap(),
-                            ZcashFormat::Sprout => ZcashPrivateKey::<N>::new_sapling(&mut StdRng::from_entropy()).unwrap(),
+                            ZcashFormat::Sprout => ZcashPrivateKey::<N>::new_sprout(&mut StdRng::from_entropy()).unwrap(),
                             ZcashFormat::P2PKH => ZcashPrivateKey::<N>::new_p2pkh(&mut StdRng::from_entropy()).unwrap(),
                             _ => unreachable!()
                         };
