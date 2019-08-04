@@ -569,23 +569,23 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
-                "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
+                "ab360bbba5712bf43c9df6a72f036266affbca9ca1c2499a931d817df1dd5e4a08d1",
                 "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
             ),
             (
-                "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
+                "ab3601e0964b2dcc4d3e04761097f0a5de93eacc58bcf52cd92743a4eced0c661b9a",
                 "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
             ),
             (
-                "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
+                "ab360a43318a849a5b8c452103817fe3d0e5adf52db76ac0b6190086b15111c42a2d",
                 "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
             ),
             (
-                "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
+                "ab36029476dc7292d2d30ef4f8bbc8fe9e1ee9d3382c090ce62d327c0198d055700c",
                 "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
             ),
             (
-                "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
+                "ab3604147420914738d8fcd38ce987a3db4ea59f83977cbb004a338f169026d0c2bf",
                 "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
             ),
         ];

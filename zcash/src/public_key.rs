@@ -1,9 +1,8 @@
 use crate::address::{Format, ZcashAddress};
 use crate::network::ZcashNetwork;
 use crate::private_key::{SpendingKey, ZcashPrivateKey};
-use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
-use base58::{FromBase58, ToBase58};
 use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 use hex;
@@ -155,12 +154,12 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
                 }),
                 PhantomData,
             )),
-            97 => {
-                let data = public_key.from_base58()?;
+            134 => {
+                let data = hex::decode(public_key)?;
                 let prefix = &data[..3];
 
                 if prefix != N::to_sprout_viewing_key_prefix() {
-                    return Err(PublicKeyError::InvalidPrefix(prefix.to_base58()));
+                    return Err(PublicKeyError::InvalidPrefix(hex::encode(prefix)));
                 }
 
                 let mut key_a = [0u8; 32];
@@ -196,15 +195,14 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
                 }
             }
             ViewingKey::Sprout(sprout) => {
-                let mut data = [0u8; 71];
+                let mut data = [0u8; 67];
                 data[..3].copy_from_slice(&N::to_sprout_viewing_key_prefix());
                 data[3..35].copy_from_slice(&sprout.key_a);
                 data[35..67].copy_from_slice(&sprout.key_b);
 
-                let sum = &checksum(&data[0..67])[0..4];
-                data[67..].copy_from_slice(sum);
-
-                write!(f, "{}", data.to_base58())?
+                for s in &data[..] {
+                    write!(f, "{:02x}", s)?;
+                }
             }
             ViewingKey::Sapling(sapling) => {
                 for s in &sapling.0.to_bytes()[..] {
@@ -526,28 +524,28 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
-                "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
-                "ZiVKYQyUcyAJLKwcosSeDxkGRhygFdAPWsr3m8UgjC5X85yqNyLTtJJJYNH83Wf2AQKU6TZsd65MXBZLFj6eSCAFcnCFuVCFS",
+                "ab360bbba5712bf43c9df6a72f036266affbca9ca1c2499a931d817df1dd5e4a08d1",
+                "a8abd34d3dc54738b98fc484cf84d0c914e60c92bcd23c3f4dfaa7f1c4496ac5f04d73985a355577c69fe5da7c859be440d4a1c17c097e937bcd7fe1f94fc6d07eb05d",
                 "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
             ),
             (
-                "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
-                "ZiVKfdhhmQ1fpXaxyW5zRXw4Dhg9cbKRgK7mNFoBLiKjiBZiHJYJTpV2gNMDMPY9sRC96vnKZcnTMSi65SKPyL4WNQNm9PT5H",
+                "ab3601e0964b2dcc4d3e04761097f0a5de93eacc58bcf52cd92743a4eced0c661b9a",
+                "a8abd3846c8110daa5c01dca905a08c497e17799475f4ccbe22141836b30cc17934546386763fb30320071e75b2bdf7c6bb2105a615de216343245512ef6b038672e6b",
                 "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
             ),
             (
-                "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
-                "ZiVKkMUGwx4GgtwxTedRHYewVVskWicz8APQgdcYmvUsiLYgSh3cLAa8TwiR3shyNngGbLiUbYMkZ8F1giXmmcED98rDMwNSG",
+                "ab360a43318a849a5b8c452103817fe3d0e5adf52db76ac0b6190086b15111c42a2d",
+                "a8abd3a880b352f0b91cf05c9e166ff6853cbf62a6e0906e8bf94bdef73862f6611ee2f836dfc21f1a43866d8c7d6871ba3b39e082c0772dcb3caf1320485c87adc772",
                 "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
             ),
             (
-                "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
-                "ZiVKkeb8STw7kpJQsjRCQKovQBciPcfjkpajuuS25DTXSQSVasnq4BkyaMLBBxAkZ8fv6f18woWgaA8W7kGvYp1C1ESaWGjwV",
+                "ab36029476dc7292d2d30ef4f8bbc8fe9e1ee9d3382c090ce62d327c0198d055700c",
+                "a8abd3aac2385d548b520cd29071b40db9fbf727789c0031df73678bba7f1213bd3a5a3075fd892e8a3132d7688b15be1aad3569bcc97f491b2f252c5dfebb2c14d46b",
                 "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
             ),
             (
-                "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
-                "ZiVKvpWQiDpxAvWTMLkjjSbCiBGc4kXhtkgAJfW1JVbCTUY4YaAVvVZzCz6wspG9qttciRFLEXm3HLQAmssFbUp9uPEkP3uu5",
+                "ab3604147420914738d8fcd38ce987a3db4ea59f83977cbb004a338f169026d0c2bf",
+                "a8abd3f880741e7df515f87e17559cf7223158477c25ee059d255dd94e86e70386d678f8bda68a5f400803afca8baf21d67294f1650d38776f9028029db35715a51452",
                 "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
             ),
         ];
