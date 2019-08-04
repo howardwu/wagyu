@@ -134,8 +134,8 @@ impl CLI for BitcoinCLI {
     const NAME: NameType = "bitcoin";
     const ABOUT: AboutType = "Generates a Bitcoin wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
-    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::BITCOIN_FORMAT, option::BITCOIN_NETWORK];
-    const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::HD, subcommand::IMPORT, subcommand::IMPORT_HD];
+    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::FORMAT_BITCOIN, option::NETWORK_BITCOIN];
+    const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::HD_BITCOIN, subcommand::IMPORT_BITCOIN, subcommand::IMPORT_HD_BITCOIN];
 
     /// Handle all CLI arguments and flags for Bitcoin
     #[cfg_attr(tarpaulin, skip)]
@@ -348,10 +348,7 @@ impl CLI for BitcoinCLI {
                                 Some(format!("m/49'/0'/{}'/{}/{}'", account, change, index))
                             }
                             Some(custom_path) => Some(custom_path.to_string()),
-                            None => {
-                                // Default - bip32
-                                Some(format!("m/0'/0'/{}'", index))
-                            }
+                            None => Some(format!("m/0'/0'/{}'", index)) // Default - bip32
                         };
 
                         let word_count = match hd_values.word_count {
