@@ -8,6 +8,8 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
+use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
+use curve25519_dalek::scalar::Scalar;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
@@ -88,7 +90,7 @@ impl<N: ZcashNetwork> Address for ZcashAddress<N> {
         match private_key.to_public_key().to_viewing_key() {
             ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
             ViewingKey::P2SH(_) => Ok(Self::p2sh()),
-            ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key)),
+            ViewingKey::Sprout(public_key) => Self::sprout(&public_key),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format),
         }
     }
@@ -98,7 +100,7 @@ impl<N: ZcashNetwork> Address for ZcashAddress<N> {
         match &public_key.to_viewing_key() {
             ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
             ViewingKey::P2SH(_) => Ok(Self::p2sh()),
-            ViewingKey::Sprout(public_key) => Ok(Self::sprout(&public_key)),
+            ViewingKey::Sprout(public_key) => Self::sprout(&public_key),
             ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format),
         }
     }
@@ -125,15 +127,27 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 
     /// Returns a P2SH address.
-    // TODO (howardwu): implement address scheme
     pub fn p2sh() -> Self {
         unimplemented!("p2sh addresses are unimplemented");
     }
 
     /// Returns a shielded address from a given Zcash public key.
-    // TODO (howardwu): implement address scheme
-    pub fn sprout(_public_key: &SproutViewingKey) -> Self {
-        unimplemented!("sprout addresses are unimplemented");
+    pub fn sprout(public_key: &SproutViewingKey) -> Result<Self, AddressError> {
+        let pk = &Scalar::from_bits(public_key.key_b) * &ED25519_BASEPOINT_TABLE;
+
+        let mut address = [0u8; 70];
+        address[0..2].copy_from_slice(&N::to_address_prefix(&Format::Sprout));
+        address[2..34].copy_from_slice(&public_key.key_a);
+        address[34..66].copy_from_slice(pk.to_montgomery().as_bytes());
+
+        let sum = &checksum(&address[0..66])[0..4];
+        address[66..].copy_from_slice(sum);
+
+        Ok(Self {
+            address: address.to_base58(),
+            format: Format::Sprout,
+            _network: PhantomData,
+        })
     }
 
     /// Returns a shielded address from a given Zcash public key.
@@ -252,8 +266,10 @@ impl<N: ZcashNetwork> FromStr for ZcashAddress<N> {
                     _network: PhantomData,
                 });
             } else if &address[0..2] == "zt" && address.len() == 95 {
+                let data = address.from_base58()?;
+
                 // Check that the network bytes correspond with the correct network.
-                let _ = N::from_address_prefix(&address[0..2].as_bytes().to_vec())?;
+                let _ = N::from_address_prefix(&data[0..2].to_vec())?;
                 let format = Format::Sprout;
 
                 return Ok(Self {
@@ -262,8 +278,10 @@ impl<N: ZcashNetwork> FromStr for ZcashAddress<N> {
                     _network: PhantomData,
                 });
             } else if &address[0..2] == "zc" && address.len() == 95 {
+                let data = address.from_base58()?;
+
                 // Check that the network bytes correspond with the correct network.
-                let _ = N::from_address_prefix(&address[0..2].as_bytes().to_vec())?;
+                let _ = N::from_address_prefix(&data[0..2].to_vec())?;
                 let format = Format::Sprout;
 
                 return Ok(Self {
@@ -546,6 +564,67 @@ mod tests {
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
                 test_from_str::<N>(address, &Format::P2PKH);
+            });
+        }
+
+        #[test]
+        fn to_str() {
+            KEYPAIRS.iter().for_each(|(_, expected_address)| {
+                let address = ZcashAddress::<N>::from_str(expected_address).unwrap();
+                test_to_str(expected_address, &address);
+            });
+        }
+    }
+
+    mod sprout_mainnet {
+        use super::*;
+
+        type N = Mainnet;
+
+        const KEYPAIRS: [(&str, &str); 5] = [
+            (
+                "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
+                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
+            ),
+            (
+                "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
+                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
+            ),
+            (
+                "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
+                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
+            ),
+            (
+                "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
+                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
+            ),
+            (
+                "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
+                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
+            ),
+        ];
+
+        #[test]
+        fn from_private_key() {
+            KEYPAIRS.iter().for_each(|(private_key, address)| {
+                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sprout).unwrap();
+                test_from_private_key(address, &private_key, &Format::Sprout);
+            });
+        }
+
+        #[test]
+        fn from_public_key() {
+            KEYPAIRS.iter().for_each(|(private_key, address)| {
+                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sprout).unwrap();
+                let public_key = ZcashPublicKey::from_private_key(&private_key);
+                test_from_public_key(address, &public_key, &Format::Sprout);
+            });
+        }
+
+        #[test]
+        fn from_str() {
+            KEYPAIRS.iter().for_each(|(_, address)| {
+                test_from_str::<N>(address, &Format::Sprout);
             });
         }
 

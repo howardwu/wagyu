@@ -50,7 +50,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 
     /// Returns a new Ethereum extended private key.
     fn new_master(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
+        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?; // This is correct. Ethereum uses BIP32.
         mac.input(seed);
         let hmac = mac.result().code();
         let private_key = Self::PrivateKey::from_secp256k1_secret_key(SecretKey::from_slice(&hmac[0..32])?);
