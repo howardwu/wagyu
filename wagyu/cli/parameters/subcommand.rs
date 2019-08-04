@@ -1,26 +1,42 @@
-use crate::cli::option;
+use crate::cli::{option, types::*};
 
-use clap::{AppSettings};
-
+use clap::AppSettings;
 
 // Format
 // (name, about, options, settings)
 
-pub const HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &[AppSettings]) = (
+pub const HD: (NameType, AboutType, &'static [OptionType], &'static [AppSettings]) = (
     "hd",
     "Generates an HD wallet (include -h for more options)",
-    &[option::COUNT, option::DERIVATION, option::HD_BITCOIN_FORMAT, option::HD_BITCOIN_NETWORK,  option::PASSWORD_GENERATE, option::WORD_COUNT],
+    &[
+        option::COUNT,
+        option::DERIVATION,
+        option::HD_BITCOIN_FORMAT,
+        option::HD_BITCOIN_NETWORK,
+        option::PASSWORD_GENERATE,
+        option::WORD_COUNT,
+    ],
     &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
 );
 
-pub const IMPORT: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &[AppSettings]) = (
+pub const IMPORT: (NameType, AboutType, &'static [OptionType], &'static [AppSettings]) = (
     "import",
     "Imports a wallet (include -h for more options)",
-    &[option::ADDRESS, option::IMPORT_BITCOIN_FORMAT, option::IMPORT_BITCOIN_NETWORK, option::PRIVATE, option::PUBLIC],
-    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion, AppSettings::ArgRequiredElseHelp],
+    &[
+        option::ADDRESS,
+        option::IMPORT_BITCOIN_FORMAT,
+        option::IMPORT_BITCOIN_NETWORK,
+        option::PRIVATE,
+        option::PUBLIC,
+    ],
+    &[
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
 );
 
-pub const IMPORT_HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &[AppSettings]) = (
+pub const IMPORT_HD: (NameType, AboutType, &'static [OptionType], &'static [AppSettings]) = (
     "import-hd",
     "Imports an HD wallet (include -h for more options)",
     &[
@@ -35,5 +51,9 @@ pub const IMPORT_HD: (&str, &str, &[(&str, &[&'static str], &[&'static str])], &
         option::MNEMONIC,
         option::PASSWORD_IMPORT,
     ],
-    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion, AppSettings::ArgRequiredElseHelp],
+    &[
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
 );

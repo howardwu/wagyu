@@ -8,7 +8,7 @@ pub use self::parameters::*;
 
 use types::*;
 
-use clap::{Arg, App, AppSettings, ArgMatches, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 pub trait CLI {
     type Options;
@@ -29,7 +29,7 @@ pub trait CLI {
             .iter()
             .map(|a| match a.2.len() > 0 {
                 true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2),
-                false => Arg::from_usage(a.0).conflicts_with_all(a.1)
+                false => Arg::from_usage(a.0).conflicts_with_all(a.1),
             })
             .collect::<Vec<Arg<'static, 'static>>>();
         let subcommands = Self::SUBCOMMANDS
@@ -41,7 +41,7 @@ pub trait CLI {
                         &s.2.iter()
                             .map(|a| match a.2.len() > 0 {
                                 true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2),
-                                false => Arg::from_usage(a.0).conflicts_with_all(a.1)
+                                false => Arg::from_usage(a.0).conflicts_with_all(a.1),
                             })
                             .collect::<Vec<Arg<'static, 'static>>>(),
                     )

@@ -68,7 +68,7 @@ impl Display for EthereumWallet {
             },
             format!("      Address:              {}", self.address),
         ]
-            .concat();
+        .concat();
 
         write!(f, "\n{}", output)
     }
@@ -85,47 +85,47 @@ impl CLI for EthereumCLI {
     const OPTIONS: &'static [OptionType] = &[option::COUNT];
     const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::HD, subcommand::IMPORT, subcommand::IMPORT_HD];
 
-//    #[cfg_attr(tarpaulin, skip)]
-//    fn new<'a, 'b>() -> App<'a, 'b> {
-//        // Generic wallet arguments
-//        let arg_count = Arg::from_usage("[count] -c --count=[count] 'Generates a specified number of wallets'");
-//        let arg_json = Arg::from_usage("[json] -j --json 'Prints the generated wallet(s) in JSON format'");
-//
-//        // Wallet import arguments
-//        let arg_derivation = Arg::from_usage(
-//            "[derivation] -d --derivation=[path] 'Generates an HD wallet for a specified derivation path'",
-//        );
-//        let arg_import_private_key =
-//            Arg::from_usage("[import] -i --import=[private key] 'Generates a wallet for a specified private key'")
-//                .conflicts_with_all(&["count", "word_count"]);
-//        let arg_import_mnemonic = Arg::from_usage(
-//            "[import] -i --import=[mnemonic] 'Generates an HD wallet for a specified mnemonic (in quotes)'",
-//        )
-//        .conflicts_with_all(&["count", "word_count"]);
-//        let arg_password =
-//            Arg::from_usage("[password] -p --password=[password] 'Generates an HD wallet with a specified password'");
-//        let arg_word_count = Arg::from_usage(
-//            "[word count] -w --word_count=[word count] 'Generates an HD wallet with a specified word count'",
-//        )
-//        .conflicts_with("import");
-//
-//        // Subcommands
-//        let hd_subcommand = SubCommand::with_name("hd")
-//            .about("Generates an HD wallet (include -h for more options)")
-//            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
-//            .arg(&arg_derivation)
-//            .arg(&arg_import_mnemonic)
-//            .arg(&arg_password)
-//            .after_help("");
-//
-//        SubCommand::with_name("ethereum")
-//            .about("Generates an Ethereum wallet (include -h for more options)")
-//            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
-//            .arg(&arg_count)
-//            .arg(&arg_json)
-//            .subcommand(hd_subcommand.to_owned().arg(&arg_word_count))
-//            .after_help("")
-//    }
+    //    #[cfg_attr(tarpaulin, skip)]
+    //    fn new<'a, 'b>() -> App<'a, 'b> {
+    //        // Generic wallet arguments
+    //        let arg_count = Arg::from_usage("[count] -c --count=[count] 'Generates a specified number of wallets'");
+    //        let arg_json = Arg::from_usage("[json] -j --json 'Prints the generated wallet(s) in JSON format'");
+    //
+    //        // Wallet import arguments
+    //        let arg_derivation = Arg::from_usage(
+    //            "[derivation] -d --derivation=[path] 'Generates an HD wallet for a specified derivation path'",
+    //        );
+    //        let arg_import_private_key =
+    //            Arg::from_usage("[import] -i --import=[private key] 'Generates a wallet for a specified private key'")
+    //                .conflicts_with_all(&["count", "word_count"]);
+    //        let arg_import_mnemonic = Arg::from_usage(
+    //            "[import] -i --import=[mnemonic] 'Generates an HD wallet for a specified mnemonic (in quotes)'",
+    //        )
+    //        .conflicts_with_all(&["count", "word_count"]);
+    //        let arg_password =
+    //            Arg::from_usage("[password] -p --password=[password] 'Generates an HD wallet with a specified password'");
+    //        let arg_word_count = Arg::from_usage(
+    //            "[word count] -w --word_count=[word count] 'Generates an HD wallet with a specified word count'",
+    //        )
+    //        .conflicts_with("import");
+    //
+    //        // Subcommands
+    //        let hd_subcommand = SubCommand::with_name("hd")
+    //            .about("Generates an HD wallet (include -h for more options)")
+    //            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
+    //            .arg(&arg_derivation)
+    //            .arg(&arg_import_mnemonic)
+    //            .arg(&arg_password)
+    //            .after_help("");
+    //
+    //        SubCommand::with_name("ethereum")
+    //            .about("Generates an Ethereum wallet (include -h for more options)")
+    //            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
+    //            .arg(&arg_count)
+    //            .arg(&arg_json)
+    //            .subcommand(hd_subcommand.to_owned().arg(&arg_word_count))
+    //            .after_help("")
+    //    }
 
     /// Handle all CLI arguments and flags for Ethereum
     #[cfg_attr(tarpaulin, skip)]
