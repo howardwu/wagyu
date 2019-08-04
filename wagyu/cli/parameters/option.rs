@@ -36,6 +36,16 @@ pub const ADDRESS: (&str, &[&'static str], &[&'static str]) = (
     &["count", "private key", "network", "public key"],
     &[],
 );
+pub const IMPORT_BITCOIN_FORMAT: (&str, &[&'static str], &[&'static str]) = (
+    "[format] -f --format=[format] 'Imports a wallet with a specified format'",
+    &[],
+    &["bech32", "legacy", "segwit"],
+);
+pub const IMPORT_BITCOIN_NETWORK: (&str, &[&'static str], &[&'static str]) = (
+    "[network] -n --network=[network] 'Imports a wallet for a specified network'",
+    &[],
+    &["mainnet", "testnet"],
+);
 pub const PRIVATE: (&str, &[&'static str], &[&'static str]) = (
     "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
     &["address", "count", "network", "public key"],
@@ -54,6 +64,16 @@ pub const DERIVATION: (&str, &[&'static str], &[&'static str]) = (
     &[],
     &[],
 );
+pub const HD_BITCOIN_FORMAT: (&str, &[&'static str], &[&'static str]) = (
+    "[format] -f --format=[format] 'Generates an HD wallet with a specified format'",
+    &[],
+    &["bech32", "legacy", "segwit"],
+);
+pub const HD_BITCOIN_NETWORK: (&str, &[&'static str], &[&'static str]) = (
+    "[network] -n --network=[network] 'Generates an HD wallet for a specified network'",
+    &[],
+    &["mainnet", "testnet"],
+);
 pub const PASSWORD_GENERATE: (&str, &[&'static str], &[&'static str]) = (
     "[password] -p --password=[password] 'Generates an HD wallet with a specified password'",
     &[],
@@ -67,8 +87,18 @@ pub const WORD_COUNT: (&str, &[&'static str], &[&'static str]) = (
 
 // HD Import
 
+pub const ACCOUNT: (&str, &[&'static str], &[&'static str]) = (
+    "[account] -a --account=[acount] 'Imports an HD wallet for a specified account number for bip44 and bip49 derivations'",
+    &[],
+    &[],
+);
+pub const CHANGE: (&str, &[&'static str], &[&'static str]) = (
+    "[change] -c --change=[change] 'Imports an HD wallet for a specified change for bip44 and bip49 derivations'",
+    &[],
+    &["0", "1"],
+);
 pub const DERIVATION_IMPORT: (&str, &[&'static str], &[&'static str]) = (
-    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes)'",
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path [possible values: bip32, bip44, bip49, \"custom path\"]'",
     &[],
     &[],
 );
@@ -81,6 +111,16 @@ pub const EXTENDED_PRIVATE: (&str, &[&'static str], &[&'static str]) = (
     "[extended private] --extended-private=[extended private] 'Imports a partial HD wallet for a specified extended private key'",
     &["count", "extended public", "mnemonic", "password"],
     &[],
+);
+pub const IMPORT_HD_BITCOIN_FORMAT: (&str, &[&'static str], &[&'static str]) = (
+    "[format] -f --format=[format] 'Imports an HD wallet with a specified format'",
+    &[],
+    &["bech32", "legacy", "segwit"],
+);
+pub const IMPORT_HD_BITCOIN_NETWORK: (&str, &[&'static str], &[&'static str]) = (
+    "[network] -n --network=[network] 'Imports an HD wallet for a specified network'",
+    &[],
+    &["mainnet", "testnet"],
 );
 pub const INDEX: (&str, &[&'static str], &[&'static str]) = (
     "[index] -i --index=[index] 'Imports an HD wallet for a specified index'",

@@ -34,6 +34,8 @@ pub struct WalletValues {
 /// Represents values to derive HD wallets
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct HdValues {
+    pub account: Option<String>,
+    pub change: Option<String>,
     pub extended_private_key: Option<String>,
     pub extended_public_key: Option<String>,
     pub index: Option<String>,
@@ -197,6 +199,8 @@ impl CLI for BitcoinCLI {
                 });
             },
             ("import-hd", Some(import_hd_matches)) => {
+                let account = import_hd_matches.value_of("account").map(|i| i.to_string());
+                let change = import_hd_matches.value_of("change").map(|i| i.to_string());
                 let extended_private_key = import_hd_matches.value_of("extended private").map(|s| s.to_string());
                 let extended_public_key = import_hd_matches.value_of("extended public").map(|s| s.to_string());
                 let index = import_hd_matches.value_of("index").map(|i| i.to_string());
@@ -209,6 +213,8 @@ impl CLI for BitcoinCLI {
                 options.network = import_hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.hd_values = Some(HdValues {
+                    account,
+                    change,
                     extended_private_key,
                     extended_public_key,
                     index,
@@ -217,7 +223,7 @@ impl CLI for BitcoinCLI {
                     path,
                     ..Default::default()
                 });
-            }
+            },
             _ => {}
         };
 
@@ -330,22 +336,29 @@ impl CLI for BitcoinCLI {
                     (None, Some(hd_values)) => {
                         type W = BitcoinEnglish;
                         const DEFAULT_WORD_COUNT: u8 = 12;
-                        const DEFAULT_PATH_BIP32: &str = "m/0'/0'/0";
 
-                        let path: String = match (hd_values.path.clone(), hd_values.index.clone()) {
-                            (None, None) => DEFAULT_PATH_BIP32.into(),
-                            (None, Some(index)) => {
-                                format!("m/0'/0'/{}", index)
+                        let mut format = options.format.clone();
+                        let account = hd_values.account.unwrap_or("0".to_string());
+                        let change = hd_values.change.unwrap_or("0".to_string());
+                        let index = hd_values.index.unwrap_or("0".to_string());
+
+                        let mut path: Option<String> =  match hd_values.path.as_ref().map(String::as_str) {
+                            Some("bip32") => {
+                                Some(format!("m/0'/0'/{}'", index))
                             },
-                            (Some(path), None) => path,
-                            (Some(path), Some(index)) => {
-                                let split: Vec<&str> = path.split("/").collect();
-                                let mut new_path = "".to_string();
-                                for value in &split[0..split.len()-1] {
-                                    new_path = [new_path, value.to_string(), "/".to_string()].concat();
-                                };
-                                [new_path, index].concat()
-                            }
+                            Some("bip44") => {
+                                Some(format!("m/44'/0'/{}'/{}/{}'", account, change, index))
+                            },
+                            Some("bip49") => {
+                                format = BitcoinFormat::P2SH_P2WPKH;
+                                Some(format!("m/49'/0'/{}'/{}/{}'", account, change, index))
+                            },
+                            Some(custom_path) => {
+                                Some(custom_path.to_string())
+                            },
+                            None => { // Default - bip32
+                                Some(format!("m/0'/0'/{}'", index))
+                            },
                         };
 
                         let word_count = match hd_values.word_count {
@@ -359,7 +372,7 @@ impl CLI for BitcoinCLI {
                                 (None, None, None) => {
                                     let mnemonic = BitcoinMnemonic::<N, W>::new(word_count, &mut StdRng::from_entropy()).unwrap();
                                     let master_xpriv_key = mnemonic.to_extended_private_key(password).unwrap();
-                                    let extended_private_key = master_xpriv_key.derive(&BitcoinDerivationPath::from_str(&path).unwrap()).unwrap();
+                                    let extended_private_key = master_xpriv_key.derive(&BitcoinDerivationPath::from_str(&path.clone().unwrap()).unwrap()).unwrap();
                                     let extended_public_key = extended_private_key.to_extended_public_key();
 
                                     (Some(mnemonic), Some(extended_private_key), extended_public_key)
@@ -367,20 +380,28 @@ impl CLI for BitcoinCLI {
                                 (Some(mnemonic), None, None) => {
                                     let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic).unwrap();
                                     let master_xpriv_key = mnemonic.to_extended_private_key(password).unwrap();
-                                    let extended_private_key = master_xpriv_key.derive(&BitcoinDerivationPath::from_str(&path).unwrap()).unwrap();
+                                    let extended_private_key = master_xpriv_key.derive(&BitcoinDerivationPath::from_str(&path.clone().unwrap()).unwrap()).unwrap();
                                     let extended_public_key = extended_private_key.to_extended_public_key();
 
                                     (Some(mnemonic), Some(extended_private_key), extended_public_key)
                                 },
                                 (None, Some(extended_private_key), None) => {
-                                    let master_xpriv_key = BitcoinExtendedPrivateKey::from_str(&extended_private_key).unwrap();
-                                    let extended_private_key = master_xpriv_key.derive(&BitcoinDerivationPath::from_str(&path).unwrap()).unwrap();
+                                    let mut extended_private_key = BitcoinExtendedPrivateKey::from_str(&extended_private_key).unwrap();
+                                    if hd_values.path.is_some() {
+                                        extended_private_key = extended_private_key.derive(&BitcoinDerivationPath::from_str(&path.clone().unwrap()).unwrap()).unwrap();
+                                    } else {
+                                        path = None;
+                                    }
                                     let extended_public_key = extended_private_key.to_extended_public_key();
                                     (None, Some(extended_private_key), extended_public_key)
                                 },
                                 (None, None, Some(extended_public_key)) => {
-                                    let master_xpub_key = BitcoinExtendedPublicKey::from_str(&extended_public_key).unwrap();
-                                    let extended_public_key = master_xpub_key.derive(&BitcoinDerivationPath::from_str(&path).unwrap()).unwrap();
+                                    let mut extended_public_key = BitcoinExtendedPublicKey::from_str(&extended_public_key).unwrap();
+                                    if hd_values.path.is_some() {
+                                        extended_public_key = extended_public_key.derive(&BitcoinDerivationPath::from_str(&path.clone().unwrap()).unwrap()).unwrap();
+                                    } else {
+                                        path = None;
+                                    }
                                     (None, None, extended_public_key)
                                 },
                                 _ => unreachable!(),
@@ -395,10 +416,10 @@ impl CLI for BitcoinCLI {
                         };
 
                         let public_key = extended_public_key.to_public_key();
-                        let address = public_key.to_address(&options.format).unwrap();
+                        let address = public_key.to_address(&format).unwrap();
 
                         BitcoinWallet {
-                            path: Some(path),
+                            path,
                             password: hd_values.password,
                             mnemonic: mnemonic.map(|key| key.to_string()),
                             extended_private_key: extended_private_key.map(|key| key.to_string()),
