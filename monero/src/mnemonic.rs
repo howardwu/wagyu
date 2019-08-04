@@ -73,7 +73,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     }
 
     /// Returns the mnemonic for the given seed.
-    fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
+    pub fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
         // Reverse the endian in 4 byte intervals
         let length = 1626;
         let inputs = seed

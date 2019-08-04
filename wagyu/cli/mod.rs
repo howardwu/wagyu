@@ -28,8 +28,8 @@ pub trait CLI {
         let options = &Self::OPTIONS
             .iter()
             .map(|a| match a.2.len() > 0 {
-                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2),
-                false => Arg::from_usage(a.0).conflicts_with_all(a.1),
+                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2).requires_all(a.3),
+                false => Arg::from_usage(a.0).conflicts_with_all(a.1).requires_all(a.3),
             })
             .collect::<Vec<Arg<'static, 'static>>>();
         let subcommands = Self::SUBCOMMANDS
@@ -40,8 +40,8 @@ pub trait CLI {
                     .args(
                         &s.2.iter()
                             .map(|a| match a.2.len() > 0 {
-                                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2),
-                                false => Arg::from_usage(a.0).conflicts_with_all(a.1),
+                                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2).requires_all(a.3),
+                                false => Arg::from_usage(a.0).conflicts_with_all(a.1).requires_all(a.3),
                             })
                             .collect::<Vec<Arg<'static, 'static>>>(),
                     )

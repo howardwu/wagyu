@@ -52,6 +52,9 @@ pub enum AddressError {
     #[fail(display = "{}", _0)]
     Message(String),
 
+    #[fail(display = "missing public spend key and/or public view key")]
+    MissingPublicKey,
+
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
 

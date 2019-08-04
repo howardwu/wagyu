@@ -1,263 +1,86 @@
-use crate::model::Address;
-use crate::model::Mnemonic;
-use crate::model::PrivateKey;
-
-use monero::address::Format as MoneroFormat;
-use monero::{
-    English as MoneroEnglish, Mainnet as MoneroMainnet, MoneroAddress, MoneroMnemonic, MoneroNetwork, MoneroPrivateKey,
+use crate::cli::{flag, option, subcommand, types::*, CLI};
+use crate::model::{Mnemonic, PrivateKey, PublicKey};
+use crate::monero::{
+    address::Format as MoneroFormat, English as MoneroEnglish, Mainnet as MoneroMainnet, MoneroAddress,
+    MoneroMnemonic, MoneroNetwork, MoneroPrivateKey, MoneroPublicKey, Stagenet as MoneroStagenet,
     Testnet as MoneroTestnet,
 };
 
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use clap::ArgMatches;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, str::FromStr};
-
-pub struct MoneroCLI;
-
-impl MoneroCLI {
-    #[cfg_attr(tarpaulin, skip)]
-    pub fn new<'a, 'b>() -> App<'a, 'b> {
-        // Generic wallet arguments
-        let arg_count = Arg::from_usage("[count] -c --count=[count] 'Generates a specified number of wallets'");
-        let arg_json = Arg::from_usage("[json] -j --json 'Prints the generated wallet(s) in JSON format'");
-        let arg_network =
-            Arg::from_usage("[network] -n --network=[network] 'Generates a wallet for a specified network\n'")
-                .possible_values(&["mainnet", "testnet"]);
-
-        // Wallet import arguments
-        let arg_import_private_key =
-            Arg::from_usage("[import] -i --import=[private key] 'Generates a wallet for a specified private key'")
-                .conflicts_with_all(&["count", "word_count"]);
-
-        // Monero specific arguments
-        let arg_integrated = Arg::from_usage("[integrated] --integrated=[PaymentID] 'Generate a wallet with an integrated address - Requires a paymentID'")
-            .conflicts_with("subaddress");
-        let arg_subaddress = Arg::from_usage("[subaddress] --subaddress=[Major Index][MinorIndex] 'Generate a wallet with a subaddress - Requires a major (account) and minor index'")
-            .conflicts_with("integrated");
-
-        let monero_mnemonic_subcommand = SubCommand::with_name("mnemonic")
-            .about("Generate a wallet using mnemonics (include -h for more options)")
-            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
-            .arg(
-                &arg_import_private_key
-                    .to_owned()
-                    .number_of_values(1)
-                    .value_name("mnemonic")
-                    .help("Generate a wallet by importing a mnemonic (in quotes)"),
-            )
-            .after_help("");
-
-        SubCommand::with_name("monero")
-            .about("Generates a Monero wallet (include -h for more options)")
-            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
-            .arg(&arg_count)
-            .arg(&arg_json)
-            .arg(&arg_network)
-            .arg(&arg_integrated)
-            .arg(&arg_subaddress)
-            .subcommand(monero_mnemonic_subcommand.to_owned())
-            .after_help("")
-    }
-
-    /// Handle all CLI arguments and flags for Monero
-    #[cfg_attr(tarpaulin, skip)]
-    pub fn parse(arguments: &ArgMatches) {
-        let monero_address_type = match (arguments.values_of("subaddress"), arguments.value_of("integrated")) {
-            (Some(indexes), None) => {
-                let indexes: Vec<u32> = indexes
-                    .into_iter()
-                    .map(|index| index.to_owned().parse().unwrap())
-                    .collect();
-                MoneroFormat::Subaddress(indexes[0], indexes[1])
-            }
-            (None, Some(payment_id_string)) => {
-                let mut payment_id = [0u8; 8];
-                payment_id.copy_from_slice(&hex::decode(payment_id_string).unwrap());
-                MoneroFormat::Integrated(payment_id)
-            }
-            (None, None) => MoneroFormat::Standard,
-            _ => unreachable!(),
-        };
-
-        let network = match arguments.value_of("network") {
-            Some("testnet") => "testnet",
-            _ => "mainnet",
-        };
-
-        let mut monero_options = MoneroOptions {
-            private_key: None,
-            mnemonic_values: None,
-            count: clap::value_t!(arguments.value_of("count"), usize).unwrap_or_else(|_e| 1),
-            network: network.to_owned(),
-            format: monero_address_type,
-            json: arguments.is_present("json"),
-        };
-
-        match arguments.subcommand() {
-            ("private_key", Some(private_key_matches)) => {
-                monero_options.private_key = private_key_matches.value_of("import").map(|s| s.to_string());
-            }
-            ("mnemonic", Some(mnemonic_matches)) => {
-                const DEFAULT_WORD_COUNT: u8 = 25;
-                let password: String = mnemonic_matches.value_of("password").unwrap_or("").to_owned();
-                let path = mnemonic_matches.value_of("path").map(|s| s.to_string());
-                monero_options.mnemonic_values = match mnemonic_matches.value_of("import") {
-                    Some(phrase) => Some(HdValues {
-                        word_count: None,
-                        mnemonic: Some(phrase.to_owned()),
-                        password: Some(password),
-                        path,
-                    }),
-                    None => Some(HdValues {
-                        word_count: Some(DEFAULT_WORD_COUNT),
-                        mnemonic: Some("".to_owned()),
-                        password: Some(password),
-                        path,
-                    }),
-                };
-            }
-            _ => {}
-        };
-
-        match network {
-            "testnet" => Self::print::<MoneroTestnet>(monero_options),
-            _ => Self::print::<MoneroMainnet>(monero_options),
-        };
-    }
-
-    /// Generate the Monero wallet and print the relevant fields
-    #[cfg_attr(tarpaulin, skip)]
-    fn print<N: MoneroNetwork>(monero_options: MoneroOptions) {
-        for _ in 0..monero_options.count {
-            let wallet = match monero_options.mnemonic_values.to_owned() {
-                None => {
-                    let private_key = match monero_options.private_key.to_owned() {
-                        None => MoneroPrivateKey::<N>::new(&mut StdRng::from_entropy()).unwrap(),
-                        Some(key) => MoneroPrivateKey::<N>::from_str(&key).unwrap(),
-                    };
-
-                    let address = MoneroAddress::from_private_key(&private_key, &monero_options.format).unwrap();
-
-                    GenericWallet {
-                        private_keys: Some(private_key.to_string()),
-                        address: address.to_string(),
-                        network: Some(monero_options.network.to_owned()),
-                        format: Some(monero_options.format.to_string()),
-                        ..Default::default()
-                    }
-                }
-                Some(mnemonic_values) => {
-                    type W = MoneroEnglish;
-                    let mnemonic = match mnemonic_values.word_count {
-                        Some(_) => MoneroMnemonic::<N, W>::new(&mut StdRng::from_entropy()).unwrap(),
-                        None => MoneroMnemonic::<N, W>::from_phrase(&mnemonic_values.mnemonic.unwrap()).unwrap(),
-                    };
-
-                    let private_key = mnemonic.to_private_key(None).unwrap();
-                    let address = MoneroAddress::from_private_key(&private_key, &monero_options.format).unwrap();
-
-                    GenericWallet {
-                        mnemonic: Some(mnemonic.to_string()),
-                        private_keys: Some(private_key.to_string()),
-                        address: address.to_string(),
-                        network: Some(monero_options.network.to_owned()),
-                        format: Some(monero_options.format.to_string()),
-                        ..Default::default()
-                    }
-                }
-            };
-
-            if monero_options.json {
-                println!("{}\n", serde_json::to_string_pretty(&wallet).unwrap())
-            } else {
-                println!("{}\n", wallet);
-            };
-        }
-    }
-}
+use monero::MoneroWordlist;
 
 /// Represents custom options for a Monero wallet
 #[derive(Serialize, Clone, Debug)]
-struct MoneroOptions {
-    pub private_key: Option<String>,
-    pub mnemonic_values: Option<HdValues>,
+pub struct MoneroOptions {
+    pub wallet_values: Option<WalletValues>,
     pub count: usize,
     pub network: String,
     pub format: MoneroFormat,
     pub json: bool,
 }
 
-/// Represents values to derive HD wallets
+/// Represents values to derive standard wallets
 #[derive(Serialize, Clone, Debug)]
-struct HdValues {
+pub struct WalletValues {
     pub mnemonic: Option<String>,
-    pub password: Option<String>,
-    pub path: Option<String>,
-    pub word_count: Option<u8>,
+    pub private_spend_key: Option<String>,
+    pub private_view_key: Option<String>,
+    pub public_spend_key: Option<String>,
+    pub public_view_key: Option<String>,
+    pub address: Option<String>,
 }
 
 /// Represents a generic wallet to output
 #[derive(Serialize, Debug, Default)]
-struct GenericWallet {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
-
+struct MoneroWallet {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mnemonic: Option<String>,
-
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub extended_private_key: Option<String>,
-
+    pub private_spend_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub private_key: Option<String>,
-
+    pub private_view_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub private_keys: Option<String>,
-
-    pub address: String,
-
+    pub public_spend_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub diversifier: Option<String>,
-
+    pub public_view_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compressed: Option<bool>,
 }
 
 #[cfg_attr(tarpaulin, skip)]
-impl Display for GenericWallet {
+impl Display for MoneroWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = [
-            match &self.path {
-                Some(path) => format!("      Path:                 {}\n", path),
-                _ => "".to_owned(),
-            },
             match &self.mnemonic {
                 Some(mnemonic) => format!("      Mnemonic:             {}\n", mnemonic),
                 _ => "".to_owned(),
             },
-            match &self.extended_private_key {
-                Some(extended_private_key) => format!("      Extended private key: {}\n", extended_private_key),
+            match &self.private_spend_key {
+                Some(private_spend_key) => format!("      Private Spend Key:    {}\n", private_spend_key),
                 _ => "".to_owned(),
             },
-            match &self.private_key {
-                Some(private_key) => format!("      Private key:          {}\n", private_key),
+            match &self.private_view_key {
+                Some(private_view_key) => format!("      Private View Key:     {}\n", private_view_key),
                 _ => "".to_owned(),
             },
-            match &self.private_keys {
-                Some(private_keys) => format!("      Private spend/view:   {}\n", private_keys),
+            match &self.public_spend_key {
+                Some(public_spend_key) => format!("      Public Spend Key:     {}\n", public_spend_key),
                 _ => "".to_owned(),
             },
-            format!("      Address:              {}\n", self.address),
-            match &self.diversifier {
-                Some(diversifier) => format!("      Diversifier:          {}\n", diversifier),
+            match &self.public_view_key {
+                Some(public_view_key) => format!("      Public View Key:      {}\n", public_view_key),
+                _ => "".to_owned(),
+            },
+            match &self.address {
+                Some(address) => format!("      Address:              {}\n", address),
                 _ => "".to_owned(),
             },
             match &self.format {
@@ -268,15 +91,252 @@ impl Display for GenericWallet {
                 Some(network) => format!("      Network:              {}\n", network),
                 _ => "".to_owned(),
             },
-            match &self.compressed {
-                Some(compressed) => format!("      Compressed:           {}\n", compressed),
-                _ => "".to_owned(),
-            },
         ]
         .concat();
 
         // Removes final new line character
         let output = output[..output.len() - 1].to_owned();
         write!(f, "\n{}", output)
+    }
+}
+
+pub struct MoneroCLI;
+
+impl CLI for MoneroCLI {
+    type Options = MoneroOptions;
+
+    const NAME: NameType = "monero";
+    const ABOUT: AboutType = "Generates a Monero wallet (include -h for more options)";
+    const FLAGS: &'static [FlagType] = &[flag::JSON];
+    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::INTEGRATED_MONERO, option::NETWORK_MONERO, option::SUBADDRESS_MONERO];
+    const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::IMPORT_MONERO];
+
+    /// Handle all CLI arguments and flags for Monero
+    #[cfg_attr(tarpaulin, skip)]
+    fn parse(arguments: &ArgMatches) -> Self::Options {
+        let format = match (arguments.values_of("subaddress"), arguments.value_of("integrated")) {
+            (Some(indices), None) => {
+                let index: Vec<u32> = indices
+                    .into_iter()
+                    .map(|i| i.to_owned().parse().unwrap())
+                    .collect();
+                MoneroFormat::Subaddress(index[0], index[1])
+            }
+            (None, Some(id)) => {
+                let mut payment_id = [0u8; 8];
+                payment_id.copy_from_slice(&hex::decode(id).unwrap());
+                MoneroFormat::Integrated(payment_id)
+            }
+            (None, None) => MoneroFormat::Standard,
+            _ => unreachable!(),
+        };
+
+        let network = match arguments.value_of("network") {
+            Some("testnet") => "testnet",
+            Some("stagenet") => "stagenet",
+            _ => "mainnet",
+        };
+
+        let mut options = MoneroOptions {
+            wallet_values: None,
+            count: clap::value_t!(arguments.value_of("count"), usize).unwrap_or_else(|_e| 1),
+            network: network.to_owned(),
+            format,
+            json: arguments.is_present("json"),
+        };
+
+        match arguments.subcommand() {
+            ("import", Some(import_matches)) => {
+                let mnemonic = import_matches.value_of("mnemonic").map(|s| s.to_string());
+                let private_spend_key = import_matches.value_of("private spend key").map(|s| s.to_string());
+                let private_view_key = import_matches.value_of("private view key").map(|s| s.to_string());
+                let public_spend_key = import_matches.value_of("public spend key").map(|s| s.to_string());
+                let public_view_key = import_matches.value_of("public view key").map(|s| s.to_string());
+                let address = import_matches.value_of("address").map(|s| s.to_string());
+
+                options.json = options.json || import_matches.is_present("json");
+                options.network = import_matches
+                    .value_of("network")
+                    .unwrap_or(&options.network)
+                    .to_string();
+
+                options.wallet_values = Some(WalletValues {
+                    mnemonic,
+                    private_spend_key,
+                    private_view_key,
+                    public_spend_key,
+                    public_view_key,
+                    address,
+                });
+            }
+            _ => {}
+        };
+
+        options
+    }
+
+    /// Generate the Monero wallet and print the relevant fields
+    #[cfg_attr(tarpaulin, skip)]
+    fn print(options: Self::Options) {
+
+        match options.network.as_str() {
+            "testnet" => output::<MoneroTestnet, MoneroEnglish>(options),
+            "stagenet" => output::<MoneroStagenet, MoneroEnglish>(options),
+            _ => output::<MoneroMainnet, MoneroEnglish>(options),
+        };
+
+        fn output<N: MoneroNetwork, W: MoneroWordlist>(options: MoneroOptions) {
+            for _ in 0..options.count {
+                let wallet = match options.wallet_values.to_owned() {
+                    None => {
+                        let mnemonic = MoneroMnemonic::<N, W>::new(&mut StdRng::from_entropy()).unwrap();
+                        let private_key = mnemonic.to_private_key(None).unwrap();
+                        let public_key = private_key.to_public_key();
+
+                        let private_spend_key = hex::encode(private_key.to_private_spend_key());
+                        let private_view_key = hex::encode(private_key.to_private_view_key());
+                        let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
+                        let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
+                        let address = public_key.to_address(&options.format).unwrap();
+
+                        MoneroWallet {
+                            mnemonic: Some(mnemonic.to_string()),
+                            private_spend_key: Some(private_spend_key),
+                            private_view_key: Some(private_view_key),
+                            public_spend_key: Some(public_spend_key),
+                            public_view_key: Some(public_view_key),
+                            address: Some(address.to_string()),
+                            network: Some(options.network.to_owned()),
+                            format: Some(options.format.to_string()),
+                            ..Default::default()
+                        }
+                    }
+                    Some(wallet_values) => {
+
+                        fn process_private_spend_key<MN: MoneroNetwork, MW: MoneroWordlist>(private_spend_key: &str, format: &MoneroFormat) -> Option<MoneroWallet> {
+                            match MoneroPrivateKey::<MN>::from_private_spend_key(private_spend_key, &format) {
+                                Ok(private_key) => {
+                                    let mnemonic = match format {
+                                        MoneroFormat::Standard => {
+                                            let buffer = hex::decode(private_spend_key).unwrap();
+                                            let mut seed = [0u8; 32];
+                                            seed.copy_from_slice(&buffer);
+                                            Some(MoneroMnemonic::<MN, MW>::from_seed(&seed).unwrap().to_string())
+                                        },
+                                        _ => None
+                                    };
+                                    let public_key = private_key.to_public_key();
+
+                                    let private_view_key = hex::encode(private_key.to_private_view_key());
+                                    let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
+                                    let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
+                                    let address = public_key.to_address(&format).unwrap();
+
+                                    Some(MoneroWallet {
+                                        mnemonic,
+                                        private_spend_key: Some(private_spend_key.into()),
+                                        private_view_key: Some(private_view_key),
+                                        public_spend_key: Some(public_spend_key),
+                                        public_view_key: Some(public_view_key),
+                                        address: Some(address.to_string()),
+                                        network: Some(MN::NAME.into()),
+                                        format: Some(format.to_string()),
+                                        ..Default::default()
+                                    })
+                                },
+                                _ => None
+                            }
+                        }
+
+                        fn process_private_view_key<MN: MoneroNetwork>(private_view_key: &str, format: &MoneroFormat) -> Option<MoneroWallet> {
+                            match MoneroPublicKey::<MN>::from_private_view_key(private_view_key, &format) {
+                                Ok(public_key) => {
+                                    let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
+
+                                    Some(MoneroWallet {
+                                        private_view_key: Some(private_view_key.into()),
+                                        public_view_key: Some(public_view_key),
+                                        network: Some(MN::NAME.into()),
+                                        ..Default::default()
+                                    })
+                                },
+                                _ => None
+                            }
+                        }
+
+                        fn process_public_key<MN: MoneroNetwork>(public_spend_key: &str, public_view_key: &str, format: &MoneroFormat) -> Option<MoneroWallet> {
+                            match MoneroPublicKey::<MN>::from(public_spend_key, public_view_key, &format) {
+                                Ok(public_key) => {
+                                    let address = public_key.to_address(&format).unwrap();
+
+                                    Some(MoneroWallet {
+                                        public_spend_key: Some(public_spend_key.into()),
+                                        public_view_key: Some(public_view_key.into()),
+                                        address: Some(address.to_string()),
+                                        network: Some(MN::NAME.into()),
+                                        format: Some(format.to_string()),
+                                        ..Default::default()
+                                    })
+                                },
+                                _ => None
+                            }
+                        }
+
+                        fn process_address<MN: MoneroNetwork>(address: &str, format: &MoneroFormat) -> Option<MoneroWallet> {
+                            match MoneroAddress::<MN>::from_str(address) {
+                                Ok(address) => {
+                                    Some(MoneroWallet {
+                                        address: Some(address.to_string()),
+                                        network: Some(MN::NAME.into()),
+                                        format: match *format == address.format().unwrap() {
+                                            true => Some(format.to_string()),
+                                            false => Some(address.format().unwrap().to_string())
+                                        },
+                                        ..Default::default()
+                                    })
+                                },
+                                _ => None
+                            }
+                        }
+
+                        match (
+                            wallet_values.mnemonic.clone(),
+                            wallet_values.private_spend_key.clone(),
+                            wallet_values.private_view_key.clone(),
+                            (wallet_values.public_spend_key.clone(), wallet_values.public_view_key.clone()),
+                            wallet_values.address.clone(),
+                        ) {
+                            (Some(mnemonic), None, None, _, None) => {
+                                let mnemonic = MoneroMnemonic::<N, W>::from_phrase(&mnemonic).unwrap();
+                                let private_spend_key = hex::encode(mnemonic.to_private_key(None).unwrap().to_private_spend_key());
+                                process_private_spend_key::<N, W>(&private_spend_key, &options.format).unwrap()
+                            }
+                            (None, Some(private_spend_key), None, _, None) => {
+                                process_private_spend_key::<N, W>(&private_spend_key, &options.format).unwrap()
+                            }
+                            (None, None, Some(private_view_key), _, None) => {
+                                process_private_view_key::<N>(&private_view_key, &options.format).unwrap()
+                            }
+                            (None, None, None, (Some(public_spend_key), Some(public_view_key)), None) => {
+                                process_public_key::<N>(&public_spend_key, &public_view_key, &options.format).unwrap()
+                            }
+                            (None, None, None, _, Some(address)) => {
+                                let main = process_address::<MoneroMainnet>(&address, &options.format);
+                                let stage = process_address::<MoneroStagenet>(&address, &options.format);
+                                let test = process_address::<MoneroTestnet>(&address, &options.format);
+                                main.or(stage).or(test).unwrap()
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                };
+
+                if options.json {
+                    println!("{}\n", serde_json::to_string_pretty(&wallet).unwrap());
+                } else {
+                    println!("{}\n", wallet);
+                }
+            }
+        }
     }
 }

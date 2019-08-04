@@ -92,7 +92,7 @@ impl Display for EthereumWallet {
                 _ => "".to_owned(),
             },
             match &self.public_key {
-                Some(private_key) => format!("      Public Key:           {}\n", private_key),
+                Some(public_key) => format!("      Public Key:           {}\n", public_key),
                 _ => "".to_owned(),
             },
             format!("      Address:              {}\n", self.address),
@@ -114,7 +114,11 @@ impl CLI for EthereumCLI {
     const ABOUT: AboutType = "Generates a Ethereum wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
     const OPTIONS: &'static [OptionType] = &[option::COUNT];
-    const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::HD_ETHEREUM, subcommand::IMPORT_ETHEREUM, subcommand::IMPORT_HD_ETHEREUM];
+    const SUBCOMMANDS: &'static [SubCommandType] = &[
+        subcommand::HD_ETHEREUM,
+        subcommand::IMPORT_ETHEREUM,
+        subcommand::IMPORT_HD_ETHEREUM,
+    ];
 
     /// Handle all CLI arguments and flags for Ethereum
     #[cfg_attr(tarpaulin, skip)]
@@ -148,7 +152,11 @@ impl CLI for EthereumCLI {
                 let private_key = import_matches.value_of("private key").map(|s| s.to_string());
 
                 options.json = options.json || import_matches.is_present("json");
-                options.wallet_values = Some(WalletValues { address, public_key, private_key });
+                options.wallet_values = Some(WalletValues {
+                    address,
+                    public_key,
+                    private_key,
+                });
             }
             ("import-hd", Some(import_hd_matches)) => {
                 let account = import_hd_matches.value_of("account").map(|i| i.to_string());
@@ -266,7 +274,7 @@ impl CLI for EthereumCLI {
                         Some("ledger-live") => Some(format!("m/44'/60'/{}'/0/0", index)),
                         Some("trezor") => Some(format!("m/44'/60'/0'/{}", index)),
                         Some(custom_path) => Some(custom_path.to_string()),
-                        None => Some(format!("m/44'/60'/0'/{}", index)) // Default - ethereum
+                        None => Some(format!("m/44'/60'/0'/{}", index)), // Default - ethereum
                     };
 
                     let word_count = match hd_values.word_count {

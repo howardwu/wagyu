@@ -10,9 +10,9 @@ use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MoneroPublicKey<N: MoneroNetwork> {
     /// The public spending key
-    spend_key: [u8; 32],
+    spend_key: Option<[u8; 32]>,
     /// The public viewing key
-    view_key: [u8; 32],
+    view_key: Option<[u8; 32]>,
     /// Format
     format: Format,
     /// PhantomData
@@ -31,11 +31,11 @@ impl<N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
                 Self::from_subaddress_private_key(private_key, major, minor)
             }
             _ => {
-                let spend_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_spend_key());
-                let view_key = MoneroPublicKey::<N>::scalar_mul_by_b_compressed(&private_key.to_private_view_key());
+                let spend_key = Self::scalar_mul_by_b_compressed(&private_key.to_private_spend_key());
+                let view_key = Self::scalar_mul_by_b_compressed(&private_key.to_private_view_key());
                 Self {
-                    spend_key,
-                    view_key,
+                    spend_key: Some(spend_key),
+                    view_key: Some(view_key),
                     format: private_key.format(),
                     _network: PhantomData,
                 }
@@ -70,18 +70,41 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
 
         match format {
             Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => Ok(Self {
-                spend_key,
-                view_key,
+                spend_key: Some(spend_key),
+                view_key: Some(view_key),
                 format: Format::Standard,
                 _network: PhantomData,
             }),
             _ => Ok(Self {
-                spend_key,
-                view_key,
+                spend_key: Some(spend_key),
+                view_key: Some(view_key),
                 format: *format,
                 _network: PhantomData,
             }),
         }
+    }
+
+    /// Returns a public key given a private view key.
+    pub fn from_private_view_key(private_view_key: &str, format: &Format) -> Result<Self, PublicKeyError> {
+        let key = hex::decode(private_view_key)?;
+        if key.len() != 32 {
+            return Err(PublicKeyError::InvalidByteLength(key.len()));
+        }
+
+        let mut view_key = [0u8; 32];
+        view_key.copy_from_slice(key.as_slice());
+
+        let format = match format {
+            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => Format::Standard,
+            _ => *format,
+        };
+
+        Ok(Self {
+            spend_key: None,
+            view_key: Some(Self::scalar_mul_by_b_compressed(&view_key)),
+            format,
+            _network: PhantomData,
+        })
     }
 
     /// Returns a subaddress public key given a Monero private key.
@@ -94,20 +117,20 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
         let subaddress_public_view = &Scalar::from_bits(private_key.to_private_view_key()) * subaddress_public_spend;
 
         Self {
-            spend_key: *subaddress_public_spend.compress().as_bytes(),
-            view_key: *subaddress_public_view.compress().as_bytes(),
+            spend_key: Some(*subaddress_public_spend.compress().as_bytes()),
+            view_key: Some(*subaddress_public_view.compress().as_bytes()),
             format: Format::Subaddress(major, minor),
             _network: PhantomData,
         }
     }
 
     /// Returns the public spend key of the Monero public key.
-    pub fn to_public_spend_key(&self) -> [u8; 32] {
+    pub fn to_public_spend_key(&self) -> Option<[u8; 32]> {
         self.spend_key
     }
 
     /// Returns the public spend key of the Monero public key.
-    pub fn to_public_view_key(&self) -> [u8; 32] {
+    pub fn to_public_view_key(&self) -> Option<[u8; 32]> {
         self.view_key
     }
 
@@ -148,12 +171,16 @@ impl<N: MoneroNetwork> FromStr for MoneroPublicKey<N> {
 impl<N: MoneroNetwork> Display for MoneroPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(")?;
-        for byte in &self.spend_key {
-            write!(f, "{:02x}", byte)?;
+        if let Some(spend_key) = self.spend_key {
+            for byte in &spend_key {
+                write!(f, "{:02x}", byte)?;
+            }
+            write!(f, ", ")?;
         }
-        write!(f, ", ")?;
-        for byte in &self.view_key {
-            write!(f, "{:02x}", byte)?;
+        if let Some(view_key) = self.view_key {
+            for byte in &view_key {
+                write!(f, "{:02x}", byte)?;
+            }
         }
         write!(f, ")")?;
         Ok(())

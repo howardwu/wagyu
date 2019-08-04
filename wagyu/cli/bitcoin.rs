@@ -101,7 +101,7 @@ impl Display for BitcoinWallet {
                 _ => "".to_owned(),
             },
             match &self.public_key {
-                Some(private_key) => format!("      Public Key:           {}\n", private_key),
+                Some(public_key) => format!("      Public Key:           {}\n", public_key),
                 _ => "".to_owned(),
             },
             format!("      Address:              {}\n", self.address),
@@ -135,7 +135,11 @@ impl CLI for BitcoinCLI {
     const ABOUT: AboutType = "Generates a Bitcoin wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
     const OPTIONS: &'static [OptionType] = &[option::COUNT, option::FORMAT_BITCOIN, option::NETWORK_BITCOIN];
-    const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::HD_BITCOIN, subcommand::IMPORT_BITCOIN, subcommand::IMPORT_HD_BITCOIN];
+    const SUBCOMMANDS: &'static [SubCommandType] = &[
+        subcommand::HD_BITCOIN,
+        subcommand::IMPORT_BITCOIN,
+        subcommand::IMPORT_HD_BITCOIN,
+    ];
 
     /// Handle all CLI arguments and flags for Bitcoin
     #[cfg_attr(tarpaulin, skip)]
@@ -348,7 +352,7 @@ impl CLI for BitcoinCLI {
                                 Some(format!("m/49'/0'/{}'/{}/{}'", account, change, index))
                             }
                             Some(custom_path) => Some(custom_path.to_string()),
-                            None => Some(format!("m/0'/0'/{}'", index)) // Default - bip32
+                            None => Some(format!("m/0'/0'/{}'", index)), // Default - bip32
                         };
 
                         let word_count = match hd_values.word_count {

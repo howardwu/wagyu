@@ -96,6 +96,13 @@ impl<N: MoneroNetwork> Address for MoneroAddress<N> {
 impl<N: MoneroNetwork> MoneroAddress<N> {
     /// Returns a Monero address given the public spend key and public view key.
     pub fn generate_address(public_key: &MoneroPublicKey<N>, format: &Format) -> Result<Self, AddressError> {
+        let public_spend_key = match public_key.to_public_spend_key() {
+            Some(key) => key, None => return Err(AddressError::MissingPublicKey)
+        };
+        let public_view_key = match public_key.to_public_view_key() {
+            Some(key) => key, None => return Err(AddressError::MissingPublicKey)
+        };
+
         let mut format = format;
         match (public_key.format(), format) {
             (Format::Subaddress(_, _), Format::Subaddress(major, minor))
@@ -117,8 +124,8 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
         };
 
         let mut bytes = vec![format.to_address_prefix::<N>()];
-        bytes.extend_from_slice(&public_key.to_public_spend_key());
-        bytes.extend_from_slice(&public_key.to_public_view_key());
+        bytes.extend_from_slice(&public_spend_key);
+        bytes.extend_from_slice(&public_view_key);
 
         let checksum_bytes = match format {
             Format::Standard | Format::Subaddress(_, _) => &bytes[0..65],
@@ -136,6 +143,12 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
             address,
             _network: PhantomData,
         })
+    }
+
+    /// Returns the format of the Monero address.
+    pub fn format(&self) -> Result<Format, AddressError> {
+        let bytes = base58::decode(&self.address)?;
+        Format::from_address(&bytes)
     }
 }
 

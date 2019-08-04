@@ -1,149 +1,238 @@
+use crate::cli::types::*;
+
 // Format
-// (argument, conflicts, possible_values)
+// (argument, conflicts, possible_values, requires)
 
 // Global
 
-pub const COUNT: (&str, &[&'static str], &[&'static str]) = (
+pub const COUNT: OptionType = (
     "[count] -c --count=[count] 'Generates a specified number of wallets'",
     &[],
     &[],
+    &[],
 );
-pub const FORMAT_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const FORMAT_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Generates a wallet with a specified format'",
     &[],
     &["bech32", "legacy", "segwit"],
+    &[],
 );
-pub const NETWORK_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const INTEGRATED_MONERO: OptionType = (
+    "[integrated] -i --integrated=[PaymentID] 'Generates a wallet with a specified payment ID'",
+    &["subaddress"],
+    &[],
+    &[],
+);
+pub const NETWORK_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Generates a wallet for a specified network'",
     &[],
     &["mainnet", "testnet"],
+    &[],
 );
-pub const NETWORK_MONERO: (&str, &[&'static str], &[&'static str]) = (
+pub const NETWORK_MONERO: OptionType = (
     "[network] -n --network=[network] 'Generates a wallet for a specified network'",
     &[],
     &["mainnet", "stagenet", "testnet"],
+    &[],
 );
-pub const NETWORK_ZCASH: (&str, &[&'static str], &[&'static str]) = (
+pub const NETWORK_ZCASH: OptionType = (
     "[network] -n --network=[network] 'Generates a wallet for a specified network'",
     &[],
     &["mainnet", "testnet"],
+    &[],
+);
+pub const SUBADDRESS_MONERO: OptionType = (
+    "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Generates a wallet with a specified major and minor index'",
+    &["integrated"],
+    &[],
+    &[],
 );
 
 // Import
 
-pub const ADDRESS: (&str, &[&'static str], &[&'static str]) = (
+pub const ADDRESS: OptionType = (
     "[address] --address=[address] 'Imports a partial wallet for a specified address'",
     &["count", "private key", "network", "public key"],
     &[],
+    &[],
 );
-pub const FORMAT_IMPORT_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const FORMAT_IMPORT_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Imports a wallet with a specified format'",
     &[],
     &["bech32", "legacy", "segwit"],
+    &[],
 );
-pub const NETWORK_IMPORT_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const INTEGRATED_IMPORT_MONERO: OptionType = (
+    "[integrated] -i --integrated=[PaymentID] 'Imports a wallet with a specified payment ID'",
+    &["subaddress"],
+    &[],
+    &[],
+);
+pub const MNEMONIC_IMPORT_MONERO: OptionType = (
+    "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports a wallet for a specified mnemonic (in quotes)'",
+    &["address", "count", "public spend key", "public view key", "private spend key", "private view key"],
+    &[],
+    &[],
+);
+pub const NETWORK_IMPORT_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Imports a wallet for a specified network'",
     &[],
     &["mainnet", "testnet"],
+    &[],
 );
-pub const PRIVATE: (&str, &[&'static str], &[&'static str]) = (
+pub const NETWORK_IMPORT_MONERO: OptionType = (
+    "[network] -n --network=[network] 'Imports a wallet for a specified network'",
+    &[],
+    &["mainnet", "stagenet", "testnet"],
+    &[],
+);
+pub const PRIVATE: OptionType = (
     "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
     &["address", "count", "network", "public key"],
     &[],
+    &[],
 );
-pub const PUBLIC: (&str, &[&'static str], &[&'static str]) = (
+pub const PRIVATE_SPEND_KEY_MONERO: OptionType = (
+    "[private spend key] --private-spend=[private spend key] 'Imports a wallet for a specified private spend key'",
+    &["address", "count", "network", "public spend key", "public view key", "private view key"],
+    &[],
+    &[],
+);
+pub const PRIVATE_VIEW_KEY_MONERO: OptionType = (
+    "[private view key] --private-view=[private view key] 'Imports a partial wallet for a specified private view key'",
+    &["address", "count", "network", "public spend key", "public view key", "private spend key"],
+    &[],
+    &[],
+);
+pub const PUBLIC: OptionType = (
     "[public key] --public=[public key] 'Imports a partial wallet for a specified public key'",
     &["address", "count", "private key"],
+    &[],
+    &[],
+);
+pub const PUBLIC_SPEND_KEY_MONERO: OptionType = (
+    "[public spend key] --public-spend=[public spend key] 'Imports a partial wallet for a specified public spend key'",
+    &["address", "count", "network"],
+    &[],
+    &["public view key"],
+);
+pub const PUBLIC_VIEW_KEY_MONERO: OptionType = (
+    "[public view key] --public-view=[public view key] 'Imports a partial wallet for a specified public view key'",
+    &["address", "count", "network"],
+    &[],
+    &["public spend key"],
+);
+pub const SUBADDRESS_IMPORT_MONERO: OptionType = (
+    "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Imports a wallet with a specified major and minor index'",
+    &["integrated"],
+    &[],
     &[],
 );
 
 // HD
 
-pub const DERIVATION_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const DERIVATION_BITCOIN: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],
     &[],
+    &[],
 );
-pub const DERIVATION_ETHEREUM: (&str, &[&'static str], &[&'static str]) = (
+pub const DERIVATION_ETHEREUM: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
     &[],
     &[],
+    &[],
 );
-pub const FORMAT_HD_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const FORMAT_HD_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Generates an HD wallet with a specified format'",
     &[],
     &["bech32", "legacy", "segwit"],
+    &[],
 );
-pub const NETWORK_HD_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const NETWORK_HD_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Generates an HD wallet for a specified network'",
     &[],
     &["mainnet", "testnet"],
+    &[],
 );
-pub const PASSWORD_HD: (&str, &[&'static str], &[&'static str]) = (
+pub const PASSWORD_HD: OptionType = (
     "[password] -p --password=[password] 'Generates an HD wallet with a specified password'",
     &[],
     &[],
+    &[],
 );
-pub const WORD_COUNT: (&str, &[&'static str], &[&'static str]) = (
+pub const WORD_COUNT: OptionType = (
     "[word count] -w --word-count=[word count] 'Generates an HD wallet with a specified word count'",
     &[],
     &["12", "15", "18", "21", "24"],
+    &[],
 );
 
 // Import HD
 
-pub const ACCOUNT: (&str, &[&'static str], &[&'static str]) = (
+pub const ACCOUNT: OptionType = (
     "[account] -a --account=[account] 'Imports an HD wallet for a specified account number for bip44 and bip49 derivations'",
     &[],
     &[],
+    &[],
 );
-pub const CHAIN: (&str, &[&'static str], &[&'static str]) = (
+pub const CHAIN: OptionType = (
     "[chain] -c --chain=[chain] 'Imports an HD wallet for a specified (external/internal) chain for bip44 and bip49 derivations'",
     &[],
     &["0", "1"],
+    &[],
 );
-pub const DERIVATION_IMPORT_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const DERIVATION_IMPORT_BITCOIN: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],
     &[],
+    &[],
 );
-pub const DERIVATION_IMPORT_ETHEREUM: (&str, &[&'static str], &[&'static str]) = (
+pub const DERIVATION_IMPORT_ETHEREUM: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
     &[],
     &[],
+    &[],
 );
-pub const EXTENDED_PUBLIC: (&str, &[&'static str], &[&'static str]) = (
+pub const EXTENDED_PUBLIC: OptionType = (
     "[extended public] --extended-public=[extended public] 'Imports a partial HD wallet for a specified extended public key'",
     &["count", "extended private", "mnemonic", "password"],
     &[],
+    &[],
 );
-pub const EXTENDED_PRIVATE: (&str, &[&'static str], &[&'static str]) = (
+pub const EXTENDED_PRIVATE: OptionType = (
     "[extended private] --extended-private=[extended private] 'Imports a partial HD wallet for a specified extended private key'",
     &["count", "extended public", "mnemonic", "password"],
     &[],
+    &[],
 );
-pub const FORMAT_IMPORT_HD_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const FORMAT_IMPORT_HD_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Imports an HD wallet with a specified format'",
     &[],
     &["bech32", "legacy", "segwit"],
+    &[],
 );
-pub const NETWORK_IMPORT_HD_BITCOIN: (&str, &[&'static str], &[&'static str]) = (
+pub const NETWORK_IMPORT_HD_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Imports an HD wallet for a specified network'",
     &[],
     &["mainnet", "testnet"],
+    &[],
 );
-pub const INDEX: (&str, &[&'static str], &[&'static str]) = (
+pub const INDEX: OptionType = (
     "[index] -i --index=[index] 'Imports an HD wallet for a specified index'",
     &[],
     &[],
+    &[],
 );
-pub const MNEMONIC: (&str, &[&'static str], &[&'static str]) = (
+pub const MNEMONIC: OptionType = (
     "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports an HD wallet for a specified mnemonic (in quotes)'",
     &["count", "extended private", "extended public"],
     &[],
+    &[],
 );
-pub const PASSWORD_IMPORT_HD: (&str, &[&'static str], &[&'static str]) = (
+pub const PASSWORD_IMPORT_HD: OptionType = (
     "[password] -p --password=[password] 'Imports an HD wallet with a specified password'",
     &["extended private", "extended public"],
+    &[],
     &[],
 );
