@@ -31,6 +31,17 @@ pub const HD_ETHEREUM: SubCommandType = (
     &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
 );
 
+pub const HD_ZCASH: SubCommandType = (
+    "hd",
+    "Generates an HD wallet (include -h for more options)",
+    &[
+        option::COUNT,
+        option::FORMAT_HD_ZCASH,
+        option::NETWORK_HD_ZCASH,
+    ],
+    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
+);
+
 pub const IMPORT_BITCOIN: SubCommandType = (
     "import",
     "Imports a wallet (include -h for more options)",
@@ -80,6 +91,23 @@ pub const IMPORT_MONERO: SubCommandType = (
     ],
 );
 
+pub const IMPORT_ZCASH: SubCommandType = (
+    "import",
+    "Imports a wallet (include -h for more options)",
+    &[
+        option::ADDRESS,
+        option::FORMAT_IMPORT_ZCASH,
+        option::NETWORK_IMPORT_ZCASH,
+        option::PRIVATE,
+        option::PUBLIC,
+    ],
+    &[
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
+);
+
 pub const IMPORT_HD_BITCOIN: SubCommandType = (
     "import-hd",
     "Imports an HD wallet (include -h for more options)",
@@ -112,6 +140,22 @@ pub const IMPORT_HD_ETHEREUM: SubCommandType = (
         option::INDEX,
         option::MNEMONIC,
         option::PASSWORD_IMPORT_HD,
+    ],
+    &[
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
+);
+
+pub const IMPORT_HD_ZCASH: SubCommandType = (
+    "import-hd",
+    "Imports an HD wallet (include -h for more options)",
+    &[
+        option::ACCOUNT,
+        option::EXTENDED_PUBLIC,
+        option::EXTENDED_PRIVATE,
+        option::INDEX,
     ],
     &[
         AppSettings::DisableHelpSubcommand,

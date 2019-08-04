@@ -35,7 +35,7 @@ fn main() {
         ("bitcoin", Some(arguments)) => BitcoinCLI::print(BitcoinCLI::parse(arguments)),
         ("ethereum", Some(arguments)) => EthereumCLI::print(EthereumCLI::parse(arguments)),
         ("monero", Some(arguments)) => MoneroCLI::print(MoneroCLI::parse(arguments)),
-        ("zcash", Some(arguments)) => ZcashCLI::parse(arguments),
+        ("zcash", Some(arguments)) => ZcashCLI::print(ZcashCLI::parse(arguments)),
         _ => unreachable!(),
     };
 }
