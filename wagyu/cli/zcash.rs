@@ -299,7 +299,9 @@ impl CLI for ZcashCLI {
                         let format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
                         let index = hd_values.index.unwrap_or("0".to_string());
-                        let path: Option<String> = Some(format!("m/32'/{}'/{}", account, index));
+                        let path: Option<String> = Some(format!("m/44'/133'/{}'/{}'", account, index));
+
+                        println!("path is : {:?}", path);
 
                         let (extended_private_key, extended_public_key) = match (
                             hd_values.extended_private_key,
@@ -308,11 +310,9 @@ impl CLI for ZcashCLI {
                             (None, None) => {
                                 let rng = &mut StdRng::from_entropy();
                                 let seed: [u8; 32] = rng.gen();
-                                let seed = hex::decode(seed).unwrap();
                                 let path = ZcashDerivationPath::from_str(&path.as_ref().unwrap())?;
                                 let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
-
                                 (Some(extended_private_key), extended_public_key)
                             }
                             (Some(extended_private_key), None) => {
