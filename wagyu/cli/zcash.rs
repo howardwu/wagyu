@@ -358,16 +358,14 @@ impl CLI for ZcashCLI {
                             wallet_values.address.as_ref(),
                         ) {
                             (Some(private_key), None, None) => {
-                                let sapling_check = process_private_key::<N>(&private_key, &options.diversifier)?; // No network prefix for sapling private key
                                 let main = process_private_key::<ZcashMainnet>(&private_key, &options.diversifier)?;
                                 let test = process_private_key::<ZcashTestnet>(&private_key, &options.diversifier)?;
-                                sapling_check.or(main).or(test).unwrap()
+                                main.or(test).unwrap()
                             }
                             (None, Some(public_key), None) => {
-                                let sapling_check = process_public_key::<N>(&public_key, &options.diversifier)?; // No network prefix for sapling public key
                                 let main = process_public_key::<ZcashMainnet>(&public_key, &options.diversifier)?;
                                 let test = process_public_key::<ZcashTestnet>(&public_key, &options.diversifier)?;
-                                sapling_check.or(main).or(test).unwrap()
+                                main.or(test).unwrap()
                             }
                             (None, None, Some(address)) => {
                                 let main = process_address::<ZcashMainnet>(&address);
