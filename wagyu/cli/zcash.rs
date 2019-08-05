@@ -40,6 +40,7 @@ pub struct HdValues {
     pub extended_private_key: Option<String>,
     pub extended_public_key: Option<String>,
     pub index: Option<String>,
+    pub path: Option<String>,
 }
 
 /// Represents a generic wallet to output
@@ -153,6 +154,7 @@ impl CLI for ZcashCLI {
                 options.network = hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.hd_values = Some(HdValues {
+                    path: hd_matches.value_of("derivation").map(|s| s.to_string()),
                     ..Default::default()
                 });
             }
@@ -189,6 +191,7 @@ impl CLI for ZcashCLI {
                     extended_private_key,
                     extended_public_key,
                     index,
+                    path: import_hd_matches.value_of("derivation").map(|s| s.to_string()),
                     ..Default::default()
                 });
             }
@@ -373,7 +376,14 @@ impl CLI for ZcashCLI {
                     (None, Some(hd_values)) => {
                         let account = hd_values.account.unwrap_or("0".to_string());
                         let index = hd_values.index.unwrap_or("0".to_string());
-                        let path: Option<String> = Some(format!("m/44'/133'/{}'/{}", account, index));
+
+                        let path: String = match hd_values.path.as_ref().map(String::as_str) {
+                            Some("zip32") => format!("m/44'/133'/{}'/{}", account, index),
+                            Some(custom_path) => custom_path.to_string(),
+                            None => format!("m/44'/133'/{}'/{}", account, index), // Default - bip32
+                        };
+
+                        let mut final_path = Some(path.to_string());
 
                         let format = match &options.diversifier {
                             Some(div) => {
@@ -391,15 +401,20 @@ impl CLI for ZcashCLI {
                             (None, None) => {
                                 let rng = &mut StdRng::from_entropy();
                                 let seed: [u8; 32] = rng.gen();
-                                let path = ZcashDerivationPath::from_str(&path.as_ref().unwrap())?;
+                                let path = ZcashDerivationPath::from_str(&path)?;
                                 let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &format, &path)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
                                 (Some(extended_private_key), extended_public_key)
                             }
                             (Some(extended_private_key), None) => {
                                 let mut extended_private_key = ZcashExtendedPrivateKey::from_str(&extended_private_key)?;
-                                extended_private_key = extended_private_key
-                                    .derive(&ZcashDerivationPath::from_str(&path.as_ref().unwrap())?)?;
+
+                                match hd_values.path {
+                                    Some(_) => extended_private_key = extended_private_key
+                                        .derive(&ZcashDerivationPath::from_str(&path)?)?,
+                                    None => final_path = None,
+                                };
+
                                 let extended_public_key = extended_private_key.to_extended_public_key();
                                 (Some(extended_private_key), extended_public_key)
                             }
@@ -426,7 +441,7 @@ impl CLI for ZcashCLI {
                         };
 
                         ZcashWallet {
-                            path,
+                            path: final_path,
                             extended_private_key: extended_private_key.map(|key| key.to_string()),
                             extended_public_key: Some(extended_public_key.to_string()),
                             private_key,

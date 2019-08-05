@@ -161,6 +161,12 @@ pub const DERIVATION_ETHEREUM: OptionType = (
     &[],
     &[],
 );
+pub const DERIVATION_ZCASH: OptionType = (
+    "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: zip32, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
 pub const DIVERSIFIER_HD_ZCASH: OptionType = (
     "[diversifier] --diversifier=[diversifier] 'Generates an HD wallet with a specified Sapling address diversifier'",
     &[],
@@ -213,13 +219,19 @@ pub const CHAIN: OptionType = (
     &[],
 );
 pub const DERIVATION_IMPORT_BITCOIN: OptionType = (
-    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],
     &[],
     &[],
 );
 pub const DERIVATION_IMPORT_ETHEREUM: OptionType = (
-    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
+pub const DERIVATION_IMPORT_ZCASH: OptionType = (
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: zip32, \"<custom path>\"]'",
     &[],
     &[],
     &[],
