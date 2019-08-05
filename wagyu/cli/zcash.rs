@@ -1,12 +1,11 @@
 use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 use crate::zcash::{
-    address::Format as ZcashFormat, ZcashAddress, ZcashDerivationPath, ZcashNetwork,
-    ZcashPrivateKey, ZcashPublicKey, Mainnet as ZcashMainnet, SpendingKey,
-    Testnet as ZcashTestnet,
+    address::Format as ZcashFormat, Mainnet as ZcashMainnet, SpendingKey,
+    Testnet as ZcashTestnet, ViewingKey, ZcashAddress, ZcashDerivationPath, ZcashExtendedPrivateKey,
+    ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey, ZcashPublicKey,
 };
 
-use zcash::{ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ViewingKey};
 use clap::ArgMatches;
 use rand::Rng;
 use rand::rngs::StdRng;
@@ -70,36 +69,36 @@ impl Display for ZcashWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = [
             match &self.path {
-                Some(path) => format!("      Path:                 {}\n", path),
+                Some(path) => format!("      Path                 {}\n", path),
                 _ => "".to_owned(),
             },
             match &self.extended_private_key {
-                Some(extended_private_key) => format!("      Extended Private Key: {}\n", extended_private_key),
+                Some(extended_private_key) => format!("      Extended Private Key {}\n", extended_private_key),
                 _ => "".to_owned(),
             },
             match &self.extended_public_key {
-                Some(extended_public_key) => format!("      Extended Public Key:  {}\n", extended_public_key),
+                Some(extended_public_key) => format!("      Extended Public Key  {}\n", extended_public_key),
                 _ => "".to_owned(),
             },
             match &self.private_key {
-                Some(private_key) => format!("      Private Key:          {}\n", private_key),
+                Some(private_key) => format!("      Private Key          {}\n", private_key),
                 _ => "".to_owned(),
             },
             match &self.public_key {
-                Some(public_key) => format!("      Public Key:           {}\n", public_key),
+                Some(public_key) => format!("      Public Key           {}\n", public_key),
                 _ => "".to_owned(),
             },
-            format!("      Address:              {}\n", self.address),
+            format!("      Address              {}\n", self.address),
             match &self.format {
-                Some(format) => format!("      Format:               {}\n", format),
+                Some(format) => format!("      Format               {}\n", format),
                 _ => "".to_owned(),
             },
             match &self.diversifier {
-                Some(diversifier) => format!("      Diversifier:          {}\n", diversifier),
+                Some(diversifier) => format!("      Diversifier          {}\n", diversifier),
                 _ => "".to_owned(),
             },
             match &self.network {
-                Some(network) => format!("      Network:              {}\n", network),
+                Some(network) => format!("      Network              {}\n", network),
                 _ => "".to_owned(),
             },
         ]
@@ -164,10 +163,6 @@ impl CLI for ZcashCLI {
 
                 options.diversifier = import_matches.value_of("diversifier").map(|s| s.to_string()).or(options.diversifier);
                 options.json |= import_matches.is_present("json");
-//                options.network = import_matches
-//                    .value_of("network")
-//                    .unwrap_or(&options.network)
-//                    .to_string();
 
                 options.wallet_values = Some(WalletValues {
                     address,
@@ -376,10 +371,18 @@ impl CLI for ZcashCLI {
                         }
                     }
                     (None, Some(hd_values)) => {
-                        let format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
                         let index = hd_values.index.unwrap_or("0".to_string());
                         let path: Option<String> = Some(format!("m/44'/133'/{}'/{}", account, index));
+
+                        let format = match &options.diversifier {
+                            Some(div) => {
+                                let mut diversifier =  [0u8; 11];
+                                diversifier.copy_from_slice(&hex::decode(div)?);
+                                ZcashFormat::Sapling(Some(diversifier))
+                            },
+                            None => ZcashFormat::Sapling(None)
+                        };
 
                         let (extended_private_key, extended_public_key) = match (
                             hd_values.extended_private_key,
@@ -389,15 +392,7 @@ impl CLI for ZcashCLI {
                                 let rng = &mut StdRng::from_entropy();
                                 let seed: [u8; 32] = rng.gen();
                                 let path = ZcashDerivationPath::from_str(&path.as_ref().unwrap())?;
-                                let diversifier = match &options.diversifier {
-                                    Some(div) => {
-                                        let mut diversifier =  [0u8; 11];
-                                        diversifier.copy_from_slice(&hex::decode(div)?);
-                                        Some(diversifier)
-                                    },
-                                    None => None
-                                };
-                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(diversifier), &path)?;
+                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &format, &path)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
                                 (Some(extended_private_key), extended_public_key)
                             }
@@ -409,11 +404,7 @@ impl CLI for ZcashCLI {
                                 (Some(extended_private_key), extended_public_key)
                             }
                             (None, Some(extended_public_key)) => {
-                                let mut extended_public_key =
-                                    ZcashExtendedPublicKey::from_str(&extended_public_key)?;
-                                extended_public_key = extended_public_key
-                                    .derive(&ZcashDerivationPath::from_str(&path.as_ref().unwrap())?)?;
-                                (None, extended_public_key)
+                                (None, ZcashExtendedPublicKey::from_str(&extended_public_key)?)
                             }
                             _ => unreachable!(),
                         };
@@ -428,6 +419,11 @@ impl CLI for ZcashCLI {
 
                         let public_key = extended_public_key.to_public_key();
                         let address = public_key.to_address(&format)?;
+                        let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                        let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                            Ok(diversifier) => Some(hex::encode(diversifier)),
+                            _ => None,
+                        };
 
                         ZcashWallet {
                             path,
@@ -437,7 +433,8 @@ impl CLI for ZcashCLI {
                             public_key: Some(public_key.to_string()),
                             address: address.to_string(),
                             network: Some(options.network.to_owned()),
-                            format: Some(address.format().to_string()),
+                            format: Some(address_format[0].to_string()),
+                            diversifier,
                             ..Default::default()
                         }
                     }

@@ -60,35 +60,35 @@ impl Display for MoneroWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = [
             match &self.mnemonic {
-                Some(mnemonic) => format!("      Mnemonic:             {}\n", mnemonic),
+                Some(mnemonic) => format!("      Mnemonic             {}\n", mnemonic),
                 _ => "".to_owned(),
             },
             match &self.private_spend_key {
-                Some(private_spend_key) => format!("      Private Spend Key:    {}\n", private_spend_key),
+                Some(private_spend_key) => format!("      Private Spend Key    {}\n", private_spend_key),
                 _ => "".to_owned(),
             },
             match &self.private_view_key {
-                Some(private_view_key) => format!("      Private View Key:     {}\n", private_view_key),
+                Some(private_view_key) => format!("      Private View Key     {}\n", private_view_key),
                 _ => "".to_owned(),
             },
             match &self.public_spend_key {
-                Some(public_spend_key) => format!("      Public Spend Key:     {}\n", public_spend_key),
+                Some(public_spend_key) => format!("      Public Spend Key     {}\n", public_spend_key),
                 _ => "".to_owned(),
             },
             match &self.public_view_key {
-                Some(public_view_key) => format!("      Public View Key:      {}\n", public_view_key),
+                Some(public_view_key) => format!("      Public View Key      {}\n", public_view_key),
                 _ => "".to_owned(),
             },
             match &self.address {
-                Some(address) => format!("      Address:              {}\n", address),
+                Some(address) => format!("      Address              {}\n", address),
                 _ => "".to_owned(),
             },
             match &self.format {
-                Some(format) => format!("      Format:               {}\n", format),
+                Some(format) => format!("      Format               {}\n", format),
                 _ => "".to_owned(),
             },
             match &self.network {
-                Some(network) => format!("      Network:              {}\n", network),
+                Some(network) => format!("      Network              {}\n", network),
                 _ => "".to_owned(),
             },
         ]

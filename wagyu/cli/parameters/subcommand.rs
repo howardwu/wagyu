@@ -97,7 +97,6 @@ pub const IMPORT_ZCASH: SubCommandType = (
     &[
         option::ADDRESS,
         option::DIVERSIFIER_IMPORT_ZCASH,
-//        option::NETWORK_IMPORT_ZCASH,
         option::PRIVATE,
         option::PUBLIC,
     ],

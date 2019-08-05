@@ -70,7 +70,7 @@ pub const ADDRESS: OptionType = (
 );
 pub const DIVERSIFIER_IMPORT_ZCASH: OptionType = (
     "[diversifier] --diversifier=[diversifier] 'Imports a wallet with a specified Sapling address diversifier'",
-    &[],
+    &["address"],
     &[],
     &[],
 );
@@ -104,12 +104,6 @@ pub const NETWORK_IMPORT_MONERO: OptionType = (
     &["mainnet", "stagenet", "testnet"],
     &[],
 );
-//pub const NETWORK_IMPORT_ZCASH: OptionType = (
-//    "[network] -n --network=[network] 'Imports a wallet for a specified network'",
-//    &[],
-//    &["mainnet", "testnet"],
-//    &[],
-//);
 pub const PRIVATE: OptionType = (
     "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
     &["address", "count", "network", "public key"],
@@ -238,7 +232,7 @@ pub const DIVERSIFIER_IMPORT_HD_ZCASH: OptionType = (
 );
 pub const EXTENDED_PUBLIC: OptionType = (
     "[extended public] --extended-public=[extended public] 'Imports a partial HD wallet for a specified extended public key'",
-    &["count", "extended private", "mnemonic", "password"],
+    &["account", "count", "extended private", "index", "mnemonic", "password"],
     &[],
     &[],
 );
