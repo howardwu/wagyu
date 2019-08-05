@@ -267,15 +267,17 @@ impl CLI for EthereumCLI {
 
                     let index = hd_values.index.unwrap_or("0".to_string());
 
-                    let mut path: Option<String> = match hd_values.path.as_ref().map(String::as_str) {
-                        Some("ethereum") => Some(format!("m/44'/60'/0'/{}", index)),
-                        Some("keepkey") => Some(format!("m/44'/60'/{}'/0", index)),
-                        Some("ledger-legacy") => Some(format!("m/44'/60'/0'/{}", index)),
-                        Some("ledger-live") => Some(format!("m/44'/60'/{}'/0/0", index)),
-                        Some("trezor") => Some(format!("m/44'/60'/0'/{}", index)),
-                        Some(custom_path) => Some(custom_path.to_string()),
-                        None => Some(format!("m/44'/60'/0'/{}", index)), // Default - ethereum
+                    let path: String = match hd_values.path.as_ref().map(String::as_str) {
+                        Some("ethereum") => format!("m/44'/60'/0'/{}", index),
+                        Some("keepkey") => format!("m/44'/60'/{}'/0", index),
+                        Some("ledger-legacy") => format!("m/44'/60'/0'/{}", index),
+                        Some("ledger-live") => format!("m/44'/60'/{}'/0/0", index),
+                        Some("trezor") => format!("m/44'/60'/0'/{}", index),
+                        Some(custom_path) => custom_path.to_string(),
+                        None => format!("m/44'/60'/0'/{}", index), // Default - ethereum
                     };
+
+                    let mut final_path = Some(path.to_string());
 
                     let word_count = match hd_values.word_count {
                         Some(word_count) => word_count,
@@ -292,7 +294,7 @@ impl CLI for EthereumCLI {
                             let mnemonic = EthereumMnemonic::<W>::new(word_count, &mut StdRng::from_entropy())?;
                             let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
                             let extended_private_key = master_xpriv_key
-                                .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?;
+                                .derive(&EthereumDerivationPath::from_str(&path)?)?;
                             let extended_public_key = extended_private_key.to_extended_public_key();
 
                             (Some(mnemonic), Some(extended_private_key), extended_public_key)
@@ -301,7 +303,7 @@ impl CLI for EthereumCLI {
                             let mnemonic = EthereumMnemonic::<W>::from_phrase(&mnemonic)?;
                             let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
                             let extended_private_key = master_xpriv_key
-                                .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?;
+                                .derive(&EthereumDerivationPath::from_str(&path)?)?;
                             let extended_public_key = extended_private_key.to_extended_public_key();
 
                             (Some(mnemonic), Some(extended_private_key), extended_public_key)
@@ -311,8 +313,8 @@ impl CLI for EthereumCLI {
 
                             match hd_values.path {
                                 Some(_) => extended_private_key = extended_private_key
-                                    .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?,
-                                None => path = None,
+                                    .derive(&EthereumDerivationPath::from_str(&path)?)?,
+                                None => final_path = None ,
                             };
 
                             let extended_public_key = extended_private_key.to_extended_public_key();
@@ -323,8 +325,8 @@ impl CLI for EthereumCLI {
 
                             match hd_values.path {
                                 Some(_) => extended_public_key = extended_public_key
-                                    .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?,
-                                None => path = None,
+                                    .derive(&EthereumDerivationPath::from_str(&path)?)?,
+                                None => final_path = None,
                             };
 
                             (None, None, extended_public_key)
@@ -340,7 +342,7 @@ impl CLI for EthereumCLI {
                     let address = public_key.to_address(&PhantomData)?;
 
                     EthereumWallet {
-                        path,
+                        path: final_path,
                         password: hd_values.password,
                         mnemonic: mnemonic.map(|key| key.to_string()),
                         extended_private_key: extended_private_key.map(|key| key.to_string()),

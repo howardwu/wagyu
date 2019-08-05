@@ -224,7 +224,7 @@ impl CLI for MoneroCLI {
                                     let private_view_key = hex::encode(private_key.to_private_view_key());
                                     let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
                                     let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
-                                    let address = public_key.to_address(&format).unwrap();
+                                    let address = public_key.to_address(&format)?;
 
                                     Ok(MoneroWallet {
                                         mnemonic,
