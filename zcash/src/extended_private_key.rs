@@ -5,7 +5,7 @@ use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, SpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{
-    Address, AddressError, ChildIndex, DerivationPathError, ExtendedPrivateKey, ExtendedPrivateKeyError,
+    Address, AddressError, ExtendedPrivateKey, ExtendedPrivateKeyError,
     ExtendedPublicKey, PublicKey,
 };
 
