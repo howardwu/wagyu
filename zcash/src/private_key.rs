@@ -129,7 +129,7 @@ impl<N: ZcashNetwork> Display for SaplingSpendingKey<N> {
         if let Some(spending_key) = self.spending_key {
             match Bech32::new(N::to_sapling_spending_key_prefix(), spending_key.to_base32()) {
                 Ok(key) => write!(f, "{}", key.to_string())?,
-                Err(error) => return Err(fmt::Error)
+                Err(_) => return Err(fmt::Error)
             }
         } else {
             let mut buffer = vec![0; 96];
@@ -355,10 +355,9 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
             let prefix = key.hrp();
             let spending_key: Vec<u8> = FromBase32::from_base32(key.data())?;
 
-            let mut key = [0u8; 32];
-            key.copy_from_slice(&spending_key);
-
             if prefix == N::to_sapling_spending_key_prefix() {
+                let mut key = [0u8; 32];
+                key.copy_from_slice(&spending_key);
                 return Self::sapling(&key);
             }
         }
@@ -895,27 +894,27 @@ mod tests {
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "secret-spending-key-main1hd5umd08pc4m6f8hw8x3tgv26kxn4w0p4g72kxrtndjazlm64hhsnczrtx",
-                "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "zviews16ggk069w3n9u6d8edmzchhme3jnejssh6qupyyqw48ju6ns4jm8r508jkmrr93zank3mpszymqn9t95lw9jj2plwhuj72pzgddlm3e90e8c73nmt36hp3duxa3uayxxs588ljz6ryul2zck6nx5a9csalupjg0s0",
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
                 "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbcf3a0127b15b73cb7237a48da0bafc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
-                "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "zviews16ggk069w3n9u6d8edmzchhme3jnejssh6qupyyqw48ju6ns4jm8r508jkmrr93zank3mpszymqn9t95lw9jj2plwhuj72pzgddlm3e90e8c73nmt36hp3duxa3uayxxs588ljz6ryul2zck6nx5a9csalupjg0s0",
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
                 "secret-spending-key-main1pj046u8243rgvg2s4clj5nhvc6r48fe9vl4kvggdlrsc4y2ztt0skswpn9",
-                "bb2d4d7e05b1afb686a7e4d7d8e82a592f25b26caa78a06e939e0ef835c6100c738d89a62c2acd969ef1c68d67d9d365b277145cc60a8e95e11315e192b22c29f612476ea95aa2d4b7df5b881c363829b39ccaa6318c6df3bd2ba6274a15fea0",
+                "zviews1hvk56ls9kxhmdp48unta36p2tyhjtvnv4fu2qm5nnc80sdwxzqx88rvf5ckz4nvknmcudrt8m8fktvnhz3wvvz5wjhs3x90pj2ezc20kzfrka2265t2t0h6m3qwrvwpfkwwv4f3333kl80ft5cn559075qt2lj8x",
                 "zs1akf8swew32rr4n63qedewhp2yz3wcjeazp6efs82lgealmux0h30ayju440rqyuscdr3wd5yuap"
             ),
             (
                 "secret-spending-key-main1ls0d46g5d4w8lyucsudvpyyhl6nvzkf733ak7vuy4um0l8xrkthqnh9a7d",
-                "d610ec21ba084c1b4f42e9c38eefce1dfbf5c0843a549d08b5119007745b171db468b58307cd2c7e54ede334c4e98593e21776043e8956740b102513c03cb023301a9133ee59b826143304b041d8e1f2f1f91d3625ad7dac9e4c88e630a76d8d",
+                "zviews16cgwcgd6ppxpkn6za8pcam7wrhaltsyy8f2f6z94zxgqwazmzuwmg694svru6tr72nk7xdxyaxze8cshwczraz2kws93qfgncq7tqgesr2gn8mjehqnpgvcykpqa3c0j78u36d394476e8jv3rnrpfmd3525eysp",
                 "zs14q3vapgrd6wfs9pr7hfy37y9djm3gnq09ztxsqs2x2vzv0lck978843q8r2ysejgwp9mcx7ws48"
             ),
             (
                 "secret-spending-key-main1vqu0tez5nryjah27dgjc30xw0096cczwf6p9aecpt5glx0g7jees99g9fe",
-                "9847a15f3393ad8921f2b282e3033d48adb2eae9455f1e6b77038be913e04c51967b6db4f726fc21c57cf73d3c1fac7d044bc8ea2c5a75334f4641d18f2d0c1335c884a4853f740e93e55d7b9a7b82e7d8c6d17b2305282143359807f2d690d1",
+                "zviews1npr6zhenjwkcjg0jk2pwxqeafzkm96hfg403u6mhqw97jylqf3gev7mdknmjdlppc470w0fur7k86pzter4zckn4xd85vsw33ukscye4ezz2fpflws8f8e2a0wd8hqh8mrrdz7erq55zzse4nqrl945s6yx2ttmj",
                 "zs1rzjhudlm99h5fyrh7dfsvkfg9l5z587w97pm3ce9hpwfxpgck6p55lwu5mcapz7g3r40y597n2c"
             )
         ];
@@ -978,27 +977,27 @@ mod tests {
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "secret-spending-key-test1fygsm6l3ltqqs63040tq426p85pgzuetdeg6q0wka38nx3rfa70sa9qp0v",
-                "35d5cf61a3d8cf3078112693c1839a14307179008ea5f0902810d03e4a05d8bd194129f2b82ded4a973ad24aa3e4d8e49a10e039f5060616981511d6a888ca8eca66a812697612fc31fa4e0928ac144a3938d5793beda10f7513e15a6f95ad80",
+                "zviewtestsapling1xh2u7cdrmr8nq7q3y6furqu6zsc8z7gq36jlpypgzrgrujs9mz73jsff72uzmm22juadyj4runvwfxssuqul2psxz6vp2ywk4zyv4rk2v65py6tkzt7rr7jwpy52c9z28yud27fmakss7agnu9dxl9ddsqjvgydw",
                 "ztestsapling1jzzt7gjscav7lmdpemknv0v8rmmdzpcaqrx95azrgaky94drrvf0fg4wlnlkaclqj3r3s23g2sf"
             ),
             (
                 "secret-spending-key-test1f6w469xhw65naz4pm4lxnmd8em7ev5ddzszy8js325lr0xe2ay9snuw9t5",
-                "b8f5a0b850db6424b704e0eda9d01ef472fc58dd1519cb60a97d9240641e105e8856e062da9c729bb3580b64c5d933190af86066e518922e7967255746c024ea4bc12f2e92f93f4f853161bf774fe4d9c32581020c9cc52ee42216c8e575d4bb",
+                "zviewtestsapling1hr66pwzsmdjzfdcyurk6n5q773e0ckxaz5vukc9f0kfyqeq7zp0gs4hqvtdfcu5mkdvqkex9mye3jzhcvpnw2xyj9eukwf2hgmqzf6jtcyhjayhe8a8c2vtpham5lexecvjczqsvnnzjaepzzmyw2aw5hvg4f7pf",
                 "ztestsapling19epsvtxnzf59pr993fq4g0gu0fmrn2jl2z9jm2lgj3220c7r9shyvcpe25ul7wxvzk60z82zyf7"
             ),
             (
                 "secret-spending-key-test1s4zwnn7xgglz9099kc4l2ejfl5m3ddkvpy3erm960raszl2lakss48u07t",
-                "75b6233bd29155a361ec2a98552f5c1ddded2fd47af880d78a3f26b4ce8cc2d262008e3d2904bfeb61abdb70432860fbe6557a406c1ae72a4a204fe934985116cdf80f5b52fbc7d22c2dd630939b7641cec76b2e4f8ef6dc53276ea4b3efc1a9",
+                "zviewtestsapling1wkmzxw7jj926xc0v92v92t6urhw76t750tugp4u28untfn5vctfxyqyw855sf0ltvx4akuzr9ps0hej40fqxcxh89f9zqnlfxjv9z9kdlq84k5hmclfzctwkxzfekajpemrkktj03mmdc5e8d6jt8m7p4ycfqv6s",
                 "ztestsapling18ur694qcm6w657u9xt8aekutn98gyvpzwzjgjz99594x775ppeze5vwnp2ndw0u205vkuh2tqcu"
             ),
             (
                 "secret-spending-key-test1d5seqlm269xjsgmz2qmwp9g683tx6n0hkyqalv5fjyraqt5mmz7snwyhek",
-                "e35af2ffa9c77482e11d998d087492e9f80672558253ef30ddb6d712d51a4aacc58455349ccd5be0de5a9584cfe63a5be7e86eb9f20f8efb3fb1ef84d8fc6625aa38f308de656736fb6b02929d695bb904108d5b680952ce774e938b3c50418b",
+                "zviewtestsapling1udd09lafca6g9cganxxssayja8uqvuj4sff77vxakmt394g6f2kvtpz4xjwv6klqmedftpx0uca9helgd6ulyruwlvlmrmuymr7xvfd28res3hn9vum0k6czj2wkjkaeqsgg6kmgp9fvua6wjw9nc5zp3vrv2zlu",
                 "ztestsapling1hkyeldalqna6kxzkkpc3gl4yvtd842sld4kkx7mhtm4srhndnqm347q7x672t05j245skqsctvs"
             ),
             (
                 "secret-spending-key-test1mqq09wgeevr0wwt2ncjncalktcwtt7tjxuk2cxtwce2xuzf4t0lqf5jn03",
-                "1ba76bdbb4036d8564562e6664af996c53eebd5fd0209894d9100d6caf3fd149bb2550161ca124c672d7d5d2d7fd9fbbda1423e49585f22d269f59898c58e5bdea43b13df61ecd6cd23e6151a873e575db9b54a43e17cd5b12a406f6e9db6073",
+                "zviewtestsapling1rwnkhka5qdkc2ezk9enxftued3f7a02l6qsf39xezqxketel69ymkf2szcw2zfxxwttat5khlk0mhks5y0jftp0j95nf7kvf33vwt002gwcnmas7e4kdy0np2x588et4mwd4ffp7zlx4ky4yqmmwnkmqwvupsy6f",
                 "ztestsapling12n4jm24lflgmjk4crm0322p0gpmww98v5cqyurphq6tr4r4q9kxyz2f3tp9x92mm8kruwwg2u5w"
             )
         ];
@@ -1051,26 +1050,5 @@ mod tests {
                 test_invalid_spending_key_length::<N>(private_key);
             });
         }
-    }
-
-    #[test]
-    fn test_sapling() {
-        use super::*;
-        use rand::rngs::StdRng;
-        use rand_core::SeedableRng;
-
-        type N = Mainnet;
-
-//        let rng = &mut StdRng::from_entropy();
-//        let private_key = ZcashPrivateKey::<N>::new_sapling(rng).unwrap();
-//        println!("{}", private_key.to_string());
-
-        use bech32::{Bech32, ToBase32};
-
-        let key = "7be697adb66f36d37b12dcdbdea38fbaec8340402de43bfe016f3c10b6a7220e";
-
-        let prefix = N::to_sapling_spending_key_prefix();
-        let key = hex::decode(key).unwrap().to_base32();
-        println!("{}", Bech32::new(prefix, key).unwrap().to_string());
     }
 }
