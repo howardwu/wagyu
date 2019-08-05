@@ -36,6 +36,7 @@ pub const HD_ZCASH: SubCommandType = (
     "Generates an HD wallet (include -h for more options)",
     &[
         option::COUNT,
+        option::DIVERSIFIER_IMPORT_ZCASH,
         option::FORMAT_HD_ZCASH,
         option::NETWORK_HD_ZCASH,
     ],
@@ -96,6 +97,7 @@ pub const IMPORT_ZCASH: SubCommandType = (
     "Imports a wallet (include -h for more options)",
     &[
         option::ADDRESS,
+        option::DIVERSIFIER_IMPORT_ZCASH,
 //        option::NETWORK_IMPORT_ZCASH,
         option::PRIVATE,
         option::PUBLIC,
@@ -152,6 +154,7 @@ pub const IMPORT_HD_ZCASH: SubCommandType = (
     "Imports an HD wallet (include -h for more options)",
     &[
         option::ACCOUNT,
+        option::DIVERSIFIER_IMPORT_HD_ZCASH,
         option::EXTENDED_PUBLIC,
         option::EXTENDED_PRIVATE,
         option::INDEX,

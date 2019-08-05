@@ -1,3 +1,5 @@
+use crate::model::{AddressError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError, PrivateKeyError, PublicKeyError};
+
 pub mod bitcoin;
 pub mod ethereum;
 pub mod monero;
@@ -9,8 +11,6 @@ pub use self::parameters::*;
 use types::*;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-
-use crate::model::{AddressError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError, PrivateKeyError, PublicKeyError};
 
 pub trait CLI {
     type Options;

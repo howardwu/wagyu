@@ -11,6 +11,12 @@ pub const COUNT: OptionType = (
     &[],
     &[],
 );
+pub const DIVERSIFIER_ZCASH: OptionType = (
+    "[diversifier] --diversifier=[diversifier] 'Generates a wallet with a specified Sapling address diversifier'",
+    &[],
+    &[],
+    &[],
+);
 pub const FORMAT_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Generates a wallet with a specified format'",
     &[],
@@ -59,6 +65,12 @@ pub const SUBADDRESS_MONERO: OptionType = (
 pub const ADDRESS: OptionType = (
     "[address] --address=[address] 'Imports a partial wallet for a specified address'",
     &["count", "private key", "network", "public key"],
+    &[],
+    &[],
+);
+pub const DIVERSIFIER_IMPORT_ZCASH: OptionType = (
+    "[diversifier] --diversifier=[diversifier] 'Imports a wallet with a specified Sapling address diversifier'",
+    &[],
     &[],
     &[],
 );
@@ -155,6 +167,12 @@ pub const DERIVATION_ETHEREUM: OptionType = (
     &[],
     &[],
 );
+pub const DIVERSIFIER_HD_ZCASH: OptionType = (
+    "[diversifier] --diversifier=[diversifier] 'Generates an HD wallet with a specified Sapling address diversifier'",
+    &[],
+    &[],
+    &[],
+);
 pub const FORMAT_HD_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Generates an HD wallet with a specified format'",
     &[],
@@ -214,6 +232,12 @@ pub const DERIVATION_IMPORT_BITCOIN: OptionType = (
 );
 pub const DERIVATION_IMPORT_ETHEREUM: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
+pub const DIVERSIFIER_IMPORT_HD_ZCASH: OptionType = (
+    "[diversifier] --diversifier=[diversifier] 'Imports an HD wallet with a specified Sapling address diversifier'",
     &[],
     &[],
     &[],
