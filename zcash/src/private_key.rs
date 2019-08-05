@@ -409,6 +409,14 @@ mod tests {
         assert!(ZcashPrivateKey::<N>::from_str(&format!("{}{}", spending_key, spending_key)).is_err());
     }
 
+    fn test_invalid_checksum<N: ZcashNetwork>(spending_key: &str) {
+        let length = spending_key.len();
+        let mut s = String::from(spending_key);
+        s.replace_range((length  - 4).., "AAAA");
+
+        assert!(ZcashPrivateKey::<N>::from_str(&s).is_err())
+    }
+
     mod p2pkh_mainnet_compressed {
         use super::*;
 
@@ -488,6 +496,13 @@ mod tests {
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
                 test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
             });
         }
     }
@@ -573,6 +588,13 @@ mod tests {
                 test_invalid_spending_key_length::<N>(private_key);
             });
         }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
+            });
+        }
     }
 
     mod p2pkh_testnet_compressed {
@@ -654,6 +676,13 @@ mod tests {
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
                 test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
             });
         }
     }
@@ -739,6 +768,13 @@ mod tests {
                 test_invalid_spending_key_length::<N>(private_key);
             });
         }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
+            });
+        }
     }
 
     mod sprout_mainnet {
@@ -820,6 +856,13 @@ mod tests {
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
                 test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
             });
         }
     }
