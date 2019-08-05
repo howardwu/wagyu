@@ -279,6 +279,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     /// Returns a Sprout private key from a given spending key.
     fn sprout(spending_key: &str) -> Result<Self, PrivateKeyError> {
         let data = spending_key.from_base58()?;
+        println!("data length: {:?}", data.len());
         if data.len() != 34 {
             return Err(PrivateKeyError::InvalidByteLength(data.len()));
         }
@@ -821,7 +822,9 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
+                    println!("1");
                     let expected_private_key = ZcashPrivateKey::<N>::from(&private_key, &Format::Sprout).unwrap();
+                    println!("2");
                     test_from(
                         &expected_private_key.0,
                         expected_public_key,

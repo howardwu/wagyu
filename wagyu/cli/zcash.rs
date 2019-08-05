@@ -1,10 +1,10 @@
+use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
+use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 use crate::zcash::{
     address::Format as ZcashFormat, ZcashAddress, ZcashDerivationPath, ZcashNetwork,
     ZcashPrivateKey, ZcashPublicKey, Mainnet as ZcashMainnet,
     Testnet as ZcashTestnet,
 };
-use crate::cli::{flag, option, subcommand, types::*, CLI};
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 
 use zcash::{ZcashExtendedPrivateKey, ZcashExtendedPublicKey};
 use clap::ArgMatches;
@@ -121,7 +121,7 @@ impl CLI for ZcashCLI {
 
     /// Handle all CLI arguments and flags for Zcash
     #[cfg_attr(tarpaulin, skip)]
-    fn parse(arguments: &ArgMatches) -> Self::Options {
+    fn parse(arguments: &ArgMatches) -> Result<Self::Options, CLIError> {
         let mut format = arguments.value_of("format");
         let network = match arguments.value_of("network") {
             Some("testnet") => "testnet",
@@ -196,29 +196,25 @@ impl CLI for ZcashCLI {
             _ => ZcashFormat::P2PKH,
         };
 
-        options
+        Ok(options)
     }
 
     /// Generate the Zcash wallet and print the relevant fields
     #[cfg_attr(tarpaulin, skip)]
-    fn print(options: Self::Options) {
-        match options.network.as_str() {
-            "testnet" => output::<ZcashTestnet>(options),
-            _ => output::<ZcashMainnet>(options),
-        };
+    fn print(options: Self::Options) -> Result<(), CLIError> {
 
-        fn output<N: ZcashNetwork>(options: ZcashOptions) {
+        fn output<N: ZcashNetwork>(options: ZcashOptions) -> Result<(), CLIError> {
             for _ in 0..options.count {
                 let wallet = match (options.wallet_values.to_owned(), options.hd_values.to_owned()) {
                     (None, None) => {
                         let private_key = match options.format {
-                            ZcashFormat::Sapling(_) => ZcashPrivateKey::<N>::new_sapling(&mut StdRng::from_entropy()).unwrap(),
-                            ZcashFormat::Sprout => ZcashPrivateKey::<N>::new_sprout(&mut StdRng::from_entropy()).unwrap(),
-                            ZcashFormat::P2PKH => ZcashPrivateKey::<N>::new_p2pkh(&mut StdRng::from_entropy()).unwrap(),
+                            ZcashFormat::Sapling(_) => ZcashPrivateKey::<N>::new_sapling(&mut StdRng::from_entropy())?,
+                            ZcashFormat::Sprout => ZcashPrivateKey::<N>::new_sprout(&mut StdRng::from_entropy())?,
+                            ZcashFormat::P2PKH => ZcashPrivateKey::<N>::new_p2pkh(&mut StdRng::from_entropy())?,
                             _ => unreachable!()
                         };
                         let public_key = private_key.to_public_key();
-                        let address = public_key.to_address(&options.format).unwrap();
+                        let address = public_key.to_address(&options.format)?;
 
                         ZcashWallet {
                             private_key: Some(private_key.to_string()),
@@ -231,15 +227,15 @@ impl CLI for ZcashCLI {
                     }
                     (Some(wallet_values), None) => {
                         match (
-                            wallet_values.private_key.clone(),
-                            wallet_values.public_key.clone(),
-                            wallet_values.address.clone(),
+                            wallet_values.private_key.as_ref(),
+                            wallet_values.public_key.as_ref(),
+                            wallet_values.address.as_ref(),
                         ) {
                             (Some(private_key), None, None) => {
                                 match ZcashPrivateKey::<ZcashMainnet>::from_str(&private_key) {
                                     Ok(private_key) => {
                                         let public_key = private_key.to_public_key();
-                                        let address = public_key.to_address(&options.format).unwrap();
+                                        let address = public_key.to_address(&options.format)?;
 
                                         ZcashWallet {
                                             private_key: Some(private_key.to_string()),
@@ -252,9 +248,9 @@ impl CLI for ZcashCLI {
                                     }
                                     Err(_) => {
                                         let private_key =
-                                            ZcashPrivateKey::<ZcashTestnet>::from_str(&private_key).unwrap();
+                                            ZcashPrivateKey::<ZcashTestnet>::from_str(&private_key)?;
                                         let public_key = private_key.to_public_key();
-                                        let address = public_key.to_address(&options.format).unwrap();
+                                        let address = public_key.to_address(&options.format)?;
 
                                         ZcashWallet {
                                             private_key: Some(private_key.to_string()),
@@ -268,8 +264,8 @@ impl CLI for ZcashCLI {
                                 }
                             }
                             (None, Some(public_key), None) => {
-                                let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                                let address = public_key.to_address(&options.format).unwrap();
+                                let public_key = ZcashPublicKey::<N>::from_str(&public_key)?;
+                                let address = public_key.to_address(&options.format)?;
 
                                 ZcashWallet {
                                     public_key: Some(public_key.to_string()),
@@ -313,32 +309,30 @@ impl CLI for ZcashCLI {
                                 let rng = &mut StdRng::from_entropy();
                                 let seed: [u8; 32] = rng.gen();
                                 let seed = hex::decode(seed).unwrap();
-                                let path = ZcashDerivationPath::from_str(&path.clone().unwrap()).unwrap();
-                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
+                                let path = ZcashDerivationPath::from_str(&path.as_ref().unwrap())?;
+                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
 
                                 (Some(extended_private_key), extended_public_key)
                             }
                             (Some(extended_private_key), None) => {
-                                let mut extended_private_key = ZcashExtendedPrivateKey::from_str(&extended_private_key).unwrap();
+                                let mut extended_private_key = ZcashExtendedPrivateKey::from_str(&extended_private_key)?;
                                 extended_private_key = extended_private_key
-                                    .derive(&ZcashDerivationPath::from_str(&path.clone().unwrap()).unwrap())
-                                    .unwrap();
+                                    .derive(&ZcashDerivationPath::from_str(&path.as_ref().unwrap())?)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
                                 (Some(extended_private_key), extended_public_key)
                             }
                             (None, Some(extended_public_key)) => {
                                 let mut extended_public_key =
-                                    ZcashExtendedPublicKey::from_str(&extended_public_key).unwrap();
+                                    ZcashExtendedPublicKey::from_str(&extended_public_key)?;
                                 extended_public_key = extended_public_key
-                                    .derive(&ZcashDerivationPath::from_str(&path.clone().unwrap()).unwrap())
-                                    .unwrap();
+                                    .derive(&ZcashDerivationPath::from_str(&path.as_ref().unwrap())?)?;
                                 (None, extended_public_key)
                             }
                             _ => unreachable!(),
                         };
 
-                        let private_key = match extended_private_key.clone() {
+                        let private_key = match extended_private_key.as_ref() {
                             Some(extended_private_key) => {
                                 let private_key = extended_private_key.to_private_key();
                                 Some(private_key.to_string())
@@ -347,7 +341,7 @@ impl CLI for ZcashCLI {
                         };
 
                         let public_key = extended_public_key.to_public_key();
-                        let address = public_key.to_address(&format).unwrap();
+                        let address = public_key.to_address(&format)?;
 
                         ZcashWallet {
                             path,
@@ -364,12 +358,17 @@ impl CLI for ZcashCLI {
                     _ => unreachable!(),
                 };
 
-                if options.json {
-                    println!("{}\n", serde_json::to_string_pretty(&wallet).unwrap());
-                } else {
-                    println!("{}\n", wallet);
-                }
+                match options.json {
+                    true => println!("{}\n", serde_json::to_string_pretty(&wallet)?),
+                    false => println!("{}\n", wallet),
+                };
             }
+            Ok(())
+        }
+
+        match options.network.as_str() {
+            "testnet" => output::<ZcashTestnet>(options),
+            _ => output::<ZcashMainnet>(options),
         }
     }
 }

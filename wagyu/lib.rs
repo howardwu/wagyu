@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate failure;
+
 pub extern crate bitcoin;
 pub extern crate ethereum;
 pub extern crate monero;

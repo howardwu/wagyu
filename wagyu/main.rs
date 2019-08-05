@@ -6,12 +6,12 @@ use wagyu::cli::bitcoin::BitcoinCLI;
 use wagyu::cli::ethereum::EthereumCLI;
 use wagyu::cli::monero::MoneroCLI;
 use wagyu::cli::zcash::ZcashCLI;
-use wagyu::cli::CLI;
+use wagyu::cli::{CLI, CLIError};
 
 use clap::{App, AppSettings};
 
 #[cfg_attr(tarpaulin, skip)]
-fn main() {
+fn main() -> Result<(), CLIError> {
     let arguments = App::new("wagyu")
         .version("v0.6.0")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
@@ -32,10 +32,10 @@ fn main() {
         .get_matches();
 
     match arguments.subcommand() {
-        ("bitcoin", Some(arguments)) => BitcoinCLI::print(BitcoinCLI::parse(arguments)),
-        ("ethereum", Some(arguments)) => EthereumCLI::print(EthereumCLI::parse(arguments)),
-        ("monero", Some(arguments)) => MoneroCLI::print(MoneroCLI::parse(arguments)),
-        ("zcash", Some(arguments)) => ZcashCLI::print(ZcashCLI::parse(arguments)),
+        ("bitcoin", Some(arguments)) => BitcoinCLI::print(BitcoinCLI::parse(arguments)?),
+        ("ethereum", Some(arguments)) => EthereumCLI::print(EthereumCLI::parse(arguments)?),
+        ("monero", Some(arguments)) => MoneroCLI::print(MoneroCLI::parse(arguments)?),
+        ("zcash", Some(arguments)) => ZcashCLI::print(ZcashCLI::parse(arguments)?),
         _ => unreachable!(),
-    };
+    }
 }

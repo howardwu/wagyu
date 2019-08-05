@@ -1,4 +1,4 @@
-use crate::cli::{flag, option, subcommand, types::*, CLI};
+use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
 use crate::ethereum::{
     English as EthereumEnglish, EthereumAddress, EthereumDerivationPath, EthereumMnemonic, EthereumPrivateKey,
     EthereumPublicKey,
@@ -122,7 +122,7 @@ impl CLI for EthereumCLI {
 
     /// Handle all CLI arguments and flags for Ethereum
     #[cfg_attr(tarpaulin, skip)]
-    fn parse(arguments: &ArgMatches) -> Self::Options {
+    fn parse(arguments: &ArgMatches) ->  Result<Self::Options, CLIError> {
         let mut options = EthereumOptions {
             wallet_values: None,
             hd_values: None,
@@ -134,10 +134,10 @@ impl CLI for EthereumCLI {
             ("hd", Some(hd_matches)) => {
                 let password = hd_matches.value_of("password").map(|s| s.to_string());
                 let path = hd_matches.value_of("derivation").map(|s| s.to_string());
-                let word_count = hd_matches.value_of("word count").map(|s| s.parse().unwrap());
+                let word_count = hd_matches.value_of("word count").map(|s| s.parse::<u8>().unwrap());
 
                 options.count = clap::value_t!(hd_matches.value_of("count"), usize).unwrap_or(options.count);
-                options.json = options.json || hd_matches.is_present("json");
+                options.json |= hd_matches.is_present("json");
                 options.hd_values = Some(HdValues {
                     word_count,
                     mnemonic: None,
@@ -151,7 +151,7 @@ impl CLI for EthereumCLI {
                 let public_key = import_matches.value_of("public key").map(|s| s.to_string());
                 let private_key = import_matches.value_of("private key").map(|s| s.to_string());
 
-                options.json = options.json || import_matches.is_present("json");
+                options.json |= import_matches.is_present("json");
                 options.wallet_values = Some(WalletValues {
                     address,
                     public_key,
@@ -168,7 +168,7 @@ impl CLI for EthereumCLI {
                 let password = import_hd_matches.value_of("password").map(|s| s.to_string());
                 let path = import_hd_matches.value_of("derivation").map(|s| s.to_string());
 
-                options.json = options.json || import_hd_matches.is_present("json");
+                options.json |= import_hd_matches.is_present("json");
                 options.hd_values = Some(HdValues {
                     account,
                     change,
@@ -184,18 +184,18 @@ impl CLI for EthereumCLI {
             _ => {}
         };
 
-        options
+        Ok(options)
     }
 
     /// Generate the Ethereum wallet and print the relevant fields
     #[cfg_attr(tarpaulin, skip)]
-    fn print(options: Self::Options) {
+    fn print(options: Self::Options) -> Result<(), CLIError> {
         for _ in 0..options.count {
             let wallet = match (options.wallet_values.to_owned(), options.hd_values.to_owned()) {
                 (None, None) => {
-                    let private_key = EthereumPrivateKey::new(&mut StdRng::from_entropy()).unwrap();
+                    let private_key = EthereumPrivateKey::new(&mut StdRng::from_entropy())?;
                     let public_key = private_key.to_public_key();
-                    let address = public_key.to_address(&PhantomData).unwrap();
+                    let address = public_key.to_address(&PhantomData)?;
 
                     EthereumWallet {
                         private_key: Some(private_key.to_string()),
@@ -206,14 +206,14 @@ impl CLI for EthereumCLI {
                 }
                 (Some(wallet_values), None) => {
                     match (
-                        wallet_values.private_key.clone(),
-                        wallet_values.public_key.clone(),
-                        wallet_values.address.clone(),
+                        wallet_values.private_key.as_ref(),
+                        wallet_values.public_key.as_ref(),
+                        wallet_values.address.as_ref(),
                     ) {
                         (Some(private_key), None, None) => match EthereumPrivateKey::from_str(&private_key) {
                             Ok(private_key) => {
                                 let public_key = private_key.to_public_key();
-                                let address = public_key.to_address(&PhantomData).unwrap();
+                                let address = public_key.to_address(&PhantomData)?;
 
                                 EthereumWallet {
                                     private_key: Some(private_key.to_string()),
@@ -223,9 +223,9 @@ impl CLI for EthereumCLI {
                                 }
                             }
                             Err(_) => {
-                                let private_key = EthereumPrivateKey::from_str(&private_key).unwrap();
+                                let private_key = EthereumPrivateKey::from_str(&private_key)?;
                                 let public_key = private_key.to_public_key();
-                                let address = public_key.to_address(&PhantomData).unwrap();
+                                let address = public_key.to_address(&PhantomData)?;
 
                                 EthereumWallet {
                                     private_key: Some(private_key.to_string()),
@@ -236,8 +236,8 @@ impl CLI for EthereumCLI {
                             }
                         },
                         (None, Some(public_key), None) => {
-                            let public_key = EthereumPublicKey::from_str(&public_key).unwrap();
-                            let address = public_key.to_address(&PhantomData).unwrap();
+                            let public_key = EthereumPublicKey::from_str(&public_key)?;
+                            let address = public_key.to_address(&PhantomData)?;
 
                             EthereumWallet {
                                 public_key: Some(public_key.to_string()),
@@ -251,7 +251,7 @@ impl CLI for EthereumCLI {
                                 ..Default::default()
                             },
                             Err(_) => {
-                                let address = EthereumAddress::from_str(&address).unwrap();
+                                let address = EthereumAddress::from_str(&address)?;
                                 EthereumWallet {
                                     address: address.to_string(),
                                     ..Default::default()
@@ -289,59 +289,55 @@ impl CLI for EthereumCLI {
                         hd_values.extended_public_key,
                     ) {
                         (None, None, None) => {
-                            let mnemonic = EthereumMnemonic::<W>::new(word_count, &mut StdRng::from_entropy()).unwrap();
-                            let master_xpriv_key = mnemonic.to_extended_private_key(password).unwrap();
+                            let mnemonic = EthereumMnemonic::<W>::new(word_count, &mut StdRng::from_entropy())?;
+                            let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
                             let extended_private_key = master_xpriv_key
-                                .derive(&EthereumDerivationPath::from_str(&path.clone().unwrap()).unwrap())
-                                .unwrap();
+                                .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?;
                             let extended_public_key = extended_private_key.to_extended_public_key();
 
                             (Some(mnemonic), Some(extended_private_key), extended_public_key)
                         }
                         (Some(mnemonic), None, None) => {
-                            let mnemonic = EthereumMnemonic::<W>::from_phrase(&mnemonic).unwrap();
-                            let master_xpriv_key = mnemonic.to_extended_private_key(password).unwrap();
+                            let mnemonic = EthereumMnemonic::<W>::from_phrase(&mnemonic)?;
+                            let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
                             let extended_private_key = master_xpriv_key
-                                .derive(&EthereumDerivationPath::from_str(&path.clone().unwrap()).unwrap())
-                                .unwrap();
+                                .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?;
                             let extended_public_key = extended_private_key.to_extended_public_key();
 
                             (Some(mnemonic), Some(extended_private_key), extended_public_key)
                         }
                         (None, Some(extended_private_key), None) => {
-                            let mut extended_private_key =
-                                EthereumExtendedPrivateKey::from_str(&extended_private_key).unwrap();
-                            if hd_values.path.is_some() {
-                                extended_private_key = extended_private_key
-                                    .derive(&EthereumDerivationPath::from_str(&path.clone().unwrap()).unwrap())
-                                    .unwrap();
-                            } else {
-                                path = None;
-                            }
+                            let mut extended_private_key = EthereumExtendedPrivateKey::from_str(&extended_private_key)?;
+
+                            match hd_values.path {
+                                Some(_) => extended_private_key = extended_private_key
+                                    .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?,
+                                None => path = None,
+                            };
+
                             let extended_public_key = extended_private_key.to_extended_public_key();
                             (None, Some(extended_private_key), extended_public_key)
                         }
                         (None, None, Some(extended_public_key)) => {
-                            let mut extended_public_key =
-                                EthereumExtendedPublicKey::from_str(&extended_public_key).unwrap();
-                            if hd_values.path.is_some() {
-                                extended_public_key = extended_public_key
-                                    .derive(&EthereumDerivationPath::from_str(&path.clone().unwrap()).unwrap())
-                                    .unwrap();
-                            } else {
-                                path = None;
-                            }
+                            let mut extended_public_key = EthereumExtendedPublicKey::from_str(&extended_public_key)?;
+
+                            match hd_values.path {
+                                Some(_) => extended_public_key = extended_public_key
+                                    .derive(&EthereumDerivationPath::from_str(&path.as_ref().unwrap())?)?,
+                                None => path = None,
+                            };
+
                             (None, None, extended_public_key)
                         }
                         _ => unreachable!(),
                     };
 
-                    let private_key = match extended_private_key.clone() {
+                    let private_key = match extended_private_key.as_ref() {
                         Some(extended_private_key) => Some(extended_private_key.to_private_key().to_string()),
                         None => None,
                     };
                     let public_key = extended_public_key.to_public_key();
-                    let address = public_key.to_address(&PhantomData).unwrap();
+                    let address = public_key.to_address(&PhantomData)?;
 
                     EthereumWallet {
                         path,
@@ -358,11 +354,12 @@ impl CLI for EthereumCLI {
                 _ => unreachable!(),
             };
 
-            if options.json {
-                println!("{}\n", serde_json::to_string_pretty(&wallet).unwrap());
-            } else {
-                println!("{}\n", wallet);
-            }
+            match options.json {
+                true => println!("{}\n", serde_json::to_string_pretty(&wallet)?),
+                false => println!("{}\n", wallet),
+            };
         }
+
+        Ok(())
     }
 }

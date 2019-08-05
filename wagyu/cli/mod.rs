@@ -10,6 +10,8 @@ use types::*;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
+use crate::model::{AddressError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError, PrivateKeyError, PublicKeyError};
+
 pub trait CLI {
     type Options;
 
@@ -60,8 +62,97 @@ pub trait CLI {
     }
 
     #[cfg_attr(tarpaulin, skip)]
-    fn parse(arguments: &ArgMatches) -> Self::Options;
+    fn parse(arguments: &ArgMatches) -> Result<Self::Options, CLIError>;
 
     #[cfg_attr(tarpaulin, skip)]
-    fn print(options: Self::Options);
+    fn print(options: Self::Options) -> Result<(), CLIError>;
+}
+
+
+#[derive(Debug, Fail)]
+pub enum CLIError {
+    #[fail(display = "{}", _0)]
+    AddressError(AddressError),
+
+    #[fail(display = "{}", _0)]
+    DerivationPathError(DerivationPathError),
+
+    #[fail(display = "{}", _0)]
+    ExtendedPrivateKeyError(ExtendedPrivateKeyError),
+
+    #[fail(display = "{}", _0)]
+    ExtendedPublicKeyError(ExtendedPublicKeyError),
+
+    #[fail(display = "{}", _0)]
+    PrivateKeyError(PrivateKeyError),
+
+    #[fail(display = "{}", _0)]
+    PublicKeyError(PublicKeyError),
+
+    #[fail(display = "{}", _0)]
+    MnemonicError(MnemonicError),
+
+    #[fail(display = "{}: {}", _0, _1)]
+    Crate(&'static str, String),
+}
+
+
+impl From<AddressError> for CLIError {
+    fn from(error: AddressError) -> Self {
+        CLIError::AddressError(error)
+    }
+}
+
+impl From<core::num::ParseIntError> for CLIError {
+    fn from(error: core::num::ParseIntError) -> Self {
+        CLIError::Crate("parse_int", format!("{:?}", error))
+    }
+}
+
+impl From<DerivationPathError> for CLIError {
+    fn from(error: DerivationPathError) -> Self {
+        CLIError::DerivationPathError(error)
+    }
+}
+
+impl From<ExtendedPrivateKeyError> for CLIError {
+    fn from(error: ExtendedPrivateKeyError) -> Self {
+        CLIError::ExtendedPrivateKeyError(error)
+    }
+}
+
+impl From<ExtendedPublicKeyError> for CLIError {
+    fn from(error: ExtendedPublicKeyError) -> Self {
+        CLIError::ExtendedPublicKeyError(error)
+    }
+}
+
+impl From<hex::FromHexError> for CLIError {
+    fn from(error: hex::FromHexError) -> Self {
+        CLIError::Crate("hex", format!("{:?}", error))
+    }
+}
+
+impl From<MnemonicError> for CLIError {
+    fn from(error: MnemonicError) -> Self {
+        CLIError::MnemonicError(error)
+    }
+}
+
+impl From<PrivateKeyError> for CLIError {
+    fn from(error: PrivateKeyError) -> Self {
+        CLIError::PrivateKeyError(error)
+    }
+}
+
+impl From<PublicKeyError> for CLIError {
+    fn from(error: PublicKeyError) -> Self {
+        CLIError::PublicKeyError(error)
+    }
+}
+
+impl From<serde_json::error::Error> for CLIError {
+    fn from(error: serde_json::error::Error) -> Self {
+        CLIError::Crate("serde_json", format!("{:?}", error))
+    }
 }
