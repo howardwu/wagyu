@@ -49,18 +49,15 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     /// Returns the extended private key of the given derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
         let mut extended_private_key = self.clone();
+
+
         for index in path.into_iter() {
-            match index {
-                ChildIndex::Hardened(number) => {
-                    extended_private_key = Self {
-                        extended_spending_key: extended_private_key
-                            .extended_spending_key
-                            .derive_child(zcash_primitives::zip32::ChildIndex::Hardened(*number)),
-                        _network: PhantomData,
-                    }
-                }
-                ChildIndex::Normal(_) => return Err(DerivationPathError::ExpectedHardenedPath.into()),
-            }
+            extended_private_key = Self {
+                extended_spending_key: extended_private_key
+                    .extended_spending_key
+                    .derive_child(zcash_primitives::zip32::ChildIndex::from_index(index.to_index())),
+                _network: PhantomData,
+            };
         }
         Ok(extended_private_key)
     }

@@ -299,10 +299,8 @@ impl CLI for ZcashCLI {
                         let format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
                         let index = hd_values.index.unwrap_or("0".to_string());
-                        let path: Option<String> = Some(format!("m/44'/133'/{}'/{}'", account, index));
-
-                        println!("path is : {:?}", path);
-
+                        let path: Option<String> = Some(format!("m/44'/133'/{}'/{}", account, index));
+                        
                         let (extended_private_key, extended_public_key) = match (
                             hd_values.extended_private_key,
                             hd_values.extended_public_key,
