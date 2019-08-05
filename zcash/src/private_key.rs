@@ -246,12 +246,8 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     /// Returns a Sprout private key from a given spending key.
     fn sprout(spending_key: &str) -> Result<Self, PrivateKeyError> {
         let data = hex::decode(spending_key)?;
-        let len = data.len();
-        if len != 34 {
-            return Err(PrivateKeyError::InvalidByteLength(len));
-        }
-
         let mut sk = [0u8; 32];
+
         sk.copy_from_slice(&data[2..34]);
         sk[0] &= 0x0f;
 
@@ -330,7 +326,6 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
                 if prefix == N::to_sprout_spending_key_prefix() {
                     return Self::sprout(s);
                 }
-                return Err(PrivateKeyError::UnsupportedFormat);
             } else if data.len() == 96 {
                 return Self::sapling_expanded(s);
             }
