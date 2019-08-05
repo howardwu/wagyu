@@ -40,6 +40,12 @@ impl From<base58::FromBase58Error> for PublicKeyError {
     }
 }
 
+impl From<bech32::Error> for PublicKeyError {
+    fn from(error: bech32::Error) -> Self {
+        PublicKeyError::Crate("bech32", format!("{:?}", error))
+    }
+}
+
 impl From<hex::FromHexError> for PublicKeyError {
     fn from(error: hex::FromHexError) -> Self {
         PublicKeyError::Crate("hex", format!("{:?}", error))
