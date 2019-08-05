@@ -96,8 +96,7 @@ pub const IMPORT_ZCASH: SubCommandType = (
     "Imports a wallet (include -h for more options)",
     &[
         option::ADDRESS,
-        option::FORMAT_IMPORT_ZCASH,
-        option::NETWORK_IMPORT_ZCASH,
+//        option::NETWORK_IMPORT_ZCASH,
         option::PRIVATE,
         option::PUBLIC,
     ],

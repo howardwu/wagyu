@@ -68,12 +68,6 @@ pub const FORMAT_IMPORT_BITCOIN: OptionType = (
     &["bech32", "legacy", "segwit"],
     &[],
 );
-pub const FORMAT_IMPORT_ZCASH: OptionType = (
-    "[format] -f --format=[format] 'Imports a wallet with a specified format'",
-    &[],
-    &["sapling", "sprout", "transparent"],
-    &[],
-);
 pub const INTEGRATED_IMPORT_MONERO: OptionType = (
     "[integrated] -i --integrated=[PaymentID] 'Imports a wallet with a specified payment ID'",
     &["subaddress"],
@@ -98,12 +92,12 @@ pub const NETWORK_IMPORT_MONERO: OptionType = (
     &["mainnet", "stagenet", "testnet"],
     &[],
 );
-pub const NETWORK_IMPORT_ZCASH: OptionType = (
-    "[network] -n --network=[network] 'Imports a wallet for a specified network'",
-    &[],
-    &["mainnet", "testnet"],
-    &[],
-);
+//pub const NETWORK_IMPORT_ZCASH: OptionType = (
+//    "[network] -n --network=[network] 'Imports a wallet for a specified network'",
+//    &[],
+//    &["mainnet", "testnet"],
+//    &[],
+//);
 pub const PRIVATE: OptionType = (
     "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
     &["address", "count", "network", "public key"],
