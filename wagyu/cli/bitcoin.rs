@@ -261,13 +261,13 @@ impl CLI for BitcoinCLI {
                     }
                     (Some(wallet_values), None) => {
 
-                        fn process_private_key<N: BitcoinNetwork>(private_key: &str, format: &BitcoinFormat) -> Result<Option<BitcoinWallet>, CLIError> {
+                        fn process_private_key<N: BitcoinNetwork>(private_key: &str, format: &BitcoinFormat) -> Result<BitcoinWallet, CLIError> {
                             match BitcoinPrivateKey::<N>::from_str(&private_key) {
                                 Ok(private_key) => {
                                     let public_key = private_key.to_public_key();
                                     let address = public_key.to_address(format)?;
 
-                                    Ok(Some(BitcoinWallet {
+                                    Ok(BitcoinWallet {
                                         private_key: Some(private_key.to_string()),
                                         public_key: Some(public_key.to_string()),
                                         address: address.to_string(),
@@ -275,23 +275,23 @@ impl CLI for BitcoinCLI {
                                         format: Some(format.to_string()),
                                         compressed: Some(private_key.is_compressed()),
                                         ..Default::default()
-                                    }))
+                                    })
                                 },
-                                _ => Ok(None),
+                                Err(error) => Err(CLIError::PrivateKeyError(error)),
                             }
                         }
 
-                        fn process_address<N: BitcoinNetwork>(address: &str) -> Option<BitcoinWallet> {
+                        fn process_address<N: BitcoinNetwork>(address: &str) -> Result<BitcoinWallet, CLIError> {
                             match BitcoinAddress::<N>::from_str(&address) {
                                 Ok(address) => {
-                                    Some(BitcoinWallet {
+                                    Ok(BitcoinWallet {
                                         address: address.to_string(),
                                         network: Some(N::NAME.to_string()),
                                         format: Some(address.format().to_string()),
                                         ..Default::default()
                                     })
                                 },
-                                _ => None,
+                                Err(error) => Err(CLIError::AddressError(error)),
                             }
                         }
 
@@ -301,9 +301,9 @@ impl CLI for BitcoinCLI {
                             wallet_values.address.as_ref(),
                         ) {
                             (Some(private_key), None, None) => {
-                                let main = process_private_key::<BitcoinMainnet>(&private_key, &options.format)?;
-                                let test = process_private_key::<BitcoinTestnet>(&private_key, &options.format)?;
-                                main.or(test).unwrap()
+                                let main = process_private_key::<BitcoinMainnet>(&private_key, &options.format);
+                                let test = process_private_key::<BitcoinTestnet>(&private_key, &options.format);
+                                main.or(test)?
                             },
                             (None, Some(public_key), None) => {
                                 let public_key = BitcoinPublicKey::<N>::from_str(&public_key)?;
@@ -320,7 +320,7 @@ impl CLI for BitcoinCLI {
                             (None, None, Some(address)) => {
                                 let main = process_address::<BitcoinMainnet>(&address);
                                 let test = process_address::<BitcoinTestnet>(&address);
-                                main.or(test).unwrap()
+                                main.or(test)?
                             },
                             _ => unreachable!(),
                         }

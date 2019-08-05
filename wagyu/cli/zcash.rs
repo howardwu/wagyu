@@ -246,7 +246,7 @@ impl CLI for ZcashCLI {
                         }
                     }
                     (Some(wallet_values), None) => {
-                        fn process_private_key<N:ZcashNetwork>(private_key: &str, diversifier: &Option<String>) -> Result<Option<ZcashWallet>, CLIError> {
+                        fn process_private_key<N:ZcashNetwork>(private_key: &str, diversifier: &Option<String>) -> Result<ZcashWallet, CLIError> {
                             match ZcashPrivateKey::<N>::from_str(&private_key) {
                                 Ok(private_key) => {
                                     let format = match private_key.to_spending_key() {
@@ -273,7 +273,7 @@ impl CLI for ZcashCLI {
                                         _ => None,
                                     };
 
-                                    Ok(Some(ZcashWallet {
+                                    Ok(ZcashWallet {
                                         private_key: Some(private_key.to_string()),
                                         public_key: Some(public_key.to_string()),
                                         address: address.to_string(),
@@ -281,13 +281,13 @@ impl CLI for ZcashCLI {
                                         format: Some(address_format[0].to_string()),
                                         diversifier,
                                         ..Default::default()
-                                    }))
+                                    })
                                 }
-                                _ => Ok(None),
+                                Err(error) => Err(CLIError::PrivateKeyError(error)),
                             }
                         }
 
-                        fn process_public_key<N:ZcashNetwork>(public_key: &str, diversifier: &Option<String>) -> Result<Option<ZcashWallet>, CLIError> {
+                        fn process_public_key<N:ZcashNetwork>(public_key: &str, diversifier: &Option<String>) -> Result<ZcashWallet, CLIError> {
                             match ZcashPublicKey::<N>::from_str(&public_key) {
                                 Ok(public_key) => {
                                     let format = match public_key.to_viewing_key() {
@@ -313,20 +313,20 @@ impl CLI for ZcashCLI {
                                         _ => None,
                                     };
 
-                                    Ok(Some(ZcashWallet {
+                                    Ok(ZcashWallet {
                                         public_key: Some(public_key.to_string()),
                                         address: address.to_string(),
                                         network: Some(N::NAME.to_string()),
                                         format: Some(address_format[0].to_string()),
                                         diversifier,
                                         ..Default::default()
-                                    }))
+                                    })
                                 }
-                                _ => Ok(None),
+                                Err(error) => Err(CLIError::PublicKeyError(error)),
                             }
                         }
 
-                        fn process_address<N: ZcashNetwork>(address: &str) -> Option<ZcashWallet> {
+                        fn process_address<N: ZcashNetwork>(address: &str) -> Result<ZcashWallet, CLIError> {
                             match ZcashAddress::<N>::from_str(&address) {
                                 Ok(address) => {
                                     let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
@@ -335,7 +335,7 @@ impl CLI for ZcashCLI {
                                         _ => None,
                                     };
 
-                                    Some(ZcashWallet {
+                                    Ok(ZcashWallet {
                                         address: address.to_string(),
                                         network: Some(N::NAME.to_string()),
                                         format: Some(address_format[0].to_string()),
@@ -343,7 +343,7 @@ impl CLI for ZcashCLI {
                                         ..Default::default()
                                     })
                                 },
-                                _ => None,
+                                Err(error) => Err(CLIError::AddressError(error)),
                             }
                         }
 
@@ -353,19 +353,19 @@ impl CLI for ZcashCLI {
                             wallet_values.address.as_ref(),
                         ) {
                             (Some(private_key), None, None) => {
-                                let main = process_private_key::<ZcashMainnet>(&private_key, &options.diversifier)?;
-                                let test = process_private_key::<ZcashTestnet>(&private_key, &options.diversifier)?;
-                                main.or(test).unwrap()
+                                let main = process_private_key::<ZcashMainnet>(&private_key, &options.diversifier);
+                                let test = process_private_key::<ZcashTestnet>(&private_key, &options.diversifier);
+                                main.or(test)?
                             }
                             (None, Some(public_key), None) => {
-                                let main = process_public_key::<ZcashMainnet>(&public_key, &options.diversifier)?;
-                                let test = process_public_key::<ZcashTestnet>(&public_key, &options.diversifier)?;
-                                main.or(test).unwrap()
+                                let main = process_public_key::<ZcashMainnet>(&public_key, &options.diversifier);
+                                let test = process_public_key::<ZcashTestnet>(&public_key, &options.diversifier);
+                                main.or(test)?
                             }
                             (None, None, Some(address)) => {
                                 let main = process_address::<ZcashMainnet>(&address);
                                 let test = process_address::<ZcashTestnet>(&address);
-                                main.or(test).unwrap()
+                                main.or(test)?
                             },
                             _ => unreachable!(),
                         }

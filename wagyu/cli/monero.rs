@@ -207,7 +207,7 @@ impl CLI for MoneroCLI {
                     }
                     Some(wallet_values) => {
 
-                        fn process_private_spend_key<MN: MoneroNetwork, MW: MoneroWordlist>(private_spend_key: &str, format: &MoneroFormat) -> Result<Option<MoneroWallet>, CLIError> {
+                        fn process_private_spend_key<MN: MoneroNetwork, MW: MoneroWordlist>(private_spend_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroPrivateKey::<MN>::from_private_spend_key(private_spend_key, &format) {
                                 Ok(private_key) => {
                                     let mnemonic = match format {
@@ -226,7 +226,7 @@ impl CLI for MoneroCLI {
                                     let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
                                     let address = public_key.to_address(&format).unwrap();
 
-                                    Ok(Some(MoneroWallet {
+                                    Ok(MoneroWallet {
                                         mnemonic,
                                         private_spend_key: Some(private_spend_key.into()),
                                         private_view_key: Some(private_view_key),
@@ -236,50 +236,50 @@ impl CLI for MoneroCLI {
                                         network: Some(MN::NAME.into()),
                                         format: Some(format.to_string()),
                                         ..Default::default()
-                                    }))
+                                    })
                                 },
-                                _ => Ok(None)
+                                Err(error) => Err(CLIError::PrivateKeyError(error)),
                             }
                         }
 
-                        fn process_private_view_key<MN: MoneroNetwork>(private_view_key: &str, format: &MoneroFormat) -> Result<Option<MoneroWallet>, CLIError> {
+                        fn process_private_view_key<MN: MoneroNetwork>(private_view_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroPublicKey::<MN>::from_private_view_key(private_view_key, &format) {
                                 Ok(public_key) => {
                                     let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
 
-                                    Ok(Some(MoneroWallet {
+                                    Ok(MoneroWallet {
                                         private_view_key: Some(private_view_key.into()),
                                         public_view_key: Some(public_view_key),
                                         network: Some(MN::NAME.into()),
                                         ..Default::default()
-                                    }))
+                                    })
                                 },
-                                _ => Ok(None)
+                                Err(error) => Err(CLIError::PublicKeyError(error)),
                             }
                         }
 
-                        fn process_public_key<MN: MoneroNetwork>(public_spend_key: &str, public_view_key: &str, format: &MoneroFormat) -> Result<Option<MoneroWallet>, CLIError> {
+                        fn process_public_key<MN: MoneroNetwork>(public_spend_key: &str, public_view_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroPublicKey::<MN>::from(public_spend_key, public_view_key, &format) {
                                 Ok(public_key) => {
                                     let address = public_key.to_address(&format)?;
 
-                                    Ok(Some(MoneroWallet {
+                                    Ok(MoneroWallet {
                                         public_spend_key: Some(public_spend_key.into()),
                                         public_view_key: Some(public_view_key.into()),
                                         address: Some(address.to_string()),
                                         network: Some(MN::NAME.into()),
                                         format: Some(format.to_string()),
                                         ..Default::default()
-                                    }))
+                                    })
                                 },
-                                _ => Ok(None)
+                                Err(error) => Err(CLIError::PublicKeyError(error)),
                             }
                         }
 
-                        fn process_address<MN: MoneroNetwork>(address: &str, format: &MoneroFormat) -> Result<Option<MoneroWallet>, CLIError> {
+                        fn process_address<MN: MoneroNetwork>(address: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroAddress::<MN>::from_str(address) {
                                 Ok(address) => {
-                                    Ok(Some(MoneroWallet {
+                                    Ok(MoneroWallet {
                                         address: Some(address.to_string()),
                                         network: Some(MN::NAME.into()),
                                         format: match *format == address.format()? {
@@ -287,9 +287,9 @@ impl CLI for MoneroCLI {
                                             false => Some(address.format()?.to_string())
                                         },
                                         ..Default::default()
-                                    }))
+                                    })
                                 },
-                                _ => Ok(None)
+                                Err(error) => Err(CLIError::AddressError(error)),
                             }
                         }
 
@@ -301,24 +301,24 @@ impl CLI for MoneroCLI {
                             wallet_values.address.as_ref(),
                         ) {
                             (Some(mnemonic), None, None, _, None) => {
-                                let mnemonic = MoneroMnemonic::<N, W>::from_phrase(&mnemonic).unwrap();
-                                let private_spend_key = hex::encode(mnemonic.to_private_key(None).unwrap().to_private_spend_key());
-                                process_private_spend_key::<N, W>(&private_spend_key, &options.format)?.unwrap()
+                                let mnemonic = MoneroMnemonic::<N, W>::from_phrase(&mnemonic)?;
+                                let private_spend_key = hex::encode(mnemonic.to_private_key(None)?.to_private_spend_key());
+                                process_private_spend_key::<N, W>(&private_spend_key, &options.format)?
                             }
                             (None, Some(private_spend_key), None, _, None) => {
-                                process_private_spend_key::<N, W>(&private_spend_key, &options.format)?.unwrap()
+                                process_private_spend_key::<N, W>(&private_spend_key, &options.format)?
                             }
                             (None, None, Some(private_view_key), _, None) => {
-                                process_private_view_key::<N>(&private_view_key, &options.format)?.unwrap()
+                                process_private_view_key::<N>(&private_view_key, &options.format)?
                             }
                             (None, None, None, (Some(public_spend_key), Some(public_view_key)), None) => {
-                                process_public_key::<N>(&public_spend_key, &public_view_key, &options.format)?.unwrap()
+                                process_public_key::<N>(&public_spend_key, &public_view_key, &options.format)?
                             }
                             (None, None, None, _, Some(address)) => {
-                                let main = process_address::<MoneroMainnet>(&address, &options.format)?;
-                                let stage = process_address::<MoneroStagenet>(&address, &options.format)?;
-                                let test = process_address::<MoneroTestnet>(&address, &options.format)?;
-                                main.or(stage).or(test).unwrap()
+                                let main = process_address::<MoneroMainnet>(&address, &options.format);
+                                let stage = process_address::<MoneroStagenet>(&address, &options.format);
+                                let test = process_address::<MoneroTestnet>(&address, &options.format);
+                                main.or(stage).or(test)?
                             }
                             _ => unreachable!(),
                         }
