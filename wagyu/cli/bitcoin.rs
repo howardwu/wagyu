@@ -36,7 +36,7 @@ pub struct WalletValues {
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct HdValues {
     pub account: Option<String>,
-    pub change: Option<String>,
+    pub chain: Option<String>,
     pub extended_private_key: Option<String>,
     pub extended_public_key: Option<String>,
     pub index: Option<String>,
@@ -198,7 +198,7 @@ impl CLI for BitcoinCLI {
             }
             ("import-hd", Some(import_hd_matches)) => {
                 let account = import_hd_matches.value_of("account").map(|i| i.to_string());
-                let change = import_hd_matches.value_of("change").map(|i| i.to_string());
+                let chain = import_hd_matches.value_of("chain").map(|i| i.to_string());
                 let extended_private_key = import_hd_matches.value_of("extended private").map(|s| s.to_string());
                 let extended_public_key = import_hd_matches.value_of("extended public").map(|s| s.to_string());
                 let index = import_hd_matches.value_of("index").map(|i| i.to_string());
@@ -215,7 +215,7 @@ impl CLI for BitcoinCLI {
 
                 options.hd_values = Some(HdValues {
                     account,
-                    change,
+                    chain,
                     extended_private_key,
                     extended_public_key,
                     index,
@@ -331,15 +331,15 @@ impl CLI for BitcoinCLI {
 
                         let mut format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
-                        let change = hd_values.change.unwrap_or("0".to_string());
+                        let chain = hd_values.chain.unwrap_or("0".to_string());
                         let index = hd_values.index.unwrap_or("0".to_string());
 
                         let mut path: Option<String> = match hd_values.path.as_ref().map(String::as_str) {
                             Some("bip32") => Some(format!("m/0'/0'/{}'", index)),
-                            Some("bip44") => Some(format!("m/44'/0'/{}'/{}/{}'", account, change, index)),
+                            Some("bip44") => Some(format!("m/44'/0'/{}'/{}/{}'", account, chain, index)),
                             Some("bip49") => {
                                 format = BitcoinFormat::P2SH_P2WPKH;
-                                Some(format!("m/49'/0'/{}'/{}/{}'", account, change, index))
+                                Some(format!("m/49'/0'/{}'/{}/{}'", account, chain, index))
                             }
                             Some(custom_path) => Some(custom_path.to_string()),
                             None => Some(format!("m/0'/0'/{}'", index)), // Default - bip32
