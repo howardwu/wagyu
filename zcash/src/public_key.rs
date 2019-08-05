@@ -72,6 +72,7 @@ impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     /// Returns the public key corresponding to the given private key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         match &private_key.to_spending_key() {
+            // Transparent Public Key
             SpendingKey::P2PKH(spending_key) => Self(
                 ViewingKey::P2PKH(P2PKHViewingKey {
                     public_key: secp256k1::PublicKey::from_secret_key(
@@ -82,11 +83,14 @@ impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
                 }),
                 PhantomData,
             ),
+            // Transparent Multisignature
             SpendingKey::P2SH(_) => Self(ViewingKey::P2SH(P2SHViewingKey {}), PhantomData),
+            // Sprout Viewing Key
             SpendingKey::Sprout(spending_key) => Self(
                 ViewingKey::Sprout(SproutViewingKey::from_sprout_spending_key(&spending_key.spending_key)),
                 PhantomData,
             ),
+            // Sapling Full Viewing Key
             SpendingKey::Sapling(spending_key) => Self(
                 ViewingKey::Sapling(SaplingViewingKey(FullViewingKey::<Bls12>::from_expanded_spending_key(
                     &spending_key.expanded_spending_key,
@@ -593,27 +597,27 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
-                "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadef",
+                "secret-spending-key-main1hd5umd08pc4m6f8hw8x3tgv26kxn4w0p4g72kxrtndjazlm64hhsnczrtx",
                 "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
-                "7be697adb66f36d37b12dcdbdea38fbaec8340402de43bfe016f3c10b6a7220e",
-                "1ac13265a8948db61e1614c50a71bc0af2fee7e9814d041b4c8a6a6a5bcfc9cc64b5eb4632e433a0eccc9db485121625345950693c90244e656faf2b1a356f0eb04548d7772c9be13301a71c497afc8d46f805ebce5066371a5548db109611e3",
-                "zs1vvdj0st065ngdruymdcdy63duuavjeww3a2yyeu5tsqj2azhvwgkcaw9ngggfas6h4z4whnkpwz"
+                "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbcf3a0127b15b73cb7237a48da0bafc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
-                "0c9f5d70eaac46862150ae3f2a4eecc68753a72567eb66210df8e18a91425adf",
+                "secret-spending-key-main1pj046u8243rgvg2s4clj5nhvc6r48fe9vl4kvggdlrsc4y2ztt0skswpn9",
                 "bb2d4d7e05b1afb686a7e4d7d8e82a592f25b26caa78a06e939e0ef835c6100c738d89a62c2acd969ef1c68d67d9d365b277145cc60a8e95e11315e192b22c29f612476ea95aa2d4b7df5b881c363829b39ccaa6318c6df3bd2ba6274a15fea0",
                 "zs1akf8swew32rr4n63qedewhp2yz3wcjeazp6efs82lgealmux0h30ayju440rqyuscdr3wd5yuap"
             ),
             (
-                "fc1edae9146d5c7f9398871ac09097fea6c1593e8c7b6f3384af36ff9cc3b2ee",
+                "secret-spending-key-main1ls0d46g5d4w8lyucsudvpyyhl6nvzkf733ak7vuy4um0l8xrkthqnh9a7d",
                 "d610ec21ba084c1b4f42e9c38eefce1dfbf5c0843a549d08b5119007745b171db468b58307cd2c7e54ede334c4e98593e21776043e8956740b102513c03cb023301a9133ee59b826143304b041d8e1f2f1f91d3625ad7dac9e4c88e630a76d8d",
                 "zs14q3vapgrd6wfs9pr7hfy37y9djm3gnq09ztxsqs2x2vzv0lck978843q8r2ysejgwp9mcx7ws48"
             ),
             (
-                "6038f5e45498c92edd5e6a2588bcce7bcbac604e4e825ee7015d11f33d1e9673",
+                "secret-spending-key-main1vqu0tez5nryjah27dgjc30xw0096cczwf6p9aecpt5glx0g7jees99g9fe",
                 "9847a15f3393ad8921f2b282e3033d48adb2eae9455f1e6b77038be913e04c51967b6db4f726fc21c57cf73d3c1fac7d044bc8ea2c5a75334f4641d18f2d0c1335c884a4853f740e93e55d7b9a7b82e7d8c6d17b2305282143359807f2d690d1",
                 "zs1rzjhudlm99h5fyrh7dfsvkfg9l5z587w97pm3ce9hpwfxpgck6p55lwu5mcapz7g3r40y597n2c"
             )
@@ -668,27 +672,27 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
-                "49110debf1fac0086a2fabd60aab413d0281732b6e51a03dd6ec4f334469ef9f",
+                "secret-spending-key-test1fygsm6l3ltqqs63040tq426p85pgzuetdeg6q0wka38nx3rfa70sa9qp0v",
                 "35d5cf61a3d8cf3078112693c1839a14307179008ea5f0902810d03e4a05d8bd194129f2b82ded4a973ad24aa3e4d8e49a10e039f5060616981511d6a888ca8eca66a812697612fc31fa4e0928ac144a3938d5793beda10f7513e15a6f95ad80",
                 "ztestsapling1jzzt7gjscav7lmdpemknv0v8rmmdzpcaqrx95azrgaky94drrvf0fg4wlnlkaclqj3r3s23g2sf"
             ),
             (
-                "4e9d5d14d776a93e8aa1dd7e69eda7cefd9651ad140443ca11553e379b2ae90b",
+                "secret-spending-key-test1f6w469xhw65naz4pm4lxnmd8em7ev5ddzszy8js325lr0xe2ay9snuw9t5",
                 "b8f5a0b850db6424b704e0eda9d01ef472fc58dd1519cb60a97d9240641e105e8856e062da9c729bb3580b64c5d933190af86066e518922e7967255746c024ea4bc12f2e92f93f4f853161bf774fe4d9c32581020c9cc52ee42216c8e575d4bb",
                 "ztestsapling19epsvtxnzf59pr993fq4g0gu0fmrn2jl2z9jm2lgj3220c7r9shyvcpe25ul7wxvzk60z82zyf7"
             ),
             (
-                "8544e9cfc6423e22bca5b62bf56649fd3716b6cc092391ecba78fb017d5feda1",
+                "secret-spending-key-test1s4zwnn7xgglz9099kc4l2ejfl5m3ddkvpy3erm960raszl2lakss48u07t",
                 "75b6233bd29155a361ec2a98552f5c1ddded2fd47af880d78a3f26b4ce8cc2d262008e3d2904bfeb61abdb70432860fbe6557a406c1ae72a4a204fe934985116cdf80f5b52fbc7d22c2dd630939b7641cec76b2e4f8ef6dc53276ea4b3efc1a9",
                 "ztestsapling18ur694qcm6w657u9xt8aekutn98gyvpzwzjgjz99594x775ppeze5vwnp2ndw0u205vkuh2tqcu"
             ),
             (
-                "6d21907f6ad14d2823625036e0951a3c566d4df7b101dfb2899107d02e9bd8bd",
+                "secret-spending-key-test1d5seqlm269xjsgmz2qmwp9g683tx6n0hkyqalv5fjyraqt5mmz7snwyhek",
                 "e35af2ffa9c77482e11d998d087492e9f80672558253ef30ddb6d712d51a4aacc58455349ccd5be0de5a9584cfe63a5be7e86eb9f20f8efb3fb1ef84d8fc6625aa38f308de656736fb6b02929d695bb904108d5b680952ce774e938b3c50418b",
                 "ztestsapling1hkyeldalqna6kxzkkpc3gl4yvtd842sld4kkx7mhtm4srhndnqm347q7x672t05j245skqsctvs"
             ),
             (
-                "d800f2b919cb06f7396a9e253c77f65e1cb5f972372cac196ec6546e09355bfe",
+                "secret-spending-key-test1mqq09wgeevr0wwt2ncjncalktcwtt7tjxuk2cxtwce2xuzf4t0lqf5jn03",
                 "1ba76bdbb4036d8564562e6664af996c53eebd5fd0209894d9100d6caf3fd149bb2550161ca124c672d7d5d2d7fd9fbbda1423e49585f22d269f59898c58e5bdea43b13df61ecd6cd23e6151a873e575db9b54a43e17cd5b12a406f6e9db6073",
                 "ztestsapling12n4jm24lflgmjk4crm0322p0gpmww98v5cqyurphq6tr4r4q9kxyz2f3tp9x92mm8kruwwg2u5w"
             )

@@ -69,9 +69,10 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
 
     /// Returns the private key of the corresponding extended private key.
     fn to_private_key(&self) -> Self::PrivateKey {
-        ZcashPrivateKey::from_spending_key(SpendingKey::<N>::Sapling(SaplingSpendingKey {
+        ZcashPrivateKey::from_spending_key(SpendingKey::<N>::Sapling(SaplingSpendingKey::<N> {
             spending_key: None,
             expanded_spending_key: self.extended_spending_key.expsk.clone(),
+            _network: PhantomData
         }))
     }
 
