@@ -391,7 +391,15 @@ impl CLI for ZcashCLI {
                                 let rng = &mut StdRng::from_entropy();
                                 let seed: [u8; 32] = rng.gen();
                                 let path = ZcashDerivationPath::from_str(&path.as_ref().unwrap())?;
-                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path)?;
+                                let diversifier = match &options.diversifier {
+                                    Some(div) => {
+                                        let mut diversifier =  [0u8; 11];
+                                        diversifier.copy_from_slice(&hex::decode(div)?);
+                                        Some(diversifier)
+                                    },
+                                    None => None
+                                };
+                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(diversifier), &path)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
                                 (Some(extended_private_key), extended_public_key)
                             }

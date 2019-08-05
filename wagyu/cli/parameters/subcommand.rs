@@ -37,7 +37,6 @@ pub const HD_ZCASH: SubCommandType = (
     &[
         option::COUNT,
         option::DIVERSIFIER_IMPORT_ZCASH,
-        option::FORMAT_HD_ZCASH,
         option::NETWORK_HD_ZCASH,
     ],
     &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],

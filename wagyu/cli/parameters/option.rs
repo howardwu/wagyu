@@ -179,12 +179,6 @@ pub const FORMAT_HD_BITCOIN: OptionType = (
     &["bech32", "legacy", "segwit"],
     &[],
 );
-pub const FORMAT_HD_ZCASH: OptionType = (
-    "[format] -f --format=[format] 'Generates an HD wallet with a specified format'",
-    &[],
-    &["sapling", "sprout", "transparent"],
-    &[],
-);
 pub const NETWORK_HD_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Generates an HD wallet for a specified network'",
     &[],
