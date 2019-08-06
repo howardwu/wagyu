@@ -149,6 +149,13 @@ impl CLI for MoneroCLI {
 
         match arguments.subcommand() {
             ("import", Some(import_matches)) => {
+                let mnemonic = import_matches.value_of("mnemonic").map(|s| s.to_string());
+                let private_spend_key = import_matches.value_of("private spend key").map(|s| s.to_string());
+                let private_view_key = import_matches.value_of("private view key").map(|s| s.to_string());
+                let public_spend_key = import_matches.value_of("public spend key").map(|s| s.to_string());
+                let public_view_key = import_matches.value_of("public view key").map(|s| s.to_string());
+                let address = import_matches.value_of("address").map(|s| s.to_string());
+
                 options.format = match (import_matches.values_of("subaddress"), import_matches.value_of("integrated")) {
                     (Some(indices), None) => {
                         let index: Vec<u32> = indices
@@ -166,14 +173,8 @@ impl CLI for MoneroCLI {
                     _ => unreachable!(),
                 }.or(Some(format)).unwrap();
 
-                let mnemonic = import_matches.value_of("mnemonic").map(|s| s.to_string());
-                let private_spend_key = import_matches.value_of("private spend key").map(|s| s.to_string());
-                let private_view_key = import_matches.value_of("private view key").map(|s| s.to_string());
-                let public_spend_key = import_matches.value_of("public spend key").map(|s| s.to_string());
-                let public_view_key = import_matches.value_of("public view key").map(|s| s.to_string());
-                let address = import_matches.value_of("address").map(|s| s.to_string());
-
                 options.json |= import_matches.is_present("json");
+                options.language = import_matches.value_of("language").map(|s| s.to_string()).or(options.language);
                 options.network = import_matches
                     .value_of("network")
                     .unwrap_or(&options.network)
@@ -251,9 +252,13 @@ impl CLI for MoneroCLI {
                     }
                     Some(wallet_values) => {
 
-                        fn process_private_spend_key<MN: MoneroNetwork>(private_spend_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
+                        fn process_private_spend_key<MN: MoneroNetwork, MW: MoneroWordlist>(private_spend_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroPrivateKey::<MN>::from_private_spend_key(private_spend_key, &format) {
                                 Ok(private_key) => {
+                                    let mut seed = [0u8; 32];
+                                    seed.copy_from_slice(&hex::decode(private_spend_key)?);
+                                    let mnemonic = MoneroMnemonic::<MN, MW>::from_seed(&seed)?.to_string();
+
                                     let public_key = private_key.to_public_key();
                                     let private_view_key = hex::encode(private_key.to_private_view_key());
                                     let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
@@ -261,6 +266,7 @@ impl CLI for MoneroCLI {
                                     let address = public_key.to_address(&format)?;
 
                                     Ok(MoneroWallet {
+                                        mnemonic: Some(mnemonic),
                                         private_spend_key: Some(private_spend_key.into()),
                                         private_view_key: Some(private_view_key),
                                         public_spend_key: Some(public_spend_key),
@@ -348,7 +354,21 @@ impl CLI for MoneroCLI {
                                     .or(process_mnemonic::<N, Spanish>(Some(mnemonic), &options.format))?
                             }
                             (None, Some(private_spend_key), None, _, None) => {
-                                process_private_spend_key::<N>(&private_spend_key, &options.format)?
+                                match options.language.as_ref().map(String::as_str) {
+                                    Some("chinese_simplified") => process_private_spend_key::<N, ChineseSimplified>(&private_spend_key, &options.format)?,
+                                    Some("dutch") => process_private_spend_key::<N, Dutch>(&private_spend_key, &options.format)?,
+                                    Some("english") => process_private_spend_key::<N, English>(&private_spend_key, &options.format)?,
+                                    Some("esperanto") => process_private_spend_key::<N, Esperanto>(&private_spend_key, &options.format)?,
+                                    Some("french") => process_private_spend_key::<N, French>(&private_spend_key, &options.format)?,
+                                    Some("german") => process_private_spend_key::<N, German>(&private_spend_key, &options.format)?,
+                                    Some("italian") => process_private_spend_key::<N, Italian>(&private_spend_key, &options.format)?,
+                                    Some("japanese") => process_private_spend_key::<N, Japanese>(&private_spend_key, &options.format)?,
+                                    Some("lojban") => process_private_spend_key::<N, Lojban>(&private_spend_key, &options.format)?,
+                                    Some("portuguese") => process_private_spend_key::<N, Portuguese>(&private_spend_key, &options.format)?,
+                                    Some("russian") => process_private_spend_key::<N, Russian>(&private_spend_key, &options.format)?,
+                                    Some("spanish") => process_private_spend_key::<N, Spanish>(&private_spend_key, &options.format)?,
+                                    _ => process_private_spend_key::<N, English>(&private_spend_key, &options.format)?, // Default language - English
+                                }
                             }
                             (None, None, Some(private_view_key), _, None) => {
                                 process_private_view_key::<N>(&private_view_key, &options.format)?

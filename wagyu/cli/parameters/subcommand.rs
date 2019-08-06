@@ -79,6 +79,7 @@ pub const IMPORT_MONERO: SubCommandType = (
     &[
         option::ADDRESS,
         option::INTEGRATED_IMPORT_MONERO,
+        option::LANGUAGE_IMPORT_MONERO,
         option::MNEMONIC_IMPORT_MONERO,
         option::NETWORK_IMPORT_MONERO,
         option::PRIVATE_SPEND_KEY_MONERO,

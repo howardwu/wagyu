@@ -92,6 +92,12 @@ pub const INTEGRATED_IMPORT_MONERO: OptionType = (
     &[],
     &[],
 );
+pub const LANGUAGE_IMPORT_MONERO: OptionType = (
+    "[language] -l --language=[language] 'Imports a wallet with a specified mnemonic language (requires private spend key)'",
+    &[],
+    &["chinese_simplified", "dutch", "english", "esperanto", "french", "german", "italian", "japanese", "lojban", "portuguese", "russian", "spanish"],
+    &["private spend key"],
+);
 pub const MNEMONIC_IMPORT_MONERO: OptionType = (
     "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports a wallet for a specified mnemonic (in quotes)'",
     &["address", "count", "public spend key", "public view key", "private spend key", "private view key"],
