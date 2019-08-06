@@ -35,6 +35,12 @@ pub const INTEGRATED_MONERO: OptionType = (
     &[],
     &[],
 );
+pub const LANGUAGE_MONERO: OptionType = (
+    "[language] -l --language=[language] 'Generates a wallet with a specified language'",
+    &[],
+    &["chinese_simplified", "dutch", "english", "esperanto", "french", "german", "italian", "japanese", "lojban", "portuguese", "russian", "spanish"],
+    &[],
+);
 pub const NETWORK_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Generates a wallet for a specified network'",
     &[],
@@ -177,6 +183,12 @@ pub const FORMAT_HD_BITCOIN: OptionType = (
     "[format] -f --format=[format] 'Generates an HD wallet with a specified format'",
     &[],
     &["bech32", "legacy", "segwit"],
+    &[],
+);
+pub const LANGUAGE_HD: OptionType = (
+    "[language] -l --language=[language] 'Generates an HD wallet with a specified language'",
+    &[],
+    &["chinese_simplified", "chinese_traditional", "english", "french", "italian", "japanese", "korean", "spanish"],
     &[],
 );
 pub const NETWORK_HD_BITCOIN: OptionType = (

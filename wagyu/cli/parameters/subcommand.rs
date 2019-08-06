@@ -12,6 +12,7 @@ pub const HD_BITCOIN: SubCommandType = (
         option::COUNT,
         option::DERIVATION_BITCOIN,
         option::FORMAT_HD_BITCOIN,
+        option::LANGUAGE_HD,
         option::NETWORK_HD_BITCOIN,
         option::PASSWORD_HD,
         option::WORD_COUNT,
@@ -25,6 +26,7 @@ pub const HD_ETHEREUM: SubCommandType = (
     &[
         option::COUNT,
         option::DERIVATION_ETHEREUM,
+        option::LANGUAGE_HD,
         option::PASSWORD_HD,
         option::WORD_COUNT,
     ],

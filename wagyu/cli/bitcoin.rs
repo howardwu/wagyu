@@ -1,12 +1,12 @@
 use crate::bitcoin::{
-    address::Format as BitcoinFormat, BitcoinAddress, BitcoinDerivationPath, BitcoinMnemonic, BitcoinNetwork,
-    BitcoinPrivateKey, BitcoinPublicKey, English as BitcoinEnglish, Mainnet as BitcoinMainnet,
-    Testnet as BitcoinTestnet,
+    address::Format as BitcoinFormat, BitcoinAddress, BitcoinDerivationPath,
+    BitcoinExtendedPrivateKey, BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork,
+    BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist, Mainnet as BitcoinMainnet,
+    Testnet as BitcoinTestnet, wordlist::*,
 };
 use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, MnemonicExtended, PrivateKey, PublicKey};
 
-use bitcoin::{BitcoinExtendedPrivateKey, BitcoinExtendedPublicKey};
 use clap::ArgMatches;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
@@ -40,6 +40,7 @@ pub struct HdValues {
     pub extended_private_key: Option<String>,
     pub extended_public_key: Option<String>,
     pub index: Option<String>,
+    pub language: Option<String>,
     pub mnemonic: Option<String>,
     pub password: Option<String>,
     pub path: Option<String>,
@@ -161,6 +162,7 @@ impl CLI for BitcoinCLI {
 
         match arguments.subcommand() {
             ("hd", Some(hd_matches)) => {
+                let language = hd_matches.value_of("language").map(|s| s.to_string());
                 let password = hd_matches.value_of("password").map(|s| s.to_string());
                 let path = hd_matches.value_of("derivation").map(|s| s.to_string());
                 let word_count = hd_matches.value_of("word count").map(|s| s.parse::<u8>().unwrap());
@@ -171,10 +173,11 @@ impl CLI for BitcoinCLI {
                 options.network = hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.hd_values = Some(HdValues {
-                    word_count,
+                    language,
                     mnemonic: None,
                     password,
                     path,
+                    word_count,
                     ..Default::default()
                 });
             }
@@ -326,9 +329,18 @@ impl CLI for BitcoinCLI {
                         }
                     }
                     (None, Some(hd_values)) => {
-                        type W = BitcoinEnglish;
-                        const DEFAULT_WORD_COUNT: u8 = 12;
 
+                        fn process_mnemonic<BN: BitcoinNetwork, BW: BitcoinWordlist>(mnemonic: Option<String>, word_count: u8, password: &Option<&str>)
+                            -> Result<(String, BitcoinExtendedPrivateKey<BN>), CLIError> {
+                            let mnemonic = match mnemonic {
+                                Some(mnemonic) => BitcoinMnemonic::<BN, BW>::from_phrase(&mnemonic)?,
+                                None => BitcoinMnemonic::<BN, BW>::new(word_count, &mut StdRng::from_entropy())?,
+                            };
+                            let master_extended_private_key = mnemonic.to_extended_private_key(*password)?;
+                            Ok((mnemonic.to_string(), master_extended_private_key))
+                        }
+
+                        const DEFAULT_WORD_COUNT: u8 = 12;
                         let mut format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
                         let chain = hd_values.chain.unwrap_or("0".to_string());
@@ -359,19 +371,38 @@ impl CLI for BitcoinCLI {
                             hd_values.extended_public_key,
                         ) {
                             (None, None, None) => {
-                                let mnemonic =
-                                    BitcoinMnemonic::<N, W>::new(word_count, &mut StdRng::from_entropy())?;
-                                let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
-                                let extended_private_key = master_xpriv_key
+                                let (mnemonic, master_extended_private_key)
+                                    = match hd_values.language.as_ref().map(String::as_str) {
+                                    Some("chinese_simplified") => process_mnemonic::<N, ChineseSimplified>(None, word_count, &password)?,
+                                    Some("chinese_traditional") => process_mnemonic::<N, ChineseTraditional>(None, word_count, &password)?,
+                                    Some("english") => process_mnemonic::<N, English>(None, word_count, &password)?,
+                                    Some("french") => process_mnemonic::<N, French>(None, word_count, &password)?,
+                                    Some("italian") => process_mnemonic::<N, Italian>(None, word_count, &password)?,
+                                    Some("japanese") => process_mnemonic::<N, Japanese>(None, word_count, &password)?,
+                                    Some("korean") => process_mnemonic::<N, Korean>(None, word_count, &password)?,
+                                    Some("spanish") => process_mnemonic::<N, Spanish>(None, word_count, &password)?,
+                                    _ => process_mnemonic::<N, English>(None, word_count, &password)?, // Default language - English
+                                };
+
+                                let extended_private_key = master_extended_private_key
                                     .derive(&BitcoinDerivationPath::from_str(&path)?)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
 
                                 (Some(mnemonic), Some(extended_private_key), extended_public_key)
                             }
                             (Some(mnemonic), None, None) => {
-                                let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic)?;
-                                let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
-                                let extended_private_key = master_xpriv_key
+                                let chinese_simplified = process_mnemonic::<N, ChineseSimplified>(Some(mnemonic.to_owned()), word_count, &password);
+                                let chinese_traditional = process_mnemonic::<N, ChineseTraditional>(Some(mnemonic.to_owned()), word_count, &password);
+                                let english = process_mnemonic::<N, English>(Some(mnemonic.to_owned()), word_count, &password);
+                                let french = process_mnemonic::<N, French>(Some(mnemonic.to_owned()), word_count, &password);
+                                let italian = process_mnemonic::<N, Italian>(Some(mnemonic.to_owned()), word_count, &password);
+                                let japanese = process_mnemonic::<N, Japanese>(Some(mnemonic.to_owned()), word_count, &password);
+                                let korean = process_mnemonic::<N, Korean>(Some(mnemonic.to_owned()), word_count, &password);
+                                let spanish = process_mnemonic::<N, Spanish>(Some(mnemonic.to_owned()), word_count, &password);
+
+                                let (mnemonic, master_extended_private_key) =
+                                    chinese_simplified.or(chinese_traditional).or(english).or(french).or(italian).or(japanese).or(korean).or(spanish)?;
+                                let extended_private_key = master_extended_private_key
                                     .derive(&BitcoinDerivationPath::from_str(&path)?)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
 
@@ -418,7 +449,7 @@ impl CLI for BitcoinCLI {
                         BitcoinWallet {
                             path: final_path,
                             password: hd_values.password,
-                            mnemonic: mnemonic.map(|key| key.to_string()),
+                            mnemonic: mnemonic,
                             extended_private_key: extended_private_key.map(|key| key.to_string()),
                             extended_public_key: Some(extended_public_key.to_string()),
                             private_key,

@@ -18,6 +18,7 @@ use monero::MoneroWordlist;
 pub struct MoneroOptions {
     pub wallet_values: Option<WalletValues>,
     pub count: usize,
+    pub language: Option<String>,
     pub network: String,
     pub format: MoneroFormat,
     pub json: bool,
@@ -108,7 +109,7 @@ impl CLI for MoneroCLI {
     const NAME: NameType = "monero";
     const ABOUT: AboutType = "Generates a Monero wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
-    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::INTEGRATED_MONERO, option::NETWORK_MONERO, option::SUBADDRESS_MONERO];
+    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::INTEGRATED_MONERO, option::LANGUAGE_MONERO, option::NETWORK_MONERO, option::SUBADDRESS_MONERO];
     const SUBCOMMANDS: &'static [SubCommandType] = &[subcommand::IMPORT_MONERO];
 
     /// Handle all CLI arguments and flags for Monero
@@ -140,6 +141,7 @@ impl CLI for MoneroCLI {
         let mut options = MoneroOptions {
             wallet_values: None,
             count: clap::value_t!(arguments.value_of("count"), usize).unwrap_or_else(|_e| 1),
+            language: arguments.value_of("language").map(|s| s.to_string()),
             network: network.to_owned(),
             format,
             json: arguments.is_present("json"),
@@ -196,67 +198,58 @@ impl CLI for MoneroCLI {
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
 
-        fn output<N: MoneroNetwork, W: MoneroWordlist>(options: MoneroOptions) -> Result<(), CLIError> {
+        fn process_mnemonic<MN: MoneroNetwork, MW: MoneroWordlist>(mnemonic: Option<&str>, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
+            let mnemonic = match mnemonic {
+                Some(mnemonic) => {
+                    MoneroMnemonic::<MN, MW>::from_phrase(mnemonic)?
+                },
+                None => {
+                    MoneroMnemonic::<MN, MW>::new(&mut StdRng::from_entropy())?
+                }
+            };
+
+            let private_key = mnemonic.to_private_key(None)?;
+            let private_spend_key = hex::encode(private_key.to_private_spend_key());
+            let private_view_key = hex::encode(private_key.to_private_view_key());
+            let public_key = private_key.to_public_key();
+            let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
+            let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
+            let address = public_key.to_address(&format)?;
+
+            Ok(MoneroWallet {
+                mnemonic: Some(mnemonic.to_string()),
+                private_spend_key: Some(private_spend_key),
+                private_view_key: Some(private_view_key),
+                public_spend_key: Some(public_spend_key),
+                public_view_key: Some(public_view_key),
+                address: Some(address.to_string()),
+                network: Some(MN::NAME.into()),
+                format: Some(format.to_string()),
+                ..Default::default()
+            })
+        }
+
+        fn output<N: MoneroNetwork>(options: MoneroOptions) -> Result<(), CLIError> {
             for _ in 0..options.count {
                 let wallet = match options.wallet_values.to_owned() {
                     None => {
-                        let mnemonic = MoneroMnemonic::<N, W>::new(&mut StdRng::from_entropy())?;
-                        let private_key = mnemonic.to_private_key(None)?;
-                        let public_key = private_key.to_public_key();
-
-                        let private_spend_key = hex::encode(private_key.to_private_spend_key());
-                        let private_view_key = hex::encode(private_key.to_private_view_key());
-                        let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
-                        let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
-                        let address = public_key.to_address(&options.format)?;
-
-                        MoneroWallet {
-                            mnemonic: Some(mnemonic.to_string()),
-                            private_spend_key: Some(private_spend_key),
-                            private_view_key: Some(private_view_key),
-                            public_spend_key: Some(public_spend_key),
-                            public_view_key: Some(public_view_key),
-                            address: Some(address.to_string()),
-                            network: Some(options.network.to_owned()),
-                            format: Some(options.format.to_string()),
-                            ..Default::default()
+                        match options.language.as_ref().map(String::as_str) {
+                            Some("chinese_simplified") => process_mnemonic::<N, ChineseSimplified>(None, &options.format)?,
+                            Some("dutch") => process_mnemonic::<N, Dutch>(None, &options.format)?,
+                            Some("english") => process_mnemonic::<N, English>(None, &options.format)?,
+                            Some("esperanto") => process_mnemonic::<N, Esperanto>(None, &options.format)?,
+                            Some("french") => process_mnemonic::<N, French>(None, &options.format)?,
+                            Some("german") => process_mnemonic::<N, German>(None, &options.format)?,
+                            Some("italian") => process_mnemonic::<N, Italian>(None, &options.format)?,
+                            Some("japanese") => process_mnemonic::<N, Japanese>(None, &options.format)?,
+                            Some("lojban") => process_mnemonic::<N, Lojban>(None, &options.format)?,
+                            Some("portuguese") => process_mnemonic::<N, Portuguese>(None, &options.format)?,
+                            Some("russian") => process_mnemonic::<N, Russian>(None, &options.format)?,
+                            Some("spanish") => process_mnemonic::<N, Spanish>(None, &options.format)?,
+                            _ => process_mnemonic::<N, English>(None, &options.format)?, // Default language - English
                         }
                     }
                     Some(wallet_values) => {
-
-                        fn process_mnemonic<MN: MoneroNetwork, MW: MoneroWordlist>(private_spend_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
-                            match MoneroPrivateKey::<MN>::from_private_spend_key(private_spend_key, &format) {
-                                Ok(private_key) => {
-                                    let mnemonic = match format {
-                                        MoneroFormat::Standard => {
-                                            let buffer = hex::decode(private_spend_key)?;
-                                            let mut seed = [0u8; 32];
-                                            seed.copy_from_slice(&buffer);
-                                            Some(MoneroMnemonic::<MN, MW>::from_seed(&seed)?.to_string())
-                                        },
-                                        _ => None
-                                    };
-                                    let public_key = private_key.to_public_key();
-                                    let private_view_key = hex::encode(private_key.to_private_view_key());
-                                    let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
-                                    let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
-                                    let address = public_key.to_address(&format)?;
-
-                                    Ok(MoneroWallet {
-                                        mnemonic,
-                                        private_spend_key: Some(private_spend_key.into()),
-                                        private_view_key: Some(private_view_key),
-                                        public_spend_key: Some(public_spend_key),
-                                        public_view_key: Some(public_view_key),
-                                        address: Some(address.to_string()),
-                                        network: Some(MN::NAME.into()),
-                                        format: Some(format.to_string()),
-                                        ..Default::default()
-                                    })
-                                },
-                                Err(error) => Err(CLIError::PrivateKeyError(error)),
-                            }
-                        }
 
                         fn process_private_spend_key<MN: MoneroNetwork>(private_spend_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroPrivateKey::<MN>::from_private_spend_key(private_spend_key, &format) {
@@ -341,9 +334,32 @@ impl CLI for MoneroCLI {
                             wallet_values.address.as_ref(),
                         ) {
                             (Some(mnemonic), None, None, _, None) => {
-                                let mnemonic = MoneroMnemonic::<N, W>::from_phrase(&mnemonic)?;
-                                let private_spend_key = hex::encode(mnemonic.to_private_key(None)?.to_private_spend_key());
-                                process_mnemonic::<N, W>(&private_spend_key, &options.format)?
+                                let chinese_simplified = process_mnemonic::<N, ChineseSimplified>(Some(mnemonic), &options.format);
+                                let dutch = process_mnemonic::<N, Dutch>(Some(mnemonic), &options.format);
+                                let english = process_mnemonic::<N, English>(Some(mnemonic), &options.format);
+                                let esperanto = process_mnemonic::<N, Esperanto>(Some(mnemonic), &options.format);
+                                let french = process_mnemonic::<N, French>(Some(mnemonic), &options.format);
+                                let german = process_mnemonic::<N, German>(Some(mnemonic), &options.format);
+                                let italian = process_mnemonic::<N, Italian>(Some(mnemonic), &options.format);
+                                let japanese = process_mnemonic::<N, Japanese>(Some(mnemonic), &options.format);
+                                let lojban = process_mnemonic::<N, Lojban>(Some(mnemonic), &options.format);
+                                let portuguese = process_mnemonic::<N, Portuguese>(Some(mnemonic), &options.format);
+                                let russian = process_mnemonic::<N, Russian>(Some(mnemonic), &options.format);
+                                let spanish = process_mnemonic::<N, Spanish>(Some(mnemonic), &options.format);
+
+                                chinese_simplified
+                                    .or(dutch)
+                                    .or(english)
+                                    .or(esperanto)
+                                    .or(french)
+                                    .or(german)
+                                    .or(italian)
+                                    .or(japanese)
+                                    .or(lojban)
+                                    .or(portuguese)
+                                    .or(russian)
+                                    .or(spanish)?
+
                             }
                             (None, Some(private_spend_key), None, _, None) => {
                                 process_private_spend_key::<N>(&private_spend_key, &options.format)?
@@ -375,9 +391,9 @@ impl CLI for MoneroCLI {
         }
 
         match options.network.as_str() {
-            "testnet" => output::<MoneroTestnet, English>(options),
-            "stagenet" => output::<MoneroStagenet, English>(options),
-            _ => output::<MoneroMainnet, English>(options),
+            "testnet" => output::<MoneroTestnet>(options),
+            "stagenet" => output::<MoneroStagenet>(options),
+            _ => output::<MoneroMainnet>(options),
         }
     }
 }

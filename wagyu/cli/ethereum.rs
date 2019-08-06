@@ -1,12 +1,12 @@
 use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
 use crate::ethereum::{
-    English as EthereumEnglish, EthereumAddress, EthereumDerivationPath, EthereumMnemonic, EthereumPrivateKey,
-    EthereumPublicKey,
+    EthereumAddress, EthereumDerivationPath, EthereumMnemonic,
+    EthereumPrivateKey, EthereumPublicKey, EthereumExtendedPrivateKey,
+    EthereumExtendedPublicKey, wordlist::*,
 };
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
-use ethereum::{EthereumExtendedPrivateKey, EthereumExtendedPublicKey};
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use serde::Serialize;
@@ -37,6 +37,7 @@ pub struct HdValues {
     pub extended_private_key: Option<String>,
     pub extended_public_key: Option<String>,
     pub index: Option<String>,
+    pub language: Option<String>,
     pub mnemonic: Option<String>,
     pub password: Option<String>,
     pub path: Option<String>,
@@ -132,6 +133,7 @@ impl CLI for EthereumCLI {
 
         match arguments.subcommand() {
             ("hd", Some(hd_matches)) => {
+                let language = hd_matches.value_of("language").map(|s| s.to_string());
                 let password = hd_matches.value_of("password").map(|s| s.to_string());
                 let path = hd_matches.value_of("derivation").map(|s| s.to_string());
                 let word_count = hd_matches.value_of("word count").map(|s| s.parse::<u8>().unwrap());
@@ -139,10 +141,11 @@ impl CLI for EthereumCLI {
                 options.count = clap::value_t!(hd_matches.value_of("count"), usize).unwrap_or(options.count);
                 options.json |= hd_matches.is_present("json");
                 options.hd_values = Some(HdValues {
-                    word_count,
+                    language,
                     mnemonic: None,
                     password,
                     path,
+                    word_count,
                     ..Default::default()
                 });
             }
@@ -262,11 +265,20 @@ impl CLI for EthereumCLI {
                     }
                 }
                 (None, Some(hd_values)) => {
-                    type W = EthereumEnglish;
+
+                    fn process_mnemonic<EW: EthereumWordlist>(mnemonic: Option<String>, word_count: u8, password: &Option<&str>)
+                                                                                 -> Result<(String, EthereumExtendedPrivateKey), CLIError> {
+                        let mnemonic = match mnemonic {
+                            Some(mnemonic) => EthereumMnemonic::<EW>::from_phrase(&mnemonic)?,
+                            None => EthereumMnemonic::<EW>::new(word_count, &mut StdRng::from_entropy())?,
+                        };
+                        let master_extended_private_key = mnemonic.to_extended_private_key(*password)?;
+                        Ok((mnemonic.to_string(), master_extended_private_key))
+                    }
+
                     const DEFAULT_WORD_COUNT: u8 = 12;
 
                     let index = hd_values.index.unwrap_or("0".to_string());
-
                     let path: String = match hd_values.path.as_ref().map(String::as_str) {
                         Some("ethereum") => format!("m/44'/60'/0'/{}", index),
                         Some("keepkey") => format!("m/44'/60'/{}'/0", index),
@@ -291,22 +303,42 @@ impl CLI for EthereumCLI {
                         hd_values.extended_public_key,
                     ) {
                         (None, None, None) => {
-                            let mnemonic = EthereumMnemonic::<W>::new(word_count, &mut StdRng::from_entropy())?;
-                            let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
-                            let extended_private_key = master_xpriv_key
+                            let (mnemonic, master_extended_private_key)
+                                = match hd_values.language.as_ref().map(String::as_str) {
+                                Some("chinese_simplified") => process_mnemonic::<ChineseSimplified>(None, word_count, &password)?,
+                                Some("chinese_traditional") => process_mnemonic::<ChineseTraditional>(None, word_count, &password)?,
+                                Some("english") => process_mnemonic::<English>(None, word_count, &password)?,
+                                Some("french") => process_mnemonic::<French>(None, word_count, &password)?,
+                                Some("italian") => process_mnemonic::<Italian>(None, word_count, &password)?,
+                                Some("japanese") => process_mnemonic::<Japanese>(None, word_count, &password)?,
+                                Some("korean") => process_mnemonic::<Korean>(None, word_count, &password)?,
+                                Some("spanish") => process_mnemonic::<Spanish>(None, word_count, &password)?,
+                                _ => process_mnemonic::<English>(None, word_count, &password)?, // Default language - English
+                            };
+
+                            let extended_private_key = master_extended_private_key
                                 .derive(&EthereumDerivationPath::from_str(&path)?)?;
                             let extended_public_key = extended_private_key.to_extended_public_key();
 
                             (Some(mnemonic), Some(extended_private_key), extended_public_key)
                         }
                         (Some(mnemonic), None, None) => {
-                            let mnemonic = EthereumMnemonic::<W>::from_phrase(&mnemonic)?;
-                            let master_xpriv_key = mnemonic.to_extended_private_key(password)?;
-                            let extended_private_key = master_xpriv_key
+                            let chinese_simplified = process_mnemonic::<ChineseSimplified>(Some(mnemonic.to_owned()), word_count, &password);
+                            let chinese_traditional = process_mnemonic::<ChineseTraditional>(Some(mnemonic.to_owned()), word_count, &password);
+                            let english = process_mnemonic::<English>(Some(mnemonic.to_owned()), word_count, &password);
+                            let french = process_mnemonic::<French>(Some(mnemonic.to_owned()), word_count, &password);
+                            let italian = process_mnemonic::<Italian>(Some(mnemonic.to_owned()), word_count, &password);
+                            let japanese = process_mnemonic::<Japanese>(Some(mnemonic.to_owned()), word_count, &password);
+                            let korean = process_mnemonic::<Korean>(Some(mnemonic.to_owned()), word_count, &password);
+                            let spanish = process_mnemonic::<Spanish>(Some(mnemonic.to_owned()), word_count, &password);
+
+                            let (mnemonic, master_extended_private_key) =
+                                chinese_simplified.or(chinese_traditional).or(english).or(french).or(italian).or(japanese).or(korean).or(spanish)?;
+                            let extended_private_key = master_extended_private_key
                                 .derive(&EthereumDerivationPath::from_str(&path)?)?;
                             let extended_public_key = extended_private_key.to_extended_public_key();
 
-                            (Some(mnemonic), Some(extended_private_key), extended_public_key)
+                            (Some(mnemonic.to_string()), Some(extended_private_key), extended_public_key)
                         }
                         (None, Some(extended_private_key), None) => {
                             let mut extended_private_key = EthereumExtendedPrivateKey::from_str(&extended_private_key)?;
