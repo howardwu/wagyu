@@ -120,14 +120,14 @@ impl CLI for MoneroCLI {
                     .into_iter()
                     .map(|i| i.to_owned().parse::<u32>().unwrap())
                     .collect();
-                Some(MoneroFormat::Subaddress(index[0], index[1]))
+                MoneroFormat::Subaddress(index[0], index[1])
             }
             (None, Some(id)) => {
                 let mut payment_id = [0u8; 8];
                 payment_id.copy_from_slice(&hex::decode(id)?);
-                Some(MoneroFormat::Integrated(payment_id))
+                MoneroFormat::Integrated(payment_id)
             }
-            (None, None) => Some(MoneroFormat::Standard),
+            (None, None) => MoneroFormat::Standard,
             _ => unreachable!(),
         };
 
@@ -141,7 +141,7 @@ impl CLI for MoneroCLI {
             wallet_values: None,
             count: clap::value_t!(arguments.value_of("count"), usize).unwrap_or_else(|_e| 1),
             network: network.to_owned(),
-            format: MoneroFormat::Standard,
+            format,
             json: arguments.is_present("json"),
         };
 
@@ -160,9 +160,9 @@ impl CLI for MoneroCLI {
                         payment_id.copy_from_slice(&hex::decode(id)?);
                         Some(MoneroFormat::Integrated(payment_id))
                     }
-                    (None, None) => Some(MoneroFormat::Standard),
+                    (None, None) => None,
                     _ => unreachable!(),
-                }.or(format).unwrap();
+                }.or(Some(format)).unwrap();
 
                 let mnemonic = import_matches.value_of("mnemonic").map(|s| s.to_string());
                 let private_spend_key = import_matches.value_of("private spend key").map(|s| s.to_string());
@@ -171,7 +171,7 @@ impl CLI for MoneroCLI {
                 let public_view_key = import_matches.value_of("public view key").map(|s| s.to_string());
                 let address = import_matches.value_of("address").map(|s| s.to_string());
 
-                options.json = options.json || import_matches.is_present("json");
+                options.json |= import_matches.is_present("json");
                 options.network = import_matches
                     .value_of("network")
                     .unwrap_or(&options.network)

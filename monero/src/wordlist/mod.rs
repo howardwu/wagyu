@@ -62,11 +62,11 @@ pub trait MoneroWordlist: Wordlist {
         }
     }
 
-    /// Returns the index of a given word from the word list.
-    fn get_index_trimmed(word: &str) -> Result<usize, WordlistError> {
-        match Self::get_all_trimmed().iter().position(|e| e == &word) {
+    /// Returns the index of a given trimmed word from the word list.
+    fn get_index_trimmed(trimmed_word: &str) -> Result<usize, WordlistError> {
+        match Self::get_all_trimmed().iter().position(|e| e == &trimmed_word) {
             Some(index) => Ok(index),
-            None => Err(WordlistError::InvalidWord(word.into())),
+            None => Err(WordlistError::InvalidWord(trimmed_word.into())),
         }
     }
 
@@ -79,7 +79,15 @@ pub trait MoneroWordlist: Wordlist {
     fn get_all_trimmed() -> Vec<String> {
         Self::get_all()
             .iter()
-            .map(|word| word[0..Self::PREFIX_LENGTH].to_string())
+            .map(|&word| Self::to_trimmed(word))
             .collect()
+    }
+
+    /// Returns the trimmed word for a given prefix length.
+    fn to_trimmed(word: &str) -> String {
+        match word.chars().count() > Self::PREFIX_LENGTH {
+            true => word.chars().take(Self::PREFIX_LENGTH).collect(),
+            false => word.into()
+        }
     }
 }

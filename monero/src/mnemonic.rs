@@ -130,9 +130,9 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
         let mut buffer = vec![];
         let chunks = phrase.chunks(3);
         for chunk in chunks {
-            let w1 = W::get_index_trimmed(&chunk[0][0..W::PREFIX_LENGTH])?;
-            let w2 = W::get_index_trimmed(&chunk[1][0..W::PREFIX_LENGTH])?;
-            let w3 = W::get_index_trimmed(&chunk[2][0..W::PREFIX_LENGTH])?;
+            let w1 = W::get_index_trimmed(&W::to_trimmed(&chunk[0]))?;
+            let w2 = W::get_index_trimmed(&W::to_trimmed(&chunk[1]))?;
+            let w3 = W::get_index_trimmed(&W::to_trimmed(&chunk[2]))?;
 
             let n = length;
             let x = w1 + n * (((n - w1) + w2) % n) + n * n * (((n - w2) + w3) % n);
@@ -146,10 +146,10 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
         // Verify the checksum
         let expected_checksum = Self::checksum_word(&phrase.into());
-        if expected_checksum[0..W::PREFIX_LENGTH] != checksum[0..W::PREFIX_LENGTH] {
-            let expected = &expected_checksum[0..W::PREFIX_LENGTH];
-            let found = &checksum[0..W::PREFIX_LENGTH];
-            return Err(MnemonicError::InvalidChecksumWord(expected.into(), found.into()));
+        if W::to_trimmed(&expected_checksum) != W::to_trimmed(&checksum) {
+            let expected = W::to_trimmed(&expected_checksum);
+            let found = W::to_trimmed(&checksum);
+            return Err(MnemonicError::InvalidChecksumWord(expected, found));
         }
 
         let mut data = [0u8; 32];
@@ -162,7 +162,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     fn checksum_word(phrase: &Vec<String>) -> String {
         let phrase_trimmed = phrase
             .iter()
-            .map(|word| word[0..W::PREFIX_LENGTH].to_string())
+            .map(|word| W::to_trimmed(word))
             .collect::<Vec<String>>();
 
         let mut digest = crc32::Digest::new(crc32::IEEE);
