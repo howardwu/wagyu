@@ -53,6 +53,8 @@ struct MoneroWallet {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
 }
 
@@ -86,6 +88,10 @@ impl Display for MoneroWallet {
             },
             match &self.format {
                 Some(format) => format!("      Format               {}\n", format),
+                _ => "".to_owned(),
+            },
+            match &self.payment_id {
+                Some(payment_id) => format!("      Payment ID           {}\n", payment_id),
                 _ => "".to_owned(),
             },
             match &self.network {
@@ -216,6 +222,10 @@ impl CLI for MoneroCLI {
             let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
             let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
             let address = public_key.to_address(&format)?;
+            let (format, payment_id) = match format {
+                MoneroFormat::Integrated(payment_id)=> (Some("integrated".to_string()), Some(hex::encode(payment_id))),
+                format => (Some(format.to_string()), None)
+            };
 
             Ok(MoneroWallet {
                 mnemonic: Some(mnemonic.to_string()),
@@ -225,7 +235,8 @@ impl CLI for MoneroCLI {
                 public_view_key: Some(public_view_key),
                 address: Some(address.to_string()),
                 network: Some(MN::NAME.into()),
-                format: Some(format.to_string()),
+                format,
+                payment_id,
                 ..Default::default()
             })
         }
@@ -264,6 +275,10 @@ impl CLI for MoneroCLI {
                                     let public_spend_key = hex::encode(public_key.to_public_spend_key().unwrap());
                                     let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
                                     let address = public_key.to_address(&format)?;
+                                    let (format, payment_id) = match format {
+                                        MoneroFormat::Integrated(payment_id)=> (Some("integrated".to_string()), Some(hex::encode(payment_id))),
+                                        format => (Some(format.to_string()), None)
+                                    };
 
                                     Ok(MoneroWallet {
                                         mnemonic: Some(mnemonic),
@@ -273,7 +288,8 @@ impl CLI for MoneroCLI {
                                         public_view_key: Some(public_view_key),
                                         address: Some(address.to_string()),
                                         network: Some(MN::NAME.into()),
-                                        format: Some(format.to_string()),
+                                        format,
+                                        payment_id,
                                         ..Default::default()
                                     })
                                 },
@@ -283,16 +299,13 @@ impl CLI for MoneroCLI {
 
                         fn process_private_view_key<MN: MoneroNetwork>(private_view_key: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
                             match MoneroPublicKey::<MN>::from_private_view_key(private_view_key, &format) {
-                                Ok(public_key) => {
-                                    let public_view_key = hex::encode(public_key.to_public_view_key().unwrap());
-
+                                Ok(public_key) =>
                                     Ok(MoneroWallet {
                                         private_view_key: Some(private_view_key.into()),
-                                        public_view_key: Some(public_view_key),
+                                        public_view_key: Some(hex::encode(public_key.to_public_view_key().unwrap())),
                                         network: Some(MN::NAME.into()),
                                         ..Default::default()
-                                    })
-                                },
+                                    }),
                                 Err(error) => Err(CLIError::PublicKeyError(error)),
                             }
                         }
@@ -301,13 +314,18 @@ impl CLI for MoneroCLI {
                             match MoneroPublicKey::<MN>::from(public_spend_key, public_view_key, &format) {
                                 Ok(public_key) => {
                                     let address = public_key.to_address(&format)?;
+                                    let (format, payment_id) = match format {
+                                        MoneroFormat::Integrated(payment_id)=> (Some("integrated".to_string()), Some(hex::encode(payment_id))),
+                                        format => (Some(format.to_string()), None)
+                                    };
 
                                     Ok(MoneroWallet {
                                         public_spend_key: Some(public_spend_key.into()),
                                         public_view_key: Some(public_view_key.into()),
                                         address: Some(address.to_string()),
                                         network: Some(MN::NAME.into()),
-                                        format: Some(format.to_string()),
+                                        format,
+                                        payment_id,
                                         ..Default::default()
                                     })
                                 },
@@ -315,16 +333,19 @@ impl CLI for MoneroCLI {
                             }
                         }
 
-                        fn process_address<MN: MoneroNetwork>(address: &str, format: &MoneroFormat) -> Result<MoneroWallet, CLIError> {
+                        fn process_address<MN: MoneroNetwork>(address: &str) -> Result<MoneroWallet, CLIError> {
                             match MoneroAddress::<MN>::from_str(address) {
                                 Ok(address) => {
+                                    let (format, payment_id) = match address.format()? {
+                                        MoneroFormat::Integrated(payment_id)=> (Some("integrated".to_string()), Some(hex::encode(payment_id))),
+                                        format => (Some(format.to_string()), None)
+                                    };
+
                                     Ok(MoneroWallet {
                                         address: Some(address.to_string()),
                                         network: Some(MN::NAME.into()),
-                                        format: match *format == address.format()? {
-                                            true => Some(format.to_string()),
-                                            false => Some(address.format()?.to_string())
-                                        },
+                                        format,
+                                        payment_id,
                                         ..Default::default()
                                     })
                                 },
@@ -377,9 +398,9 @@ impl CLI for MoneroCLI {
                                 process_public_key::<N>(&public_spend_key, &public_view_key, &options.format)?
                             }
                             (None, None, None, _, Some(address)) => {
-                                let main = process_address::<MoneroMainnet>(&address, &options.format);
-                                let stage = process_address::<MoneroStagenet>(&address, &options.format);
-                                let test = process_address::<MoneroTestnet>(&address, &options.format);
+                                let main = process_address::<MoneroMainnet>(&address);
+                                let stage = process_address::<MoneroStagenet>(&address);
+                                let test = process_address::<MoneroTestnet>(&address);
                                 main.or(stage).or(test)?
                             }
                             _ => unreachable!(),

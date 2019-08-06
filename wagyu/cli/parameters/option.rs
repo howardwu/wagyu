@@ -61,7 +61,7 @@ pub const NETWORK_ZCASH: OptionType = (
 );
 pub const SUBADDRESS_MONERO: OptionType = (
     "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Generates a wallet with a specified major and minor index'",
-    &["integrated"],
+    &["address", "integrated", "private_view"],
     &[],
     &[],
 );
@@ -88,7 +88,7 @@ pub const FORMAT_IMPORT_BITCOIN: OptionType = (
 );
 pub const INTEGRATED_IMPORT_MONERO: OptionType = (
     "[integrated] -i --integrated=[PaymentID] 'Imports a wallet with a specified payment ID'",
-    &["subaddress"],
+    &["address", "private_view", "subaddress"],
     &[],
     &[],
 );

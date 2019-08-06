@@ -166,11 +166,7 @@ impl CLI for ZcashCLI {
                 options.diversifier = import_matches.value_of("diversifier").map(|s| s.to_string()).or(options.diversifier);
                 options.json |= import_matches.is_present("json");
 
-                options.wallet_values = Some(WalletValues {
-                    address,
-                    public_key,
-                    private_key,
-                });
+                options.wallet_values = Some(WalletValues { address, public_key, private_key });
             }
             ("import-hd", Some(import_hd_matches)) => {
                 let account = import_hd_matches.value_of("account").map(|i| i.to_string());
@@ -181,10 +177,7 @@ impl CLI for ZcashCLI {
                 format = import_hd_matches.value_of("format").or(format);
                 options.diversifier = import_hd_matches.value_of("diversifier").map(|s| s.to_string()).or(options.diversifier);
                 options.json |= import_hd_matches.is_present("json");
-                options.network = import_hd_matches
-                    .value_of("network")
-                    .unwrap_or(&options.network)
-                    .to_string();
+                options.network = import_hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.hd_values = Some(HdValues {
                     account,
@@ -355,21 +348,15 @@ impl CLI for ZcashCLI {
                             wallet_values.public_key.as_ref(),
                             wallet_values.address.as_ref(),
                         ) {
-                            (Some(private_key), None, None) => {
-                                let main = process_private_key::<ZcashMainnet>(&private_key, &options.diversifier);
-                                let test = process_private_key::<ZcashTestnet>(&private_key, &options.diversifier);
-                                main.or(test)?
-                            }
-                            (None, Some(public_key), None) => {
-                                let main = process_public_key::<ZcashMainnet>(&public_key, &options.diversifier);
-                                let test = process_public_key::<ZcashTestnet>(&public_key, &options.diversifier);
-                                main.or(test)?
-                            }
-                            (None, None, Some(address)) => {
-                                let main = process_address::<ZcashMainnet>(&address);
-                                let test = process_address::<ZcashTestnet>(&address);
-                                main.or(test)?
-                            },
+                            (Some(private_key), None, None) =>
+                                process_private_key::<ZcashMainnet>(&private_key, &options.diversifier)
+                                    .or(process_private_key::<ZcashTestnet>(&private_key, &options.diversifier))?,
+                            (None, Some(public_key), None) =>
+                                process_public_key::<ZcashMainnet>(&public_key, &options.diversifier)
+                                    .or(process_public_key::<ZcashTestnet>(&public_key, &options.diversifier))?,
+                            (None, None, Some(address)) =>
+                                process_address::<ZcashMainnet>(&address)
+                                    .or(process_address::<ZcashTestnet>(&address))?,
                             _ => unreachable!(),
                         }
                     }
@@ -418,17 +405,12 @@ impl CLI for ZcashCLI {
                                 let extended_public_key = extended_private_key.to_extended_public_key();
                                 (Some(extended_private_key), extended_public_key)
                             }
-                            (None, Some(extended_public_key)) => {
-                                (None, ZcashExtendedPublicKey::from_str(&extended_public_key)?)
-                            }
+                            (None, Some(extended_public_key)) => (None, ZcashExtendedPublicKey::from_str(&extended_public_key)?),
                             _ => unreachable!(),
                         };
 
                         let private_key = match extended_private_key.as_ref() {
-                            Some(extended_private_key) => {
-                                let private_key = extended_private_key.to_private_key();
-                                Some(private_key.to_string())
-                            }
+                            Some(extended_private_key) => Some(extended_private_key.to_private_key().to_string()),
                             None => None,
                         };
 
@@ -461,6 +443,7 @@ impl CLI for ZcashCLI {
                     false => println!("{}\n", wallet),
                 };
             }
+
             Ok(())
         }
 

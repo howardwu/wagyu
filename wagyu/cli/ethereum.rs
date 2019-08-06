@@ -155,11 +155,7 @@ impl CLI for EthereumCLI {
                 let private_key = import_matches.value_of("private key").map(|s| s.to_string());
 
                 options.json |= import_matches.is_present("json");
-                options.wallet_values = Some(WalletValues {
-                    address,
-                    public_key,
-                    private_key,
-                });
+                options.wallet_values = Some(WalletValues { address, public_key, private_key });
             }
             ("import-hd", Some(import_hd_matches)) => {
                 let account = import_hd_matches.value_of("account").map(|i| i.to_string());
@@ -242,24 +238,11 @@ impl CLI for EthereumCLI {
                             let public_key = EthereumPublicKey::from_str(&public_key)?;
                             let address = public_key.to_address(&PhantomData)?;
 
-                            EthereumWallet {
-                                public_key: Some(public_key.to_string()),
-                                address: address.to_string(),
-                                ..Default::default()
-                            }
+                            EthereumWallet { public_key: Some(public_key.to_string()), address: address.to_string(), ..Default::default() }
                         }
                         (None, None, Some(address)) => match EthereumAddress::from_str(&address) {
-                            Ok(address) => EthereumWallet {
-                                address: address.to_string(),
-                                ..Default::default()
-                            },
-                            Err(_) => {
-                                let address = EthereumAddress::from_str(&address)?;
-                                EthereumWallet {
-                                    address: address.to_string(),
-                                    ..Default::default()
-                                }
-                            }
+                            Ok(address) => EthereumWallet { address: address.to_string(), ..Default::default() },
+                            Err(error) => return Err(CLIError::AddressError(error)),
                         },
                         _ => unreachable!(),
                     }
@@ -272,8 +255,8 @@ impl CLI for EthereumCLI {
                             Some(mnemonic) => EthereumMnemonic::<EW>::from_phrase(&mnemonic)?,
                             None => EthereumMnemonic::<EW>::new(word_count, &mut StdRng::from_entropy())?,
                         };
-                        let master_extended_private_key = mnemonic.to_extended_private_key(*password)?;
-                        Ok((mnemonic.to_string(), master_extended_private_key))
+
+                        Ok((mnemonic.to_string(), mnemonic.to_extended_private_key(*password)?))
                     }
 
                     const DEFAULT_WORD_COUNT: u8 = 12;
@@ -348,6 +331,7 @@ impl CLI for EthereumCLI {
                             };
 
                             let extended_public_key = extended_private_key.to_extended_public_key();
+
                             (None, Some(extended_private_key), extended_public_key)
                         }
                         (None, None, Some(extended_public_key)) => {

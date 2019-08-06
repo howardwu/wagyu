@@ -188,16 +188,9 @@ impl CLI for BitcoinCLI {
 
                 format = import_matches.value_of("format").or(format);
                 options.json |= import_matches.is_present("json");
-                options.network = import_matches
-                    .value_of("network")
-                    .unwrap_or(&options.network)
-                    .to_string();
+                options.network = import_matches.value_of("network").unwrap_or(&options.network).to_string();
 
-                options.wallet_values = Some(WalletValues {
-                    address,
-                    public_key,
-                    private_key,
-                });
+                options.wallet_values = Some(WalletValues { address, public_key, private_key });
             }
             ("import-hd", Some(import_hd_matches)) => {
                 let account = import_hd_matches.value_of("account").map(|i| i.to_string());
@@ -211,10 +204,7 @@ impl CLI for BitcoinCLI {
 
                 format = import_hd_matches.value_of("format").or(format);
                 options.json |= import_hd_matches.is_present("json");
-                options.network = import_hd_matches
-                    .value_of("network")
-                    .unwrap_or(&options.network)
-                    .to_string();
+                options.network = import_hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
                 options.hd_values = Some(HdValues {
                     account,
@@ -303,11 +293,9 @@ impl CLI for BitcoinCLI {
                             wallet_values.public_key.as_ref(),
                             wallet_values.address.as_ref(),
                         ) {
-                            (Some(private_key), None, None) => {
-                                let main = process_private_key::<BitcoinMainnet>(&private_key, &options.format);
-                                let test = process_private_key::<BitcoinTestnet>(&private_key, &options.format);
-                                main.or(test)?
-                            },
+                            (Some(private_key), None, None) =>
+                                process_private_key::<BitcoinMainnet>(&private_key, &options.format)
+                                .or(process_private_key::<BitcoinTestnet>(&private_key, &options.format))?,
                             (None, Some(public_key), None) => {
                                 let public_key = BitcoinPublicKey::<N>::from_str(&public_key)?;
                                 let address = public_key.to_address(&options.format)?;
@@ -320,15 +308,14 @@ impl CLI for BitcoinCLI {
                                     ..Default::default()
                                 }
                             }
-                            (None, None, Some(address)) => {
-                                let main = process_address::<BitcoinMainnet>(&address);
-                                let test = process_address::<BitcoinTestnet>(&address);
-                                main.or(test)?
-                            },
+                            (None, None, Some(address)) => process_address::<BitcoinMainnet>(&address)
+                                .or(process_address::<BitcoinTestnet>(&address))?,
                             _ => unreachable!(),
                         }
                     }
                     (None, Some(hd_values)) => {
+
+                        const DEFAULT_WORD_COUNT: u8 = 12;
 
                         fn process_mnemonic<BN: BitcoinNetwork, BW: BitcoinWordlist>(mnemonic: Option<String>, word_count: u8, password: &Option<&str>)
                             -> Result<(String, BitcoinExtendedPrivateKey<BN>), CLIError> {
@@ -340,11 +327,11 @@ impl CLI for BitcoinCLI {
                             Ok((mnemonic.to_string(), master_extended_private_key))
                         }
 
-                        const DEFAULT_WORD_COUNT: u8 = 12;
                         let mut format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
                         let chain = hd_values.chain.unwrap_or("0".to_string());
                         let index = hd_values.index.unwrap_or("0".to_string());
+                        let password = hd_values.password.as_ref().map(String::as_str);
 
                         let path: String = match hd_values.path.as_ref().map(String::as_str) {
                             Some("bip32") => format!("m/0'/0'/{}'", index),
@@ -364,7 +351,6 @@ impl CLI for BitcoinCLI {
                             None => DEFAULT_WORD_COUNT,
                         };
 
-                        let password = hd_values.password.as_ref().map(String::as_str);
                         let (mnemonic, extended_private_key, extended_public_key) = match (
                             hd_values.mnemonic,
                             hd_values.extended_private_key,
@@ -407,8 +393,7 @@ impl CLI for BitcoinCLI {
                                 (Some(mnemonic), Some(extended_private_key), extended_public_key)
                             }
                             (None, Some(extended_private_key), None) => {
-                                let mut extended_private_key =
-                                    BitcoinExtendedPrivateKey::from_str(&extended_private_key)?;
+                                let mut extended_private_key = BitcoinExtendedPrivateKey::from_str(&extended_private_key)?;
 
                                 match hd_values.path {
                                     Some(_) => extended_private_key = extended_private_key.derive(&BitcoinDerivationPath::from_str(&path)?)?,
@@ -416,6 +401,7 @@ impl CLI for BitcoinCLI {
                                 };
 
                                 let extended_public_key = extended_private_key.to_extended_public_key();
+
                                 (None, Some(extended_private_key), extended_public_key)
                             }
                             (None, None, Some(extended_public_key)) => {
@@ -434,6 +420,7 @@ impl CLI for BitcoinCLI {
                         let (private_key, compressed) = match extended_private_key.as_ref() {
                             Some(extended_private_key) => {
                                 let private_key = extended_private_key.to_private_key();
+
                                 (Some(private_key.to_string()), Some(private_key.is_compressed()))
                             }
                             None => (None, None),
