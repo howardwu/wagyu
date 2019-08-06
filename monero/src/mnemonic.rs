@@ -6,6 +6,7 @@ use crate::wordlist::MoneroWordlist;
 use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
 
 use crc::{crc32, Hasher32};
+use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
 use std::fmt;
 use std::marker::PhantomData;
@@ -74,6 +75,8 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
     /// Returns the mnemonic for the given seed.
     pub fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
+        let seed = &Scalar::from_bytes_mod_order(*seed).to_bytes();
+
         // Reverse the endian in 4 byte intervals
         let length = 1626;
         let inputs = seed
