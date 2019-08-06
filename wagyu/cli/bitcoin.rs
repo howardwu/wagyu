@@ -391,19 +391,17 @@ impl CLI for BitcoinCLI {
                                 (Some(mnemonic), Some(extended_private_key), extended_public_key)
                             }
                             (Some(mnemonic), None, None) => {
-                                let chinese_simplified = process_mnemonic::<N, ChineseSimplified>(Some(mnemonic.to_owned()), word_count, &password);
-                                let chinese_traditional = process_mnemonic::<N, ChineseTraditional>(Some(mnemonic.to_owned()), word_count, &password);
-                                let english = process_mnemonic::<N, English>(Some(mnemonic.to_owned()), word_count, &password);
-                                let french = process_mnemonic::<N, French>(Some(mnemonic.to_owned()), word_count, &password);
-                                let italian = process_mnemonic::<N, Italian>(Some(mnemonic.to_owned()), word_count, &password);
-                                let japanese = process_mnemonic::<N, Japanese>(Some(mnemonic.to_owned()), word_count, &password);
-                                let korean = process_mnemonic::<N, Korean>(Some(mnemonic.to_owned()), word_count, &password);
-                                let spanish = process_mnemonic::<N, Spanish>(Some(mnemonic.to_owned()), word_count, &password);
-
                                 let (mnemonic, master_extended_private_key) =
-                                    chinese_simplified.or(chinese_traditional).or(english).or(french).or(italian).or(japanese).or(korean).or(spanish)?;
-                                let extended_private_key = master_extended_private_key
-                                    .derive(&BitcoinDerivationPath::from_str(&path)?)?;
+                                    process_mnemonic::<N, ChineseSimplified>(Some(mnemonic.to_owned()), word_count, &password)
+                                    .or(process_mnemonic::<N, ChineseTraditional>(Some(mnemonic.to_owned()), word_count, &password))
+                                    .or(process_mnemonic::<N, English>(Some(mnemonic.to_owned()), word_count, &password))
+                                    .or(process_mnemonic::<N, French>(Some(mnemonic.to_owned()), word_count, &password))
+                                    .or(process_mnemonic::<N, Italian>(Some(mnemonic.to_owned()), word_count, &password))
+                                    .or(process_mnemonic::<N, Japanese>(Some(mnemonic.to_owned()), word_count, &password))
+                                    .or(process_mnemonic::<N, Korean>(Some(mnemonic.to_owned()), word_count, &password))
+                                    .or(process_mnemonic::<N, Spanish>(Some(mnemonic.to_owned()), word_count, &password))?;
+
+                                let extended_private_key = master_extended_private_key.derive(&BitcoinDerivationPath::from_str(&path)?)?;
                                 let extended_public_key = extended_private_key.to_extended_public_key();
 
                                 (Some(mnemonic), Some(extended_private_key), extended_public_key)
@@ -413,8 +411,7 @@ impl CLI for BitcoinCLI {
                                     BitcoinExtendedPrivateKey::from_str(&extended_private_key)?;
 
                                 match hd_values.path {
-                                    Some(_) => extended_private_key = extended_private_key
-                                        .derive(&BitcoinDerivationPath::from_str(&path)?)?,
+                                    Some(_) => extended_private_key = extended_private_key.derive(&BitcoinDerivationPath::from_str(&path)?)?,
                                     None => final_path = None,
                                 };
 
@@ -425,8 +422,7 @@ impl CLI for BitcoinCLI {
                                 let mut extended_public_key = BitcoinExtendedPublicKey::from_str(&extended_public_key)?;
 
                                 match hd_values.path {
-                                    Some(_) => extended_public_key = extended_public_key
-                                        .derive(&BitcoinDerivationPath::from_str(&path)?)?,
+                                    Some(_) => extended_public_key = extended_public_key.derive(&BitcoinDerivationPath::from_str(&path)?)?,
                                     None => final_path = None,
                                 };
 
@@ -449,7 +445,7 @@ impl CLI for BitcoinCLI {
                         BitcoinWallet {
                             path: final_path,
                             password: hd_values.password,
-                            mnemonic: mnemonic,
+                            mnemonic,
                             extended_private_key: extended_private_key.map(|key| key.to_string()),
                             extended_public_key: Some(extended_public_key.to_string()),
                             private_key,

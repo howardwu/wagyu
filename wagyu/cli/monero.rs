@@ -334,32 +334,18 @@ impl CLI for MoneroCLI {
                             wallet_values.address.as_ref(),
                         ) {
                             (Some(mnemonic), None, None, _, None) => {
-                                let chinese_simplified = process_mnemonic::<N, ChineseSimplified>(Some(mnemonic), &options.format);
-                                let dutch = process_mnemonic::<N, Dutch>(Some(mnemonic), &options.format);
-                                let english = process_mnemonic::<N, English>(Some(mnemonic), &options.format);
-                                let esperanto = process_mnemonic::<N, Esperanto>(Some(mnemonic), &options.format);
-                                let french = process_mnemonic::<N, French>(Some(mnemonic), &options.format);
-                                let german = process_mnemonic::<N, German>(Some(mnemonic), &options.format);
-                                let italian = process_mnemonic::<N, Italian>(Some(mnemonic), &options.format);
-                                let japanese = process_mnemonic::<N, Japanese>(Some(mnemonic), &options.format);
-                                let lojban = process_mnemonic::<N, Lojban>(Some(mnemonic), &options.format);
-                                let portuguese = process_mnemonic::<N, Portuguese>(Some(mnemonic), &options.format);
-                                let russian = process_mnemonic::<N, Russian>(Some(mnemonic), &options.format);
-                                let spanish = process_mnemonic::<N, Spanish>(Some(mnemonic), &options.format);
-
-                                chinese_simplified
-                                    .or(dutch)
-                                    .or(english)
-                                    .or(esperanto)
-                                    .or(french)
-                                    .or(german)
-                                    .or(italian)
-                                    .or(japanese)
-                                    .or(lojban)
-                                    .or(portuguese)
-                                    .or(russian)
-                                    .or(spanish)?
-
+                                process_mnemonic::<N, ChineseSimplified>(Some(mnemonic), &options.format)
+                                    .or(process_mnemonic::<N, Dutch>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, English>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Esperanto>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, French>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, German>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Italian>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Japanese>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Lojban>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Portuguese>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Russian>(Some(mnemonic), &options.format))
+                                    .or(process_mnemonic::<N, Spanish>(Some(mnemonic), &options.format))?
                             }
                             (None, Some(private_spend_key), None, _, None) => {
                                 process_private_spend_key::<N>(&private_spend_key, &options.format)?
