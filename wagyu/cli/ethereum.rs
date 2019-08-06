@@ -327,7 +327,7 @@ impl CLI for EthereumCLI {
 
                             match hd_values.path {
                                 Some(_) => extended_private_key = extended_private_key.derive(&EthereumDerivationPath::from_str(&path)?)?,
-                                None => final_path = None ,
+                                None => final_path = None,
                             };
 
                             let extended_public_key = extended_private_key.to_extended_public_key();
@@ -347,10 +347,7 @@ impl CLI for EthereumCLI {
                         _ => unreachable!(),
                     };
 
-                    let private_key = match extended_private_key.as_ref() {
-                        Some(extended_private_key) => Some(extended_private_key.to_private_key().to_string()),
-                        None => None,
-                    };
+                    let private_key = extended_private_key.as_ref().map(|key| key.to_private_key().to_string());
                     let public_key = extended_public_key.to_public_key();
                     let address = public_key.to_address(&PhantomData)?;
 

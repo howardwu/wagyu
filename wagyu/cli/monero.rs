@@ -181,11 +181,7 @@ impl CLI for MoneroCLI {
 
                 options.json |= import_matches.is_present("json");
                 options.language = import_matches.value_of("language").map(|s| s.to_string()).or(options.language);
-                options.network = import_matches
-                    .value_of("network")
-                    .unwrap_or(&options.network)
-                    .to_string();
-
+                options.network = import_matches.value_of("network").unwrap_or(&options.network).to_string();
                 options.wallet_values = Some(WalletValues {
                     mnemonic,
                     private_spend_key,
@@ -398,10 +394,9 @@ impl CLI for MoneroCLI {
                                 process_public_key::<N>(&public_spend_key, &public_view_key, &options.format)?
                             }
                             (None, None, None, _, Some(address)) => {
-                                let main = process_address::<MoneroMainnet>(&address);
-                                let stage = process_address::<MoneroStagenet>(&address);
-                                let test = process_address::<MoneroTestnet>(&address);
-                                main.or(stage).or(test)?
+                                process_address::<MoneroMainnet>(&address)
+                                    .or(process_address::<MoneroStagenet>(&address))
+                                    .or(process_address::<MoneroTestnet>(&address))?
                             }
                             _ => unreachable!(),
                         }

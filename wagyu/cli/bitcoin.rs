@@ -171,7 +171,6 @@ impl CLI for BitcoinCLI {
                 options.count = clap::value_t!(hd_matches.value_of("count"), usize).unwrap_or(options.count);
                 options.json |= hd_matches.is_present("json");
                 options.network = hd_matches.value_of("network").unwrap_or(&options.network).to_string();
-
                 options.hd_values = Some(HdValues {
                     language,
                     mnemonic: None,
@@ -189,7 +188,6 @@ impl CLI for BitcoinCLI {
                 format = import_matches.value_of("format").or(format);
                 options.json |= import_matches.is_present("json");
                 options.network = import_matches.value_of("network").unwrap_or(&options.network).to_string();
-
                 options.wallet_values = Some(WalletValues { address, public_key, private_key });
             }
             ("import-hd", Some(import_hd_matches)) => {
@@ -205,7 +203,6 @@ impl CLI for BitcoinCLI {
                 format = import_hd_matches.value_of("format").or(format);
                 options.json |= import_hd_matches.is_present("json");
                 options.network = import_hd_matches.value_of("network").unwrap_or(&options.network).to_string();
-
                 options.hd_values = Some(HdValues {
                     account,
                     chain,
@@ -315,8 +312,6 @@ impl CLI for BitcoinCLI {
                     }
                     (None, Some(hd_values)) => {
 
-                        const DEFAULT_WORD_COUNT: u8 = 12;
-
                         fn process_mnemonic<BN: BitcoinNetwork, BW: BitcoinWordlist>(mnemonic: Option<String>, word_count: u8, password: &Option<&str>)
                             -> Result<(String, BitcoinExtendedPrivateKey<BN>), CLIError> {
                             let mnemonic = match mnemonic {
@@ -324,8 +319,11 @@ impl CLI for BitcoinCLI {
                                 None => BitcoinMnemonic::<BN, BW>::new(word_count, &mut StdRng::from_entropy())?,
                             };
                             let master_extended_private_key = mnemonic.to_extended_private_key(*password)?;
+
                             Ok((mnemonic.to_string(), master_extended_private_key))
                         }
+
+                        const DEFAULT_WORD_COUNT: u8 = 12;
 
                         let mut format = options.format.clone();
                         let account = hd_values.account.unwrap_or("0".to_string());
@@ -345,7 +343,6 @@ impl CLI for BitcoinCLI {
                         };
 
                         let mut final_path = Some(path.to_string());
-
                         let word_count = match hd_values.word_count {
                             Some(word_count) => word_count,
                             None => DEFAULT_WORD_COUNT,
