@@ -74,6 +74,9 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
 
+    #[fail(display = "{}: {}", _0, _1)]
+    Crate(&'static str, String),
+
     #[fail(display = "{}", _0)]
     DerivationPathError(DerivationPathError),
 
@@ -92,8 +95,8 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     MnemonicError(MnemonicError),
 
-    #[fail(display = "{}: {}", _0, _1)]
-    Crate(&'static str, String),
+    #[fail(display = "unsupported mnemonic language")]
+    UnsupportedLanguage,
 }
 
 

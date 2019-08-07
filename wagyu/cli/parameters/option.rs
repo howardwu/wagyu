@@ -70,7 +70,7 @@ pub const SUBADDRESS_MONERO: OptionType = (
 
 pub const ADDRESS: OptionType = (
     "[address] --address=[address] 'Imports a partial wallet for a specified address'",
-    &["count", "private key", "network", "public key"],
+    &["count", "network", "private", "public"],
     &[],
     &[],
 );
@@ -117,8 +117,8 @@ pub const NETWORK_IMPORT_MONERO: OptionType = (
     &[],
 );
 pub const PRIVATE: OptionType = (
-    "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
-    &["address", "count", "network", "public key"],
+    "[private] --private=[private key] 'Imports a wallet for a specified private key'",
+    &["address", "count", "network", "public"],
     &[],
     &[],
 );
@@ -135,8 +135,8 @@ pub const PRIVATE_VIEW_KEY_MONERO: OptionType = (
     &[],
 );
 pub const PUBLIC: OptionType = (
-    "[public key] --public=[public key] 'Imports a partial wallet for a specified public key'",
-    &["address", "count", "private key"],
+    "[public] --public=[public key] 'Imports a partial wallet for a specified public key'",
+    &["address", "count", "private"],
     &[],
     &[],
 );
