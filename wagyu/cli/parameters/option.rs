@@ -38,7 +38,20 @@ pub const INTEGRATED_MONERO: OptionType = (
 pub const LANGUAGE_MONERO: OptionType = (
     "[language] -l --language=[language] 'Generates a wallet with a specified language'",
     &[],
-    &["chinese_simplified", "dutch", "english", "esperanto", "french", "german", "italian", "japanese", "lojban", "portuguese", "russian", "spanish"],
+    &[
+        "chinese_simplified",
+        "dutch",
+        "english",
+        "esperanto",
+        "french",
+        "german",
+        "italian",
+        "japanese",
+        "lojban",
+        "portuguese",
+        "russian",
+        "spanish",
+    ],
     &[],
 );
 pub const NETWORK_BITCOIN: OptionType = (
@@ -100,7 +113,14 @@ pub const LANGUAGE_IMPORT_MONERO: OptionType = (
 );
 pub const MNEMONIC_IMPORT_MONERO: OptionType = (
     "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports a wallet for a specified mnemonic (in quotes)'",
-    &["address", "count", "public spend key", "public view key", "private spend key", "private view key"],
+    &[
+        "address",
+        "count",
+        "public spend key",
+        "public view key",
+        "private spend key",
+        "private view key",
+    ],
     &[],
     &[],
 );
@@ -124,13 +144,27 @@ pub const PRIVATE: OptionType = (
 );
 pub const PRIVATE_SPEND_KEY_MONERO: OptionType = (
     "[private spend key] --private-spend=[private spend key] 'Imports a wallet for a specified private spend key'",
-    &["address", "count", "network", "public spend key", "public view key", "private view key"],
+    &[
+        "address",
+        "count",
+        "network",
+        "public spend key",
+        "public view key",
+        "private view key",
+    ],
     &[],
     &[],
 );
 pub const PRIVATE_VIEW_KEY_MONERO: OptionType = (
     "[private view key] --private-view=[private view key] 'Imports a partial wallet for a specified private view key'",
-    &["address", "count", "network", "public spend key", "public view key", "private spend key"],
+    &[
+        "address",
+        "count",
+        "network",
+        "public spend key",
+        "public view key",
+        "private spend key",
+    ],
     &[],
     &[],
 );
@@ -194,7 +228,16 @@ pub const FORMAT_HD_BITCOIN: OptionType = (
 pub const LANGUAGE_HD: OptionType = (
     "[language] -l --language=[language] 'Generates an HD wallet with a specified language'",
     &[],
-    &["chinese_simplified", "chinese_traditional", "english", "french", "italian", "japanese", "korean", "spanish"],
+    &[
+        "chinese_simplified",
+        "chinese_traditional",
+        "english",
+        "french",
+        "italian",
+        "japanese",
+        "korean",
+        "spanish",
+    ],
     &[],
 );
 pub const NETWORK_HD_BITCOIN: OptionType = (

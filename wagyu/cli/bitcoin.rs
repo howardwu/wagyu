@@ -1,15 +1,14 @@
 use crate::bitcoin::{
-    address::Format as BitcoinFormat, BitcoinAddress, BitcoinDerivationPath,
-    BitcoinExtendedPrivateKey, BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork,
-    BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist, Mainnet as BitcoinMainnet,
-    Testnet as BitcoinTestnet, wordlist::*,
+    address::Format as BitcoinFormat, wordlist::*, BitcoinAddress, BitcoinDerivationPath, BitcoinExtendedPrivateKey,
+    BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork, BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist,
+    Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
 };
-use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
+use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
-use rand::Rng;
 use rand::rngs::StdRng;
+use rand::Rng;
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, str::FromStr};
@@ -56,7 +55,13 @@ impl BitcoinWallet {
         })
     }
 
-    pub fn new_hd<N: BitcoinNetwork, W: BitcoinWordlist, R: Rng>(rng: &mut R, word_count: u8, password: Option<&str>, path: &str, format: &BitcoinFormat) -> Result<Self, CLIError> {
+    pub fn new_hd<N: BitcoinNetwork, W: BitcoinWordlist, R: Rng>(
+        rng: &mut R,
+        word_count: u8,
+        password: Option<&str>,
+        path: &str,
+        format: &BitcoinFormat,
+    ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::new(word_count, rng)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = BitcoinDerivationPath::from_str(path)?;
@@ -81,7 +86,12 @@ impl BitcoinWallet {
         })
     }
 
-    pub fn from_mnemonic<N: BitcoinNetwork, W: BitcoinWordlist>(mnemonic: &str, password: Option<&str>, path: &str, format: &BitcoinFormat) -> Result<Self, CLIError> {
+    pub fn from_mnemonic<N: BitcoinNetwork, W: BitcoinWordlist>(
+        mnemonic: &str,
+        password: Option<&str>,
+        path: &str,
+        format: &BitcoinFormat,
+    ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = BitcoinDerivationPath::from_str(path)?;
@@ -106,7 +116,11 @@ impl BitcoinWallet {
         })
     }
 
-    pub fn from_extended_private_key<N: BitcoinNetwork>(extended_private_key: &str, path: &Option<String>, format: &BitcoinFormat) -> Result<Self, CLIError> {
+    pub fn from_extended_private_key<N: BitcoinNetwork>(
+        extended_private_key: &str,
+        path: &Option<String>,
+        format: &BitcoinFormat,
+    ) -> Result<Self, CLIError> {
         let mut extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(extended_private_key)?;
         if let Some(derivation_path) = path {
             let derivation_path = BitcoinDerivationPath::from_str(&derivation_path)?;
@@ -131,7 +145,11 @@ impl BitcoinWallet {
         })
     }
 
-    pub fn from_extended_public_key<N: BitcoinNetwork>(extended_public_key: &str, path: &Option<String>, format: &BitcoinFormat) -> Result<Self, CLIError> {
+    pub fn from_extended_public_key<N: BitcoinNetwork>(
+        extended_public_key: &str,
+        path: &Option<String>,
+        format: &BitcoinFormat,
+    ) -> Result<Self, CLIError> {
         let mut extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(extended_public_key)?;
         if let Some(derivation_path) = path {
             let derivation_path = BitcoinDerivationPath::from_str(&derivation_path)?;
@@ -367,8 +385,8 @@ impl BitcoinOptions {
             Some(custom) => {
                 self.derivation = "custom".into();
                 self.path = Some(custom.to_string());
-            },
-            _ => ()
+            }
+            _ => (),
         };
     }
 
@@ -437,7 +455,7 @@ impl BitcoinOptions {
     }
 
     /// Sets `network` to the specified network, overriding its previous state.
-   /// If the specified argument is `None`, then no change occurs.
+    /// If the specified argument is `None`, then no change occurs.
     fn network(&mut self, argument: Option<&str>) {
         match argument {
             Some("mainnet") => self.network = "mainnet".into(),
@@ -488,8 +506,8 @@ impl BitcoinOptions {
             "custom" => self.path.clone(),
             _ => match default {
                 true => Some(format!("m/0'/0'/{}'", self.index)),
-                false => None
-            }
+                false => None,
+            },
         }
     }
 }
@@ -512,7 +530,6 @@ impl CLI for BitcoinCLI {
     /// Handle all CLI arguments and flags for Bitcoin
     #[cfg_attr(tarpaulin, skip)]
     fn parse(arguments: &ArgMatches) -> Result<Self::Options, CLIError> {
-
         let mut options = BitcoinOptions::default();
         options.parse(arguments, &["count", "format", "json", "network"]);
 
@@ -530,15 +547,18 @@ impl CLI for BitcoinCLI {
             ("import-hd", Some(arguments)) => {
                 options.subcommand = Some("import-hd".into());
                 options.parse(arguments, &["format", "json", "network"]);
-                options.parse(arguments, &[
-                    "account",
-                    "chain",
-                    "derivation",
-                    "extended private",
-                    "extended public",
-                    "mnemonic",
-                    "password",
-                ]);
+                options.parse(
+                    arguments,
+                    &[
+                        "account",
+                        "chain",
+                        "derivation",
+                        "extended private",
+                        "extended public",
+                        "mnemonic",
+                        "password",
+                    ],
+                );
             }
             _ => {}
         };
@@ -549,16 +569,25 @@ impl CLI for BitcoinCLI {
     /// Generate the Bitcoin wallet and print the relevant fields
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
-
         fn output<N: BitcoinNetwork, W: BitcoinWordlist>(options: BitcoinOptions) -> Result<(), CLIError> {
             let wallets = match options.subcommand.as_ref().map(String::as_str) {
                 Some("hd") => {
                     let path = options.to_derivation_path(true).unwrap();
-                    (0..options.count).flat_map(|_| match BitcoinWallet::new_hd::<N, W, _>(&mut StdRng::from_entropy(), options.word_count, options.password.as_ref().map(String::as_str), &path, &options.format) {
-                        Ok(wallet) => vec![wallet],
-                        _ => vec![]
-                    }).collect()
-                },
+                    (0..options.count)
+                        .flat_map(|_| {
+                            match BitcoinWallet::new_hd::<N, W, _>(
+                                &mut StdRng::from_entropy(),
+                                options.word_count,
+                                options.password.as_ref().map(String::as_str),
+                                &path,
+                                &options.format,
+                            ) {
+                                Ok(wallet) => vec![wallet],
+                                _ => vec![],
+                            }
+                        })
+                        .collect()
+                }
                 Some("import") => {
                     if let Some(private_key) = options.private {
                         vec![BitcoinWallet::from_private_key::<N>(&private_key, &options.format)?]
@@ -572,8 +601,16 @@ impl CLI for BitcoinCLI {
                 }
                 Some("import-hd") => {
                     if let Some(mnemonic) = options.mnemonic.clone() {
-                        fn process_mnemonic<BN: BitcoinNetwork, BW: BitcoinWordlist>(mnemonic: &String, options: &BitcoinOptions) -> Result<BitcoinWallet, CLIError> {
-                            BitcoinWallet::from_mnemonic::<BN, BW>(&mnemonic, options.password.as_ref().map(String::as_str), &options.to_derivation_path(true).unwrap(), &options.format)
+                        fn process_mnemonic<BN: BitcoinNetwork, BW: BitcoinWordlist>(
+                            mnemonic: &String,
+                            options: &BitcoinOptions,
+                        ) -> Result<BitcoinWallet, CLIError> {
+                            BitcoinWallet::from_mnemonic::<BN, BW>(
+                                &mnemonic,
+                                options.password.as_ref().map(String::as_str),
+                                &options.to_derivation_path(true).unwrap(),
+                                &options.format,
+                            )
                         }
                         vec![process_mnemonic::<N, ChineseSimplified>(&mnemonic, &options)
                             .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &options))
@@ -584,17 +621,29 @@ impl CLI for BitcoinCLI {
                             .or(process_mnemonic::<N, Korean>(&mnemonic, &options))
                             .or(process_mnemonic::<N, Spanish>(&mnemonic, &options))?]
                     } else if let Some(extended_private_key) = options.extended_private_key.clone() {
-                        vec![BitcoinWallet::from_extended_private_key::<N>(&extended_private_key, &options.to_derivation_path(false), &options.format)?]
+                        vec![BitcoinWallet::from_extended_private_key::<N>(
+                            &extended_private_key,
+                            &options.to_derivation_path(false),
+                            &options.format,
+                        )?]
                     } else if let Some(extended_public_key) = options.extended_public_key.clone() {
-                        vec![BitcoinWallet::from_extended_public_key::<N>(&extended_public_key, &options.to_derivation_path(false), &options.format)?]
+                        vec![BitcoinWallet::from_extended_public_key::<N>(
+                            &extended_public_key,
+                            &options.to_derivation_path(false),
+                            &options.format,
+                        )?]
                     } else {
                         vec![]
                     }
-                },
-                _ => (0..options.count).flat_map(|_| match BitcoinWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
-                    Ok(wallet) => vec![wallet],
-                    _ => vec![]
-                }).collect()
+                }
+                _ => (0..options.count)
+                    .flat_map(
+                        |_| match BitcoinWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
+                            Ok(wallet) => vec![wallet],
+                            _ => vec![],
+                        },
+                    )
+                    .collect(),
             };
 
             match options.json {

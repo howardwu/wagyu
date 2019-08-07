@@ -77,17 +77,14 @@ pub trait MoneroWordlist: Wordlist {
 
     /// Returns the word list as a string.
     fn get_all_trimmed() -> Vec<String> {
-        Self::get_all()
-            .iter()
-            .map(|&word| Self::to_trimmed(word))
-            .collect()
+        Self::get_all().iter().map(|&word| Self::to_trimmed(word)).collect()
     }
 
     /// Returns the trimmed word for a given prefix length.
     fn to_trimmed(word: &str) -> String {
         match word.chars().count() > Self::PREFIX_LENGTH {
             true => word.chars().take(Self::PREFIX_LENGTH).collect(),
-            false => word.into()
+            false => word.into(),
         }
     }
 }

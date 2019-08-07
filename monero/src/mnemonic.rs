@@ -163,10 +163,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
     /// Returns the checksum word for a given phrase.
     fn checksum_word(phrase: &Vec<String>) -> String {
-        let phrase_trimmed = phrase
-            .iter()
-            .map(|word| W::to_trimmed(word))
-            .collect::<Vec<String>>();
+        let phrase_trimmed = phrase.iter().map(|word| W::to_trimmed(word)).collect::<Vec<String>>();
 
         let mut digest = crc32::Digest::new(crc32::IEEE);
         digest.write(phrase_trimmed.concat().as_bytes());

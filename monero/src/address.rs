@@ -97,10 +97,12 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     /// Returns a Monero address given the public spend key and public view key.
     pub fn generate_address(public_key: &MoneroPublicKey<N>, format: &Format) -> Result<Self, AddressError> {
         let public_spend_key = match public_key.to_public_spend_key() {
-            Some(key) => key, None => return Err(AddressError::MissingPublicKey)
+            Some(key) => key,
+            None => return Err(AddressError::MissingPublicKey),
         };
         let public_view_key = match public_key.to_public_view_key() {
-            Some(key) => key, None => return Err(AddressError::MissingPublicKey)
+            Some(key) => key,
+            None => return Err(AddressError::MissingPublicKey),
         };
 
         let mut format = format;

@@ -1,14 +1,14 @@
-use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
+use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 use crate::zcash::{
-    address::Format as ZcashFormat, Mainnet as ZcashMainnet, SpendingKey,
-    Testnet as ZcashTestnet, ViewingKey, ZcashAddress, ZcashDerivationPath, ZcashExtendedPrivateKey,
-    ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey, ZcashPublicKey,
+    address::Format as ZcashFormat, Mainnet as ZcashMainnet, SpendingKey, Testnet as ZcashTestnet, ViewingKey,
+    ZcashAddress, ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
+    ZcashPublicKey,
 };
 
 use clap::ArgMatches;
-use rand::Rng;
 use rand::rngs::StdRng;
+use rand::Rng;
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, str::FromStr};
@@ -103,7 +103,7 @@ impl Display for ZcashWallet {
                 _ => "".to_owned(),
             },
         ]
-            .concat();
+        .concat();
 
         // Removes final new line character
         let output = output[..output.len() - 1].to_owned();
@@ -119,7 +119,12 @@ impl CLI for ZcashCLI {
     const NAME: NameType = "zcash";
     const ABOUT: AboutType = "Generates a Zcash wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
-    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::DIVERSIFIER_ZCASH, option::FORMAT_ZCASH, option::NETWORK_ZCASH];
+    const OPTIONS: &'static [OptionType] = &[
+        option::COUNT,
+        option::DIVERSIFIER_ZCASH,
+        option::FORMAT_ZCASH,
+        option::NETWORK_ZCASH,
+    ];
     const SUBCOMMANDS: &'static [SubCommandType] = &[
         subcommand::HD_ZCASH,
         subcommand::IMPORT_ZCASH,
@@ -149,7 +154,10 @@ impl CLI for ZcashCLI {
             ("hd", Some(hd_matches)) => {
                 format = hd_matches.value_of("format").or(format);
                 options.count = clap::value_t!(hd_matches.value_of("count"), usize).unwrap_or(options.count);
-                options.diversifier = hd_matches.value_of("diversifier").map(|s| s.to_string()).or(options.diversifier);
+                options.diversifier = hd_matches
+                    .value_of("diversifier")
+                    .map(|s| s.to_string())
+                    .or(options.diversifier);
                 options.json |= hd_matches.is_present("json");
                 options.network = hd_matches.value_of("network").unwrap_or(&options.network).to_string();
 
@@ -163,10 +171,17 @@ impl CLI for ZcashCLI {
                 let public_key = import_matches.value_of("public key").map(|s| s.to_string());
                 let private_key = import_matches.value_of("private key").map(|s| s.to_string());
 
-                options.diversifier = import_matches.value_of("diversifier").map(|s| s.to_string()).or(options.diversifier);
+                options.diversifier = import_matches
+                    .value_of("diversifier")
+                    .map(|s| s.to_string())
+                    .or(options.diversifier);
                 options.json |= import_matches.is_present("json");
 
-                options.wallet_values = Some(WalletValues { address, public_key, private_key });
+                options.wallet_values = Some(WalletValues {
+                    address,
+                    public_key,
+                    private_key,
+                });
             }
             ("import-hd", Some(import_hd_matches)) => {
                 let account = import_hd_matches.value_of("account").map(|i| i.to_string());
@@ -175,9 +190,15 @@ impl CLI for ZcashCLI {
                 let index = import_hd_matches.value_of("index").map(|i| i.to_string());
 
                 format = import_hd_matches.value_of("format").or(format);
-                options.diversifier = import_hd_matches.value_of("diversifier").map(|s| s.to_string()).or(options.diversifier);
+                options.diversifier = import_hd_matches
+                    .value_of("diversifier")
+                    .map(|s| s.to_string())
+                    .or(options.diversifier);
                 options.json |= import_hd_matches.is_present("json");
-                options.network = import_hd_matches.value_of("network").unwrap_or(&options.network).to_string();
+                options.network = import_hd_matches
+                    .value_of("network")
+                    .unwrap_or(&options.network)
+                    .to_string();
 
                 options.hd_values = Some(HdValues {
                     account,
@@ -192,15 +213,13 @@ impl CLI for ZcashCLI {
         };
 
         options.format = match format {
-            Some("sapling") => {
-                match options.diversifier.as_ref() {
-                    Some(div) => {
-                        let mut diversifier =  [0u8; 11];
-                        diversifier.copy_from_slice(&hex::decode(div)?);
-                        ZcashFormat::Sapling(Some(diversifier))
-                    }
-                    None => ZcashFormat::Sapling(None),
+            Some("sapling") => match options.diversifier.as_ref() {
+                Some(div) => {
+                    let mut diversifier = [0u8; 11];
+                    diversifier.copy_from_slice(&hex::decode(div)?);
+                    ZcashFormat::Sapling(Some(diversifier))
                 }
+                None => ZcashFormat::Sapling(None),
             },
             Some("sprout") => ZcashFormat::Sprout,
             _ => ZcashFormat::P2PKH,
@@ -212,7 +231,6 @@ impl CLI for ZcashCLI {
     /// Generate the Zcash wallet and print the relevant fields
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
-
         fn output<N: ZcashNetwork>(options: ZcashOptions) -> Result<(), CLIError> {
             for _ in 0..options.count {
                 let wallet = match (options.wallet_values.to_owned(), options.hd_values.to_owned()) {
@@ -221,12 +239,14 @@ impl CLI for ZcashCLI {
                             ZcashFormat::Sapling(_) => ZcashPrivateKey::<N>::new_sapling(&mut StdRng::from_entropy())?,
                             ZcashFormat::Sprout => ZcashPrivateKey::<N>::new_sprout(&mut StdRng::from_entropy())?,
                             ZcashFormat::P2PKH => ZcashPrivateKey::<N>::new_p2pkh(&mut StdRng::from_entropy())?,
-                            _ => unreachable!()
+                            _ => unreachable!(),
                         };
                         let public_key = private_key.to_public_key();
                         let address = public_key.to_address(&options.format)?;
-                        let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
-                        let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                        let address_format: Vec<String> =
+                            address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                        let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string())
+                        {
                             Ok(diversifier) => Some(hex::encode(diversifier)),
                             _ => None,
                         };
@@ -242,32 +262,35 @@ impl CLI for ZcashCLI {
                         }
                     }
                     (Some(wallet_values), None) => {
-                        fn process_private_key<N:ZcashNetwork>(private_key: &str, diversifier: &Option<String>) -> Result<ZcashWallet, CLIError> {
+                        fn process_private_key<N: ZcashNetwork>(
+                            private_key: &str,
+                            diversifier: &Option<String>,
+                        ) -> Result<ZcashWallet, CLIError> {
                             match ZcashPrivateKey::<N>::from_str(&private_key) {
                                 Ok(private_key) => {
                                     let format = match private_key.to_spending_key() {
                                         SpendingKey::P2PKH(_) => ZcashFormat::P2PKH,
                                         SpendingKey::P2SH(_) => ZcashFormat::P2SH,
                                         SpendingKey::Sprout(_) => ZcashFormat::Sprout,
-                                        SpendingKey::Sapling(_) => {
-                                            match diversifier {
-                                                Some(div) => {
-                                                    let mut diversifier =  [0u8; 11];
-                                                    diversifier.copy_from_slice(&hex::decode(div)?);
-                                                    ZcashFormat::Sapling(Some(diversifier))
-                                                },
-                                                None => ZcashFormat::Sapling(None),
+                                        SpendingKey::Sapling(_) => match diversifier {
+                                            Some(div) => {
+                                                let mut diversifier = [0u8; 11];
+                                                diversifier.copy_from_slice(&hex::decode(div)?);
+                                                ZcashFormat::Sapling(Some(diversifier))
                                             }
+                                            None => ZcashFormat::Sapling(None),
                                         },
                                     };
 
                                     let public_key = private_key.to_public_key();
                                     let address = public_key.to_address(&format)?;
-                                    let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
-                                    let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
-                                        Ok(diversifier) => Some(hex::encode(diversifier)),
-                                        _ => None,
-                                    };
+                                    let address_format: Vec<String> =
+                                        address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                                    let diversifier: Option<String> =
+                                        match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                                            Ok(diversifier) => Some(hex::encode(diversifier)),
+                                            _ => None,
+                                        };
 
                                     Ok(ZcashWallet {
                                         private_key: Some(private_key.to_string()),
@@ -283,31 +306,34 @@ impl CLI for ZcashCLI {
                             }
                         }
 
-                        fn process_public_key<N:ZcashNetwork>(public_key: &str, diversifier: &Option<String>) -> Result<ZcashWallet, CLIError> {
+                        fn process_public_key<N: ZcashNetwork>(
+                            public_key: &str,
+                            diversifier: &Option<String>,
+                        ) -> Result<ZcashWallet, CLIError> {
                             match ZcashPublicKey::<N>::from_str(&public_key) {
                                 Ok(public_key) => {
                                     let format = match public_key.to_viewing_key() {
                                         ViewingKey::P2PKH(_) => ZcashFormat::P2PKH,
                                         ViewingKey::P2SH(_) => ZcashFormat::P2SH,
                                         ViewingKey::Sprout(_) => ZcashFormat::Sprout,
-                                        ViewingKey::Sapling(_) => {
-                                            match diversifier {
-                                                Some(div) => {
-                                                    let mut diversifier =  [0u8; 11];
-                                                    diversifier.copy_from_slice(&hex::decode(div)?);
-                                                    ZcashFormat::Sapling(Some(diversifier))
-                                                },
-                                                None => ZcashFormat::Sapling(None),
+                                        ViewingKey::Sapling(_) => match diversifier {
+                                            Some(div) => {
+                                                let mut diversifier = [0u8; 11];
+                                                diversifier.copy_from_slice(&hex::decode(div)?);
+                                                ZcashFormat::Sapling(Some(diversifier))
                                             }
+                                            None => ZcashFormat::Sapling(None),
                                         },
                                     };
 
                                     let address = public_key.to_address(&format)?;
-                                    let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
-                                    let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
-                                        Ok(diversifier) => Some(hex::encode(diversifier)),
-                                        _ => None,
-                                    };
+                                    let address_format: Vec<String> =
+                                        address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                                    let diversifier: Option<String> =
+                                        match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                                            Ok(diversifier) => Some(hex::encode(diversifier)),
+                                            _ => None,
+                                        };
 
                                     Ok(ZcashWallet {
                                         public_key: Some(public_key.to_string()),
@@ -325,11 +351,13 @@ impl CLI for ZcashCLI {
                         fn process_address<N: ZcashNetwork>(address: &str) -> Result<ZcashWallet, CLIError> {
                             match ZcashAddress::<N>::from_str(&address) {
                                 Ok(address) => {
-                                    let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
-                                    let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
-                                        Ok(diversifier) => Some(hex::encode(diversifier)),
-                                        _ => None,
-                                    };
+                                    let address_format: Vec<String> =
+                                        address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                                    let diversifier: Option<String> =
+                                        match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                                            Ok(diversifier) => Some(hex::encode(diversifier)),
+                                            _ => None,
+                                        };
 
                                     Ok(ZcashWallet {
                                         address: address.to_string(),
@@ -338,7 +366,7 @@ impl CLI for ZcashCLI {
                                         diversifier,
                                         ..Default::default()
                                     })
-                                },
+                                }
                                 Err(error) => Err(CLIError::AddressError(error)),
                             }
                         }
@@ -348,15 +376,16 @@ impl CLI for ZcashCLI {
                             wallet_values.public_key.as_ref(),
                             wallet_values.address.as_ref(),
                         ) {
-                            (Some(private_key), None, None) =>
+                            (Some(private_key), None, None) => {
                                 process_private_key::<ZcashMainnet>(&private_key, &options.diversifier)
-                                    .or(process_private_key::<ZcashTestnet>(&private_key, &options.diversifier))?,
-                            (None, Some(public_key), None) =>
+                                    .or(process_private_key::<ZcashTestnet>(&private_key, &options.diversifier))?
+                            }
+                            (None, Some(public_key), None) => {
                                 process_public_key::<ZcashMainnet>(&public_key, &options.diversifier)
-                                    .or(process_public_key::<ZcashTestnet>(&public_key, &options.diversifier))?,
-                            (None, None, Some(address)) =>
-                                process_address::<ZcashMainnet>(&address)
-                                    .or(process_address::<ZcashTestnet>(&address))?,
+                                    .or(process_public_key::<ZcashTestnet>(&public_key, &options.diversifier))?
+                            }
+                            (None, None, Some(address)) => process_address::<ZcashMainnet>(&address)
+                                .or(process_address::<ZcashTestnet>(&address))?,
                             _ => unreachable!(),
                         }
                     }
@@ -374,46 +403,54 @@ impl CLI for ZcashCLI {
 
                         let format = match &options.diversifier {
                             Some(div) => {
-                                let mut diversifier =  [0u8; 11];
+                                let mut diversifier = [0u8; 11];
                                 diversifier.copy_from_slice(&hex::decode(div)?);
                                 ZcashFormat::Sapling(Some(diversifier))
-                            },
-                            None => ZcashFormat::Sapling(None)
+                            }
+                            None => ZcashFormat::Sapling(None),
                         };
 
-                        let (extended_private_key, extended_public_key) = match (
-                            hd_values.extended_private_key,
-                            hd_values.extended_public_key,
-                        ) {
-                            (None, None) => {
-                                let rng = &mut StdRng::from_entropy();
-                                let seed: [u8; 32] = rng.gen();
-                                let path = ZcashDerivationPath::from_str(&path)?;
-                                let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &format, &path)?;
-                                let extended_public_key = extended_private_key.to_extended_public_key();
-                                (Some(extended_private_key), extended_public_key)
-                            }
-                            (Some(extended_private_key), None) => {
-                                let mut extended_private_key = ZcashExtendedPrivateKey::from_str(&extended_private_key)?;
+                        let (extended_private_key, extended_public_key) =
+                            match (hd_values.extended_private_key, hd_values.extended_public_key) {
+                                (None, None) => {
+                                    let rng = &mut StdRng::from_entropy();
+                                    let seed: [u8; 32] = rng.gen();
+                                    let path = ZcashDerivationPath::from_str(&path)?;
+                                    let extended_private_key =
+                                        ZcashExtendedPrivateKey::<N>::new(&seed, &format, &path)?;
+                                    let extended_public_key = extended_private_key.to_extended_public_key();
+                                    (Some(extended_private_key), extended_public_key)
+                                }
+                                (Some(extended_private_key), None) => {
+                                    let mut extended_private_key =
+                                        ZcashExtendedPrivateKey::from_str(&extended_private_key)?;
 
-                                match hd_values.path {
-                                    Some(_) => extended_private_key = extended_private_key
-                                        .derive(&ZcashDerivationPath::from_str(&path)?)?,
-                                    None => final_path = None,
-                                };
+                                    match hd_values.path {
+                                        Some(_) => {
+                                            extended_private_key =
+                                                extended_private_key.derive(&ZcashDerivationPath::from_str(&path)?)?
+                                        }
+                                        None => final_path = None,
+                                    };
 
-                                let extended_public_key = extended_private_key.to_extended_public_key();
-                                (Some(extended_private_key), extended_public_key)
-                            }
-                            (None, Some(extended_public_key)) => (None, ZcashExtendedPublicKey::from_str(&extended_public_key)?),
-                            _ => unreachable!(),
-                        };
+                                    let extended_public_key = extended_private_key.to_extended_public_key();
+                                    (Some(extended_private_key), extended_public_key)
+                                }
+                                (None, Some(extended_public_key)) => {
+                                    (None, ZcashExtendedPublicKey::from_str(&extended_public_key)?)
+                                }
+                                _ => unreachable!(),
+                            };
 
-                        let private_key = extended_private_key.as_ref().map(|key| key.to_private_key().to_string());
+                        let private_key = extended_private_key
+                            .as_ref()
+                            .map(|key| key.to_private_key().to_string());
                         let public_key = extended_public_key.to_public_key();
                         let address = public_key.to_address(&format)?;
-                        let address_format: Vec<String> = address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
-                        let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string()) {
+                        let address_format: Vec<String> =
+                            address.format().to_string().split(" ").map(|s| s.to_owned()).collect();
+                        let diversifier: Option<String> = match ZcashAddress::<N>::get_diversifier(&address.to_string())
+                        {
                             Ok(diversifier) => Some(hex::encode(diversifier)),
                             _ => None,
                         };

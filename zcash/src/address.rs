@@ -645,7 +645,7 @@ mod tests {
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "secret-spending-key-main1hd5umd08pc4m6f8hw8x3tgv26kxn4w0p4g72kxrtndjazlm64hhsnczrtx",
-                "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
+                "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf",
             ),
             (
                 "secret-spending-key-main100nf0tdkdumdx7cjmndaagu0htkgxszq9hjrhlspdu7ppd48yg8qxd0yqa",
@@ -653,16 +653,16 @@ mod tests {
             ),
             (
                 "secret-spending-key-main1pj046u8243rgvg2s4clj5nhvc6r48fe9vl4kvggdlrsc4y2ztt0skswpn9",
-                "zs1akf8swew32rr4n63qedewhp2yz3wcjeazp6efs82lgealmux0h30ayju440rqyuscdr3wd5yuap"
+                "zs1akf8swew32rr4n63qedewhp2yz3wcjeazp6efs82lgealmux0h30ayju440rqyuscdr3wd5yuap",
             ),
             (
                 "secret-spending-key-main1ls0d46g5d4w8lyucsudvpyyhl6nvzkf733ak7vuy4um0l8xrkthqnh9a7d",
-                "zs14q3vapgrd6wfs9pr7hfy37y9djm3gnq09ztxsqs2x2vzv0lck978843q8r2ysejgwp9mcx7ws48"
+                "zs14q3vapgrd6wfs9pr7hfy37y9djm3gnq09ztxsqs2x2vzv0lck978843q8r2ysejgwp9mcx7ws48",
             ),
             (
                 "secret-spending-key-main1vqu0tez5nryjah27dgjc30xw0096cczwf6p9aecpt5glx0g7jees99g9fe",
-                "zs1rzjhudlm99h5fyrh7dfsvkfg9l5z587w97pm3ce9hpwfxpgck6p55lwu5mcapz7g3r40y597n2c"
-            )
+                "zs1rzjhudlm99h5fyrh7dfsvkfg9l5z587w97pm3ce9hpwfxpgck6p55lwu5mcapz7g3r40y597n2c",
+            ),
         ];
 
         #[test]
@@ -717,24 +717,24 @@ mod tests {
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "secret-spending-key-test1fygsm6l3ltqqs63040tq426p85pgzuetdeg6q0wka38nx3rfa70sa9qp0v",
-                "ztestsapling1jzzt7gjscav7lmdpemknv0v8rmmdzpcaqrx95azrgaky94drrvf0fg4wlnlkaclqj3r3s23g2sf"
+                "ztestsapling1jzzt7gjscav7lmdpemknv0v8rmmdzpcaqrx95azrgaky94drrvf0fg4wlnlkaclqj3r3s23g2sf",
             ),
             (
                 "secret-spending-key-test1f6w469xhw65naz4pm4lxnmd8em7ev5ddzszy8js325lr0xe2ay9snuw9t5",
-                "ztestsapling19epsvtxnzf59pr993fq4g0gu0fmrn2jl2z9jm2lgj3220c7r9shyvcpe25ul7wxvzk60z82zyf7"
+                "ztestsapling19epsvtxnzf59pr993fq4g0gu0fmrn2jl2z9jm2lgj3220c7r9shyvcpe25ul7wxvzk60z82zyf7",
             ),
             (
                 "secret-spending-key-test1s4zwnn7xgglz9099kc4l2ejfl5m3ddkvpy3erm960raszl2lakss48u07t",
-                "ztestsapling18ur694qcm6w657u9xt8aekutn98gyvpzwzjgjz99594x775ppeze5vwnp2ndw0u205vkuh2tqcu"
+                "ztestsapling18ur694qcm6w657u9xt8aekutn98gyvpzwzjgjz99594x775ppeze5vwnp2ndw0u205vkuh2tqcu",
             ),
             (
                 "secret-spending-key-test1d5seqlm269xjsgmz2qmwp9g683tx6n0hkyqalv5fjyraqt5mmz7snwyhek",
-                "ztestsapling1hkyeldalqna6kxzkkpc3gl4yvtd842sld4kkx7mhtm4srhndnqm347q7x672t05j245skqsctvs"
+                "ztestsapling1hkyeldalqna6kxzkkpc3gl4yvtd842sld4kkx7mhtm4srhndnqm347q7x672t05j245skqsctvs",
             ),
             (
                 "secret-spending-key-test1mqq09wgeevr0wwt2ncjncalktcwtt7tjxuk2cxtwce2xuzf4t0lqf5jn03",
-                "ztestsapling12n4jm24lflgmjk4crm0322p0gpmww98v5cqyurphq6tr4r4q9kxyz2f3tp9x92mm8kruwwg2u5w"
-            )
+                "ztestsapling12n4jm24lflgmjk4crm0322p0gpmww98v5cqyurphq6tr4r4q9kxyz2f3tp9x92mm8kruwwg2u5w",
+            ),
         ];
 
         #[test]

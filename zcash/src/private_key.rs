@@ -129,15 +129,17 @@ impl<N: ZcashNetwork> Display for SaplingSpendingKey<N> {
         if let Some(spending_key) = self.spending_key {
             match Bech32::new(N::to_sapling_spending_key_prefix(), spending_key.to_base32()) {
                 Ok(key) => write!(f, "{}", key.to_string())?,
-                Err(_) => return Err(fmt::Error)
+                Err(_) => return Err(fmt::Error),
             }
         } else {
             let mut buffer = vec![0; 96];
             match self.expanded_spending_key.write(buffer.as_mut_slice()).is_ok() {
-                true => for s in &buffer[..] {
-                    write!(f, "{:02x}", s)?;
+                true => {
+                    for s in &buffer[..] {
+                        write!(f, "{:02x}", s)?;
+                    }
                 }
-                false => return Err(fmt::Error)
+                false => return Err(fmt::Error),
             }
         }
         Ok(())
@@ -287,7 +289,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             SpendingKey::Sapling(SaplingSpendingKey::<N> {
                 spending_key: Some(*spending_key),
                 expanded_spending_key: ExpandedSpendingKey::from_spending_key(spending_key),
-                _network: PhantomData
+                _network: PhantomData,
             }),
             PhantomData,
         ))
@@ -304,7 +306,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             SpendingKey::Sapling(SaplingSpendingKey::<N> {
                 spending_key: None,
                 expanded_spending_key: ExpandedSpendingKey::read(&data[..])?,
-                _network: PhantomData
+                _network: PhantomData,
             }),
             PhantomData,
         ))
@@ -431,7 +433,7 @@ mod tests {
     fn test_invalid_checksum<N: ZcashNetwork>(spending_key: &str) {
         let length = spending_key.len();
         let mut s = String::from(spending_key);
-        s.replace_range((length  - 4).., "AAAA");
+        s.replace_range((length - 4).., "AAAA");
 
         assert!(ZcashPrivateKey::<N>::from_str(&s).is_err())
     }
