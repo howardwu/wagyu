@@ -213,10 +213,10 @@ impl Display for EthereumWallet {
     }
 }
 
-/// Represents options for a Ethereum wallet
+/// Represents options for an Ethereum wallet
 #[derive(Clone, Debug, Serialize)]
 pub struct EthereumOptions {
-    // Standard
+    // Standard command
     count: usize,
     json: bool,
     subcommand: Option<String>,

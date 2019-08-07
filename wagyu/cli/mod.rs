@@ -94,6 +94,9 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     ExtendedPublicKeyError(ExtendedPublicKeyError),
 
+    #[fail(display = "invalid derived mnemonic for a given private spend key")]
+    InvalidMnemonicForPrivateSpendKey,
+
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
 
