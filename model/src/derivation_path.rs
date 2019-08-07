@@ -9,14 +9,14 @@ pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'sta
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum DerivationPathError {
+    #[fail(display = "expected BIP44 path")]
+    ExpectedBIP44Path,
+
     #[fail(display = "expected hardened path")]
     ExpectedHardenedPath,
 
     #[fail(display = "expected normal path")]
     ExpectedNormalPath,
-
-    #[fail(display = "expected BIP44 path")]
-    ExpectedBIP44Path,
 
     #[fail(display = "invalid child number: {}", _0)]
     InvalidChildNumber(u32),
