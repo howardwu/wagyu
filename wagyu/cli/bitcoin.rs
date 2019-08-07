@@ -555,6 +555,7 @@ impl CLI for BitcoinCLI {
                         "derivation",
                         "extended private",
                         "extended public",
+                        "index",
                         "mnemonic",
                         "password",
                     ],
