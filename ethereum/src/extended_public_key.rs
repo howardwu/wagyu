@@ -1,7 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
-use crate::format::Format;
+use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
@@ -22,7 +22,7 @@ type HmacSha512 = Hmac<Sha512>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EthereumExtendedPublicKey {
     /// The derivation format
-    format: Format,
+    format: EthereumFormat,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -39,7 +39,7 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     type Address = EthereumAddress;
     type DerivationPath = EthereumDerivationPath;
     type ExtendedPrivateKey = EthereumExtendedPrivateKey;
-    type Format = Format;
+    type Format = EthereumFormat;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -55,10 +55,7 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     }
 
     /// Returns the extended public key for the given derivation path.
-    fn derive(&self, format: &Format) -> Result<Self, ExtendedPublicKeyError> {
-
-        let path = format.to_derivation_path()?;
-
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth == 255 {
             return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth));
         }
@@ -152,7 +149,7 @@ impl FromStr for EthereumExtendedPublicKey {
         }
 
         Ok(Self {
-            format: self::Format::Master,
+            format: self::EthereumFormat::Master,
             depth,
             parent_fingerprint,
             child_index,
@@ -219,7 +216,7 @@ mod tests {
         expected_extended_public_key2: &str,
         expected_child_index2: u32,
     ) {
-        let format = Format::from_child_index(&vec![ChildIndex::from(expected_child_index2)]);
+        let format = EthereumFormat::from_child_index(&vec![ChildIndex::from(expected_child_index2)]);
         let extended_private_key1 = EthereumExtendedPrivateKey::from_str(expected_extended_private_key1).unwrap();
         let extended_private_key2 = extended_private_key1.derive(&format).unwrap();
         let extended_public_key2 = extended_private_key2.to_extended_public_key();

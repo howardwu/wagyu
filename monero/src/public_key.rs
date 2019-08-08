@@ -1,5 +1,5 @@
 use crate::address::MoneroAddress;
-use crate::format::Format;
+use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
@@ -15,20 +15,20 @@ pub struct MoneroPublicKey<N: MoneroNetwork> {
     /// The public viewing key
     view_key: Option<[u8; 32]>,
     /// Format
-    format: Format,
+    format: MoneroFormat,
     /// PhantomData
     _network: PhantomData<N>,
 }
 
 impl<N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
     type Address = MoneroAddress<N>;
-    type Format = Format;
+    type Format = MoneroFormat;
     type PrivateKey = MoneroPrivateKey<N>;
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         match private_key.format() {
-            Format::Subaddress(major, minor) if major != 0 || minor != 0 => {
+            MoneroFormat::Subaddress(major, minor) if major != 0 || minor != 0 => {
                 Self::from_subaddress_private_key(private_key, major, minor)
             }
             _ => {
@@ -52,7 +52,7 @@ impl<N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
 
 impl<N: MoneroNetwork> MoneroPublicKey<N> {
     /// Returns a Monero public key given a public spend key and public view key.
-    pub fn from(public_spend_key: &str, public_view_key: &str, format: &Format) -> Result<Self, PublicKeyError> {
+    pub fn from(public_spend_key: &str, public_view_key: &str, format: &MoneroFormat) -> Result<Self, PublicKeyError> {
         let public_spend_key = hex::decode(public_spend_key)?;
         if public_spend_key.len() != 32 {
             return Err(PublicKeyError::InvalidByteLength(public_spend_key.len()));
@@ -70,10 +70,10 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
         view_key.copy_from_slice(public_view_key.as_slice());
 
         match format {
-            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => Ok(Self {
+            MoneroFormat::Subaddress(major, minor) if *major == 0 && *minor == 0 => Ok(Self {
                 spend_key: Some(spend_key),
                 view_key: Some(view_key),
-                format: Format::Standard,
+                format: MoneroFormat::Standard,
                 _network: PhantomData,
             }),
             _ => Ok(Self {
@@ -86,7 +86,7 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
     }
 
     /// Returns a public key given a private view key.
-    pub fn from_private_view_key(private_view_key: &str, format: &Format) -> Result<Self, PublicKeyError> {
+    pub fn from_private_view_key(private_view_key: &str, format: &MoneroFormat) -> Result<Self, PublicKeyError> {
         let key = hex::decode(private_view_key)?;
         if key.len() != 32 {
             return Err(PublicKeyError::InvalidByteLength(key.len()));
@@ -96,7 +96,7 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
         view_key.copy_from_slice(key.as_slice());
 
         let format = match format {
-            Format::Subaddress(major, minor) if *major == 0 && *minor == 0 => Format::Standard,
+            MoneroFormat::Subaddress(major, minor) if *major == 0 && *minor == 0 => MoneroFormat::Standard,
             _ => *format,
         };
 
@@ -120,7 +120,7 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
         Self {
             spend_key: Some(*subaddress_public_spend.compress().as_bytes()),
             view_key: Some(*subaddress_public_view.compress().as_bytes()),
-            format: Format::Subaddress(major, minor),
+            format: MoneroFormat::Subaddress(major, minor),
             _network: PhantomData,
         }
     }
@@ -136,7 +136,7 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
     }
 
     /// Returns the format of the Monero address.
-    pub fn format(&self) -> Format {
+    pub fn format(&self) -> MoneroFormat {
         self.format.clone()
     }
 
@@ -164,7 +164,7 @@ impl<N: MoneroNetwork> FromStr for MoneroPublicKey<N> {
         Ok(Self::from(
             public_spend_key.as_str(),
             public_view_key.as_str(),
-            &Format::Standard,
+            &MoneroFormat::Standard,
         )?)
     }
 }
@@ -203,7 +203,7 @@ mod tests {
 
     fn test_to_address<N: MoneroNetwork>(
         expected_address: &MoneroAddress<N>,
-        expected_format: &Format,
+        expected_format: &MoneroFormat,
         public_key: &MoneroPublicKey<N>,
     ) {
         let address = public_key.to_address(expected_format).unwrap();
@@ -214,7 +214,7 @@ mod tests {
         expected_public_spend_key: &str,
         expected_public_view_key: &str,
         expected_address: &str,
-        expected_format: &Format,
+        expected_format: &MoneroFormat,
     ) {
         let public_key =
             MoneroPublicKey::<N>::from(expected_public_spend_key, expected_public_view_key, expected_format).unwrap();
@@ -240,7 +240,7 @@ mod tests {
 
         type N = Mainnet;
 
-        const FORMAT: &Format = &Format::Standard;
+        const FORMAT: &MoneroFormat = &MoneroFormat::Standard;
 
         // (seed, (private_spend_key, private_view_key), (public_spend_key, public_view_key), address)
         const KEYPAIRS: [(&str, (&str, &str), (&str, &str), &str); 5] = [
@@ -333,7 +333,7 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(_, _, (public_spend_key, public_view_key), address)| {
-                    test_from_str::<N>(public_spend_key, public_view_key, address, &Format::Standard);
+                    test_from_str::<N>(public_spend_key, public_view_key, address, &MoneroFormat::Standard);
                 });
         }
 
@@ -399,7 +399,7 @@ mod tests {
                 .for_each(|(seed, _, (public_spend_key, public_view_key), payment_id, _)| {
                     let mut payment_id_bytes = [0u8; 8];
                     payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
-                    let format = &Format::Integrated(payment_id_bytes);
+                    let format = &MoneroFormat::Integrated(payment_id_bytes);
                     let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                     let private_key = MoneroPrivateKey::<N>::from_seed(&seed, &format).unwrap();
                     test_from_private_key(&public_key, &private_key);
@@ -414,7 +414,7 @@ mod tests {
                     let address = MoneroAddress::<N>::from_str(address).unwrap();
                     let mut payment_id_bytes = [0u8; 8];
                     payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
-                    let format = &Format::Integrated(payment_id_bytes);
+                    let format = &MoneroFormat::Integrated(payment_id_bytes);
                     let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                     test_to_address(&address, format, &public_key);
                 });
@@ -427,7 +427,7 @@ mod tests {
                 .for_each(|(_, _, (public_spend_key, public_view_key), payment_id, address)| {
                     let mut payment_id_bytes = [0u8; 8];
                     payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
-                    let format = &Format::Integrated(payment_id_bytes);
+                    let format = &MoneroFormat::Integrated(payment_id_bytes);
                     test_from_str::<N>(public_spend_key, public_view_key, address, format);
                 });
         }
@@ -439,7 +439,7 @@ mod tests {
                 .for_each(|(_, _, (public_spend_key, public_view_key), payment_id, _)| {
                     let mut payment_id_bytes = [0u8; 8];
                     payment_id_bytes.copy_from_slice(&hex::decode(payment_id).unwrap());
-                    let format = &Format::Integrated(payment_id_bytes);
+                    let format = &MoneroFormat::Integrated(payment_id_bytes);
                     let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                     test_to_str(public_spend_key, public_view_key, &public_key);
                 });
@@ -572,7 +572,7 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(seed, _, (public_spend_key, public_view_key), major, minor, _)| {
-                    let format = &Format::Subaddress(*major, *minor);
+                    let format = &MoneroFormat::Subaddress(*major, *minor);
                     let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                     let private_key = MoneroPrivateKey::<N>::from_seed(&seed, &format).unwrap();
                     test_from_private_key(&public_key, &private_key);
@@ -585,7 +585,7 @@ mod tests {
                 .iter()
                 .for_each(|(_, _, (public_spend_key, public_view_key), major, minor, address)| {
                     let address = MoneroAddress::<N>::from_str(address).unwrap();
-                    let format = &Format::Subaddress(*major, *minor);
+                    let format = &MoneroFormat::Subaddress(*major, *minor);
                     let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                     test_to_address(&address, format, &public_key);
                 });
@@ -596,7 +596,7 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(_, _, (public_spend_key, public_view_key), major, minor, address)| {
-                    let format = &Format::Subaddress(*major, *minor);
+                    let format = &MoneroFormat::Subaddress(*major, *minor);
                     test_from_str::<N>(public_spend_key, public_view_key, address, &format);
                 });
         }
@@ -606,7 +606,7 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(_, _, (public_spend_key, public_view_key), major, minor, _)| {
-                    let format = &Format::Subaddress(*major, *minor);
+                    let format = &MoneroFormat::Subaddress(*major, *minor);
                     let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, format).unwrap();
                     test_to_str(public_spend_key, public_view_key, &public_key);
                 });
@@ -616,7 +616,7 @@ mod tests {
     mod invalid_public_key {
         use super::*;
         type N = Mainnet;
-        const FORMAT: &Format = &Format::Standard;
+        const FORMAT: &MoneroFormat = &MoneroFormat::Standard;
 
         // (public spend key, public view key, concatenated public key)
         const INVALID: [(&str, &str, &str); 5] = [

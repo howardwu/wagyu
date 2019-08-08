@@ -1,4 +1,4 @@
-use crate::format::Format;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
@@ -15,13 +15,13 @@ pub struct BitcoinAddress<N: BitcoinNetwork> {
     /// The Bitcoin address
     address: String,
     /// The format of the address
-    format: Format,
+    format: BitcoinFormat,
     /// PhantomData
     _network: PhantomData<N>,
 }
 
 impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PrivateKey = BitcoinPrivateKey<N>;
     type PublicKey = BitcoinPublicKey<N>;
 
@@ -33,14 +33,14 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
     /// Returns the address corresponding to the given Bitcoin public key.
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
         match format {
-            Format::P2PKH => Self::p2pkh(public_key),
-            Format::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
-            Format::Bech32 => Self::bech32(public_key),
-            Format::Master => Self::p2pkh(public_key),
-            Format::BIP32(_) => Self::p2pkh(&public_key),
-            Format::BIP44(_, _, _) => Self::p2pkh(&public_key),
-            Format::BIP49(_, _, _) => Self::p2sh_p2wpkh(&public_key),
-            Format::CustomPath(_, format) => Self::from_public_key(&public_key, *&format),
+            BitcoinFormat::P2PKH => Self::p2pkh(public_key),
+            BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
+            BitcoinFormat::Bech32 => Self::bech32(public_key),
+            BitcoinFormat::Master => Self::p2pkh(public_key),
+            BitcoinFormat::BIP32(_) => Self::p2pkh(&public_key),
+            BitcoinFormat::BIP44(_, _, _) => Self::p2pkh(&public_key),
+            BitcoinFormat::BIP49(_, _, _) => Self::p2sh_p2wpkh(&public_key),
+            BitcoinFormat::CustomPath(_, format) => Self::from_public_key(&public_key, *&format),
         }
     }
 }
@@ -54,7 +54,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         };
 
         let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(&Format::P2PKH)[0];
+        address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
         address[1..21].copy_from_slice(&hash160(&public_key));
 
         let sum = &checksum(&address[0..21])[0..4];
@@ -62,7 +62,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
         Ok(Self {
             address: address.to_base58(),
-            format: Format::P2PKH,
+            format: BitcoinFormat::P2PKH,
             _network: PhantomData,
         })
     }
@@ -72,7 +72,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let redeem = Self::create_redeem_script(public_key);
 
         let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(&Format::P2SH_P2WPKH)[0];
+        address[0] = N::to_address_prefix(&BitcoinFormat::P2SH_P2WPKH)[0];
         address[1..21].copy_from_slice(&hash160(&redeem));
 
         let sum = &checksum(&address[0..21])[0..4];
@@ -80,7 +80,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
         Ok(Self {
             address: address.to_base58(),
-            format: Format::P2SH_P2WPKH,
+            format: BitcoinFormat::P2SH_P2WPKH,
             _network: PhantomData,
         })
     }
@@ -93,17 +93,17 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let mut data = vec![version];
         data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
 
-        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&Format::Bech32))?, data)?;
+        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
 
         Ok(Self {
             address: bech32.to_string(),
-            format: Format::Bech32,
+            format: BitcoinFormat::Bech32,
             _network: PhantomData,
         })
     }
 
     /// Returns the format of the Bitcoin address.
-    pub fn format(&self) -> Format {
+    pub fn format(&self) -> BitcoinFormat {
         self.format.clone()
     }
 
@@ -134,8 +134,8 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
 
         let prefix = &address.to_lowercase()[0..2];
 
-        if let Ok(format) = Format::from_address_prefix(prefix.as_bytes()) {
-            if Format::Bech32 == format {
+        if let Ok(format) = BitcoinFormat::from_address_prefix(prefix.as_bytes()) {
+            if BitcoinFormat::Bech32 == format {
                 let bech32 = Bech32::from_str(&address)?;
                 if bech32.data().is_empty() {
                     return Err(AddressError::InvalidAddress(address.to_owned()));
@@ -155,7 +155,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
 
                 return Ok(Self {
                     address: address.to_owned(),
-                    format: Format::Bech32,
+                    format: BitcoinFormat::Bech32,
                     _network: PhantomData,
                 });
             }
@@ -168,7 +168,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
 
         // Check that the address prefix corresponds to the correct network.
         let _ = N::from_address_prefix(&data[0..2])?;
-        let format = Format::from_address_prefix(&data[0..2])?;
+        let format = BitcoinFormat::from_address_prefix(&data[0..2])?;
 
         Ok(Self {
             address: address.into(),
@@ -193,7 +193,7 @@ mod tests {
     fn test_from_private_key<N: BitcoinNetwork>(
         expected_address: &str,
         private_key: &BitcoinPrivateKey<N>,
-        format: &Format,
+        format: &BitcoinFormat,
     ) {
         let address = BitcoinAddress::from_private_key(private_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
@@ -202,13 +202,13 @@ mod tests {
     fn test_from_public_key<N: BitcoinNetwork>(
         expected_address: &str,
         public_key: &BitcoinPublicKey<N>,
-        format: &Format,
+        format: &BitcoinFormat,
     ) {
         let address = BitcoinAddress::from_public_key(public_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
-    fn test_from_str<N: BitcoinNetwork>(expected_address: &str, expected_format: &Format) {
+    fn test_from_str<N: BitcoinNetwork>(expected_address: &str, expected_format: &BitcoinFormat) {
         let address = BitcoinAddress::<N>::from_str(expected_address).unwrap();
         assert_eq!(expected_address, address.to_string());
         assert_eq!(*expected_format, address.format);
@@ -249,7 +249,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::P2PKH);
+                test_from_private_key(address, &private_key, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -258,14 +258,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::P2PKH);
+                test_from_public_key(address, &public_key, &BitcoinFormat::P2PKH);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::P2PKH);
+                test_from_str::<N>(address, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -309,7 +309,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::P2PKH);
+                test_from_private_key(address, &private_key, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -318,14 +318,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::P2PKH);
+                test_from_public_key(address, &public_key, &BitcoinFormat::P2PKH);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::P2PKH);
+                test_from_str::<N>(address, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -345,11 +345,11 @@ mod tests {
             let expected_address = "12WMrNLRosydPNNYM96dwk9jDv8rDRom3J";
 
             let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-            let address = BitcoinAddress::<N>::from_private_key(&private_key, &Format::P2PKH).unwrap();
+            let address = BitcoinAddress::<N>::from_private_key(&private_key, &BitcoinFormat::P2PKH).unwrap();
             assert_ne!(expected_address, address.to_string());
 
             let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-            let address = BitcoinAddress::<N>::from_public_key(&public_key, &Format::P2PKH).unwrap();
+            let address = BitcoinAddress::<N>::from_public_key(&public_key, &BitcoinFormat::P2PKH).unwrap();
             assert_ne!(expected_address, address.to_string());
 
             // Invalid address length
@@ -402,7 +402,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::P2PKH);
+                test_from_private_key(address, &private_key, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -411,14 +411,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::P2PKH);
+                test_from_public_key(address, &public_key, &BitcoinFormat::P2PKH);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::P2PKH);
+                test_from_str::<N>(address, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -462,7 +462,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::P2PKH);
+                test_from_private_key(address, &private_key, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -471,14 +471,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::P2PKH);
+                test_from_public_key(address, &public_key, &BitcoinFormat::P2PKH);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::P2PKH);
+                test_from_str::<N>(address, &BitcoinFormat::P2PKH);
             });
         }
 
@@ -522,7 +522,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::P2SH_P2WPKH);
+                test_from_private_key(address, &private_key, &BitcoinFormat::P2SH_P2WPKH);
             });
         }
 
@@ -531,14 +531,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::P2SH_P2WPKH);
+                test_from_public_key(address, &public_key, &BitcoinFormat::P2SH_P2WPKH);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::P2SH_P2WPKH);
+                test_from_str::<N>(address, &BitcoinFormat::P2SH_P2WPKH);
             });
         }
 
@@ -558,11 +558,11 @@ mod tests {
             let expected_address = "3Pai7Ly86pddxxwZ7rUhXjRJwog4oKqNYK";
 
             let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-            let address = BitcoinAddress::<N>::from_private_key(&private_key, &Format::P2SH_P2WPKH).unwrap();
+            let address = BitcoinAddress::<N>::from_private_key(&private_key, &BitcoinFormat::P2SH_P2WPKH).unwrap();
             assert_ne!(expected_address, address.to_string());
 
             let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-            let address = BitcoinAddress::<N>::from_public_key(&public_key, &Format::P2SH_P2WPKH).unwrap();
+            let address = BitcoinAddress::<N>::from_public_key(&public_key, &BitcoinFormat::P2SH_P2WPKH).unwrap();
             assert_ne!(expected_address, address.to_string());
 
             // Invalid address length
@@ -615,7 +615,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::P2SH_P2WPKH);
+                test_from_private_key(address, &private_key, &BitcoinFormat::P2SH_P2WPKH);
             });
         }
 
@@ -624,14 +624,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::P2SH_P2WPKH);
+                test_from_public_key(address, &public_key, &BitcoinFormat::P2SH_P2WPKH);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::P2SH_P2WPKH);
+                test_from_str::<N>(address, &BitcoinFormat::P2SH_P2WPKH);
             });
         }
 
@@ -693,7 +693,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::Bech32);
+                test_from_private_key(address, &private_key, &BitcoinFormat::Bech32);
             });
         }
 
@@ -702,14 +702,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::Bech32);
+                test_from_public_key(address, &public_key, &BitcoinFormat::Bech32);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::Bech32);
+                test_from_str::<N>(address, &BitcoinFormat::Bech32);
             });
         }
 
@@ -766,7 +766,7 @@ mod tests {
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
-                test_from_private_key(address, &private_key, &Format::Bech32);
+                test_from_private_key(address, &private_key, &BitcoinFormat::Bech32);
             });
         }
 
@@ -775,14 +775,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
                 let private_key = BitcoinPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = BitcoinPublicKey::<N>::from_private_key(&private_key);
-                test_from_public_key(address, &public_key, &Format::Bech32);
+                test_from_public_key(address, &public_key, &BitcoinFormat::Bech32);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
-                test_from_str::<N>(address, &Format::Bech32);
+                test_from_str::<N>(address, &BitcoinFormat::Bech32);
             });
         }
 

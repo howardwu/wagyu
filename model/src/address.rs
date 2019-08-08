@@ -1,3 +1,4 @@
+use crate::format::FormatError;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::{PublicKey, PublicKeyError};
 
@@ -24,6 +25,9 @@ pub trait Address: Clone + Debug + Display + FromStr + Send + Sync + 'static + E
 pub enum AddressError {
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
+
+    #[fail(display = "{}", _0)]
+    FormatError(FormatError),
 
     #[fail(display = "invalid format conversion from {:?} to {:?}", _0, _1)]
     IncompatibleFormats(String, String),
@@ -83,6 +87,12 @@ impl From<base58_monero::base58::Error> for AddressError {
 impl From<bech32::Error> for AddressError {
     fn from(error: bech32::Error) -> Self {
         AddressError::Crate("bech32", format!("{:?}", error))
+    }
+}
+
+impl From<FormatError> for AddressError {
+    fn from(error: FormatError) -> Self {
+        AddressError::FormatError(error)
     }
 }
 

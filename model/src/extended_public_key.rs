@@ -1,6 +1,7 @@
 use crate::address::{Address, AddressError};
 use crate::derivation_path::{DerivationPath, DerivationPathError};
 use crate::extended_private_key::ExtendedPrivateKey;
+use crate::format::FormatError;
 use crate::network::NetworkError;
 use crate::public_key::{PublicKey, PublicKeyError};
 
@@ -21,7 +22,7 @@ pub trait ExtendedPublicKey: Clone + Debug + Display + FromStr + Send + Sync + '
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self;
 
     /// Returns the extended public key for the given format.
-    fn derive(&self, format: &Self::Format) -> Result<Self, ExtendedPublicKeyError>;
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError>;
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey;
@@ -52,6 +53,9 @@ pub enum ExtendedPublicKeyError {
 
     #[fail(display = "invalid version bytes: {:?}", _0)]
     InvalidVersionBytes(Vec<u8>),
+
+    #[fail(display = "{}", _0)]
+    FormatError(FormatError),
 
     #[fail(display = "maximum child depth reached: {}", _0)]
     MaximumChildDepthReached(u8),
@@ -102,6 +106,12 @@ impl From<bech32::Error> for ExtendedPublicKeyError {
 impl From<crypto_mac::InvalidKeyLength> for ExtendedPublicKeyError {
     fn from(error: crypto_mac::InvalidKeyLength) -> Self {
         ExtendedPublicKeyError::Crate("crypto-mac", format!("{:?}", error))
+    }
+}
+
+impl From<FormatError> for ExtendedPublicKeyError {
+    fn from(error: FormatError) -> Self {
+        ExtendedPublicKeyError::FormatError(error)
     }
 }
 

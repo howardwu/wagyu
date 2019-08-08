@@ -1,5 +1,5 @@
 use crate::address::MoneroAddress;
-use crate::format::Format;
+use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
@@ -29,7 +29,7 @@ pub struct MoneroMnemonic<N: MoneroNetwork, W: MoneroWordlist> {
 
 impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     type Address = MoneroAddress<N>;
-    type Format = Format;
+    type Format = MoneroFormat;
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
 
@@ -47,7 +47,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(MoneroPrivateKey::from_seed(
             hex::encode(&self.seed).as_str(),
-            &Format::Standard,
+            &MoneroFormat::Standard,
         )?)
     }
 
@@ -58,7 +58,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
     /// Returns the address of the corresponding mnemonic.
     fn to_address(&self, _: Option<&str>, _: &Self::Format) -> Result<Self::Address, MnemonicError> {
-        Ok(self.to_private_key(None)?.to_address(&Format::Standard)?)
+        Ok(self.to_private_key(None)?.to_address(&MoneroFormat::Standard)?)
     }
 }
 

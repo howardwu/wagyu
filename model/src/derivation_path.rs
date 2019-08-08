@@ -1,5 +1,4 @@
 use serde::Serialize;
-
 use std::{
     fmt,
     fmt::{Debug, Display},

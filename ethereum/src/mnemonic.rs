@@ -1,7 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
 use crate::extended_public_key::EthereumExtendedPublicKey;
-use crate::format::Format;
+use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use crate::wordlist::EthereumWordlist;
@@ -46,7 +46,7 @@ impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
 
 impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     type Address = EthereumAddress;
-    type Format = Format;
+    type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 

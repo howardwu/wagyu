@@ -1,6 +1,6 @@
 use crate::derivation_path::EthereumDerivationPath;
 
-use wagyu_model::{ChildIndex, DerivationPathError};
+use wagyu_model::{ChildIndex, FormatError};
 
 use serde::Serialize;
 use std::{fmt, str::FromStr};
@@ -9,53 +9,58 @@ use std::{fmt, str::FromStr};
 /// Represents the format of a Ethereum derivation
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(non_camel_case_types)]
-pub enum Format {
-    /// TODO fill out documentation
+pub enum EthereumFormat {
+    /// Master key with no path
     Master,
+    /// Ethereum path with index
     Ethereum(u32),
+    /// KeepKey path with index
     Keepkey(u32),
+    /// Ledger Legacy path with index
     LedgerLegacy(u32),
+    /// Ledger Live path with index
     LedgerLive(u32),
+    /// Trezor path with index
     Trezor(u32),
+    /// Custom path
     CustomPath(EthereumDerivationPath),
 }
 
-impl Format {
-
+impl EthereumFormat {
     /// Returns the corresponding derivation path from the child index
     pub fn from_child_index(path: &[ChildIndex]) -> Self {
-        Format::CustomPath(EthereumDerivationPath::from(path))
+        Self::CustomPath(EthereumDerivationPath::from(path))
     }
 
     /// Returns the corresponding derivation path from the path
-    pub fn from_path(path: &str) -> Result<Self, DerivationPathError> {
-        Ok(Format::CustomPath(EthereumDerivationPath::from_str(path)?))
+    pub fn from_path(path: &str) -> Result<Self, FormatError> {
+        Ok(Self::CustomPath(EthereumDerivationPath::from_str(path)?))
     }
 
     /// Returns the corresponding derivation path from the format
-    pub fn to_derivation_path(&self) -> Result<EthereumDerivationPath, DerivationPathError> {
+    pub fn to_derivation_path(&self) -> Result<EthereumDerivationPath, FormatError> {
         match self {
-            Format::Master => EthereumDerivationPath::from_str("m"),
-            Format::Ethereum(index) => EthereumDerivationPath::ethereum(*index),
-            Format::Keepkey(index) => EthereumDerivationPath::keepkey(*index),
-            Format::LedgerLegacy(index) => EthereumDerivationPath::ledger_legacy(*index),
-            Format::LedgerLive(index) => EthereumDerivationPath::ledger_live(*index),
-            Format::Trezor(index) => EthereumDerivationPath::trezor(*index),
-            Format::CustomPath(derivation_path) => Ok(derivation_path.clone()),
+            Self::Master => Ok(EthereumDerivationPath::from_str("m")?),
+            Self::Ethereum(index) => Ok(EthereumDerivationPath::ethereum(*index)?),
+            Self::Keepkey(index) => Ok(EthereumDerivationPath::keepkey(*index)?),
+            Self::LedgerLegacy(index) => Ok(EthereumDerivationPath::ledger_legacy(*index)?),
+            Self::LedgerLive(index) => Ok(EthereumDerivationPath::ledger_live(*index)?),
+            Self::Trezor(index) => Ok(EthereumDerivationPath::trezor(*index)?),
+            Self::CustomPath(derivation_path) => Ok(derivation_path.clone()),
         }
     }
 }
 
-impl fmt::Display for Format {
+impl fmt::Display for EthereumFormat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Format::Master => write!(f, "master"),
-            Format::Ethereum(_) => write!(f, "ethereum"),
-            Format::Keepkey(_) => write!(f, "keepkey"),
-            Format::LedgerLegacy(_) => write!(f, "ledger_legacy"),
-            Format::LedgerLive(_) => write!(f, "ledger_live"),
-            Format::Trezor(_) => write!(f, "trezor"),
-            Format::CustomPath(path) => write!(f, "{}", path),
+            Self::Master => write!(f, "master"),
+            Self::Ethereum(_) => write!(f, "ethereum"),
+            Self::Keepkey(_) => write!(f, "keepkey"),
+            Self::LedgerLegacy(_) => write!(f, "ledger_legacy"),
+            Self::LedgerLive(_) => write!(f, "ledger_live"),
+            Self::Trezor(_) => write!(f, "trezor"),
+            Self::CustomPath(path) => write!(f, "{}", path),
         }
     }
 }

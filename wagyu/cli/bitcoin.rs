@@ -1,6 +1,6 @@
 use crate::bitcoin::{
-    address::Format as BitcoinFormat, wordlist::*, BitcoinAddress, BitcoinDerivationPath, BitcoinExtendedPrivateKey,
-    BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork, BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist,
+    wordlist::*, BitcoinAddress, BitcoinDerivationPath, BitcoinExtendedPrivateKey,
+    BitcoinExtendedPublicKey, BitcoinFormat, BitcoinMnemonic, BitcoinNetwork, BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist,
     Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
 };
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
@@ -59,13 +59,12 @@ impl BitcoinWallet {
         rng: &mut R,
         word_count: u8,
         password: Option<&str>,
-        path: &str,
+        derivation_path: &BitcoinDerivationPath,
         format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::new(word_count, rng)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
-        let derivation_path = BitcoinDerivationPath::from_str(path)?;
-        let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
+        let extended_private_key = master_extended_private_key.derive(derivation_path)?;
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
@@ -89,13 +88,12 @@ impl BitcoinWallet {
     pub fn from_mnemonic<N: BitcoinNetwork, W: BitcoinWordlist>(
         mnemonic: &str,
         password: &Option<&str>,
-        path: &str,
+        derivation_path: &BitcoinDerivationPath,
         format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password.clone())?;
-        let derivation_path = BitcoinDerivationPath::from_str(path)?;
-        let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
+        let extended_private_key = master_extended_private_key.derive(derivation_path)?;
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
@@ -118,13 +116,12 @@ impl BitcoinWallet {
 
     pub fn from_extended_private_key<N: BitcoinNetwork>(
         extended_private_key: &str,
-        path: &Option<String>,
+        derivation_path: &Option<BitcoinDerivationPath>,
         format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mut extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(extended_private_key)?;
-        if let Some(derivation_path) = path {
-            let derivation_path = BitcoinDerivationPath::from_str(&derivation_path)?;
-            extended_private_key = extended_private_key.derive(&derivation_path)?;
+        if let Some(derivation_path) = derivation_path {
+            extended_private_key = extended_private_key.derive(derivation_path)?;
         }
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
@@ -147,13 +144,12 @@ impl BitcoinWallet {
 
     pub fn from_extended_public_key<N: BitcoinNetwork>(
         extended_public_key: &str,
-        path: &Option<String>,
+        derivation_path: &Option<BitcoinDerivationPath>,
         format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mut extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(extended_public_key)?;
-        if let Some(derivation_path) = path {
-            let derivation_path = BitcoinDerivationPath::from_str(&derivation_path)?;
-            extended_public_key = extended_public_key.derive(&derivation_path)?;
+        if let Some(derivation_path) = derivation_path {
+            extended_public_key = extended_public_key.derive(derivation_path)?;
         }
         let public_key = extended_public_key.to_public_key();
         let address = public_key.to_address(format)?;
@@ -498,14 +494,14 @@ impl BitcoinOptions {
 
     /// Returns the derivation path with the specified account, chain, derivation, index, and path.
     /// If `default` is enabled, then return the default path if no derivation was provided.
-    fn to_derivation_path(&self, default: bool) -> Option<String> {
+    fn to_derivation_path(&self, default: bool) -> Option<BitcoinDerivationPath> {
         match self.derivation.as_str() {
-            "bip32" => Some(format!("m/0'/0'/{}'", self.index)),
-            "bip44" => Some(format!("m/44'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
-            "bip49" => Some(format!("m/44'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
+            "bip32" => BitcoinFormat::BIP32(self.index).to_derivation_path().ok(),
+            "bip44" => BitcoinFormat::BIP44(self.account, self.chain, self.index).to_derivation_path().ok(),
+            "bip49" => BitcoinFormat::BIP49(self.account, self.chain, self.index).to_derivation_path().ok(),
             "custom" => self.path.clone(),
             _ => match default {
-                true => Some(format!("m/0'/0'/{}'", self.index)),
+                true => BitcoinFormat::BIP32(self.index).to_derivation_path().ok(),
                 false => None,
             },
         }

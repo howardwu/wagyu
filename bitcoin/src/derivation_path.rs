@@ -10,21 +10,6 @@ pub struct BitcoinDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for BitcoinDerivationPath {}
 
-impl BitcoinDerivationPath {
-
-    pub fn bip32(index: u32) -> Result<Self, DerivationPathError> {
-        Self::from_str(&format!("m/0'/0'/{}'", index.to_string()))
-    }
-
-    pub fn bip44(account: u32, chain: u32, index: u32) -> Result<Self, DerivationPathError> {
-        Self::from_str(&format!("m/44'/0'/{}'/{}/{}'", account.to_string(), chain.to_string(), index.to_string()))
-    }
-
-    pub fn bip49(account: u32, chain: u32, index: u32) -> Result<Self, DerivationPathError> {
-        Self::from_str(&format!("m/49'/0'/{}'/{}/{}'", account.to_string(), chain.to_string(), index).to_string())
-    }
-}
-
 impl FromStr for BitcoinDerivationPath {
     type Err = DerivationPathError;
 

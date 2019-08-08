@@ -1,5 +1,5 @@
 use super::*;
-use crate::format::Format;
+use crate::format::ZcashFormat;
 use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
@@ -15,15 +15,15 @@ impl ZcashNetwork for Testnet {
     const NAME: &'static str = "testnet";
 
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &Format) -> Vec<u8> {
+    fn to_address_prefix(format: &ZcashFormat) -> Vec<u8> {
         match format {
-            Format::P2PKH => vec![0x1D, 0x25],
-            Format::P2SH => vec![0x1C, 0xBA],
-            Format::Sprout => vec![0x16, 0xB6],
-            Format::Sapling(_) => "ztestsapling".as_bytes().to_vec(),
-            Format::Master => "ztestsapling".as_bytes().to_vec(),
-            Format::ZIP32(_, _) => "ztestsapling".as_bytes().to_vec(),
-            Format::CustomPath(_, format) => Self::to_address_prefix(&*format),
+            ZcashFormat::P2PKH => vec![0x1D, 0x25],
+            ZcashFormat::P2SH => vec![0x1C, 0xBA],
+            ZcashFormat::Sprout => vec![0x16, 0xB6],
+            ZcashFormat::Sapling(_) => "ztestsapling".as_bytes().to_vec(),
+            ZcashFormat::Master => "ztestsapling".as_bytes().to_vec(),
+            ZcashFormat::ZIP32(_, _) => "ztestsapling".as_bytes().to_vec(),
+            ZcashFormat::CustomPath(_, format) => Self::to_address_prefix(&*format),
         }
     }
 

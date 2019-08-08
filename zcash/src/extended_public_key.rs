@@ -1,7 +1,7 @@
 use crate::address::ZcashAddress;
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
-use crate::format::Format;
+use crate::format::ZcashFormat;
 use crate::network::ZcashNetwork;
 use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
 use wagyu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
@@ -16,7 +16,7 @@ pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
     /// The extended full viewing key
     extended_full_viewing_key: ExtendedFullViewingKey,
     /// The address and derivation format
-    format: Format,
+    format: ZcashFormat,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -25,7 +25,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     type Address = ZcashAddress<N>;
     type DerivationPath = ZcashDerivationPath;
     type ExtendedPrivateKey = ZcashExtendedPrivateKey<N>;
-    type Format = Format;
+    type Format = ZcashFormat;
     type PublicKey = ZcashPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -38,8 +38,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     }
 
     /// Returns the extended public key of the given derivation path.
-    fn derive(&self, format: &Self::Format) -> Result<Self, ExtendedPublicKeyError> {
-        let path = format.to_derivation_path()?;
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         let mut extended_public_key = self.clone();
         for index in path.into_iter() {
             match index {
@@ -53,7 +52,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
                             Ok(extended_full_viewing_key) => extended_full_viewing_key,
                             _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),
                         },
-                        format: format.clone(),
+                        format: self.format.clone(),
                         _network: PhantomData,
                     }
                 }
@@ -94,7 +93,7 @@ impl<N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
         match ExtendedFullViewingKey::read(data.as_slice()) {
             Ok(extended_full_viewing_key) => Ok(Self {
                 extended_full_viewing_key,
-                format: Format::Master,
+                format: ZcashFormat::Master,
                 _network: PhantomData,
             }),
             Err(error) => Err(ExtendedPublicKeyError::Message(error.to_string())),
@@ -146,7 +145,7 @@ mod tests {
     fn test_from_extended_private_key<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::CustomPath(path, Box::new(ZcashFormat::Sapling(None)))).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
@@ -154,9 +153,9 @@ mod tests {
     fn test_to_address<N: ZcashNetwork>(expected_address: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::CustomPath(path, Box::new(ZcashFormat::Sapling(None)))).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
-        let format = &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
+        let format = &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
         let address = extended_public_key.to_address(&format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
@@ -169,7 +168,7 @@ mod tests {
     fn test_to_string<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::CustomPath(path, Box::new(ZcashFormat::Sapling(None)))).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }

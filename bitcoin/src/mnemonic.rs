@@ -1,11 +1,12 @@
 use crate::address::BitcoinAddress;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::extended_public_key::BitcoinExtendedPublicKey;
-use crate::format::Format;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::wordlist::BitcoinWordlist;
+
 use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicError, MnemonicExtended};
 
 use bitvec::cursor::BigEndian;
@@ -49,7 +50,7 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemonic
 
 impl<N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
     type Address = BitcoinAddress<N>;
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PrivateKey = BitcoinPrivateKey<N>;
     type PublicKey = BitcoinPublicKey<N>;
 

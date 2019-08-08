@@ -1,7 +1,7 @@
 use crate::address::BitcoinAddress;
 use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
-use crate::format::Format;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
@@ -22,7 +22,7 @@ type HmacSha512 = Hmac<Sha512>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
     /// The address and derivation format
-    format: Format,
+    format: BitcoinFormat,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -41,7 +41,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type Address = BitcoinAddress<N>;
     type DerivationPath = BitcoinDerivationPath;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -58,9 +58,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     }
 
     /// Returns the extended public key for the given derivation path.
-    fn derive(&self, format: &Self::Format) -> Result<Self, ExtendedPublicKeyError> {
-        let path = format.to_derivation_path()?;
-
+    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         if self.depth == 255 {
             return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth));
         }
@@ -95,7 +93,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
             extended_public_key = Self {
-                format: format.clone(),
+                format: self.format.clone(),
                 depth: self.depth + 1,
                 parent_fingerprint,
                 child_index: *index,
@@ -130,7 +128,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
 
         // Check that the version bytes correspond with the correct network.
         let _ = N::from_extended_public_key_version_bytes(&data[0..4])?;
-        let format = Format::from_extended_public_key_version_bytes(&data[0..4])?;
+        let format = BitcoinFormat::from_extended_public_key_version_bytes(&data[0..4])?;
 
         let mut version = [0u8; 4];
         version.copy_from_slice(&data[0..4]);
@@ -229,14 +227,15 @@ mod tests {
         expected_extended_public_key2: &str,
         expected_child_index2: u32,
     ) {
-        let format = Format::from_child_index(&vec![ChildIndex::from(expected_child_index2)], Format::P2PKH);
+        let path = vec![ChildIndex::from(expected_child_index2)].into();
         let extended_private_key1 = BitcoinExtendedPrivateKey::<N>::from_str(expected_extended_private_key1).unwrap();
-        let extended_private_key2 = extended_private_key1.derive(&format).unwrap();
+        let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
         let extended_public_key2 = extended_private_key2.to_extended_public_key();
 
         let expected_extended_public_key2 =
             BitcoinExtendedPublicKey::<N>::from_str(&expected_extended_public_key2).unwrap();
 
+        assert_eq!(expected_extended_public_key2, extended_public_key2);
         assert_eq!(
             expected_extended_public_key2.public_key,
             extended_public_key2.public_key
