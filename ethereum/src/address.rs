@@ -51,7 +51,7 @@ impl EthereumAddress {
     }
 }
 
-impl <'a> TryFrom<&'a str> for EthereumAddress {
+impl<'a> TryFrom<&'a str> for EthereumAddress {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {

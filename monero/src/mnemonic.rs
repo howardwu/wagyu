@@ -6,6 +6,7 @@ use crate::wordlist::MoneroWordlist;
 use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
 
 use crc::{crc32, Hasher32};
+use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
 use std::fmt;
 use std::marker::PhantomData;
@@ -31,9 +32,18 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
 
+    /// Returns the mnemonic for the given phrase.
+    fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
+        Ok(Self {
+            seed: Self::to_seed(phrase)?,
+            phrase: phrase.to_owned(),
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        })
+    }
+
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
-        //TODO Phase out hard coded formating
         Ok(MoneroPrivateKey::from_seed(
             hex::encode(&self.seed).as_str(),
             &Format::Standard,
@@ -52,20 +62,10 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 }
 
 impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
-    /// Returns a new mnemonic phrase given the word count.
+    /// Returns a new mnemonic phrase.
     pub fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
         let seed: [u8; 32] = rng.gen();
         Ok(Self::from_seed(&seed)?)
-    }
-
-    /// Returns the mnemonic for the given phrase.
-    pub fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        Ok(Self {
-            seed: Self::to_seed(phrase)?,
-            phrase: phrase.to_owned(),
-            _network: PhantomData,
-            _wordlist: PhantomData,
-        })
     }
 
     /// Compares the given phrase against the phrase extracted from its entropy.
@@ -74,7 +74,9 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     }
 
     /// Returns the mnemonic for the given seed.
-    fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
+    pub fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
+        let seed = &Scalar::from_bytes_mod_order(*seed).to_bytes();
+
         // Reverse the endian in 4 byte intervals
         let length = 1626;
         let inputs = seed
@@ -131,9 +133,9 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
         let mut buffer = vec![];
         let chunks = phrase.chunks(3);
         for chunk in chunks {
-            let w1 = W::get_index_trimmed(&chunk[0][0..W::PREFIX_LENGTH])?;
-            let w2 = W::get_index_trimmed(&chunk[1][0..W::PREFIX_LENGTH])?;
-            let w3 = W::get_index_trimmed(&chunk[2][0..W::PREFIX_LENGTH])?;
+            let w1 = W::get_index_trimmed(&W::to_trimmed(&chunk[0]))?;
+            let w2 = W::get_index_trimmed(&W::to_trimmed(&chunk[1]))?;
+            let w3 = W::get_index_trimmed(&W::to_trimmed(&chunk[2]))?;
 
             let n = length;
             let x = w1 + n * (((n - w1) + w2) % n) + n * n * (((n - w2) + w3) % n);
@@ -147,10 +149,10 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
         // Verify the checksum
         let expected_checksum = Self::checksum_word(&phrase.into());
-        if expected_checksum[0..W::PREFIX_LENGTH] != checksum[0..W::PREFIX_LENGTH] {
-            let expected = &expected_checksum[0..W::PREFIX_LENGTH];
-            let found = &checksum[0..W::PREFIX_LENGTH];
-            return Err(MnemonicError::InvalidChecksumWord(expected.into(), found.into()));
+        if W::to_trimmed(&expected_checksum) != W::to_trimmed(&checksum) {
+            let expected = W::to_trimmed(&expected_checksum);
+            let found = W::to_trimmed(&checksum);
+            return Err(MnemonicError::InvalidChecksumWord(expected, found));
         }
 
         let mut data = [0u8; 32];
@@ -161,10 +163,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
     /// Returns the checksum word for a given phrase.
     fn checksum_word(phrase: &Vec<String>) -> String {
-        let phrase_trimmed = phrase
-            .iter()
-            .map(|word| word[0..W::PREFIX_LENGTH].to_string())
-            .collect::<Vec<String>>();
+        let phrase_trimmed = phrase.iter().map(|word| W::to_trimmed(word)).collect::<Vec<String>>();
 
         let mut digest = crc32::Digest::new(crc32::IEEE);
         digest.write(phrase_trimmed.concat().as_bytes());

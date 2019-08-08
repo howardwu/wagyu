@@ -55,6 +55,17 @@ impl Format {
     }
 }
 
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Format::P2PKH => write!(f, "p2pkh"),
+            Format::P2SH => write!(f, "p2sh"),
+            Format::Sprout => write!(f, "sprout"),
+            Format::Sapling(_) => write!(f, "sapling"),
+        }
+    }
+}
+
 /// Represents a Zcash address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashAddress<N: ZcashNetwork> {
@@ -172,7 +183,16 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         })
     }
 
-    /// Returns the diversifier of a given Zcash Sapling address.
+    /// Returns the diversifier of a Zcash Sapling address.
+    pub fn to_diversifier(&self) -> Option<String> {
+        if let Format::Sapling(_) = self.format {
+            Self::get_diversifier(&self.address).map(|d| hex::encode(d)).ok()
+        } else {
+            None
+        }
+    }
+
+    /// Returns the diversifier of a specified Zcash Sapling address.
     pub fn get_diversifier(address: &str) -> Result<[u8; 11], AddressError> {
         let address = Bech32::from_str(address)?;
         let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
@@ -187,7 +207,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 }
 
-impl <'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
+impl<'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {
@@ -349,7 +369,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -357,7 +377,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH);
             });
@@ -410,7 +430,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -418,7 +438,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH);
             });
@@ -471,7 +491,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -479,7 +499,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH);
             });
@@ -532,7 +552,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(address, &private_key, &Format::P2PKH);
             });
         }
@@ -540,7 +560,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::P2PKH);
             });
@@ -593,7 +613,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sprout).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(address, &private_key, &Format::Sprout);
             });
         }
@@ -601,7 +621,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sprout).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::from_private_key(&private_key);
                 test_from_public_key(address, &public_key, &Format::Sprout);
             });
@@ -630,23 +650,23 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
-                "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadef",
+                "secret-spending-key-main1hd5umd08pc4m6f8hw8x3tgv26kxn4w0p4g72kxrtndjazlm64hhsnczrtx",
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf",
             ),
             (
-                "7be697adb66f36d37b12dcdbdea38fbaec8340402de43bfe016f3c10b6a7220e",
+                "secret-spending-key-main100nf0tdkdumdx7cjmndaagu0htkgxszq9hjrhlspdu7ppd48yg8qxd0yqa",
                 "zs1vvdj0st065ngdruymdcdy63duuavjeww3a2yyeu5tsqj2azhvwgkcaw9ngggfas6h4z4whnkpwz",
             ),
             (
-                "0c9f5d70eaac46862150ae3f2a4eecc68753a72567eb66210df8e18a91425adf",
+                "secret-spending-key-main1pj046u8243rgvg2s4clj5nhvc6r48fe9vl4kvggdlrsc4y2ztt0skswpn9",
                 "zs1akf8swew32rr4n63qedewhp2yz3wcjeazp6efs82lgealmux0h30ayju440rqyuscdr3wd5yuap",
             ),
             (
-                "fc1edae9146d5c7f9398871ac09097fea6c1593e8c7b6f3384af36ff9cc3b2ee",
+                "secret-spending-key-main1ls0d46g5d4w8lyucsudvpyyhl6nvzkf733ak7vuy4um0l8xrkthqnh9a7d",
                 "zs14q3vapgrd6wfs9pr7hfy37y9djm3gnq09ztxsqs2x2vzv0lck978843q8r2ysejgwp9mcx7ws48",
             ),
             (
-                "6038f5e45498c92edd5e6a2588bcce7bcbac604e4e825ee7015d11f33d1e9673",
+                "secret-spending-key-main1vqu0tez5nryjah27dgjc30xw0096cczwf6p9aecpt5glx0g7jees99g9fe",
                 "zs1rzjhudlm99h5fyrh7dfsvkfg9l5z587w97pm3ce9hpwfxpgck6p55lwu5mcapz7g3r40y597n2c",
             ),
         ];
@@ -654,7 +674,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(
                     address,
                     &private_key,
@@ -666,7 +686,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(
                     address,
@@ -702,23 +722,23 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
-                "49110debf1fac0086a2fabd60aab413d0281732b6e51a03dd6ec4f334469ef9f",
+                "secret-spending-key-test1fygsm6l3ltqqs63040tq426p85pgzuetdeg6q0wka38nx3rfa70sa9qp0v",
                 "ztestsapling1jzzt7gjscav7lmdpemknv0v8rmmdzpcaqrx95azrgaky94drrvf0fg4wlnlkaclqj3r3s23g2sf",
             ),
             (
-                "4e9d5d14d776a93e8aa1dd7e69eda7cefd9651ad140443ca11553e379b2ae90b",
+                "secret-spending-key-test1f6w469xhw65naz4pm4lxnmd8em7ev5ddzszy8js325lr0xe2ay9snuw9t5",
                 "ztestsapling19epsvtxnzf59pr993fq4g0gu0fmrn2jl2z9jm2lgj3220c7r9shyvcpe25ul7wxvzk60z82zyf7",
             ),
             (
-                "8544e9cfc6423e22bca5b62bf56649fd3716b6cc092391ecba78fb017d5feda1",
+                "secret-spending-key-test1s4zwnn7xgglz9099kc4l2ejfl5m3ddkvpy3erm960raszl2lakss48u07t",
                 "ztestsapling18ur694qcm6w657u9xt8aekutn98gyvpzwzjgjz99594x775ppeze5vwnp2ndw0u205vkuh2tqcu",
             ),
             (
-                "6d21907f6ad14d2823625036e0951a3c566d4df7b101dfb2899107d02e9bd8bd",
+                "secret-spending-key-test1d5seqlm269xjsgmz2qmwp9g683tx6n0hkyqalv5fjyraqt5mmz7snwyhek",
                 "ztestsapling1hkyeldalqna6kxzkkpc3gl4yvtd842sld4kkx7mhtm4srhndnqm347q7x672t05j245skqsctvs",
             ),
             (
-                "d800f2b919cb06f7396a9e253c77f65e1cb5f972372cac196ec6546e09355bfe",
+                "secret-spending-key-test1mqq09wgeevr0wwt2ncjncalktcwtt7tjxuk2cxtwce2xuzf4t0lqf5jn03",
                 "ztestsapling12n4jm24lflgmjk4crm0322p0gpmww98v5cqyurphq6tr4r4q9kxyz2f3tp9x92mm8kruwwg2u5w",
             ),
         ];
@@ -726,7 +746,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 test_from_private_key(
                     address,
                     &private_key,
@@ -738,7 +758,7 @@ mod tests {
         #[test]
         fn from_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, address)| {
-                let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_private_key(&private_key);
                 test_from_public_key(
                     address,
@@ -776,7 +796,7 @@ mod tests {
         let private_key = "KxYzZuBPkE3rnEEGCdsB6dCzxN1D4xoY5ogKoxbdUdkxbRzvgbij";
         let expected_address = "t1J8w8EMM1Rs26zJFu3Deo6ougWhNhPXUZt";
 
-        let private_key = ZcashPrivateKey::<N>::from(private_key, &Format::P2PKH).unwrap();
+        let private_key = ZcashPrivateKey::<N>::from_str(private_key).unwrap();
         let address = ZcashAddress::<N>::from_private_key(&private_key, &Format::P2PKH).unwrap();
         assert_ne!(expected_address, address.to_string());
 

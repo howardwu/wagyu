@@ -68,6 +68,14 @@ impl ChildIndex {
             ChildIndex::Normal(_) => false,
         }
     }
+
+    /// Returns the child index.
+    pub fn to_index(&self) -> u32 {
+        match self {
+            &ChildIndex::Hardened(i) => i + (1 << 31),
+            &ChildIndex::Normal(i) => i,
+        }
+    }
 }
 
 impl From<u32> for ChildIndex {

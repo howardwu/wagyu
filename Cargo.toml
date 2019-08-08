@@ -21,7 +21,7 @@ path = "wagyu/lib.rs"
 
 [[bin]]
 name = "wagyu"
-path = "wagyu/cli.rs"
+path = "wagyu/main.rs"
 
 [workspace]
 members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
@@ -41,6 +41,8 @@ base58 = { version = "0.1" }
 clap = { version = "~2.33.0" }
 digest = { version = "0.7.5" }
 either = { version = "1.5.0" }
+failure = { version = "0.1.5" }
+hex = { version = "0.3.2" }
 lazy_static = { version = "1.1.0" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.0" }

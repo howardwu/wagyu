@@ -59,6 +59,16 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
     type PrivateKey = BitcoinPrivateKey<N>;
     type PublicKey = BitcoinPublicKey<N>;
 
+    /// Returns the mnemonic for the given phrase.
+    fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
+        Ok(Self {
+            entropy: Self::to_entropy(phrase)?,
+            phrase: phrase.to_owned(),
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        })
+    }
+
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_private_key())
@@ -88,16 +98,6 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> BitcoinMnemonic<N, W> {
         };
         let entropy: [u8; 32] = rng.gen();
         Ok(Self::from_entropy(&entropy[0..length].to_vec())?)
-    }
-
-    /// Returns the mnemonic for the given phrase.
-    pub fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        Ok(Self {
-            entropy: Self::to_entropy(phrase)?,
-            phrase: phrase.to_owned(),
-            _network: PhantomData,
-            _wordlist: PhantomData,
-        })
     }
 
     /// Compares the given phrase against the phrase extracted from its entropy.

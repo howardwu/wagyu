@@ -70,9 +70,9 @@ impl Format {
 impl fmt::Display for Format {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Format::P2PKH => write!(f, "P2PKH"),
-            Format::P2SH_P2WPKH => write!(f, "P2SH_P2WPKH"),
-            Format::Bech32 => write!(f, "Bech32"),
+            Format::P2PKH => write!(f, "p2pkh"),
+            Format::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),
+            Format::Bech32 => write!(f, "bech32"),
         }
     }
 }
@@ -184,7 +184,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     }
 }
 
-impl <'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
+impl<'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {

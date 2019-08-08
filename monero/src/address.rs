@@ -44,9 +44,9 @@ impl Format {
 impl fmt::Display for Format {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Format::Standard => write!(f, "Standard"),
-            Format::Integrated(_) => write!(f, "Integrated"),
-            Format::Subaddress(_, _) => write!(f, "Subaddress"),
+            Format::Standard => write!(f, "standard"),
+            Format::Integrated(_) => write!(f, "integrated"),
+            Format::Subaddress(major, minor) => write!(f, "subaddress({},{})", major, minor),
         }
     }
 }
@@ -96,6 +96,15 @@ impl<N: MoneroNetwork> Address for MoneroAddress<N> {
 impl<N: MoneroNetwork> MoneroAddress<N> {
     /// Returns a Monero address given the public spend key and public view key.
     pub fn generate_address(public_key: &MoneroPublicKey<N>, format: &Format) -> Result<Self, AddressError> {
+        let public_spend_key = match public_key.to_public_spend_key() {
+            Some(key) => key,
+            None => return Err(AddressError::MissingPublicKey),
+        };
+        let public_view_key = match public_key.to_public_view_key() {
+            Some(key) => key,
+            None => return Err(AddressError::MissingPublicKey),
+        };
+
         let mut format = format;
         match (public_key.format(), format) {
             (Format::Subaddress(_, _), Format::Subaddress(major, minor))
@@ -117,8 +126,8 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
         };
 
         let mut bytes = vec![format.to_address_prefix::<N>()];
-        bytes.extend_from_slice(&public_key.to_public_spend_key());
-        bytes.extend_from_slice(&public_key.to_public_view_key());
+        bytes.extend_from_slice(&public_spend_key);
+        bytes.extend_from_slice(&public_view_key);
 
         let checksum_bytes = match format {
             Format::Standard | Format::Subaddress(_, _) => &bytes[0..65],
@@ -137,9 +146,24 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
             _network: PhantomData,
         })
     }
+
+    /// Returns the payment ID of a Monero integrated address, or returns `None`.
+    pub fn to_payment_id(&self) -> Option<String> {
+        if let Ok(format) = self.format() {
+            if let Format::Integrated(payment_id) = format {
+                return Some(hex::encode(payment_id))
+            }
+        }
+        None
+    }
+
+    /// Returns the format of the Monero address.
+    pub fn format(&self) -> Result<Format, AddressError> {
+        Format::from_address(&base58::decode(&self.address)?)
+    }
 }
 
-impl <'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
+impl<'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {

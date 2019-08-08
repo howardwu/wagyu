@@ -17,17 +17,23 @@ pub trait ZcashNetwork: Network {
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, AddressError>;
 
-    /// Returns the wif prefix of the given network.
+    /// Returns the WIF prefix of the given network.
     fn to_wif_prefix() -> u8;
 
-    /// Returns the network of the given wif prefix.
+    /// Returns the network of the given WIF prefix.
     fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError>;
 
-    /// Returns the network prefix for a sprout spending key
+    /// Returns the network prefix for a Sprout spending key.
     fn to_sprout_spending_key_prefix() -> [u8; 2];
 
-    /// Returns the network prefix for a sprout viewing key
+    /// Returns the network prefix for a Sprout viewing key.
     fn to_sprout_viewing_key_prefix() -> [u8; 3];
+
+    /// Returns the Sapling spending key prefix of the given network.
+    fn to_sapling_spending_key_prefix() -> String;
+
+    /// Returns the Sapling viewing key prefix of the given network.
+    fn to_sapling_viewing_key_prefix() -> String;
 
     /// Returns the extended private key prefix of the given network.
     fn to_extended_private_key_prefix() -> String;

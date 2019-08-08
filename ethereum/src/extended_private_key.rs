@@ -443,6 +443,7 @@ mod tests {
                 "xprvA1fzCYJXXiAYQ5epqaDqgkPGeTUkwHRuzqGVWKZEtBSSEXKu91wrPhfihHJRHQtXXcRfLbMitd64PJeiL7upKh81RoSxHmNXLgQanCtbTK2",
                 "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
             ),
+            // Ledger Live Derivation Paths
             (
                 "m/44'/60'/0'/0/0",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
@@ -454,7 +455,7 @@ mod tests {
                 "xpub6FdBNxzgjycX2yb47doxGFfLEi1SjkVzJeCpSKwUjbocKH9yZ2r8djyA9Md5oDG846jjJGBGE5hBuxtyWdHHoLWcZUrBq2RCLTUKxusyGvX"
             ),
 
-            // Ethereum (Ledger) Derivation Paths
+            // Ledger Legacy Derivation Paths
             (
                 "m/44'/60'/0'",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
@@ -476,7 +477,7 @@ mod tests {
                 "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
             ),
 
-            // Ethereum (Ledger Live, KeepKey) Derivation Paths
+            // KeepKey Derivation Paths
             (
                 "m/44'/60'",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
