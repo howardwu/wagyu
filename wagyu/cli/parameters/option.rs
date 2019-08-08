@@ -38,7 +38,20 @@ pub const INTEGRATED_MONERO: OptionType = (
 pub const LANGUAGE_MONERO: OptionType = (
     "[language] -l --language=[language] 'Generates a wallet with a specified language'",
     &[],
-    &["chinese_simplified", "dutch", "english", "esperanto", "french", "german", "italian", "japanese", "lojban", "portuguese", "russian", "spanish"],
+    &[
+        "chinese_simplified",
+        "dutch",
+        "english",
+        "esperanto",
+        "french",
+        "german",
+        "italian",
+        "japanese",
+        "lojban",
+        "portuguese",
+        "russian",
+        "spanish",
+    ],
     &[],
 );
 pub const NETWORK_BITCOIN: OptionType = (
@@ -61,7 +74,7 @@ pub const NETWORK_ZCASH: OptionType = (
 );
 pub const SUBADDRESS_MONERO: OptionType = (
     "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Generates a wallet with a specified major and minor index'",
-    &["address", "integrated", "private_view"],
+    &["address", "integrated", "private view"],
     &[],
     &[],
 );
@@ -70,7 +83,7 @@ pub const SUBADDRESS_MONERO: OptionType = (
 
 pub const ADDRESS: OptionType = (
     "[address] --address=[address] 'Imports a partial wallet for a specified address'",
-    &["count", "private key", "network", "public key"],
+    &["count", "network", "private", "public"],
     &[],
     &[],
 );
@@ -88,7 +101,7 @@ pub const FORMAT_IMPORT_BITCOIN: OptionType = (
 );
 pub const INTEGRATED_IMPORT_MONERO: OptionType = (
     "[integrated] -i --integrated=[PaymentID] 'Imports a wallet with a specified payment ID'",
-    &["address", "private_view", "subaddress"],
+    &["address", "private view", "subaddress"],
     &[],
     &[],
 );
@@ -96,11 +109,18 @@ pub const LANGUAGE_IMPORT_MONERO: OptionType = (
     "[language] -l --language=[language] 'Imports a wallet with a specified mnemonic language (requires private spend key)'",
     &[],
     &["chinese_simplified", "dutch", "english", "esperanto", "french", "german", "italian", "japanese", "lojban", "portuguese", "russian", "spanish"],
-    &["private spend key"],
+    &["private spend"],
 );
 pub const MNEMONIC_IMPORT_MONERO: OptionType = (
     "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports a wallet for a specified mnemonic (in quotes)'",
-    &["address", "count", "public spend key", "public view key", "private spend key", "private view key"],
+    &[
+        "address",
+        "count",
+        "public spend",
+        "public view",
+        "private spend",
+        "private view",
+    ],
     &[],
     &[],
 );
@@ -117,40 +137,52 @@ pub const NETWORK_IMPORT_MONERO: OptionType = (
     &[],
 );
 pub const PRIVATE: OptionType = (
-    "[private key] --private=[private key] 'Imports a wallet for a specified private key'",
-    &["address", "count", "network", "public key"],
+    "[private] --private=[private key] 'Imports a wallet for a specified private key'",
+    &["address", "count", "network", "public"],
     &[],
     &[],
 );
 pub const PRIVATE_SPEND_KEY_MONERO: OptionType = (
-    "[private spend key] --private-spend=[private spend key] 'Imports a wallet for a specified private spend key'",
-    &["address", "count", "network", "public spend key", "public view key", "private view key"],
+    "[private spend] --private-spend=[private spend key] 'Imports a wallet for a specified private spend key'",
+    &[
+        "address",
+        "count",
+        "public spend",
+        "public view",
+        "private view",
+    ],
     &[],
     &[],
 );
 pub const PRIVATE_VIEW_KEY_MONERO: OptionType = (
-    "[private view key] --private-view=[private view key] 'Imports a partial wallet for a specified private view key'",
-    &["address", "count", "network", "public spend key", "public view key", "private spend key"],
+    "[private view] --private-view=[private view key] 'Imports a partial wallet for a specified private view key'",
+    &[
+        "address",
+        "count",
+        "public spend",
+        "public view",
+        "private spend",
+    ],
     &[],
     &[],
 );
 pub const PUBLIC: OptionType = (
-    "[public key] --public=[public key] 'Imports a partial wallet for a specified public key'",
-    &["address", "count", "private key"],
+    "[public] --public=[public key] 'Imports a partial wallet for a specified public key'",
+    &["address", "count", "private"],
     &[],
     &[],
 );
 pub const PUBLIC_SPEND_KEY_MONERO: OptionType = (
-    "[public spend key] --public-spend=[public spend key] 'Imports a partial wallet for a specified public spend key'",
-    &["address", "count", "network"],
+    "[public spend] --public-spend=[public spend key] 'Imports a partial wallet for a specified public spend key'",
+    &["address", "count"],
     &[],
-    &["public view key"],
+    &["public view"],
 );
 pub const PUBLIC_VIEW_KEY_MONERO: OptionType = (
-    "[public view key] --public-view=[public view key] 'Imports a partial wallet for a specified public view key'",
-    &["address", "count", "network"],
+    "[public view] --public-view=[public view key] 'Imports a partial wallet for a specified public view key'",
+    &["address", "count"],
     &[],
-    &["public spend key"],
+    &["public spend"],
 );
 pub const SUBADDRESS_IMPORT_MONERO: OptionType = (
     "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Imports a wallet with a specified major and minor index'",
@@ -194,7 +226,16 @@ pub const FORMAT_HD_BITCOIN: OptionType = (
 pub const LANGUAGE_HD: OptionType = (
     "[language] -l --language=[language] 'Generates an HD wallet with a specified language'",
     &[],
-    &["chinese_simplified", "chinese_traditional", "english", "french", "italian", "japanese", "korean", "spanish"],
+    &[
+        "chinese_simplified",
+        "chinese_traditional",
+        "english",
+        "french",
+        "italian",
+        "japanese",
+        "korean",
+        "spanish",
+    ],
     &[],
 );
 pub const NETWORK_HD_BITCOIN: OptionType = (

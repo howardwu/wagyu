@@ -6,7 +6,7 @@ use wagyu::cli::bitcoin::BitcoinCLI;
 use wagyu::cli::ethereum::EthereumCLI;
 use wagyu::cli::monero::MoneroCLI;
 use wagyu::cli::zcash::ZcashCLI;
-use wagyu::cli::{CLI, CLIError};
+use wagyu::cli::{CLIError, CLI};
 
 use clap::{App, AppSettings};
 

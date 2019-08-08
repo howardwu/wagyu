@@ -33,6 +33,16 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
 
+    /// Returns the mnemonic for the given phrase.
+    fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
+        Ok(Self {
+            seed: Self::to_seed(phrase)?,
+            phrase: phrase.to_owned(),
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        })
+    }
+
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(MoneroPrivateKey::from_seed(
@@ -57,16 +67,6 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     pub fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
         let seed: [u8; 32] = rng.gen();
         Ok(Self::from_seed(&seed)?)
-    }
-
-    /// Returns the mnemonic for the given phrase.
-    pub fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        Ok(Self {
-            seed: Self::to_seed(phrase)?,
-            phrase: phrase.to_owned(),
-            _network: PhantomData,
-            _wordlist: PhantomData,
-        })
     }
 
     /// Compares the given phrase against the phrase extracted from its entropy.
@@ -164,10 +164,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
     /// Returns the checksum word for a given phrase.
     fn checksum_word(phrase: &Vec<String>) -> String {
-        let phrase_trimmed = phrase
-            .iter()
-            .map(|word| W::to_trimmed(word))
-            .collect::<Vec<String>>();
+        let phrase_trimmed = phrase.iter().map(|word| W::to_trimmed(word)).collect::<Vec<String>>();
 
         let mut digest = crc32::Digest::new(crc32::IEEE);
         digest.write(phrase_trimmed.concat().as_bytes());

@@ -1,4 +1,7 @@
-use crate::model::{AddressError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError, PrivateKeyError, PublicKeyError};
+use crate::model::{
+    AddressError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError, PrivateKeyError,
+    PublicKeyError,
+};
 
 pub mod bitcoin;
 pub mod ethereum;
@@ -30,7 +33,10 @@ pub trait CLI {
         let options = &Self::OPTIONS
             .iter()
             .map(|a| match a.2.len() > 0 {
-                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2).requires_all(a.3),
+                true => Arg::from_usage(a.0)
+                    .conflicts_with_all(a.1)
+                    .possible_values(a.2)
+                    .requires_all(a.3),
                 false => Arg::from_usage(a.0).conflicts_with_all(a.1).requires_all(a.3),
             })
             .collect::<Vec<Arg<'static, 'static>>>();
@@ -42,7 +48,10 @@ pub trait CLI {
                     .args(
                         &s.2.iter()
                             .map(|a| match a.2.len() > 0 {
-                                true => Arg::from_usage(a.0).conflicts_with_all(a.1).possible_values(a.2).requires_all(a.3),
+                                true => Arg::from_usage(a.0)
+                                    .conflicts_with_all(a.1)
+                                    .possible_values(a.2)
+                                    .requires_all(a.3),
                                 false => Arg::from_usage(a.0).conflicts_with_all(a.1).requires_all(a.3),
                             })
                             .collect::<Vec<Arg<'static, 'static>>>(),
@@ -68,11 +77,13 @@ pub trait CLI {
     fn print(options: Self::Options) -> Result<(), CLIError>;
 }
 
-
 #[derive(Debug, Fail)]
 pub enum CLIError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
+
+    #[fail(display = "{}: {}", _0, _1)]
+    Crate(&'static str, String),
 
     #[fail(display = "{}", _0)]
     DerivationPathError(DerivationPathError),
@@ -83,6 +94,9 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     ExtendedPublicKeyError(ExtendedPublicKeyError),
 
+    #[fail(display = "invalid derived mnemonic for a given private spend key")]
+    InvalidMnemonicForPrivateSpendKey,
+
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
 
@@ -92,10 +106,9 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     MnemonicError(MnemonicError),
 
-    #[fail(display = "{}: {}", _0, _1)]
-    Crate(&'static str, String),
+    #[fail(display = "unsupported mnemonic language")]
+    UnsupportedLanguage,
 }
-
 
 impl From<AddressError> for CLIError {
     fn from(error: AddressError) -> Self {

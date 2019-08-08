@@ -1,48 +1,16 @@
-use crate::cli::{flag, option, subcommand, types::*, CLI, CLIError};
+use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::ethereum::{
-    EthereumAddress, EthereumDerivationPath, EthereumMnemonic,
-    EthereumPrivateKey, EthereumPublicKey, EthereumExtendedPrivateKey,
-    EthereumExtendedPublicKey, wordlist::*,
+    wordlist::*, EthereumAddress, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumExtendedPublicKey,
+    EthereumMnemonic, EthereumPrivateKey, EthereumPublicKey,
 };
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
+use rand::Rng;
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
-
-/// Represents custom options for a Ethereum wallet
-#[derive(Serialize, Clone, Debug)]
-pub struct EthereumOptions {
-    pub wallet_values: Option<WalletValues>,
-    pub hd_values: Option<HdValues>,
-    pub count: usize,
-    pub json: bool,
-}
-
-/// Represents values to derive standard wallets
-#[derive(Serialize, Clone, Debug)]
-pub struct WalletValues {
-    pub private_key: Option<String>,
-    pub public_key: Option<String>,
-    pub address: Option<String>,
-}
-
-/// Represents values to derive HD wallets
-#[derive(Serialize, Clone, Debug, Default)]
-pub struct HdValues {
-    pub account: Option<String>,
-    pub change: Option<String>,
-    pub extended_private_key: Option<String>,
-    pub extended_public_key: Option<String>,
-    pub index: Option<String>,
-    pub language: Option<String>,
-    pub mnemonic: Option<String>,
-    pub password: Option<String>,
-    pub path: Option<String>,
-    pub word_count: Option<u8>,
-}
 
 /// Represents a generic wallet to output
 #[derive(Serialize, Debug, Default)]
@@ -62,6 +30,145 @@ struct EthereumWallet {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
     pub address: String,
+}
+
+impl EthereumWallet {
+    pub fn new<R: Rng>(rng: &mut R) -> Result<Self, CLIError> {
+        let private_key = EthereumPrivateKey::new(rng)?;
+        let public_key = private_key.to_public_key();
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            private_key: Some(private_key.to_string()),
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+            ..Default::default()
+        })
+    }
+
+    pub fn new_hd<W: EthereumWordlist, R: Rng>(
+        rng: &mut R,
+        word_count: u8,
+        password: Option<&str>,
+        path: &str,
+    ) -> Result<Self, CLIError> {
+        let mnemonic = EthereumMnemonic::<W>::new(word_count, rng)?;
+        let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
+        let derivation_path = EthereumDerivationPath::from_str(path)?;
+        let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
+        let extended_public_key = extended_private_key.to_extended_public_key();
+        let private_key = extended_private_key.to_private_key();
+        let public_key = extended_public_key.to_public_key();
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            path: Some(path.to_string()),
+            password: password.map(String::from),
+            mnemonic: Some(mnemonic.to_string()),
+            extended_private_key: Some(extended_private_key.to_string()),
+            extended_public_key: Some(extended_public_key.to_string()),
+            private_key: Some(private_key.to_string()),
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+        })
+    }
+
+    pub fn from_mnemonic<W: EthereumWordlist>(
+        mnemonic: &str,
+        password: Option<&str>,
+        path: &str,
+    ) -> Result<Self, CLIError> {
+        let mnemonic = EthereumMnemonic::<W>::from_phrase(&mnemonic)?;
+        let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
+        let derivation_path = EthereumDerivationPath::from_str(path)?;
+        let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
+        let extended_public_key = extended_private_key.to_extended_public_key();
+        let private_key = extended_private_key.to_private_key();
+        let public_key = extended_public_key.to_public_key();
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            path: Some(path.to_string()),
+            password: password.map(String::from),
+            mnemonic: Some(mnemonic.to_string()),
+            extended_private_key: Some(extended_private_key.to_string()),
+            extended_public_key: Some(extended_public_key.to_string()),
+            private_key: Some(private_key.to_string()),
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+        })
+    }
+
+    pub fn from_extended_private_key(
+        extended_private_key: &str,
+        path: &Option<String>,
+    ) -> Result<Self, CLIError> {
+        let mut extended_private_key = EthereumExtendedPrivateKey::from_str(extended_private_key)?;
+        if let Some(derivation_path) = path {
+            let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
+            extended_private_key = extended_private_key.derive(&derivation_path)?;
+        }
+        let extended_public_key = extended_private_key.to_extended_public_key();
+        let private_key = extended_private_key.to_private_key();
+        let public_key = extended_public_key.to_public_key();
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            path: path.clone(),
+            extended_private_key: Some(extended_private_key.to_string()),
+            extended_public_key: Some(extended_public_key.to_string()),
+            private_key: Some(private_key.to_string()),
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+            ..Default::default()
+        })
+    }
+
+    pub fn from_extended_public_key(
+        extended_public_key: &str,
+        path: &Option<String>,
+    ) -> Result<Self, CLIError> {
+        let mut extended_public_key = EthereumExtendedPublicKey::from_str(extended_public_key)?;
+        if let Some(derivation_path) = path {
+            let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
+            extended_public_key = extended_public_key.derive(&derivation_path)?;
+        }
+        let public_key = extended_public_key.to_public_key();
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            path: path.clone(),
+            extended_public_key: Some(extended_public_key.to_string()),
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+            ..Default::default()
+        })
+    }
+
+    pub fn from_private_key(private_key: &str) -> Result<Self, CLIError> {
+        let private_key = EthereumPrivateKey::from_str(private_key)?;
+        let public_key = private_key.to_public_key();
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            private_key: Some(private_key.to_string()),
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+            ..Default::default()
+        })
+    }
+
+    pub fn from_public_key(public_key: &str) -> Result<Self, CLIError> {
+        let public_key = EthereumPublicKey::from_str(public_key)?;
+        let address = public_key.to_address(&PhantomData)?;
+        Ok(Self {
+            public_key: Some(public_key.to_string()),
+            address: address.to_string(),
+            ..Default::default()
+        })
+    }
+
+    pub fn from_address(address: &str) -> Result<Self, CLIError> {
+        let address = EthereumAddress::from_str(address)?;
+        Ok(Self {
+            address: address.to_string(),
+            ..Default::default()
+        })
+    }
 }
 
 #[cfg_attr(tarpaulin, skip)]
@@ -106,6 +213,210 @@ impl Display for EthereumWallet {
     }
 }
 
+/// Represents options for an Ethereum wallet
+#[derive(Clone, Debug, Serialize)]
+pub struct EthereumOptions {
+    // Standard command
+    count: usize,
+    json: bool,
+    subcommand: Option<String>,
+    // HD and Import HD subcommands
+    derivation: String,
+    extended_private_key: Option<String>,
+    extended_public_key: Option<String>,
+    index: u32,
+    language: String,
+    mnemonic: Option<String>,
+    password: Option<String>,
+    path: Option<String>,
+    word_count: u8,
+    // Import subcommand
+    address: Option<String>,
+    private: Option<String>,
+    public: Option<String>,
+}
+
+impl Default for EthereumOptions {
+    fn default() -> Self {
+        Self {
+            // Standard
+            count: 1,
+            json: false,
+            subcommand: None,
+            // HD and Import HD subcommands
+            derivation: "ethereum".into(),
+            extended_private_key: None,
+            extended_public_key: None,
+            index: 0,
+            language: "english".into(),
+            mnemonic: None,
+            password: None,
+            path: None,
+            word_count: 12,
+            // Import subcommand
+            address: None,
+            private: None,
+            public: None,
+        }
+    }
+}
+
+impl EthereumOptions {
+    fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
+        options.iter().for_each(|option| match *option {
+            "address" => self.address(arguments.value_of(option)),
+            "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
+            "derivation" => self.derivation(arguments.value_of(option)),
+            "extended private" => self.extended_private(arguments.value_of(option)),
+            "extended public" => self.extended_public(arguments.value_of(option)),
+            "json" => self.json(arguments.is_present(option)),
+            "index" => self.index(clap::value_t!(arguments.value_of(*option), u32).ok()),
+            "language" => self.language(arguments.value_of(option)),
+            "mnemonic" => self.mnemonic(arguments.value_of(option)),
+            "password" => self.password(arguments.value_of(option)),
+            "private" => self.private(arguments.value_of(option)),
+            "public" => self.public(arguments.value_of(option)),
+            "word count" => self.word_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
+            _ => (),
+        });
+    }
+
+    /// Imports a wallet for the specified address, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn address(&mut self, argument: Option<&str>) {
+        if let Some(address) = argument {
+            self.address = Some(address.to_string());
+        }
+    }
+
+    /// Sets `count` to the specified count, overriding its previous state.
+    fn count(&mut self, argument: Option<usize>) {
+        if let Some(count) = argument {
+            self.count = count;
+        }
+    }
+
+    /// Sets `derivation` to the specified derivation, overriding its previous state.
+    /// If `derivation` is `\"custom\"`, then `path` is set to the specified path.
+    /// If the specified argument is `None`, then no change occurs.
+    fn derivation(&mut self, argument: Option<&str>) {
+        match argument {
+            Some("ethereum") => self.derivation = "ethereum".into(),
+            Some("keepkey") => self.derivation = "keepkey".into(),
+            Some("ledger-legacy") => self.derivation = "ledger-legacy".into(),
+            Some("ledger-live") => self.derivation = "ledger-legacy".into(),
+            Some("trezor") => self.derivation = "trezor".into(),
+            Some(custom) => {
+                self.derivation = "custom".into();
+                self.path = Some(custom.to_string());
+            }
+            _ => (),
+        };
+    }
+
+    /// Sets `extended_private_key` to the specified extended private key, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn extended_private(&mut self, argument: Option<&str>) {
+        if let Some(extended_private_key) = argument {
+            self.extended_private_key = Some(extended_private_key.to_string());
+        }
+    }
+
+    /// Sets `extended_public_key` to the specified extended public key, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn extended_public(&mut self, argument: Option<&str>) {
+        if let Some(extended_public_key) = argument {
+            self.extended_public_key = Some(extended_public_key.to_string());
+        }
+    }
+
+    /// Sets `index` to the specified index, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn index(&mut self, argument: Option<u32>) {
+        if let Some(index) = argument {
+            self.index = index;
+        }
+    }
+
+    /// Sets `json` to the specified boolean value, overriding its previous state.
+    fn json(&mut self, argument: bool) {
+        self.json = argument;
+    }
+
+    /// Sets `language` to the specified language, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn language(&mut self, argument: Option<&str>) {
+        match argument {
+            Some("chinese_simplified") => self.language = "chinese_simplified".into(),
+            Some("chinese_traditional") => self.language = "chinese_traditional".into(),
+            Some("english") => self.language = "english".into(),
+            Some("french") => self.language = "french".into(),
+            Some("italian") => self.language = "italian".into(),
+            Some("japanese") => self.language = "japanese".into(),
+            Some("korean") => self.language = "korean".into(),
+            Some("spanish") => self.language = "spanish".into(),
+            _ => (),
+        };
+    }
+
+    /// Sets `mnemonic` to the specified mnemonic, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn mnemonic(&mut self, argument: Option<&str>) {
+        if let Some(mnemonic) = argument {
+            self.mnemonic = Some(mnemonic.to_string());
+        }
+    }
+
+    /// Sets `password` to the specified password, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn password(&mut self, argument: Option<&str>) {
+        if let Some(password) = argument {
+            self.password = Some(password.to_string());
+        }
+    }
+
+    /// Imports a wallet for the specified private key, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn private(&mut self, argument: Option<&str>) {
+        if let Some(private_key) = argument {
+            self.private = Some(private_key.to_string());
+        }
+    }
+
+    /// Imports a wallet for the specified public key, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn public(&mut self, argument: Option<&str>) {
+        if let Some(public_key) = argument {
+            self.public = Some(public_key.to_string())
+        }
+    }
+
+    /// Sets `word_count` to the specified word count, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn word_count(&mut self, argument: Option<u8>) {
+        if let Some(word_count) = argument {
+            self.word_count = word_count;
+        }
+    }
+
+    /// Returns the derivation path with the specified account, chain, derivation, index, and path.
+    /// If `default` is enabled, then return the default path if no derivation was provided.
+    fn to_derivation_path(&self, default: bool) -> Option<String> {
+        match self.derivation.as_str() {
+            "ethereum" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "keepkey" => Some(format!("m/44'/60'/{}'/0", self.index)),
+            "ledger-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "ledger-live" => Some(format!("m/44'/60'/{}'/0/0", self.index)),
+            "trezor" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "custom" => self.path.clone(),
+            _ => match default {
+                true => Some(format!("m/44'/60'/0'/{}", self.index)),
+                false => None,
+            },
+        }
+    }
+}
+
 pub struct EthereumCLI;
 
 impl CLI for EthereumCLI {
@@ -123,62 +434,37 @@ impl CLI for EthereumCLI {
 
     /// Handle all CLI arguments and flags for Ethereum
     #[cfg_attr(tarpaulin, skip)]
-    fn parse(arguments: &ArgMatches) ->  Result<Self::Options, CLIError> {
-        let mut options = EthereumOptions {
-            wallet_values: None,
-            hd_values: None,
-            count: clap::value_t!(arguments.value_of("count"), usize).unwrap_or_else(|_e| 1),
-            json: arguments.is_present("json"),
-        };
+    fn parse(arguments: &ArgMatches) -> Result<Self::Options, CLIError> {
+        let mut options = EthereumOptions::default();
+        options.parse(arguments, &["count", "json"]);
 
         match arguments.subcommand() {
-            ("hd", Some(hd_matches)) => {
-                let language = hd_matches.value_of("language").map(|s| s.to_string());
-                let password = hd_matches.value_of("password").map(|s| s.to_string());
-                let path = hd_matches.value_of("derivation").map(|s| s.to_string());
-                let word_count = hd_matches.value_of("word count").map(|s| s.parse::<u8>().unwrap());
-
-                options.count = clap::value_t!(hd_matches.value_of("count"), usize).unwrap_or(options.count);
-                options.json |= hd_matches.is_present("json");
-                options.hd_values = Some(HdValues {
-                    language,
-                    mnemonic: None,
-                    password,
-                    path,
-                    word_count,
-                    ..Default::default()
-                });
+            ("hd", Some(arguments)) => {
+                options.subcommand = Some("hd".into());
+                options.parse(arguments, &["count", "json"]);
+                options.parse(arguments, &["derivation", "language", "password", "word count"]);
             }
-            ("import", Some(import_matches)) => {
-                let address = import_matches.value_of("address").map(|s| s.to_string());
-                let public_key = import_matches.value_of("public key").map(|s| s.to_string());
-                let private_key = import_matches.value_of("private key").map(|s| s.to_string());
-
-                options.json |= import_matches.is_present("json");
-                options.wallet_values = Some(WalletValues { address, public_key, private_key });
+            ("import", Some(arguments)) => {
+                options.subcommand = Some("import".into());
+                options.parse(arguments, &["json"]);
+                options.parse(arguments, &["address", "private", "public"]);
             }
-            ("import-hd", Some(import_hd_matches)) => {
-                let account = import_hd_matches.value_of("account").map(|i| i.to_string());
-                let change = import_hd_matches.value_of("change").map(|i| i.to_string());
-                let extended_private_key = import_hd_matches.value_of("extended private").map(|s| s.to_string());
-                let extended_public_key = import_hd_matches.value_of("extended public").map(|s| s.to_string());
-                let index = import_hd_matches.value_of("index").map(|i| i.to_string());
-                let mnemonic = import_hd_matches.value_of("mnemonic").map(|s| s.to_string());
-                let password = import_hd_matches.value_of("password").map(|s| s.to_string());
-                let path = import_hd_matches.value_of("derivation").map(|s| s.to_string());
-
-                options.json |= import_hd_matches.is_present("json");
-                options.hd_values = Some(HdValues {
-                    account,
-                    change,
-                    extended_private_key,
-                    extended_public_key,
-                    index,
-                    mnemonic,
-                    password,
-                    path,
-                    ..Default::default()
-                });
+            ("import-hd", Some(arguments)) => {
+                options.subcommand = Some("import-hd".into());
+                options.parse(arguments, &["json"]);
+                options.parse(
+                    arguments,
+                    &[
+                        "account",
+                        "chain",
+                        "derivation",
+                        "extended private",
+                        "extended public",
+                        "index",
+                        "mnemonic",
+                        "password",
+                    ],
+                );
             }
             _ => {}
         };
@@ -189,189 +475,97 @@ impl CLI for EthereumCLI {
     /// Generate the Ethereum wallet and print the relevant fields
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
-        for _ in 0..options.count {
-            let wallet = match (options.wallet_values.to_owned(), options.hd_values.to_owned()) {
-                (None, None) => {
-                    let private_key = EthereumPrivateKey::new(&mut StdRng::from_entropy())?;
-                    let public_key = private_key.to_public_key();
-                    let address = public_key.to_address(&PhantomData)?;
-
-                    EthereumWallet {
-                        private_key: Some(private_key.to_string()),
-                        public_key: Some(public_key.to_string()),
-                        address: address.to_string(),
-                        ..Default::default()
-                    }
-                }
-                (Some(wallet_values), None) => {
-                    match (
-                        wallet_values.private_key.as_ref(),
-                        wallet_values.public_key.as_ref(),
-                        wallet_values.address.as_ref(),
-                    ) {
-                        (Some(private_key), None, None) => match EthereumPrivateKey::from_str(&private_key) {
-                            Ok(private_key) => {
-                                let public_key = private_key.to_public_key();
-                                let address = public_key.to_address(&PhantomData)?;
-
-                                EthereumWallet {
-                                    private_key: Some(private_key.to_string()),
-                                    public_key: Some(public_key.to_string()),
-                                    address: address.to_string(),
-                                    ..Default::default()
-                                }
+        fn output<W: EthereumWordlist>(options: EthereumOptions) -> Result<(), CLIError> {
+            let wallets = match options.subcommand.as_ref().map(String::as_str) {
+                Some("hd") => {
+                    let path = options.to_derivation_path(true).unwrap();
+                    (0..options.count)
+                        .flat_map(|_| {
+                            match EthereumWallet::new_hd::<W, _>(
+                                &mut StdRng::from_entropy(),
+                                options.word_count,
+                                options.password.as_ref().map(String::as_str),
+                                &path,
+                            ) {
+                                Ok(wallet) => vec![wallet],
+                                _ => vec![],
                             }
-                            Err(_) => {
-                                let private_key = EthereumPrivateKey::from_str(&private_key)?;
-                                let public_key = private_key.to_public_key();
-                                let address = public_key.to_address(&PhantomData)?;
-
-                                EthereumWallet {
-                                    private_key: Some(private_key.to_string()),
-                                    public_key: Some(public_key.to_string()),
-                                    address: address.to_string(),
-                                    ..Default::default()
-                                }
-                            }
-                        },
-                        (None, Some(public_key), None) => {
-                            let public_key = EthereumPublicKey::from_str(&public_key)?;
-                            let address = public_key.to_address(&PhantomData)?;
-
-                            EthereumWallet { public_key: Some(public_key.to_string()), address: address.to_string(), ..Default::default() }
-                        }
-                        (None, None, Some(address)) => match EthereumAddress::from_str(&address) {
-                            Ok(address) => EthereumWallet { address: address.to_string(), ..Default::default() },
-                            Err(error) => return Err(CLIError::AddressError(error)),
-                        },
-                        _ => unreachable!(),
+                        })
+                        .collect()
+                }
+                Some("import") => {
+                    if let Some(private_key) = options.private {
+                        vec![EthereumWallet::from_private_key(&private_key)?]
+                    } else if let Some(public_key) = options.public {
+                        vec![EthereumWallet::from_public_key(&public_key)?]
+                    } else if let Some(address) = options.address {
+                        vec![EthereumWallet::from_address(&address)?]
+                    } else {
+                        vec![]
                     }
                 }
-                (None, Some(hd_values)) => {
-
-                    fn process_mnemonic<EW: EthereumWordlist>(mnemonic: Option<String>, word_count: u8, password: &Option<&str>)
-                                                                                 -> Result<(String, EthereumExtendedPrivateKey), CLIError> {
-                        let mnemonic = match mnemonic {
-                            Some(mnemonic) => EthereumMnemonic::<EW>::from_phrase(&mnemonic)?,
-                            None => EthereumMnemonic::<EW>::new(word_count, &mut StdRng::from_entropy())?,
-                        };
-
-                        Ok((mnemonic.to_string(), mnemonic.to_extended_private_key(*password)?))
-                    }
-
-                    const DEFAULT_WORD_COUNT: u8 = 12;
-
-                    let index = hd_values.index.unwrap_or("0".to_string());
-                    let path: String = match hd_values.path.as_ref().map(String::as_str) {
-                        Some("ethereum") => format!("m/44'/60'/0'/{}", index),
-                        Some("keepkey") => format!("m/44'/60'/{}'/0", index),
-                        Some("ledger-legacy") => format!("m/44'/60'/0'/{}", index),
-                        Some("ledger-live") => format!("m/44'/60'/{}'/0/0", index),
-                        Some("trezor") => format!("m/44'/60'/0'/{}", index),
-                        Some(custom_path) => custom_path.to_string(),
-                        None => format!("m/44'/60'/0'/{}", index), // Default - ethereum
-                    };
-
-                    let mut final_path = Some(path.to_string());
-
-                    let word_count = match hd_values.word_count {
-                        Some(word_count) => word_count,
-                        None => DEFAULT_WORD_COUNT,
-                    };
-
-                    let password = hd_values.password.as_ref().map(String::as_str);
-                    let (mnemonic, extended_private_key, extended_public_key) = match (
-                        hd_values.mnemonic,
-                        hd_values.extended_private_key,
-                        hd_values.extended_public_key,
-                    ) {
-                        (None, None, None) => {
-                            let (mnemonic, master_extended_private_key)
-                                = match hd_values.language.as_ref().map(String::as_str) {
-                                Some("chinese_simplified") => process_mnemonic::<ChineseSimplified>(None, word_count, &password)?,
-                                Some("chinese_traditional") => process_mnemonic::<ChineseTraditional>(None, word_count, &password)?,
-                                Some("english") => process_mnemonic::<English>(None, word_count, &password)?,
-                                Some("french") => process_mnemonic::<French>(None, word_count, &password)?,
-                                Some("italian") => process_mnemonic::<Italian>(None, word_count, &password)?,
-                                Some("japanese") => process_mnemonic::<Japanese>(None, word_count, &password)?,
-                                Some("korean") => process_mnemonic::<Korean>(None, word_count, &password)?,
-                                Some("spanish") => process_mnemonic::<Spanish>(None, word_count, &password)?,
-                                _ => process_mnemonic::<English>(None, word_count, &password)?, // Default language - English
-                            };
-
-                            let extended_private_key = master_extended_private_key
-                                .derive(&EthereumDerivationPath::from_str(&path)?)?;
-                            let extended_public_key = extended_private_key.to_extended_public_key();
-
-                            (Some(mnemonic), Some(extended_private_key), extended_public_key)
+                Some("import-hd") => {
+                    if let Some(mnemonic) = options.mnemonic.clone() {
+                        fn process_mnemonic<EW: EthereumWordlist>(
+                            mnemonic: &String,
+                            options: &EthereumOptions,
+                        ) -> Result<EthereumWallet, CLIError> {
+                            EthereumWallet::from_mnemonic::<EW>(
+                                &mnemonic,
+                                options.password.as_ref().map(String::as_str),
+                                &options.to_derivation_path(true).unwrap(),
+                            )
                         }
-                        (Some(mnemonic), None, None) => {
-                            let (mnemonic, master_extended_private_key) =
-                                process_mnemonic::<ChineseSimplified>(Some(mnemonic.to_owned()), word_count, &password)
-                                    .or(process_mnemonic::<ChineseTraditional>(Some(mnemonic.to_owned()), word_count, &password))
-                                    .or(process_mnemonic::<English>(Some(mnemonic.to_owned()), word_count, &password))
-                                    .or(process_mnemonic::<French>(Some(mnemonic.to_owned()), word_count, &password))
-                                    .or(process_mnemonic::<Italian>(Some(mnemonic.to_owned()), word_count, &password))
-                                    .or(process_mnemonic::<Japanese>(Some(mnemonic.to_owned()), word_count, &password))
-                                    .or(process_mnemonic::<Korean>(Some(mnemonic.to_owned()), word_count, &password))
-                                    .or(process_mnemonic::<Spanish>(Some(mnemonic.to_owned()), word_count, &password))?;
-
-                            let extended_private_key = master_extended_private_key
-                                .derive(&EthereumDerivationPath::from_str(&path)?)?;
-                            let extended_public_key = extended_private_key.to_extended_public_key();
-
-                            (Some(mnemonic.to_string()), Some(extended_private_key), extended_public_key)
-                        }
-                        (None, Some(extended_private_key), None) => {
-                            let mut extended_private_key = EthereumExtendedPrivateKey::from_str(&extended_private_key)?;
-
-                            match hd_values.path {
-                                Some(_) => extended_private_key = extended_private_key.derive(&EthereumDerivationPath::from_str(&path)?)?,
-                                None => final_path = None,
-                            };
-
-                            let extended_public_key = extended_private_key.to_extended_public_key();
-
-                            (None, Some(extended_private_key), extended_public_key)
-                        }
-                        (None, None, Some(extended_public_key)) => {
-                            let mut extended_public_key = EthereumExtendedPublicKey::from_str(&extended_public_key)?;
-
-                            match hd_values.path {
-                                Some(_) => extended_public_key = extended_public_key.derive(&EthereumDerivationPath::from_str(&path)?)?,
-                                None => final_path = None,
-                            };
-
-                            (None, None, extended_public_key)
-                        }
-                        _ => unreachable!(),
-                    };
-
-                    let private_key = extended_private_key.as_ref().map(|key| key.to_private_key().to_string());
-                    let public_key = extended_public_key.to_public_key();
-                    let address = public_key.to_address(&PhantomData)?;
-
-                    EthereumWallet {
-                        path: final_path,
-                        password: hd_values.password,
-                        mnemonic: mnemonic.map(|key| key.to_string()),
-                        extended_private_key: extended_private_key.map(|key| key.to_string()),
-                        extended_public_key: Some(extended_public_key.to_string()),
-                        private_key,
-                        public_key: Some(public_key.to_string()),
-                        address: address.to_string(),
-                        ..Default::default()
+                        vec![process_mnemonic::<ChineseSimplified>(&mnemonic, &options)
+                            .or(process_mnemonic::<ChineseTraditional>(&mnemonic, &options))
+                            .or(process_mnemonic::<English>(&mnemonic, &options))
+                            .or(process_mnemonic::<French>(&mnemonic, &options))
+                            .or(process_mnemonic::<Italian>(&mnemonic, &options))
+                            .or(process_mnemonic::<Japanese>(&mnemonic, &options))
+                            .or(process_mnemonic::<Korean>(&mnemonic, &options))
+                            .or(process_mnemonic::<Spanish>(&mnemonic, &options))?]
+                    } else if let Some(extended_private_key) = options.extended_private_key.clone() {
+                        vec![EthereumWallet::from_extended_private_key(
+                            &extended_private_key,
+                            &options.to_derivation_path(false),
+                        )?]
+                    } else if let Some(extended_public_key) = options.extended_public_key.clone() {
+                        vec![EthereumWallet::from_extended_public_key(
+                            &extended_public_key,
+                            &options.to_derivation_path(false),
+                        )?]
+                    } else {
+                        vec![]
                     }
                 }
-                _ => unreachable!(),
+                _ => (0..options.count)
+                    .flat_map(
+                        |_| match EthereumWallet::new::<_>(&mut StdRng::from_entropy()) {
+                            Ok(wallet) => vec![wallet],
+                            _ => vec![],
+                        },
+                    )
+                    .collect(),
             };
 
             match options.json {
-                true => println!("{}\n", serde_json::to_string_pretty(&wallet)?),
-                false => println!("{}\n", wallet),
+                true => println!("{}\n", serde_json::to_string_pretty(&wallets)?),
+                false => wallets.iter().for_each(|wallet| println!("{}\n", wallet)),
             };
+
+            Ok(())
         }
 
-        Ok(())
+        match options.language.as_str() {
+            "chinese_simplified" => output::<ChineseSimplified>(options),
+            "chinese_traditional" => output::<ChineseTraditional>(options),
+            "english" => output::<English>(options),
+            "french" => output::<French>(options),
+            "italian" => output::<Italian>(options),
+            "japanese" => output::<Japanese>(options),
+            "korean" => output::<Korean>(options),
+            "spanish" => output::<Spanish>(options),
+            _ => output::<English>(options),
+        }
     }
 }

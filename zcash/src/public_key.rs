@@ -225,7 +225,7 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
                 let key = sapling.0.to_bytes().to_vec();
                 match Bech32::new(N::to_sapling_viewing_key_prefix(), key.to_base32()) {
                     Ok(key) => write!(f, "{}", key.to_string())?,
-                    Err(_) => return Err(fmt::Error)
+                    Err(_) => return Err(fmt::Error),
                 }
             }
             _ => (),

@@ -7,4 +7,5 @@ pub extern crate monero;
 pub extern crate wagyu_model as model;
 pub extern crate zcash;
 
+#[cfg_attr(tarpaulin, skip)]
 pub mod cli;

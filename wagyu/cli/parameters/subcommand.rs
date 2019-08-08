@@ -86,7 +86,7 @@ pub const IMPORT_MONERO: SubCommandType = (
         option::PRIVATE_VIEW_KEY_MONERO,
         option::PUBLIC_SPEND_KEY_MONERO,
         option::PUBLIC_VIEW_KEY_MONERO,
-        option::SUBADDRESS_IMPORT_MONERO
+        option::SUBADDRESS_IMPORT_MONERO,
     ],
     &[
         AppSettings::DisableHelpSubcommand,
