@@ -213,6 +213,7 @@ mod tests {
     use super::*;
 
     use hex;
+    use std::string::String;
 
     fn test_new(
         expected_extended_private_key: &str,
@@ -303,42 +304,6 @@ mod tests {
     fn test_to_string(expected_extended_private_key: &str) {
         let extended_private_key = EthereumExtendedPrivateKey::from_str(expected_extended_private_key).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
-    }
-
-    fn test_invalid_secret_key(extended_private_key: &str) {
-        let secret_key =
-            "24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
-        let modified_extended_private_key = format!("{}{}", &extended_private_key[..16], secret_key);
-
-        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err());
-    }
-
-    fn test_invalid_version(extended_private_key: &str) {
-        let version = "xprv8";
-        let modified_extended_private_key = format!("{}{}", version, &extended_private_key[6..]);
-
-        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err());
-    }
-
-    fn test_invalid_checksum(extended_private_key: &str) {
-        let mut s = extended_private_key.to_string();
-        let (first, last) = s.split_at_mut(78);
-
-        last.make_ascii_uppercase();
-
-        let modified_extended_private_key = format!("{}{}", first, last);
-
-        assert!(EthereumExtendedPrivateKey::from_str(&modified_extended_private_key).is_err());
-    }
-
-    fn test_invalid_length(extended_private_key: &str) {
-        let short = &extended_private_key[..81];
-
-        let mut long = extended_private_key.to_string();
-        long.push('a');
-
-        assert!(EthereumExtendedPrivateKey::from_str(short).is_err());
-        assert!(EthereumExtendedPrivateKey::from_str(&long).is_err());
     }
 
     mod bip32_mainnet {
@@ -598,34 +563,6 @@ mod tests {
                 test_to_string(extended_private_key);
             });
         }
-
-        #[test]
-        fn invalid_secret_key() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
-                test_invalid_secret_key(extended_private_key);
-            })
-        }
-
-        #[test]
-        fn invalid_version() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
-                test_invalid_version(extended_private_key);
-            })
-        }
-
-        #[test]
-        fn invalid_checksum() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
-                test_invalid_checksum(extended_private_key);
-            })
-        }
-
-        #[test]
-        fn invalid_length() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
-                test_invalid_length(extended_private_key);
-            })
-        }
     }
 
     mod bip44 {
@@ -644,6 +581,48 @@ mod tests {
                 expected_extended_private_key_serialized,
                 extended_private_key.to_string()
             );
+        }
+    }
+
+    mod test_invalid {
+        use super::*;
+
+        const INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY: &str = "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fENZ3QzxW";
+        const INVALID_EXTENDED_PRIVATE_KEY_NETWORK: &str = "xprv8s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+        const INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHj";
+        const VALID_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+        #[test]
+        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
+        fn from_str_invalid_secret_key() {
+            let _result =
+                EthereumExtendedPrivateKey::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidVersionBytes([4, 136, 173, 227])")]
+        fn from_str_invalid_version() {
+            let _result = EthereumExtendedPrivateKey::from_str(INVALID_EXTENDED_PRIVATE_KEY_NETWORK).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidChecksum(\"6vCfku\", \"6vCfkt\")")]
+        fn from_str_invalid_checksum() {
+            let _result = EthereumExtendedPrivateKey::from_str(INVALID_EXTENDED_PRIVATE_KEY_CHECKSUM).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidByteLength(81)")]
+        fn from_str_short() {
+            let _result = EthereumExtendedPrivateKey::from_str(&VALID_EXTENDED_PRIVATE_KEY[1..]).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidByteLength(83)")]
+        fn from_str_long() {
+            let mut string = String::from(VALID_EXTENDED_PRIVATE_KEY);
+            string.push('a');
+            let _result = EthereumExtendedPrivateKey::from_str(&string).unwrap();
         }
     }
 }

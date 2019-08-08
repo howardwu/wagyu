@@ -283,42 +283,6 @@ mod tests {
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
 
-    fn test_invalid_secret_key<N: BitcoinNetwork>(extended_public_key: &str) {
-        let secret_key =
-            "ftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
-        let modified_extended_public_key = format!("{}{}", &extended_public_key[..16], secret_key);
-
-        assert!(BitcoinExtendedPublicKey::<N>::from_str(&modified_extended_public_key).is_err())
-    }
-
-    fn test_invalid_version<N: BitcoinNetwork>(extended_public_key: &str) {
-        let version = "xpub5";
-        let modified_extended_public_key = format!("{}{}", version, &extended_public_key[6..]);
-
-        assert!(BitcoinExtendedPublicKey::<N>::from_str(&modified_extended_public_key).is_err())
-    }
-
-    fn test_invalid_checksum<N: BitcoinNetwork>(extended_public_key: &str) {
-        let mut s = extended_public_key.to_string();
-        let (first, last) = s.split_at_mut(78);
-
-        last.make_ascii_uppercase();
-
-        let modified_extended_public_key = format!("{}{}", first, last);
-
-        assert!(BitcoinExtendedPublicKey::<N>::from_str(&modified_extended_public_key).is_err())
-    }
-
-    fn test_invalid_length<N: BitcoinNetwork>(extended_public_key: &str) {
-        let short = &extended_public_key[..81];
-
-        let mut long = extended_public_key.to_string();
-        long.push('a');
-
-        assert!(BitcoinExtendedPublicKey::<N>::from_str(short).is_err());
-        assert!(BitcoinExtendedPublicKey::<N>::from_str(&long).is_err());
-    }
-
     mod bip32_mainnet {
         use super::*;
 
@@ -507,33 +471,49 @@ mod tests {
                 test_to_string::<N>(extended_public_key);
             });
         }
+    }
+
+    mod test_invalid {
+        use super::*;
+
+        type N = Mainnet;
+
+        const INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
+        const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
         #[test]
-        fn invalid_secret_key() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, _, extended_public_key)| {
-                test_invalid_secret_key::<N>(extended_public_key);
-            })
+        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
+        fn from_str_invalid_secret_key() {
+            let _result =
+                BitcoinExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY).unwrap();
         }
 
         #[test]
-        fn invalid_version() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, _, extended_public_key)| {
-                test_invalid_version::<N>(extended_public_key);
-            })
+        #[should_panic(expected = "InvalidVersionBytes([4, 136, 178, 29])")]
+        fn from_str_invalid_version() {
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_NETWORK).unwrap();
         }
 
         #[test]
-        fn invalid_checksum() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, _, extended_public_key)| {
-                test_invalid_checksum::<N>(extended_public_key);
-            })
+        #[should_panic(expected = "InvalidChecksum(\"5Nvot3\", \"5Nvot4\")")]
+        fn from_str_invalid_checksum() {
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM).unwrap();
         }
 
         #[test]
-        fn invalid_length() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, _, extended_public_key)| {
-                test_invalid_length::<N>(extended_public_key);
-            })
+        #[should_panic(expected = "InvalidByteLength(81)")]
+        fn from_str_short() {
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(&VALID_EXTENDED_PUBLIC_KEY[1..]).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "InvalidByteLength(83)")]
+        fn from_str_long() {
+            let mut string = String::from(VALID_EXTENDED_PUBLIC_KEY);
+            string.push('a');
+            let _result = BitcoinExtendedPublicKey::<N>::from_str(&string).unwrap();
         }
     }
 }
