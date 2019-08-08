@@ -1,8 +1,8 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 use crate::zcash::{
-    address::Format as ZcashFormat, Mainnet as ZcashMainnet, Testnet as ZcashTestnet,
-    ZcashAddress, ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
+    address::Format as ZcashFormat, Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress,
+    ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
     ZcashPublicKey,
 };
 
@@ -74,11 +74,7 @@ impl ZcashWallet {
         })
     }
 
-    pub fn new_hd<N: ZcashNetwork, R: Rng>(
-        rng: &mut R,
-        path: &str,
-        format: &ZcashFormat,
-    ) -> Result<Self, CLIError> {
+    pub fn new_hd<N: ZcashNetwork, R: Rng>(rng: &mut R, path: &str, format: &ZcashFormat) -> Result<Self, CLIError> {
         let seed: [u8; 32] = rng.gen();
         let master_extended_private_key = ZcashExtendedPrivateKey::<N>::new_master(&seed, format)?;
         let derivation_path = ZcashDerivationPath::from_str(path)?;
@@ -296,7 +292,6 @@ impl Default for ZcashOptions {
     }
 }
 
-
 impl ZcashOptions {
     fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
         options.iter().for_each(|option| match *option {
@@ -393,8 +388,8 @@ impl ZcashOptions {
                     let mut diversifier = [0u8; 11];
                     diversifier.copy_from_slice(&hex::decode(data).unwrap());
                     self.format = ZcashFormat::Sapling(Some(diversifier))
-                },
-                None => self.format = ZcashFormat::Sapling(None)
+                }
+                None => self.format = ZcashFormat::Sapling(None),
             },
             Some("sprout") => self.format = ZcashFormat::Sprout,
             Some("transparent") => self.format = ZcashFormat::P2PKH,
@@ -497,13 +492,7 @@ impl CLI for ZcashCLI {
                 options.parse(arguments, &["diversifier", "format", "json", "network"]);
                 options.parse(
                     arguments,
-                    &[
-                        "account",
-                        "derivation",
-                        "extended private",
-                        "extended public",
-                        "index",
-                    ],
+                    &["account", "derivation", "extended private", "extended public", "index"],
                 );
             }
             _ => {}
@@ -515,66 +504,71 @@ impl CLI for ZcashCLI {
     /// Generate the Zcash wallet and print the relevant fields
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
-
         fn output<N: ZcashNetwork>(options: ZcashOptions) -> Result<(), CLIError> {
-            let wallets = match options.subcommand.as_ref().map(String::as_str) {
-                Some("hd") => {
-                    let path = options.to_derivation_path(true).unwrap();
-                    (0..options.count)
-                        .flat_map(|_| {
-                            match ZcashWallet::new_hd::<N, _>(
-                                &mut StdRng::from_entropy(),
-                                &path,
-                                &options.format,
-                            ) {
+            let wallets =
+                match options.subcommand.as_ref().map(String::as_str) {
+                    Some("hd") => {
+                        let path = options.to_derivation_path(true).unwrap();
+                        (0..options.count)
+                            .flat_map(|_| {
+                                match ZcashWallet::new_hd::<N, _>(&mut StdRng::from_entropy(), &path, &options.format) {
+                                    Ok(wallet) => vec![wallet],
+                                    _ => vec![],
+                                }
+                            })
+                            .collect()
+                    }
+                    Some("import") => {
+                        if let Some(private_key) = options.private {
+                            vec![
+                                ZcashWallet::from_private_key::<ZcashMainnet>(&private_key, &options.format).or(
+                                    ZcashWallet::from_private_key::<ZcashTestnet>(&private_key, &options.format),
+                                )?,
+                            ]
+                        } else if let Some(public_key) = options.public {
+                            vec![
+                                ZcashWallet::from_public_key::<ZcashMainnet>(&public_key, &options.format).or(
+                                    ZcashWallet::from_public_key::<ZcashTestnet>(&public_key, &options.format),
+                                )?,
+                            ]
+                        } else if let Some(address) = options.address {
+                            vec![ZcashWallet::from_address::<ZcashMainnet>(&address)
+                                .or(ZcashWallet::from_address::<ZcashTestnet>(&address))?]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    Some("import-hd") => {
+                        if let Some(extended_private_key) = options.extended_private_key.clone() {
+                            let key = &extended_private_key;
+                            let path = &options.to_derivation_path(false);
+                            let format = &options.format;
+
+                            vec![
+                                ZcashWallet::from_extended_private_key::<ZcashMainnet>(key, path, format).or(
+                                    ZcashWallet::from_extended_private_key::<ZcashTestnet>(key, path, format),
+                                )?,
+                            ]
+                        } else if let Some(extended_public_key) = options.extended_public_key.clone() {
+                            let key = &extended_public_key;
+                            let path = &options.to_derivation_path(false);
+                            let format = &options.format;
+
+                            vec![ZcashWallet::from_extended_public_key::<ZcashMainnet>(key, path, format)
+                                .or(ZcashWallet::from_extended_public_key::<ZcashTestnet>(key, path, format))?]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    _ => (0..options.count)
+                        .flat_map(
+                            |_| match ZcashWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
-                            }
-                        })
-                        .collect()
-                }
-                Some("import") => {
-                    if let Some(private_key) = options.private {
-                        vec![ZcashWallet::from_private_key::<ZcashMainnet>(&private_key, &options.format)
-                            .or(ZcashWallet::from_private_key::<ZcashTestnet>(&private_key, &options.format))?]
-                    } else if let Some(public_key) = options.public {
-                        vec![ZcashWallet::from_public_key::<ZcashMainnet>(&public_key, &options.format)
-                            .or(ZcashWallet::from_public_key::<ZcashTestnet>(&public_key, &options.format))?]
-                    } else if let Some(address) = options.address {
-                        vec![ZcashWallet::from_address::<ZcashMainnet>(&address)
-                            .or(ZcashWallet::from_address::<ZcashTestnet>(&address))?]
-                    } else {
-                        vec![]
-                    }
-                }
-                Some("import-hd") => {
-                    if let Some(extended_private_key) = options.extended_private_key.clone() {
-                        let key = &extended_private_key;
-                        let path = &options.to_derivation_path(false);
-                        let format = &options.format;
-
-                        vec![ZcashWallet::from_extended_private_key::<ZcashMainnet>(key, path, format)
-                            .or(ZcashWallet::from_extended_private_key::<ZcashTestnet>(key, path, format))?]
-                    } else if let Some(extended_public_key) = options.extended_public_key.clone() {
-                        let key = &extended_public_key;
-                        let path = &options.to_derivation_path(false);
-                        let format = &options.format;
-
-                        vec![ZcashWallet::from_extended_public_key::<ZcashMainnet>(key, path, format)
-                            .or(ZcashWallet::from_extended_public_key::<ZcashTestnet>(key, path, format))?]
-                    } else {
-                        vec![]
-                    }
-                }
-                _ => (0..options.count)
-                    .flat_map(
-                        |_| match ZcashWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
-                            Ok(wallet) => vec![wallet],
-                            _ => vec![],
-                        },
-                    )
-                    .collect(),
-            };
+                            },
+                        )
+                        .collect(),
+                };
 
             match options.json {
                 true => println!("{}\n", serde_json::to_string_pretty(&wallets)?),

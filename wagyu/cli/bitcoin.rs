@@ -591,8 +591,11 @@ impl CLI for BitcoinCLI {
                 }
                 Some("import") => {
                     if let Some(private_key) = options.private {
-                        vec![BitcoinWallet::from_private_key::<BitcoinMainnet>(&private_key, &options.format)
-                            .or(BitcoinWallet::from_private_key::<BitcoinTestnet>(&private_key, &options.format))?]
+                        vec![
+                            BitcoinWallet::from_private_key::<BitcoinMainnet>(&private_key, &options.format).or(
+                                BitcoinWallet::from_private_key::<BitcoinTestnet>(&private_key, &options.format),
+                            )?,
+                        ]
                     } else if let Some(public_key) = options.public {
                         vec![BitcoinWallet::from_public_key::<N>(&public_key, &options.format)?]
                     } else if let Some(address) = options.address {
@@ -608,28 +611,50 @@ impl CLI for BitcoinCLI {
                         let path = &options.to_derivation_path(true).unwrap();
                         let format = &options.format;
 
-                        vec![BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(&mnemonic, password, path, format)
-                            .or(BitcoinWallet::from_mnemonic::<N, ChineseTraditional>(&mnemonic, password, path, format))
-                            .or(BitcoinWallet::from_mnemonic::<N, English>(&mnemonic, password, path, format))
-                            .or(BitcoinWallet::from_mnemonic::<N, French>(&mnemonic, password, path, format))
-                            .or(BitcoinWallet::from_mnemonic::<N, Italian>(&mnemonic, password, path, format))
-                            .or(BitcoinWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, path, format))
-                            .or(BitcoinWallet::from_mnemonic::<N, Korean>(&mnemonic, password, path, format))
-                            .or(BitcoinWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, path, format))?]
+                        vec![
+                            BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(&mnemonic, password, path, format)
+                                .or(BitcoinWallet::from_mnemonic::<N, ChineseTraditional>(
+                                    &mnemonic, password, path, format,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, English>(
+                                    &mnemonic, password, path, format,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, French>(
+                                    &mnemonic, password, path, format,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(
+                                    &mnemonic, password, path, format,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(
+                                    &mnemonic, password, path, format,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(
+                                    &mnemonic, password, path, format,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(
+                                    &mnemonic, password, path, format,
+                                ))?,
+                        ]
                     } else if let Some(extended_private_key) = options.extended_private_key.clone() {
                         let key = &extended_private_key;
                         let path = &options.to_derivation_path(false);
                         let format = &options.format;
 
-                        vec![BitcoinWallet::from_extended_private_key::<BitcoinMainnet>(key, path, format)
-                            .or(BitcoinWallet::from_extended_private_key::<BitcoinTestnet>(key, path, format))?]
+                        vec![
+                            BitcoinWallet::from_extended_private_key::<BitcoinMainnet>(key, path, format).or(
+                                BitcoinWallet::from_extended_private_key::<BitcoinTestnet>(key, path, format),
+                            )?,
+                        ]
                     } else if let Some(extended_public_key) = options.extended_public_key.clone() {
                         let key = &extended_public_key;
                         let path = &options.to_derivation_path(false);
                         let format = &options.format;
 
-                        vec![BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path, format)
-                            .or(BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path, format))?]
+                        vec![
+                            BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path, format).or(
+                                BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path, format),
+                            )?,
+                        ]
                     } else {
                         vec![]
                     }

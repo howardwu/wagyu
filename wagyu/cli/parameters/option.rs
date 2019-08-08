@@ -144,25 +144,13 @@ pub const PRIVATE: OptionType = (
 );
 pub const PRIVATE_SPEND_KEY_MONERO: OptionType = (
     "[private spend] --private-spend=[private spend key] 'Imports a wallet for a specified private spend key'",
-    &[
-        "address",
-        "count",
-        "public spend",
-        "public view",
-        "private view",
-    ],
+    &["address", "count", "public spend", "public view", "private view"],
     &[],
     &[],
 );
 pub const PRIVATE_VIEW_KEY_MONERO: OptionType = (
     "[private view] --private-view=[private view key] 'Imports a partial wallet for a specified private view key'",
-    &[
-        "address",
-        "count",
-        "public spend",
-        "public view",
-        "private spend",
-    ],
+    &["address", "count", "public spend", "public view", "private spend"],
     &[],
     &[],
 );

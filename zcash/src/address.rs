@@ -61,7 +61,7 @@ impl fmt::Display for Format {
             Format::P2PKH => write!(f, "p2pkh"),
             Format::P2SH => write!(f, "p2sh"),
             Format::Sprout => write!(f, "sprout"),
-            Format::Sapling(_) => write!(f, "sapling")
+            Format::Sapling(_) => write!(f, "sapling"),
         }
     }
 }

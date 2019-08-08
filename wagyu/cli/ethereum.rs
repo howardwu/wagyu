@@ -6,8 +6,8 @@ use crate::ethereum::{
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
-use rand::Rng;
 use rand::rngs::StdRng;
+use rand::Rng;
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
@@ -96,10 +96,7 @@ impl EthereumWallet {
         })
     }
 
-    pub fn from_extended_private_key(
-        extended_private_key: &str,
-        path: &Option<String>,
-    ) -> Result<Self, CLIError> {
+    pub fn from_extended_private_key(extended_private_key: &str, path: &Option<String>) -> Result<Self, CLIError> {
         let mut extended_private_key = EthereumExtendedPrivateKey::from_str(extended_private_key)?;
         if let Some(derivation_path) = path {
             let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
@@ -120,10 +117,7 @@ impl EthereumWallet {
         })
     }
 
-    pub fn from_extended_public_key(
-        extended_public_key: &str,
-        path: &Option<String>,
-    ) -> Result<Self, CLIError> {
+    pub fn from_extended_public_key(extended_public_key: &str, path: &Option<String>) -> Result<Self, CLIError> {
         let mut extended_public_key = EthereumExtendedPublicKey::from_str(extended_public_key)?;
         if let Some(derivation_path) = path {
             let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
@@ -539,12 +533,10 @@ impl CLI for EthereumCLI {
                     }
                 }
                 _ => (0..options.count)
-                    .flat_map(
-                        |_| match EthereumWallet::new::<_>(&mut StdRng::from_entropy()) {
-                            Ok(wallet) => vec![wallet],
-                            _ => vec![],
-                        },
-                    )
+                    .flat_map(|_| match EthereumWallet::new::<_>(&mut StdRng::from_entropy()) {
+                        Ok(wallet) => vec![wallet],
+                        _ => vec![],
+                    })
                     .collect(),
             };
 
