@@ -10,8 +10,8 @@ authors = [
 description = "A command-line tool to generate cryptocurrency wallets"
 homepage = "https://github.com/ArgusHQ/wagyu"
 repository = "https://github.com/ArgusHQ/wagyu"
-categories = ["command-line-utilities"]
-keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+categories = ["command-line-utilities", "cryptocurrency"]
+keywords = ["blockchain", "command-line", "crypto", "cryptocurrency", "wallet"]
 readme = "README.md"
 license = "MIT/Apache-2.0"
 edition = "2018"
@@ -30,11 +30,11 @@ members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
 travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
 
 [dependencies]
-bitcoin = { path = "./bitcoin" }
-ethereum = { path = "./ethereum" }
+wagyu-bitcoin = { path = "./bitcoin" }
+wagyu-ethereum = { path = "./ethereum" }
 wagyu-model = { path = "./model" }
-monero = { path = "./monero" }
-zcash = { path = "./zcash" }
+wagyu-monero = { path = "./monero" }
+wagyu-zcash = { path = "./zcash" }
 
 arrayvec = { version = "0.4.7" }
 base58 = { version = "0.1" }
