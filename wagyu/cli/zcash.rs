@@ -1,7 +1,7 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 use crate::zcash::{
-    address::Format as ZcashFormat, Mainnet as ZcashMainnet, SpendingKey, Testnet as ZcashTestnet, ViewingKey,
+    address::Format as ZcashFormat, Mainnet as ZcashMainnet, Testnet as ZcashTestnet,
     ZcashAddress, ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
     ZcashPublicKey,
 };
