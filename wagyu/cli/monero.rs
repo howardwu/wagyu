@@ -48,10 +48,6 @@ impl MoneroWallet {
         let public_spend_key = public_key.to_public_spend_key().unwrap();
         let public_view_key = public_key.to_public_view_key().unwrap();
         let address = public_key.to_address(format)?;
-        let (format, payment_id) = match format {
-            MoneroFormat::Integrated(payment_id) => ("integrated".into(), Some(hex::encode(payment_id))),
-            format => (format.to_string(), None),
-        };
         Ok(Self {
             mnemonic: Some(mnemonic.to_string()),
             private_spend_key: Some(hex::encode(private_spend_key)),
@@ -60,7 +56,7 @@ impl MoneroWallet {
             public_view_key: Some(hex::encode(public_view_key)),
             address: Some(address.to_string()),
             format: Some(format.to_string()),
-            payment_id,
+            payment_id: address.to_payment_id(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
         })
@@ -78,10 +74,6 @@ impl MoneroWallet {
         let public_spend_key = public_key.to_public_spend_key().unwrap();
         let public_view_key = public_key.to_public_view_key().unwrap();
         let address = public_key.to_address(format)?;
-        let (format, payment_id) = match format {
-            MoneroFormat::Integrated(payment_id) => ("integrated".into(), Some(hex::encode(payment_id))),
-            format => (format.to_string(), None),
-        };
         Ok(Self {
             mnemonic: Some(mnemonic.to_string()),
             private_spend_key: Some(hex::encode(private_spend_key)),
@@ -89,8 +81,8 @@ impl MoneroWallet {
             public_spend_key: Some(hex::encode(public_spend_key)),
             public_view_key: Some(hex::encode(public_view_key)),
             address: Some(address.to_string()),
-            format: Some(format),
-            payment_id,
+            format: Some(format.to_string()),
+            payment_id: address.to_payment_id(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
         })
@@ -113,18 +105,14 @@ impl MoneroWallet {
         let public_spend_key = public_key.to_public_spend_key().unwrap();
         let public_view_key = public_key.to_public_view_key().unwrap();
         let address = public_key.to_address(format)?;
-        let (format, payment_id) = match format {
-            MoneroFormat::Integrated(payment_id) => ("integrated".into(), Some(hex::encode(payment_id))),
-            format => (format.to_string(), None),
-        };
         Ok(Self {
             private_spend_key: Some(hex::encode(private_spend_key)),
             private_view_key: Some(hex::encode(private_view_key)),
             public_spend_key: Some(hex::encode(public_spend_key)),
             public_view_key: Some(hex::encode(public_view_key)),
             address: Some(address.to_string()),
-            format: Some(format),
-            payment_id,
+            format: Some(format.to_string()),
+            payment_id: address.to_payment_id(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
         })
@@ -154,16 +142,12 @@ impl MoneroWallet {
         let public_spend_key = public_key.to_public_spend_key().unwrap();
         let public_view_key = public_key.to_public_view_key().unwrap();
         let address = public_key.to_address(format)?;
-        let (format, payment_id) = match format {
-            MoneroFormat::Integrated(payment_id) => ("integrated".into(), Some(hex::encode(payment_id))),
-            format => (format.to_string(), None),
-        };
         Ok(Self {
             public_spend_key: Some(hex::encode(public_spend_key)),
             public_view_key: Some(hex::encode(public_view_key)),
             address: Some(address.to_string()),
-            format: Some(format),
-            payment_id,
+            format: Some(format.to_string()),
+            payment_id: address.to_payment_id(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
         })
@@ -171,15 +155,11 @@ impl MoneroWallet {
 
     pub fn from_address<N: MoneroNetwork>(address: &str) -> Result<Self, CLIError> {
         let address = MoneroAddress::<N>::from_str(address)?;
-        let (format, payment_id) = match address.format()? {
-            MoneroFormat::Integrated(payment_id) => ("integrated".into(), Some(hex::encode(payment_id))),
-            format => (format.to_string(), None),
-        };
         Ok(Self {
             address: Some(address.to_string()),
             network: Some(N::NAME.to_string()),
-            format: Some(format),
-            payment_id,
+            format: Some(address.format()?.to_string()),
+            payment_id: address.to_payment_id(),
             ..Default::default()
         })
     }

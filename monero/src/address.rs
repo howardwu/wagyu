@@ -45,7 +45,7 @@ impl fmt::Display for Format {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Format::Standard => write!(f, "standard"),
-            Format::Integrated(payment_id) => write!(f, "integrated({})", hex::encode(payment_id)),
+            Format::Integrated(_) => write!(f, "integrated"),
             Format::Subaddress(major, minor) => write!(f, "subaddress({},{})", major, minor),
         }
     }
@@ -147,10 +147,19 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
         })
     }
 
+    /// Returns the payment ID of a Monero integrated address, or returns `None`.
+    pub fn to_payment_id(&self) -> Option<String> {
+        if let Ok(format) = self.format() {
+            if let Format::Integrated(payment_id) = format {
+                return Some(hex::encode(payment_id))
+            }
+        }
+        None
+    }
+
     /// Returns the format of the Monero address.
     pub fn format(&self) -> Result<Format, AddressError> {
-        let bytes = base58::decode(&self.address)?;
-        Format::from_address(&bytes)
+        Format::from_address(&base58::decode(&self.address)?)
     }
 }
 
