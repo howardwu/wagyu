@@ -61,10 +61,7 @@ impl fmt::Display for Format {
             Format::P2PKH => write!(f, "p2pkh"),
             Format::P2SH => write!(f, "p2sh"),
             Format::Sprout => write!(f, "sprout"),
-            Format::Sapling(data) => match data {
-                None => write!(f, "sapling",),
-                Some(data) => write!(f, "sapling {}", hex::encode(data)),
-            },
+            Format::Sapling(_) => write!(f, "sapling")
         }
     }
 }
@@ -186,7 +183,16 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         })
     }
 
-    /// Returns the diversifier of a given Zcash Sapling address.
+    /// Returns the diversifier of a Zcash Sapling address.
+    pub fn to_diversifier(&self) -> Option<String> {
+        if let Format::Sapling(_) = self.format {
+            Self::get_diversifier(&self.address).map(|d| hex::encode(d)).ok()
+        } else {
+            None
+        }
+    }
+
+    /// Returns the diversifier of a specified Zcash Sapling address.
     pub fn get_diversifier(address: &str) -> Result<[u8; 11], AddressError> {
         let address = Bech32::from_str(address)?;
         let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;

@@ -31,8 +31,8 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     type PublicKey = ZcashPublicKey<N>;
 
     /// Returns a new Zcash extended private key.
-    fn new(seed: &[u8], format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
-        Ok(Self::new_master(seed, format)?.derive(path)?)
+    fn new(seed: &[u8], _format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
+        Ok(Self::new_master(seed, _format)?.derive(path)?)
     }
 
     /// Returns a new Zcash extended private key.
