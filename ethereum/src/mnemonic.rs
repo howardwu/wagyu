@@ -1,6 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
 use crate::extended_public_key::EthereumExtendedPublicKey;
+use crate::format::Format;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use crate::wordlist::EthereumWordlist;
@@ -12,11 +13,7 @@ use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Div;
-use std::str;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
@@ -38,10 +35,7 @@ impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
 
     /// Returns the extended private key of the corresponding mnemonic.
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
-        Ok(Self::ExtendedPrivateKey::new_master(
-            self.to_seed(password)?.as_slice(),
-            &PhantomData,
-        )?)
+        Ok(Self::ExtendedPrivateKey::new_master(self.to_seed(password)?.as_slice())?)
     }
 
     /// Returns the extended public key of the corresponding mnemonic.
@@ -52,7 +46,7 @@ impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
 
 impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     type Address = EthereumAddress;
-    type Format = PhantomData<u8>;
+    type Format = Format;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
@@ -67,8 +61,8 @@ impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     }
 
     /// Returns the address of the corresponding mnemonic.
-    fn to_address(&self, password: Option<&str>, _format: &Self::Format) -> Result<Self::Address, MnemonicError> {
-        Ok(self.to_extended_private_key(password)?.to_address(_format)?)
+    fn to_address(&self, password: Option<&str>, format: &Self::Format) -> Result<Self::Address, MnemonicError> {
+        Ok(self.to_extended_private_key(password)?.to_address(format)?)
     }
 }
 

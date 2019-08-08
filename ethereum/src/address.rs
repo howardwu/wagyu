@@ -25,7 +25,7 @@ impl Address for EthereumAddress {
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
+    fn from_public_key(public_key: &Self::PublicKey, _format: &Self::Format) -> Result<Self, AddressError> {
         Ok(Self::checksum_address(public_key))
     }
 }

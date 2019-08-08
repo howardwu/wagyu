@@ -1,13 +1,36 @@
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::fmt;
-use std::str::FromStr;
+use serde::Serialize;
+use std::{fmt, str::FromStr};
 
 /// Represents a Ethereum derivation path
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct EthereumDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for EthereumDerivationPath {}
+
+impl EthereumDerivationPath {
+
+    pub fn ethereum(index: u32) -> Result<Self, DerivationPathError> {
+        Self::from_str(&format!("m/44'/60'/0'/{}", index.to_string()))
+    }
+
+    pub fn keepkey(index: u32) -> Result<Self, DerivationPathError> {
+        Self::from_str(&format!("m/44'/60'/{}'/0", index.to_string()))
+    }
+
+    pub fn ledger_legacy(index: u32) -> Result<Self, DerivationPathError> {
+        Self::from_str(&format!("m/44'/60'/0'/{}", index.to_string()))
+    }
+
+    pub fn ledger_live(index: u32) -> Result<Self, DerivationPathError> {
+        Self::from_str(&format!("m/44'/60'/{}'/0/0", index.to_string()))
+    }
+
+    pub fn trezor(index: u32) -> Result<Self, DerivationPathError> {
+        Self::from_str(&format!("m/44'/60'/0'/{}", index.to_string()))
+    }
+}
 
 impl FromStr for EthereumDerivationPath {
     type Err = DerivationPathError;

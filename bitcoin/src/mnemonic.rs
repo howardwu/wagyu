@@ -1,6 +1,7 @@
-use crate::address::{BitcoinAddress, Format};
+use crate::address::BitcoinAddress;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::extended_public_key::BitcoinExtendedPublicKey;
+use crate::format::Format;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
@@ -13,11 +14,7 @@ use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Div;
-use std::str;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
@@ -41,10 +38,7 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemonic
 
     /// Returns the extended private key of the corresponding mnemonic.
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
-        Ok(Self::ExtendedPrivateKey::new_master(
-            self.to_seed(password)?.as_slice(),
-            &Format::P2PKH,
-        )?)
+        Ok(Self::ExtendedPrivateKey::new_master(self.to_seed(password)?.as_slice())?)
     }
 
     /// Returns the extended public key of the corresponding mnemonic.

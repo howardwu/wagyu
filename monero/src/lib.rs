@@ -7,6 +7,9 @@
 pub mod address;
 pub use self::address::*;
 
+pub mod format;
+pub use self::format::*;
+
 pub mod mnemonic;
 pub use self::mnemonic::*;
 

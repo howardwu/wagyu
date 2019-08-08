@@ -4,9 +4,7 @@ use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey}
 
 use rand::Rng;
 use secp256k1;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

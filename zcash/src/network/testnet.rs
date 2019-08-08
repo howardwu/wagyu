@@ -1,5 +1,5 @@
 use super::*;
-use crate::address::Format;
+use crate::format::Format;
 use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
@@ -21,6 +21,9 @@ impl ZcashNetwork for Testnet {
             Format::P2SH => vec![0x1C, 0xBA],
             Format::Sprout => vec![0x16, 0xB6],
             Format::Sapling(_) => "ztestsapling".as_bytes().to_vec(),
+            Format::Master => "ztestsapling".as_bytes().to_vec(),
+            Format::ZIP32(_, _) => "ztestsapling".as_bytes().to_vec(),
+            Format::CustomPath(_, format) => Self::to_address_prefix(&*format),
         }
     }
 

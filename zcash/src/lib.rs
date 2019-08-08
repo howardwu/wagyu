@@ -16,6 +16,9 @@ pub use self::extended_private_key::*;
 pub mod extended_public_key;
 pub use self::extended_public_key::*;
 
+pub mod format;
+pub use self::format::*;
+
 pub mod network;
 pub use self::network::*;
 

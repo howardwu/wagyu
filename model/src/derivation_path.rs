@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use std::{
     fmt,
     fmt::{Debug, Display},
@@ -26,7 +28,7 @@ pub enum DerivationPathError {
 }
 
 /// Represents a child index for a derivation path
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub enum ChildIndex {
     // A non-hardened index: Normal(n) == n in path notation
     Normal(u32),

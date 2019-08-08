@@ -20,8 +20,8 @@ pub trait ExtendedPublicKey: Clone + Debug + Display + FromStr + Send + Sync + '
     /// Returns the extended public key of the corresponding extended private key.
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self;
 
-    /// Returns the extended public key for the given derivation path.
-    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError>;
+    /// Returns the extended public key for the given format.
+    fn derive(&self, format: &Self::Format) -> Result<Self, ExtendedPublicKeyError>;
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey;

@@ -1,6 +1,7 @@
-use crate::address::{Format, ZcashAddress};
+use crate::address::ZcashAddress;
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_public_key::ZcashExtendedPublicKey;
+use crate::format::Format;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, SpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
@@ -10,10 +11,7 @@ use wagyu_model::{
 };
 
 use bech32::{Bech32, FromBase32, ToBase32};
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use zcash_primitives::zip32::ExtendedSpendingKey;
 
 /// Represents a Zcash extended private key
@@ -21,6 +19,8 @@ use zcash_primitives::zip32::ExtendedSpendingKey;
 pub struct ZcashExtendedPrivateKey<N: ZcashNetwork> {
     /// The extended spending key
     extended_spending_key: ExtendedSpendingKey,
+    /// The address and derivation format
+    format: Format,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -34,26 +34,31 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     type PublicKey = ZcashPublicKey<N>;
 
     /// Returns a new Zcash extended private key.
-    fn new(seed: &[u8], format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
-        Ok(Self::new_master(seed, format)?.derive(path)?)
+    fn new(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
+        Ok(Self::new_master(seed)?.derive(format)?)
     }
 
     /// Returns a new Zcash extended private key.
-    fn new_master(seed: &[u8], _: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
+    fn new_master(seed: &[u8]) -> Result<Self, ExtendedPrivateKeyError> {
         Ok(Self {
             extended_spending_key: ExtendedSpendingKey::master(seed),
+            format: Format::Master,
             _network: PhantomData,
         })
     }
 
     /// Returns the extended private key of the given derivation path.
-    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
+    fn derive(&self, format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
+
+        let path = format.to_derivation_path()?;
+
         let mut extended_private_key = self.clone();
         for index in path.into_iter() {
             extended_private_key = Self {
                 extended_spending_key: extended_private_key
                     .extended_spending_key
                     .derive_child(zcash_primitives::zip32::ChildIndex::from_index(index.to_index())),
+                format: format.clone(),
                 _network: PhantomData,
             };
         }
@@ -90,6 +95,11 @@ impl<N: ZcashNetwork> ZcashExtendedPrivateKey<N> {
     pub fn to_extended_spending_key(&self) -> ExtendedSpendingKey {
         self.extended_spending_key.clone()
     }
+
+    /// Returns the format of the Zcash extended private key.
+    pub fn to_format(&self) -> Format {
+        self.format.clone()
+    }
 }
 
 impl<N: ZcashNetwork> FromStr for ZcashExtendedPrivateKey<N> {
@@ -104,6 +114,7 @@ impl<N: ZcashNetwork> FromStr for ZcashExtendedPrivateKey<N> {
         match ExtendedSpendingKey::read(data.as_slice()) {
             Ok(extended_spending_key) => Ok(Self {
                 extended_spending_key,
+                format: Format::Master,
                 _network: PhantomData,
             }),
             Err(error) => Err(ExtendedPrivateKeyError::Message(error.to_string())),
@@ -155,14 +166,14 @@ mod tests {
     fn test_new<N: ZcashNetwork>(expected_extended_private_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
     fn test_to_extended_public_key<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
         let extended_public_key = extended_private_key.to_extended_public_key();
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
@@ -170,7 +181,7 @@ mod tests {
     fn test_to_address<N: ZcashNetwork>(expected_address: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
         let format = &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
         let address = extended_private_key.to_address(&format).unwrap();
         assert_eq!(expected_address, address.to_string());
@@ -184,7 +195,7 @@ mod tests {
     fn test_to_string<N: ZcashNetwork>(expected_extended_private_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::CustomPath(path, Box::new(Format::Sapling(None)))).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 

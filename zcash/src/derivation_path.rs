@@ -1,18 +1,23 @@
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::convert::TryFrom;
-use std::fmt;
-use std::str::FromStr;
+use serde::Serialize;
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 /// Represents a Zcash derivation path
 ///
 /// m_Sapling / purpose' / coin_type' / account' / address_index
 /// https://github.com/zcash/zips/blob/master/zip-0032.rst
 ///
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct ZcashDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for ZcashDerivationPath {}
+
+impl ZcashDerivationPath {
+    pub fn zip32(account: u32, index: u32) -> Result<Self, DerivationPathError> {
+        Self::from_str(&format!("m/44'/133'/{}'/{}", account.to_string(), index.to_string()))
+    }
+}
 
 impl FromStr for ZcashDerivationPath {
     type Err = DerivationPathError;

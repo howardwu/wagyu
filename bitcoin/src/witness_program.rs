@@ -21,8 +21,7 @@
 //!
 
 use hex;
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 pub struct WitnessProgram {
     /// The version byte

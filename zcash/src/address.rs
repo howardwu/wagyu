@@ -1,10 +1,9 @@
+use crate::format::Format;
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
-use wagyu_model::{
-    crypto::{checksum, hash160},
-    Address, AddressError, PrivateKey,
-};
+
+use wagyu_model::{crypto::{checksum, hash160}, Address, AddressError, PrivateKey};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
@@ -13,61 +12,8 @@ use curve25519_dalek::scalar::Scalar;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
-use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::{str, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 use zcash_primitives::JUBJUB;
-
-/// Represents the format of a Zcash address
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Format {
-    /// Pay-to-Pubkey Hash, transparent address beginning with "t1" or "tm"
-    P2PKH,
-    /// Pay-to-Script Hash, transparent address beginning with "t3" or "t2"
-    P2SH,
-    /// Sprout shielded address beginning with "zc" or "zt"
-    Sprout,
-    /// Sapling shielded address beginning with "zs" or "ztestsapling"
-    Sapling(Option<[u8; 11]>),
-}
-
-impl Format {
-    /// Returns the address prefix of the given network.
-    pub fn to_address_prefix<N: ZcashNetwork>(&self) -> Vec<u8> {
-        N::to_address_prefix(self)
-    }
-
-    /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: &Vec<u8>) -> Result<Self, AddressError> {
-        if prefix.len() < 2 {
-            return Err(AddressError::InvalidPrefixLength(prefix.len()));
-        }
-
-        match prefix[1] {
-            0xB8 | 0x25 => Ok(Format::P2PKH),
-            0xBD | 0xBA => Ok(Format::P2SH),
-            0x9A | 0xB6 => Ok(Format::Sprout),
-            0x73 | 0x74 => Ok(Format::Sapling(None)),
-            _ => return Err(AddressError::InvalidPrefix(prefix.clone())),
-        }
-    }
-}
-
-impl fmt::Display for Format {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Format::P2PKH => write!(f, "p2pkh"),
-            Format::P2SH => write!(f, "p2sh"),
-            Format::Sprout => write!(f, "sprout"),
-            Format::Sapling(data) => match data {
-                None => write!(f, "sapling",),
-                Some(data) => write!(f, "sapling {}", hex::encode(data)),
-            },
-        }
-    }
-}
 
 /// Represents a Zcash address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

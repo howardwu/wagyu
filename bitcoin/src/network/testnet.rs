@@ -1,5 +1,5 @@
 use super::*;
-use crate::address::Format;
+use crate::format::Format;
 use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
@@ -20,6 +20,11 @@ impl BitcoinNetwork for Testnet {
             Format::P2PKH => vec![0x6F],
             Format::P2SH_P2WPKH => vec![0xC4],
             Format::Bech32 => vec![0x74, 0x62],
+            Format::Master => vec![0x6F],
+            Format::BIP32(_) => vec![0x6F],
+            Format::BIP44(_, _, _) => vec![0x6F],
+            Format::BIP49(_, _, _) => vec![0xC4],
+            Format::CustomPath(_, format) => Self::to_address_prefix(*&format),
         }
     }
 
@@ -48,8 +53,13 @@ impl BitcoinNetwork for Testnet {
     /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
     fn to_extended_private_key_version_bytes(format: &Format) -> Result<Vec<u8>, ExtendedPrivateKeyError> {
         match format {
-            Format::P2PKH => Ok(vec![0x04, 0x35, 0x83, 0x94]),       // tpriv
-            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x4A, 0x4E, 0x28]), // upriv
+            Format::P2PKH => Ok(vec![0x04, 0x35, 0x83, 0x94]),          // tpriv
+            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x4A, 0x4E, 0x28]),    // upriv
+            Format::Master => Ok(vec![0x04, 0x35, 0x83, 0x94]),          // tpriv
+            Format::BIP32(_) => Ok(vec![0x04, 0x35, 0x83, 0x94]),       // tpriv
+            Format::BIP44(_, _, _) => Ok(vec![0x04, 0x35, 0x83, 0x94]), // tpriv
+            Format::BIP49(_, _, _) => Ok(vec![0x04, 0x4A, 0x4E, 0x28]), // upriv
+            Format::CustomPath(_, format) => Self::to_extended_private_key_version_bytes(*&format),
             _ => Err(ExtendedPrivateKeyError::UnsupportedFormat(format.to_string())),
         }
     }
@@ -67,8 +77,13 @@ impl BitcoinNetwork for Testnet {
     /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
     fn to_extended_public_key_version_bytes(format: &Format) -> Result<Vec<u8>, ExtendedPublicKeyError> {
         match format {
-            Format::P2PKH => Ok(vec![0x04, 0x35, 0x87, 0xCF]),       // tpub
-            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x4A, 0x52, 0x62]), // upub
+            Format::P2PKH => Ok(vec![0x04, 0x35, 0x87, 0xCF]),          // tpub
+            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x4A, 0x52, 0x62]),    // upub
+            Format::Master => Ok(vec![0x04, 0x35, 0x87, 0xCF]),         // tpub
+            Format::BIP32(_) => Ok(vec![0x04, 0x35, 0x87, 0xCF]),       // tpub
+            Format::BIP44(_, _, _) => Ok(vec![0x04, 0x35, 0x87, 0xCF]), // tpub
+            Format::BIP49(_, _, _) => Ok(vec![0x04, 0x4A, 0x52, 0x62]), // upub
+            Format::CustomPath(_, format) => Self::to_extended_public_key_version_bytes(*&format),
             _ => Err(ExtendedPublicKeyError::UnsupportedFormat(format.to_string())),
         }
     }

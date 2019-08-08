@@ -1,4 +1,5 @@
-use crate::address::{BitcoinAddress, Format};
+use crate::address::BitcoinAddress;
+use crate::format::Format;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
@@ -6,9 +7,7 @@ use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKe
 use base58::{FromBase58, ToBase58};
 use rand::Rng;
 use secp256k1;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{marker::PhantomData, fmt, fmt::Display, str::FromStr};
 
 /// Represents a Bitcoin private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

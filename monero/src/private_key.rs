@@ -1,4 +1,5 @@
-use crate::address::{Format, MoneroAddress};
+use crate::address::MoneroAddress;
+use crate::format::Format;
 use crate::network::MoneroNetwork;
 use crate::public_key::MoneroPublicKey;
 use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};

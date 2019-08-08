@@ -1,6 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
+use crate::format::Format;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
@@ -12,17 +13,16 @@ use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hex;
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
-use serde::export::PhantomData;
 use sha2::Sha512;
-use std::fmt;
-use std::io::Cursor;
-use std::str::FromStr;
+use std::{fmt, io::Cursor, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Ethereum extended public key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EthereumExtendedPublicKey {
+    /// The derivation format
+    format: Format,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -39,12 +39,13 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     type Address = EthereumAddress;
     type DerivationPath = EthereumDerivationPath;
     type ExtendedPrivateKey = EthereumExtendedPrivateKey;
-    type Format = PhantomData<u8>;
+    type Format = Format;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
+            format: extended_private_key.format.clone(),
             depth: extended_private_key.depth,
             parent_fingerprint: extended_private_key.parent_fingerprint,
             child_index: extended_private_key.child_index,
@@ -54,7 +55,10 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     }
 
     /// Returns the extended public key for the given derivation path.
-    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
+    fn derive(&self, format: &Format) -> Result<Self, ExtendedPublicKeyError> {
+
+        let path = format.to_derivation_path()?;
+
         if self.depth == 255 {
             return Err(ExtendedPublicKeyError::MaximumChildDepthReached(self.depth));
         }
@@ -89,6 +93,7 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
             parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
             extended_public_key = Self {
+                format: self.format.clone(),
                 depth: self.depth + 1,
                 parent_fingerprint,
                 child_index: *index,
@@ -147,6 +152,7 @@ impl FromStr for EthereumExtendedPublicKey {
         }
 
         Ok(Self {
+            format: self::Format::Master,
             depth,
             parent_fingerprint,
             child_index,
@@ -213,16 +219,14 @@ mod tests {
         expected_extended_public_key2: &str,
         expected_child_index2: u32,
     ) {
-        let path = vec![ChildIndex::from(expected_child_index2)].into();
-
+        let format = Format::from_child_index(&vec![ChildIndex::from(expected_child_index2)]);
         let extended_private_key1 = EthereumExtendedPrivateKey::from_str(expected_extended_private_key1).unwrap();
-        let extended_private_key2 = extended_private_key1.derive(&path).unwrap();
+        let extended_private_key2 = extended_private_key1.derive(&format).unwrap();
         let extended_public_key2 = extended_private_key2.to_extended_public_key();
 
         let expected_extended_public_key2 =
             EthereumExtendedPublicKey::from_str(&expected_extended_public_key2).unwrap();
 
-        assert_eq!(expected_extended_public_key2, extended_public_key2);
         assert_eq!(
             expected_extended_public_key2.public_key,
             extended_public_key2.public_key

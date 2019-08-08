@@ -1,4 +1,5 @@
-use crate::address::{Format, ZcashAddress};
+use crate::address::ZcashAddress;
+use crate::format::Format;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SpendingKey, ZcashPrivateKey};
 use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};

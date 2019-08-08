@@ -21,13 +21,13 @@ pub trait ExtendedPrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 
     type PublicKey: PublicKey;
 
     /// Returns a new extended private key.
-    fn new(seed: &[u8], format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError>;
+    fn new(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns a new extended private key.
-    fn new_master(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
+    fn new_master(seed: &[u8]) -> Result<Self, ExtendedPrivateKeyError>;
 
-    /// Returns the extended private key of the given derivation path.
-    fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError>;
+    /// Returns the extended private key of the given format.
+    fn derive(&self, format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn to_extended_public_key(&self) -> Self::ExtendedPublicKey;
