@@ -266,7 +266,7 @@ impl Display for BitcoinWallet {
 /// Represents options for a Bitcoin wallet
 #[derive(Clone, Debug, Serialize)]
 pub struct BitcoinOptions {
-    // Standard
+    // Standard command
     count: usize,
     format: BitcoinFormat,
     json: bool,

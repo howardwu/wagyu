@@ -233,7 +233,7 @@ pub struct EthereumOptions {
 impl Default for EthereumOptions {
     fn default() -> Self {
         Self {
-            // Standard
+            // Standard command
             count: 1,
             json: false,
             subcommand: None,

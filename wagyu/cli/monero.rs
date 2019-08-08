@@ -217,14 +217,14 @@ impl Display for MoneroWallet {
 /// Represents options for a Monero wallet
 #[derive(Serialize, Clone, Debug)]
 pub struct MoneroOptions {
-    // Standard
+    // Standard command
     count: usize,
     format: MoneroFormat,
     json: bool,
     language: String,
     network: String,
     subcommand: Option<String>,
-    // Import
+    // Import subcommand
     address: Option<String>,
     mnemonic: Option<String>,
     private_spend_key: Option<String>,
