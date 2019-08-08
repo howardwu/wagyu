@@ -68,6 +68,18 @@ impl From<&'static str> for AddressError {
     }
 }
 
+impl From<PrivateKeyError> for AddressError {
+    fn from(error: PrivateKeyError) -> Self {
+        AddressError::PrivateKeyError(error)
+    }
+}
+
+impl From<PublicKeyError> for AddressError {
+    fn from(error: PublicKeyError) -> Self {
+        AddressError::PublicKeyError(error)
+    }
+}
+
 impl From<base58::FromBase58Error> for AddressError {
     fn from(error: base58::FromBase58Error) -> Self {
         AddressError::Crate("base58", format!("{:?}", error))
@@ -86,15 +98,9 @@ impl From<bech32::Error> for AddressError {
     }
 }
 
-impl From<PrivateKeyError> for AddressError {
-    fn from(error: PrivateKeyError) -> Self {
-        AddressError::PrivateKeyError(error)
-    }
-}
-
-impl From<PublicKeyError> for AddressError {
-    fn from(error: PublicKeyError) -> Self {
-        AddressError::PublicKeyError(error)
+impl From<hex::FromHexError> for AddressError {
+    fn from(error: hex::FromHexError) -> Self {
+        AddressError::Crate("hex", format!("{:?}", error))
     }
 }
 
