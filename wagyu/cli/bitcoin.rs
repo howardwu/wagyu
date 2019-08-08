@@ -4,7 +4,7 @@ use crate::bitcoin::{
     Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
 };
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
 use rand::rngs::StdRng;

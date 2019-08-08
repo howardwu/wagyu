@@ -3,7 +3,7 @@ use crate::ethereum::{
     wordlist::*, EthereumAddress, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumExtendedPublicKey,
     EthereumMnemonic, EthereumPrivateKey, EthereumPublicKey,
 };
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
 use rand::Rng;

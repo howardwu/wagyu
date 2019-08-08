@@ -17,6 +17,9 @@ pub trait Mnemonic: Clone + Debug + Display + FromStr + Send + Sync + 'static + 
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 
+    /// Returns the mnemonic for the given phrase.
+    fn from_phrase(phrase: &str) -> Result<Self, MnemonicError>;
+
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError>;
 
