@@ -28,10 +28,10 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let B = CompressedEdwardsY(public.to_public_spend_key()).decompress().unwrap();
 
         let rA: EdwardsPoint = r * A;
-//        let mut concat = Vec::<u8>::from(rA.to_bytes());
-//        concat.extend(&index.to_le_bytes());
+        let mut concat : Vec<u8> = rA.compress().to_bytes().to_vec();
+        concat.extend(&index.to_le_bytes());
 
-        let H_s = Scalar::from_bytes_mod_order(keccak256(rA.compress().as_bytes()));
+        let H_s = Scalar::from_bytes_mod_order(keccak256(&concat));
         let base: EdwardsPoint = &H_s * &ED25519_BASEPOINT_TABLE;
         let P = &base + &B;
         let tx = &r * &ED25519_BASEPOINT_TABLE;
@@ -51,10 +51,10 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let b = Scalar::from_bits(private.to_private_spend_key());
 
         let aR: EdwardsPoint = a * R;
-//        let mut concat = Vec::<u8>::from(aR.to_bytes());
-//        concat.extend(&index.to_le_bytes());
+        let mut concat: Vec<u8> = aR.compress().to_bytes().to_vec();
+        concat.extend(&index.to_le_bytes());
 
-        let H_s = Scalar::from_bytes_mod_order(keccak256(aR.compress().as_bytes()));
+        let H_s = Scalar::from_bytes_mod_order(keccak256(&concat));
         let x: Scalar = H_s + b;
 
         x.to_bytes()
