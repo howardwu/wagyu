@@ -5,8 +5,7 @@ use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::{fmt, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents the format of a Monero address
