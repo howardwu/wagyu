@@ -1,6 +1,6 @@
 # wagyu-monero
 
-[![Crates.io](https://img.shields.io/crates/v/wagyu.svg?color=neon)](https://crates.io/crates/wagyu)
+[![Crates.io](https://img.shields.io/crates/v/wagyu-monero.svg?color=neon)](https://crates.io/crates/wagyu-monero)
 [![Authors](https://img.shields.io/badge/authors-Argus-orange.svg)](../AUTHORS)
 [![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
 
