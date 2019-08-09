@@ -9,14 +9,10 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
-use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::io::Cursor;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -94,9 +90,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
                 }
             }
             // Append the child index in big-endian format
-            let mut index_be = [0u8; 4];
-            BigEndian::write_u32(&mut index_be, u32::from(*index));
-            mac.input(&index_be);
+            mac.input(&u32::from(*index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
@@ -161,7 +155,9 @@ impl FromStr for EthereumExtendedPrivateKey {
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
 
-        let child_index = ChildIndex::from(Cursor::new(&data[9..13]).read_u32::<BigEndian>()?);
+        let mut index = [0u8; 4];
+        index.copy_from_slice(&data[9..13]);
+        let child_index = ChildIndex::from(u32::from_be_bytes(index));
 
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
@@ -194,9 +190,7 @@ impl Display for EthereumExtendedPrivateKey {
         result[0..4].copy_from_slice(&[0x04, 0x88, 0xAD, 0xE4][..]);
         result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
-
-        BigEndian::write_u32(&mut result[9..13], u32::from(self.child_index));
-
+        result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45] = 0;
         result[46..78].copy_from_slice(&self.private_key.to_secp256k1_secret_key()[..]);

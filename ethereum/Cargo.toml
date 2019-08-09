@@ -21,7 +21,6 @@ wagyu-model = { path = "../model", version = "0.6.0" }
 
 base58 = { version = "0.1" }
 bitvec = { version = "0.14.0" }
-byteorder = { version = "1.2" }
 hex = { version = "0.3.2" }
 hmac = { version = "0.7.0" }
 pbkdf2 = { version = "0.3.0", features=["parallel"], default-features = false }

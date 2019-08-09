@@ -3,9 +3,7 @@ use crate::private_key::EthereumPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
