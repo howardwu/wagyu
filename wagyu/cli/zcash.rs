@@ -198,11 +198,19 @@ impl Display for ZcashWallet {
                 _ => "".to_owned(),
             },
             match &self.extended_private_key {
-                Some(extended_private_key) => format!("      {} {}\n", "Extended Private Key".cyan().bold(), extended_private_key),
+                Some(extended_private_key) => format!(
+                    "      {} {}\n",
+                    "Extended Private Key".cyan().bold(),
+                    extended_private_key
+                ),
                 _ => "".to_owned(),
             },
             match &self.extended_public_key {
-                Some(extended_public_key) => format!("      {}  {}\n", "Extended Public Key".cyan().bold(), extended_public_key),
+                Some(extended_public_key) => format!(
+                    "      {}  {}\n",
+                    "Extended Public Key".cyan().bold(),
+                    extended_public_key
+                ),
                 _ => "".to_owned(),
             },
             match &self.private_key {

@@ -151,7 +151,7 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     pub fn to_payment_id(&self) -> Option<String> {
         if let Ok(format) = self.format() {
             if let Format::Integrated(payment_id) = format {
-                return Some(hex::encode(payment_id))
+                return Some(hex::encode(payment_id));
             }
         }
         None

@@ -17,9 +17,10 @@ fn main() -> Result<(), CLIError> {
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
         .author("Argus <team@argus.dev>")
         .settings(&[
-            AppSettings::SubcommandRequiredElseHelp,
+            AppSettings::ColoredHelp,
             AppSettings::DisableHelpSubcommand,
             AppSettings::DisableVersion,
+            AppSettings::SubcommandRequiredElseHelp,
         ])
         .subcommands(vec![
             BitcoinCLI::new(),
@@ -28,7 +29,7 @@ fn main() -> Result<(), CLIError> {
             ZcashCLI::new(),
         ])
         .after_help("")
-        .set_term_width(100)
+        .set_term_width(0)
         .get_matches();
 
     match arguments.subcommand() {

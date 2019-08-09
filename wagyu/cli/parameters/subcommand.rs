@@ -17,7 +17,11 @@ pub const HD_BITCOIN: SubCommandType = (
         option::PASSWORD_HD,
         option::WORD_COUNT,
     ],
-    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+    ],
 );
 
 pub const HD_ETHEREUM: SubCommandType = (
@@ -30,7 +34,11 @@ pub const HD_ETHEREUM: SubCommandType = (
         option::PASSWORD_HD,
         option::WORD_COUNT,
     ],
-    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+    ],
 );
 
 pub const HD_ZCASH: SubCommandType = (
@@ -42,7 +50,11 @@ pub const HD_ZCASH: SubCommandType = (
         option::DIVERSIFIER_IMPORT_ZCASH,
         option::NETWORK_HD_ZCASH,
     ],
-    &[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+    ],
 );
 
 pub const IMPORT_BITCOIN: SubCommandType = (
@@ -56,6 +68,7 @@ pub const IMPORT_BITCOIN: SubCommandType = (
         option::PUBLIC,
     ],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,
@@ -67,6 +80,7 @@ pub const IMPORT_ETHEREUM: SubCommandType = (
     "Imports a wallet (include -h for more options)",
     &[option::ADDRESS, option::PRIVATE, option::PUBLIC],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,
@@ -89,6 +103,7 @@ pub const IMPORT_MONERO: SubCommandType = (
         option::SUBADDRESS_IMPORT_MONERO,
     ],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,
@@ -105,6 +120,7 @@ pub const IMPORT_ZCASH: SubCommandType = (
         option::PUBLIC,
     ],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,
@@ -127,6 +143,7 @@ pub const IMPORT_HD_BITCOIN: SubCommandType = (
         option::PASSWORD_IMPORT_HD,
     ],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,
@@ -145,6 +162,7 @@ pub const IMPORT_HD_ETHEREUM: SubCommandType = (
         option::PASSWORD_IMPORT_HD,
     ],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,
@@ -163,6 +181,7 @@ pub const IMPORT_HD_ZCASH: SubCommandType = (
         option::INDEX,
     ],
     &[
+        AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
         AppSettings::ArgRequiredElseHelp,

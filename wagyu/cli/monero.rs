@@ -175,19 +175,27 @@ impl Display for MoneroWallet {
                 _ => "".to_owned(),
             },
             match &self.private_spend_key {
-                Some(private_spend_key) => format!("      {}    {}\n", "Private Spend Key".cyan().bold(), private_spend_key),
+                Some(private_spend_key) => {
+                    format!("      {}    {}\n", "Private Spend Key".cyan().bold(), private_spend_key)
+                }
                 _ => "".to_owned(),
             },
             match &self.private_view_key {
-                Some(private_view_key) => format!("      {}     {}\n", "Private View Key".cyan().bold(), private_view_key),
+                Some(private_view_key) => {
+                    format!("      {}     {}\n", "Private View Key".cyan().bold(), private_view_key)
+                }
                 _ => "".to_owned(),
             },
             match &self.public_spend_key {
-                Some(public_spend_key) => format!("      {}     {}\n", "Public Spend Key".cyan().bold(), public_spend_key),
+                Some(public_spend_key) => {
+                    format!("      {}     {}\n", "Public Spend Key".cyan().bold(), public_spend_key)
+                }
                 _ => "".to_owned(),
             },
             match &self.public_view_key {
-                Some(public_view_key) => format!("      {}      {}\n", "Public View Key".cyan().bold(), public_view_key),
+                Some(public_view_key) => {
+                    format!("      {}      {}\n", "Public View Key".cyan().bold(), public_view_key)
+                }
                 _ => "".to_owned(),
             },
             match &self.address {

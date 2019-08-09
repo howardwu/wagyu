@@ -57,17 +57,19 @@ pub trait CLI {
                             .collect::<Vec<Arg<'static, 'static>>>(),
                     )
                     .settings(s.3)
-                    .after_help("")
             })
             .collect::<Vec<App<'static, 'static>>>();
 
         SubCommand::with_name(Self::NAME)
             .about(Self::ABOUT)
-            .settings(&[AppSettings::DisableHelpSubcommand, AppSettings::DisableVersion])
+            .settings(&[
+                AppSettings::ColoredHelp,
+                AppSettings::DisableHelpSubcommand,
+                AppSettings::DisableVersion,
+            ])
             .args(flags)
             .args(options)
             .subcommands(subcommands)
-            .after_help("")
     }
 
     #[cfg_attr(tarpaulin, skip)]
