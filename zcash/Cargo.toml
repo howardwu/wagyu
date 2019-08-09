@@ -17,7 +17,7 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-wagyu-model = { path = "../model" }
+wagyu-model = { path = "../model", version = "0.6.0" }
 
 pairing = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
 sapling-crypto = {  git = "https://github.com/ArgusHQ/librustzcash", branch = "master" }
