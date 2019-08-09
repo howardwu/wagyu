@@ -7,8 +7,7 @@ use crate::monero::{
 
 use clap::{ArgMatches, Values};
 use colored::*;
-use rand::rngs::StdRng;
-use rand::Rng;
+use rand::{Rng, rngs::StdRng};
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, str::FromStr};

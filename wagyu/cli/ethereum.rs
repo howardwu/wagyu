@@ -7,8 +7,7 @@ use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExte
 
 use clap::ArgMatches;
 use colored::*;
-use rand::rngs::StdRng;
-use rand::Rng;
+use rand::{Rng, rngs::StdRng};
 use rand_core::SeedableRng;
 use serde::Serialize;
 use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
