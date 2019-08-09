@@ -7,6 +7,7 @@ use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
+use colored::*;
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand_core::SeedableRng;
@@ -214,44 +215,44 @@ impl Display for BitcoinWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = [
             match &self.path {
-                Some(path) => format!("      Path                 {}\n", path),
+                Some(path) => format!("      {}                 {}\n", "Path".cyan().bold(), path),
                 _ => "".to_owned(),
             },
             match &self.password {
-                Some(password) => format!("      Password             {}\n", password),
+                Some(password) => format!("      {}             {}\n", "Password".cyan().bold(), password),
                 _ => "".to_owned(),
             },
             match &self.mnemonic {
-                Some(mnemonic) => format!("      Mnemonic             {}\n", mnemonic),
+                Some(mnemonic) => format!("      {}             {}\n", "Mnemonic".cyan().bold(), mnemonic),
                 _ => "".to_owned(),
             },
             match &self.extended_private_key {
-                Some(extended_private_key) => format!("      Extended Private Key {}\n", extended_private_key),
+                Some(extended_private_key) => format!("      {} {}\n", "Extended Private Key".cyan().bold(), extended_private_key),
                 _ => "".to_owned(),
             },
             match &self.extended_public_key {
-                Some(extended_public_key) => format!("      Extended Public Key  {}\n", extended_public_key),
+                Some(extended_public_key) => format!("      {}  {}\n", "Extended Public Key".cyan().bold(), extended_public_key),
                 _ => "".to_owned(),
             },
             match &self.private_key {
-                Some(private_key) => format!("      Private Key          {}\n", private_key),
+                Some(private_key) => format!("      {}          {}\n", "Private Key".cyan().bold(), private_key),
                 _ => "".to_owned(),
             },
             match &self.public_key {
-                Some(public_key) => format!("      Public Key           {}\n", public_key),
+                Some(public_key) => format!("      {}           {}\n", "Public Key".cyan().bold(), public_key),
                 _ => "".to_owned(),
             },
-            format!("      Address              {}\n", self.address),
+            format!("      {}              {}\n", "Address".cyan().bold(), self.address),
             match &self.format {
-                Some(format) => format!("      Format               {}\n", format),
+                Some(format) => format!("      {}               {}\n", "Format".cyan().bold(), format),
                 _ => "".to_owned(),
             },
             match &self.network {
-                Some(network) => format!("      Network              {}\n", network),
+                Some(network) => format!("      {}              {}\n", "Network".cyan().bold(), network),
                 _ => "".to_owned(),
             },
             match &self.compressed {
-                Some(compressed) => format!("      Compressed           {}\n", compressed),
+                Some(compressed) => format!("      {}           {}\n", "Compressed".cyan().bold(), compressed),
                 _ => "".to_owned(),
             },
         ]

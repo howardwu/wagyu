@@ -6,6 +6,7 @@ use crate::monero::{
 };
 
 use clap::{ArgMatches, Values};
+use colored::*;
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand_core::SeedableRng;
@@ -170,39 +171,39 @@ impl Display for MoneroWallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = [
             match &self.mnemonic {
-                Some(mnemonic) => format!("      Mnemonic             {}\n", mnemonic),
+                Some(mnemonic) => format!("      {}             {}\n", "Mnemonic".cyan().bold(), mnemonic),
                 _ => "".to_owned(),
             },
             match &self.private_spend_key {
-                Some(private_spend_key) => format!("      Private Spend Key    {}\n", private_spend_key),
+                Some(private_spend_key) => format!("      {}    {}\n", "Private Spend Key".cyan().bold(), private_spend_key),
                 _ => "".to_owned(),
             },
             match &self.private_view_key {
-                Some(private_view_key) => format!("      Private View Key     {}\n", private_view_key),
+                Some(private_view_key) => format!("      {}     {}\n", "Private View Key".cyan().bold(), private_view_key),
                 _ => "".to_owned(),
             },
             match &self.public_spend_key {
-                Some(public_spend_key) => format!("      Public Spend Key     {}\n", public_spend_key),
+                Some(public_spend_key) => format!("      {}     {}\n", "Public Spend Key".cyan().bold(), public_spend_key),
                 _ => "".to_owned(),
             },
             match &self.public_view_key {
-                Some(public_view_key) => format!("      Public View Key      {}\n", public_view_key),
+                Some(public_view_key) => format!("      {}      {}\n", "Public View Key".cyan().bold(), public_view_key),
                 _ => "".to_owned(),
             },
             match &self.address {
-                Some(address) => format!("      Address              {}\n", address),
+                Some(address) => format!("      {}              {}\n", "Address".cyan().bold(), address),
                 _ => "".to_owned(),
             },
             match &self.format {
-                Some(format) => format!("      Format               {}\n", format),
+                Some(format) => format!("      {}               {}\n", "Format".cyan().bold(), format),
                 _ => "".to_owned(),
             },
             match &self.payment_id {
-                Some(payment_id) => format!("      Payment ID           {}\n", payment_id),
+                Some(payment_id) => format!("      {}           {}\n", "Payment ID".cyan().bold(), payment_id),
                 _ => "".to_owned(),
             },
             match &self.network {
-                Some(network) => format!("      Network              {}\n", network),
+                Some(network) => format!("      {}              {}\n", "Network".cyan().bold(), network),
                 _ => "".to_owned(),
             },
         ]

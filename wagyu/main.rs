@@ -28,7 +28,7 @@ fn main() -> Result<(), CLIError> {
             ZcashCLI::new(),
         ])
         .after_help("")
-        .set_term_width(0)
+        .set_term_width(100)
         .get_matches();
 
     match arguments.subcommand() {
