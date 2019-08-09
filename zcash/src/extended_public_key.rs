@@ -6,10 +6,7 @@ use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
 use wagyu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
 
 use bech32::{Bech32, FromBase32, ToBase32};
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use zcash_primitives::zip32::ExtendedFullViewingKey;
 
 /// Represents a Zcash extended public key

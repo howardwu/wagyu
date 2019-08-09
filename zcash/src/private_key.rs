@@ -8,10 +8,7 @@ use bech32::{Bech32, FromBase32, ToBase32};
 use pairing::bls12_381::Bls12;
 use rand::Rng;
 use secp256k1;
-use std::cmp::{Eq, PartialEq};
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Debug, fmt::Display};
+use std::{cmp::{Eq, PartialEq}, fmt, fmt::Debug, fmt::Display, marker::PhantomData, str::FromStr};
 use zcash_primitives::keys::ExpandedSpendingKey;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,8 +1,6 @@
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::convert::TryFrom;
-use std::fmt;
-use std::str::FromStr;
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 /// Represents a Zcash derivation path
 ///

@@ -10,10 +10,7 @@ use crypto::sha2::sha256_digest_block;
 use pairing::bls12_381::Bls12;
 use sapling_crypto::jubjub::JubjubBls12;
 use secp256k1;
-use std::cmp::{Eq, PartialEq};
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{cmp::{Eq, PartialEq}, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use zcash_primitives::{keys::FullViewingKey, JUBJUB};
 
 static H256: [u32; 8] = [

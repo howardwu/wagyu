@@ -14,10 +14,7 @@ use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::{str, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 use zcash_primitives::JUBJUB;
 
 /// Represents the format of a Zcash address

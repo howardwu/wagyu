@@ -7,10 +7,7 @@ use crate::public_key::ZcashPublicKey;
 use wagyu_model::{Address, AddressError, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey};
 
 use bech32::{Bech32, FromBase32, ToBase32};
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use zcash_primitives::zip32::ExtendedSpendingKey;
 
 /// Represents a Zcash extended private key
