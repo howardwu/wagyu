@@ -364,11 +364,10 @@ impl ZcashOptions {
     fn diversifier(&mut self, argument: Option<&str>) {
         if let Some(data) = argument {
             self.diversifier = Some(data.into());
-            if let ZcashFormat::Sapling(_) = self.format {
-                let mut diversifier = [0u8; 11];
-                diversifier.copy_from_slice(&hex::decode(data).unwrap());
-                self.format = ZcashFormat::Sapling(Some(diversifier))
-            }
+            // Set `format` to ZcashFormat::Sapling(diversifier)
+            let mut diversifier = [0u8; 11];
+            diversifier.copy_from_slice(&hex::decode(data).unwrap());
+            self.format = ZcashFormat::Sapling(Some(diversifier))
         }
     }
 
