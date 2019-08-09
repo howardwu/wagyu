@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-    <img src="https://i.gyazo.com/134f7a29c4accef35ff730430cd87b52.gif">
+    <img src="https://user-images.githubusercontent.com/9260812/62761672-1edb3f80-ba3c-11e9-8fc9-6f0c58f7e545.gif">
 </p>
 
 ## <a name='TableofContents'></a>Table of Contents
