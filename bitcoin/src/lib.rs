@@ -35,4 +35,3 @@ mod witness_program;
 
 pub mod wordlist;
 pub use self::wordlist::*;
-

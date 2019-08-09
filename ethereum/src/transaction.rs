@@ -1,6 +1,6 @@
 use crate::address::EthereumAddress;
-use crate::public_key::EthereumPublicKey;
 use crate::private_key::EthereumPrivateKey;
+use crate::public_key::EthereumPublicKey;
 
 use ethereum_types::U256;
 use rlp::RlpStream;
@@ -56,30 +56,35 @@ impl Transaction for EthereumTransaction {
 
 impl EthereumTransaction {
     /// Generate a raw Ethereum transaction
-    pub fn new(nonce: &str, gas_price: &str, gas: &str, to: &str, value: &str, data: &str) -> Result<Self, TransactionError> {
-        Ok(
-            Self {
-                nonce: U256::from_dec_str(nonce)?,
-                gas_price: U256::from_dec_str(gas_price)?,
-                gas: U256::from_dec_str(gas)?,
-                to: hex::decode(&EthereumAddress::from_str(to)?.to_string()[2..])?,
-                value: U256::from_dec_str(value)?,
-                data: data.as_bytes().to_vec()
-            }
-        )
+    pub fn new(
+        nonce: &str,
+        gas_price: &str,
+        gas: &str,
+        to: &str,
+        value: &str,
+        data: &str,
+    ) -> Result<Self, TransactionError> {
+        Ok(Self {
+            nonce: U256::from_dec_str(nonce)?,
+            gas_price: U256::from_dec_str(gas_price)?,
+            gas: U256::from_dec_str(gas)?,
+            to: hex::decode(&EthereumAddress::from_str(to)?.to_string()[2..])?,
+            value: U256::from_dec_str(value)?,
+            data: data.as_bytes().to_vec(),
+        })
     }
 
     /// Sign the transaction with a given private key and output the encoded signature
-    pub fn sign_transaction(&self, private_key: <Self as Transaction>::PrivateKey, chain_id: u8) -> Result<EthereumTransactionOutput, TransactionError> {
+    pub fn sign_transaction(
+        &self,
+        private_key: <Self as Transaction>::PrivateKey,
+        chain_id: u8,
+    ) -> Result<EthereumTransactionOutput, TransactionError> {
         if chain_id == 0 {
             return Err(TransactionError::InvalidChainId(chain_id));
         }
 
-        let signature = Self::ecdsa_sign(
-            &self.raw_transaction_hash(chain_id),
-            private_key,
-            &chain_id
-        )?;
+        let signature = Self::ecdsa_sign(&self.raw_transaction_hash(chain_id), private_key, &chain_id)?;
 
         let mut signed_transaction_rlp = RlpStream::new();
         signed_transaction_rlp.begin_list(9);
@@ -88,16 +93,19 @@ impl EthereumTransaction {
         signed_transaction_rlp.append(&signature.r);
         signed_transaction_rlp.append(&signature.s);
 
-        let signed_transaction_bytes= signed_transaction_rlp.as_raw();
+        let signed_transaction_bytes = signed_transaction_rlp.as_raw();
         let signed_transaction = format!("0x{}", &hex::encode(signed_transaction_bytes));
         let transaction_hash = format!("0x{}", &hex::encode(keccak256(signed_transaction_bytes)));
 
-        Ok(EthereumTransactionOutput { signed_transaction, transaction_hash })
+        Ok(EthereumTransactionOutput {
+            signed_transaction,
+            transaction_hash,
+        })
     }
 
     /// Encode the transactions using the Recursive Length Prefix format
     /// https://github.com/ethereum/wiki/wiki/RLP
-    fn encode_transaction_rlp (&self, transaction_rlp: &mut RlpStream) {
+    fn encode_transaction_rlp(&self, transaction_rlp: &mut RlpStream) {
         transaction_rlp.append(&self.nonce);
         transaction_rlp.append(&self.gas_price);
         transaction_rlp.append(&self.gas);
@@ -119,18 +127,22 @@ impl EthereumTransaction {
     }
 
     /// Sign the transaction hash with a given private key
-    fn ecdsa_sign(hash: &[u8], private_key: <Self as Transaction>::PrivateKey, chain_id: &u8) -> Result<EthereumTransactionSignature, TransactionError> {
+    fn ecdsa_sign(
+        hash: &[u8],
+        private_key: <Self as Transaction>::PrivateKey,
+        chain_id: &u8,
+    ) -> Result<EthereumTransactionSignature, TransactionError> {
         let message = secp256k1::Message::from_slice(hash)?;
-        let (v, signature) = secp256k1::Secp256k1::new().sign_recoverable(&message, &private_key.to_secp256k1_secret_key()).serialize_compact();
+        let (v, signature) = secp256k1::Secp256k1::new()
+            .sign_recoverable(&message, &private_key.to_secp256k1_secret_key())
+            .serialize_compact();
         let protected_v = vec![(v.to_i32() as u8 + chain_id * 2 + 35)]; // EIP155
 
-        Ok (
-            EthereumTransactionSignature {
-                v: protected_v,
-                r: signature[0..32].to_vec(),
-                s: signature[32..64].to_vec(),
-            }
-        )
+        Ok(EthereumTransactionSignature {
+            v: protected_v,
+            r: signature[0..32].to_vec(),
+            s: signature[32..64].to_vec(),
+        })
     }
 }
 
@@ -211,13 +223,16 @@ mod tests {
                 transaction.gas,
                 transaction.to,
                 transaction.value,
-                transaction.data
-            ).unwrap();
+                transaction.data,
+            )
+            .unwrap();
 
-            let tx_output = tx.sign_transaction(
-                EthereumPrivateKey::from_str(transaction.private_key).unwrap(),
-                transaction.chain_id
-            ).unwrap();
+            let tx_output = tx
+                .sign_transaction(
+                    EthereumPrivateKey::from_str(transaction.private_key).unwrap(),
+                    transaction.chain_id,
+                )
+                .unwrap();
 
             assert_eq!(transaction.signed_transaction, tx_output.signed_transaction);
             assert_eq!(transaction.transaction_hash, tx_output.transaction_hash);
@@ -264,10 +279,13 @@ mod tests {
                 transaction.gas,
                 transaction.to,
                 transaction.value,
-                transaction.data
-            ).unwrap();
+                transaction.data,
+            )
+            .unwrap();
 
-            assert!(tx.sign_transaction(EthereumPrivateKey::from_str(transaction.private_key).unwrap(), chain_id).is_err());
+            assert!(tx
+                .sign_transaction(EthereumPrivateKey::from_str(transaction.private_key).unwrap(), chain_id)
+                .is_err());
         });
     }
 }

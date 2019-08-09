@@ -184,7 +184,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     }
 }
 
-impl <'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
+impl<'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {

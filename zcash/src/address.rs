@@ -173,7 +173,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 }
 
-impl <'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
+impl<'a, N: ZcashNetwork> TryFrom<&'a str> for ZcashAddress<N> {
     type Error = AddressError;
 
     fn try_from(address: &'a str) -> Result<Self, Self::Error> {
