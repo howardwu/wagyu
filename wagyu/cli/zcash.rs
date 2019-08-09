@@ -238,7 +238,7 @@ impl Display for ZcashWallet {
 /// Represents options for a Zcash wallet
 #[derive(Clone, Debug, Serialize)]
 pub struct ZcashOptions {
-    // Standard
+    // Standard command
     count: usize,
     diversifier: Option<String>,
     format: ZcashFormat,
