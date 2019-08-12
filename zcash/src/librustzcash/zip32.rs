@@ -1,30 +1,51 @@
 use crate::librustzcash::algebra::curve::bls12_381::Bls12;
 use crate::librustzcash::algebra::field::Field;
 use crate::librustzcash::sapling_crypto::{
-    jubjub::{fs::Fs, FixedGenerators, JubjubEngine, JubjubParams, ToUniform},
+    jubjub::{fs::Fs, FixedGenerators, JubjubParams, ToUniform},
     primitives::{Diversifier, PaymentAddress, ViewingKey},
 };
-use crate::librustzcash::zcash_primitives::{
-    keys::{prf_expand, prf_expand_vec, ExpandedSpendingKey, FullViewingKey, OutgoingViewingKey},
-    JUBJUB,
-};
+use crate::librustzcash::JUBJUB;
+use crate::network::ZcashNetwork;
+use crate::public_key::SaplingFullViewingKey;
+use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey};
 use wagyu_model::ChildIndex;
 
 use aes::Aes256;
-use blake2b_simd::Params as Blake2bParams;
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use fpe::ff1::{BinaryNumeralString, FF1};
 use std::io::{self, Read, Write};
+use std::marker::PhantomData;
 
 pub const ZIP32_SAPLING_MASTER_PERSONALIZATION: &'static [u8; 16] = b"ZcashIP32Sapling";
 pub const ZIP32_SAPLING_FVFP_PERSONALIZATION: &'static [u8; 16] = b"ZcashSaplingFVFP";
 
 // Common helper functions
 
-fn derive_child_ovk(parent: &OutgoingViewingKey, i_l: &[u8]) -> OutgoingViewingKey {
+use blake2b_simd::{Hash as Blake2bHash, Params as Blake2bParams};
+
+pub const PRF_EXPAND_PERSONALIZATION: &'static [u8; 16] = b"Zcash_ExpandSeed";
+
+/// PRF^expand(sk, t) := BLAKE2b-512("Zcash_ExpandSeed", sk || t)
+pub fn prf_expand(sk: &[u8], t: &[u8]) -> Blake2bHash {
+    prf_expand_vec(sk, &vec![t])
+}
+
+pub fn prf_expand_vec(sk: &[u8], ts: &[&[u8]]) -> Blake2bHash {
+    let mut h = Blake2bParams::new()
+        .hash_length(64)
+        .personal(PRF_EXPAND_PERSONALIZATION)
+        .to_state();
+    h.update(sk);
+    for t in ts {
+        h.update(t);
+    }
+    h.finalize()
+}
+
+fn derive_child_ovk(parent: &SaplingOutgoingViewingKey, i_l: &[u8]) -> SaplingOutgoingViewingKey {
     let mut ovk = [0u8; 32];
     ovk.copy_from_slice(&prf_expand_vec(i_l, &[&[0x15], &parent.0]).as_bytes()[..32]);
-    OutgoingViewingKey(ovk)
+    SaplingOutgoingViewingKey(ovk)
 }
 
 // ZIP 32 structures
@@ -32,8 +53,8 @@ fn derive_child_ovk(parent: &OutgoingViewingKey, i_l: &[u8]) -> OutgoingViewingK
 /// Represents a Sapling full viewing key fingerprint
 struct FVKFingerprint([u8; 32]);
 
-impl<E: JubjubEngine> From<&FullViewingKey<E>> for FVKFingerprint {
-    fn from(fvk: &FullViewingKey<E>) -> Self {
+impl<N: ZcashNetwork> From<&SaplingFullViewingKey<N>> for FVKFingerprint {
+    fn from(fvk: &SaplingFullViewingKey<N>) -> Self {
         let mut h = Blake2bParams::new()
             .hash_length(32)
             .personal(ZIP32_SAPLING_FVFP_PERSONALIZATION)
@@ -132,56 +153,35 @@ impl DiversifierKey {
 
 /// Represents a Sapling extended spending key
 #[derive(Clone)]
-pub struct ExtendedSpendingKey {
+pub struct ExtendedSpendingKey<N: ZcashNetwork> {
     depth: u8,
     parent_fvk_tag: FVKTag,
     child_index: ChildIndex,
     chain_code: ChainCode,
-    pub expsk: ExpandedSpendingKey<Bls12>,
+    pub expsk: SaplingSpendingKey<N>,
     dk: DiversifierKey,
 }
 
-impl std::cmp::PartialEq for ExtendedSpendingKey {
-    fn eq(&self, rhs: &ExtendedSpendingKey) -> bool {
-        self.depth == rhs.depth
-            && self.parent_fvk_tag == rhs.parent_fvk_tag
-            && self.child_index == rhs.child_index
-            && self.chain_code == rhs.chain_code
-            && self.expsk.ask == rhs.expsk.ask
-            && self.expsk.nsk == rhs.expsk.nsk
-            && self.expsk.ovk == rhs.expsk.ovk
-            && self.dk == rhs.dk
-    }
-}
-
-impl std::fmt::Debug for ExtendedSpendingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(
-            f,
-            "ExtendedSpendingKey(d = {}, tag_p = {:?}, i = {:?})",
-            self.depth, self.parent_fvk_tag, self.child_index
-        )
-    }
-}
-
-impl ExtendedSpendingKey {
+impl<N: ZcashNetwork> ExtendedSpendingKey<N> {
     pub fn master(seed: &[u8]) -> Self {
         let i = Blake2bParams::new()
             .hash_length(64)
             .personal(ZIP32_SAPLING_MASTER_PERSONALIZATION)
             .hash(seed);
 
-        let sk_m = &i.as_bytes()[..32];
+        let mut sk_m = [0u8; 32];
+        sk_m.copy_from_slice(&i.as_bytes()[..32]);
+
         let mut c_m = [0u8; 32];
         c_m.copy_from_slice(&i.as_bytes()[32..]);
 
-        ExtendedSpendingKey {
+        Self {
             depth: 0,
             parent_fvk_tag: FVKTag::master(),
             child_index: ChildIndex::from(0),
             chain_code: ChainCode(c_m),
-            expsk: ExpandedSpendingKey::from_spending_key(sk_m),
-            dk: DiversifierKey::master(sk_m),
+            expsk: SaplingSpendingKey::<N>::from_spending_key(&sk_m),
+            dk: DiversifierKey::master(&sk_m),
         }
     }
 
@@ -192,11 +192,11 @@ impl ExtendedSpendingKey {
         let i = reader.read_u32::<LittleEndian>()?;
         let mut c = [0; 32];
         reader.read_exact(&mut c)?;
-        let expsk = ExpandedSpendingKey::read(&mut reader)?;
+        let expsk = SaplingSpendingKey::<N>::read(&mut reader)?;
         let mut dk = [0; 32];
         reader.read_exact(&mut dk)?;
 
-        Ok(ExtendedSpendingKey {
+        Ok(Self {
             depth,
             parent_fvk_tag: FVKTag(tag),
             child_index: ChildIndex::from(i),
@@ -218,7 +218,7 @@ impl ExtendedSpendingKey {
     }
 
     /// Returns the child key corresponding to the path derived from the master key
-    pub fn from_path(master: &ExtendedSpendingKey, path: &[ChildIndex]) -> Self {
+    pub fn from_path(master: &Self, path: &[ChildIndex]) -> Self {
         let mut xsk = master.clone();
         for &i in path.iter() {
             xsk = xsk.derive_child(i);
@@ -227,7 +227,7 @@ impl ExtendedSpendingKey {
     }
 
     pub fn derive_child(&self, i: ChildIndex) -> Self {
-        let fvk = FullViewingKey::from_expanded_spending_key(&self.expsk, &JUBJUB);
+        let fvk = SaplingFullViewingKey::from_spending_key(&self.expsk, &JUBJUB);
         let tmp = match i {
             ChildIndex::Hardened(i) => {
                 let mut le_i = [0; 4];
@@ -258,7 +258,7 @@ impl ExtendedSpendingKey {
                 ask.add_assign(&self.expsk.ask);
                 nsk.add_assign(&self.expsk.nsk);
                 let ovk = derive_child_ovk(&self.expsk.ovk, i_l);
-                ExpandedSpendingKey { ask, nsk, ovk }
+                SaplingSpendingKey::<N> { spending_key: None, ask, nsk, ovk, _network: PhantomData }
             },
             dk: self.dk.derive_child(i_l),
         }
@@ -269,54 +269,41 @@ impl ExtendedSpendingKey {
     }
 }
 
-/// Represents a Sapling extended full viewing key
-#[derive(Clone)]
-pub struct ExtendedFullViewingKey {
-    depth: u8,
-    parent_fvk_tag: FVKTag,
-    child_index: ChildIndex,
-    chain_code: ChainCode,
-    pub fvk: FullViewingKey<Bls12>,
-    dk: DiversifierKey,
-}
-
-impl std::cmp::PartialEq for ExtendedFullViewingKey {
-    fn eq(&self, rhs: &ExtendedFullViewingKey) -> bool {
+impl<N: ZcashNetwork> std::cmp::PartialEq for ExtendedSpendingKey<N> {
+    fn eq(&self, rhs: &ExtendedSpendingKey<N>) -> bool {
         self.depth == rhs.depth
             && self.parent_fvk_tag == rhs.parent_fvk_tag
             && self.child_index == rhs.child_index
             && self.chain_code == rhs.chain_code
-            && self.fvk.vk.ak == rhs.fvk.vk.ak
-            && self.fvk.vk.nk == rhs.fvk.vk.nk
-            && self.fvk.ovk == rhs.fvk.ovk
+            && self.expsk.ask == rhs.expsk.ask
+            && self.expsk.nsk == rhs.expsk.nsk
+            && self.expsk.ovk == rhs.expsk.ovk
             && self.dk == rhs.dk
     }
 }
 
-impl std::fmt::Debug for ExtendedFullViewingKey {
+impl<N: ZcashNetwork> std::fmt::Debug for ExtendedSpendingKey<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "ExtendedFullViewingKey(d = {}, tag_p = {:?}, i = {:?})",
+            "ExtendedSpendingKey(d = {}, tag_p = {:?}, i = {:?})",
             self.depth, self.parent_fvk_tag, self.child_index
         )
     }
 }
 
-impl<'a> From<&'a ExtendedSpendingKey> for ExtendedFullViewingKey {
-    fn from(xsk: &ExtendedSpendingKey) -> Self {
-        ExtendedFullViewingKey {
-            depth: xsk.depth,
-            parent_fvk_tag: xsk.parent_fvk_tag,
-            child_index: xsk.child_index,
-            chain_code: xsk.chain_code,
-            fvk: FullViewingKey::from_expanded_spending_key(&xsk.expsk, &JUBJUB),
-            dk: xsk.dk,
-        }
-    }
+/// Represents a Sapling extended full viewing key
+#[derive(Clone)]
+pub struct ExtendedFullViewingKey<N: ZcashNetwork> {
+    depth: u8,
+    parent_fvk_tag: FVKTag,
+    child_index: ChildIndex,
+    chain_code: ChainCode,
+    pub fvk: SaplingFullViewingKey<N>,
+    dk: DiversifierKey,
 }
 
-impl ExtendedFullViewingKey {
+impl<N: ZcashNetwork> ExtendedFullViewingKey<N> {
     pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let depth = reader.read_u8()?;
         let mut tag = [0; 4];
@@ -324,7 +311,7 @@ impl ExtendedFullViewingKey {
         let i = reader.read_u32::<LittleEndian>()?;
         let mut c = [0; 32];
         reader.read_exact(&mut c)?;
-        let fvk = FullViewingKey::read(&mut reader, &*JUBJUB)?;
+        let fvk = SaplingFullViewingKey::<N>::read(&mut reader, &*JUBJUB)?;
         let mut dk = [0; 32];
         reader.read_exact(&mut dk)?;
 
@@ -379,9 +366,10 @@ impl ExtendedFullViewingKey {
                     .mul(i_nsk, &JUBJUB)
                     .add(&self.fvk.vk.nk, &JUBJUB);
 
-                FullViewingKey {
+                SaplingFullViewingKey::<N> {
                     vk: ViewingKey { ak, nk },
                     ovk: derive_child_ovk(&self.fvk.ovk, i_l),
+                    _network: PhantomData
                 }
             },
             dk: self.dk.derive_child(i_l),
@@ -404,15 +392,52 @@ impl ExtendedFullViewingKey {
     }
 }
 
+impl<N: ZcashNetwork> std::cmp::PartialEq for ExtendedFullViewingKey<N> {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.depth == rhs.depth
+            && self.parent_fvk_tag == rhs.parent_fvk_tag
+            && self.child_index == rhs.child_index
+            && self.chain_code == rhs.chain_code
+            && self.fvk.vk.ak == rhs.fvk.vk.ak
+            && self.fvk.vk.nk == rhs.fvk.vk.nk
+            && self.fvk.ovk == rhs.fvk.ovk
+            && self.dk == rhs.dk
+    }
+}
+
+impl<N: ZcashNetwork> std::fmt::Debug for ExtendedFullViewingKey<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "ExtendedFullViewingKey(d = {}, tag_p = {:?}, i = {:?})",
+            self.depth, self.parent_fvk_tag, self.child_index
+        )
+    }
+}
+
+impl<'a, N: ZcashNetwork> From<&'a ExtendedSpendingKey<N>> for ExtendedFullViewingKey<N> {
+    fn from(xsk: &ExtendedSpendingKey<N>) -> Self {
+        Self {
+            depth: xsk.depth,
+            parent_fvk_tag: xsk.parent_fvk_tag,
+            child_index: xsk.child_index,
+            chain_code: xsk.chain_code,
+            fvk: SaplingFullViewingKey::<N>::from_spending_key(&xsk.expsk, &JUBJUB),
+            dk: xsk.dk,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldRepr};
+    use crate::network::Mainnet;
 
     #[test]
     fn derive_nonhardened_child() {
         let seed = [0; 32];
-        let xsk_m = ExtendedSpendingKey::master(&seed);
+        let xsk_m = ExtendedSpendingKey::<Mainnet>::master(&seed);
         let xfvk_m = ExtendedFullViewingKey::from(&xsk_m);
 
         let i_5 = ChildIndex::Normal(5);
@@ -426,7 +451,7 @@ mod tests {
     #[test]
     fn derive_hardened_child() {
         let seed = [0; 32];
-        let xsk_m = ExtendedSpendingKey::master(&seed);
+        let xsk_m = ExtendedSpendingKey::<Mainnet>::master(&seed);
         let xfvk_m = ExtendedFullViewingKey::from(&xsk_m);
 
         let i_5h = ChildIndex::Hardened(5);
@@ -449,17 +474,17 @@ mod tests {
     #[test]
     fn path() {
         let seed = [0; 32];
-        let xsk_m = ExtendedSpendingKey::master(&seed);
+        let xsk_m = ExtendedSpendingKey::<Mainnet>::master(&seed);
 
         let xsk_5h = xsk_m.derive_child(ChildIndex::Hardened(5));
         assert_eq!(
-            ExtendedSpendingKey::from_path(&xsk_m, &[ChildIndex::Hardened(5)]),
+            ExtendedSpendingKey::<Mainnet>::from_path(&xsk_m, &[ChildIndex::Hardened(5)]),
             xsk_5h
         );
 
         let xsk_5h_7 = xsk_5h.derive_child(ChildIndex::Normal(7));
         assert_eq!(
-            ExtendedSpendingKey::from_path(&xsk_m, &[ChildIndex::Hardened(5), ChildIndex::Normal(7)]),
+            ExtendedSpendingKey::<Mainnet>::from_path(&xsk_m, &[ChildIndex::Hardened(5), ChildIndex::Normal(7)]),
             xsk_5h_7
         );
     }
@@ -499,7 +524,7 @@ mod tests {
     #[test]
     fn default_address() {
         let seed = [0; 32];
-        let xsk_m = ExtendedSpendingKey::master(&seed);
+        let xsk_m = ExtendedSpendingKey::<Mainnet>::master(&seed);
         let (j_m, addr_m) = xsk_m.default_address().unwrap();
         assert_eq!(j_m.0, [0; 11]);
         assert_eq!(
@@ -512,12 +537,12 @@ mod tests {
     #[test]
     fn read_write() {
         let seed = [0; 32];
-        let xsk = ExtendedSpendingKey::master(&seed);
+        let xsk = ExtendedSpendingKey::<Mainnet>::master(&seed);
         let fvk = ExtendedFullViewingKey::from(&xsk);
 
         let mut ser = vec![];
         xsk.write(&mut ser).unwrap();
-        let xsk2 = ExtendedSpendingKey::read(&ser[..]).unwrap();
+        let xsk2 = ExtendedSpendingKey::<Mainnet>::read(&ser[..]).unwrap();
         assert_eq!(xsk2, xsk);
 
         let mut ser = vec![];
@@ -863,9 +888,9 @@ mod tests {
         let i2h = ChildIndex::Hardened(2);
         let i3 = ChildIndex::Normal(3);
 
-        let m = ExtendedSpendingKey::master(&seed);
+        let m = ExtendedSpendingKey::<Mainnet>::master(&seed);
         let m_1 = m.derive_child(i1);
-        let m_1_2h = ExtendedSpendingKey::from_path(&m, &[i1, i2h]);
+        let m_1_2h = ExtendedSpendingKey::<Mainnet>::from_path(&m, &[i1, i2h]);
         let m_1_2hv = ExtendedFullViewingKey::from(&m_1_2h);
         let m_1_2hv_3 = m_1_2hv.derive_child(i3).unwrap();
 

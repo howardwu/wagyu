@@ -1,14 +1,13 @@
 use crate::address::{Format, ZcashAddress};
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
-use crate::librustzcash::zcash_primitives::zip32::ExtendedFullViewingKey;
+use crate::librustzcash::zip32::ExtendedFullViewingKey;
 use crate::network::ZcashNetwork;
-use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
+use crate::public_key::ZcashPublicKey;
 use wagyu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::cmp::Ordering;
-use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Display};
 
@@ -16,9 +15,7 @@ use std::{fmt, fmt::Display};
 #[derive(Debug, Clone)]
 pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
     /// The extended full viewing key
-    extended_full_viewing_key: ExtendedFullViewingKey,
-    /// PhantomData
-    _network: PhantomData<N>,
+    extended_full_viewing_key: ExtendedFullViewingKey<N>
 }
 
 impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
@@ -32,7 +29,6 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
             extended_full_viewing_key: ExtendedFullViewingKey::from(&extended_private_key.to_extended_spending_key()),
-            _network: PhantomData,
         }
     }
 
@@ -51,7 +47,6 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
                             Ok(extended_full_viewing_key) => extended_full_viewing_key,
                             _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),
                         },
-                        _network: PhantomData,
                     }
                 }
             }
@@ -61,9 +56,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey {
-        ZcashPublicKey::from_viewing_key(ViewingKey::Sapling(SaplingViewingKey(
-            self.extended_full_viewing_key.fvk.clone(),
-        )))
+        ZcashPublicKey::<N>::Sapling(self.extended_full_viewing_key.fvk.clone())
     }
 
     /// Returns the address of the corresponding extended public key.
@@ -74,7 +67,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
 
 impl<N: ZcashNetwork> ZcashExtendedPublicKey<N> {
     /// Returns the extended full viewing key of the Zcash extended public key.
-    pub fn to_extended_full_viewing_key(&self) -> ExtendedFullViewingKey {
+    pub fn to_extended_full_viewing_key(&self) -> ExtendedFullViewingKey<N> {
         self.extended_full_viewing_key.clone()
     }
 }
@@ -90,8 +83,7 @@ impl<N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
         let data: Vec<u8> = FromBase32::from_base32(bech32.data())?;
         match ExtendedFullViewingKey::read(data.as_slice()) {
             Ok(extended_full_viewing_key) => Ok(Self {
-                extended_full_viewing_key,
-                _network: PhantomData,
+                extended_full_viewing_key
             }),
             Err(error) => Err(ExtendedPublicKeyError::Message(error.to_string())),
         }

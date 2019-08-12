@@ -1,9 +1,9 @@
 use crate::address::{Format, ZcashAddress};
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_public_key::ZcashExtendedPublicKey;
-use crate::librustzcash::zcash_primitives::zip32::ExtendedSpendingKey;
+use crate::librustzcash::zip32::ExtendedSpendingKey;
 use crate::network::ZcashNetwork;
-use crate::private_key::{SaplingSpendingKey, SpendingKey, ZcashPrivateKey};
+use crate::private_key::{SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{Address, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey};
 
@@ -17,7 +17,7 @@ use std::{fmt, fmt::Display};
 #[derive(Debug, Clone)]
 pub struct ZcashExtendedPrivateKey<N: ZcashNetwork> {
     /// The extended spending key
-    extended_spending_key: ExtendedSpendingKey,
+    extended_spending_key: ExtendedSpendingKey<N>,
     /// PhantomData
     _network: PhantomData<N>,
 }
@@ -64,11 +64,13 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
 
     /// Returns the private key of the corresponding extended private key.
     fn to_private_key(&self) -> Self::PrivateKey {
-        ZcashPrivateKey::from_spending_key(SpendingKey::<N>::Sapling(SaplingSpendingKey::<N> {
+        ZcashPrivateKey::<N>::Sapling(SaplingSpendingKey {
             spending_key: None,
-            expanded_spending_key: self.extended_spending_key.expsk.clone(),
-            _network: PhantomData,
-        }))
+            ask: self.extended_spending_key.expsk.ask,
+            nsk: self.extended_spending_key.expsk.nsk,
+            ovk: self.extended_spending_key.expsk.ovk,
+            _network: PhantomData
+        })
     }
 
     /// Returns the public key of the corresponding extended private key.
@@ -84,7 +86,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
 
 impl<N: ZcashNetwork> ZcashExtendedPrivateKey<N> {
     /// Returns the extended spending key of the Zcash extended private key.
-    pub fn to_extended_spending_key(&self) -> ExtendedSpendingKey {
+    pub fn to_extended_spending_key(&self) -> ExtendedSpendingKey<N> {
         self.extended_spending_key.clone()
     }
 }
