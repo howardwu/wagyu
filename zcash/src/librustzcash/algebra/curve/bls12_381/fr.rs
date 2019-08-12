@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
+use crate::librustzcash::algebra::field::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
 
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "52435875175126190479447740508185965837690552500527637822603658699938581184513"]
@@ -253,8 +253,8 @@ fn test_fr_repr_sub_noborrow() {
 
 #[test]
 fn test_fr_legendre() {
-    use crate::librustzcash::ff::LegendreSymbol::*;
-    use crate::librustzcash::ff::SqrtField;
+    use crate::librustzcash::algebra::field::LegendreSymbol::*;
+    use crate::librustzcash::algebra::field::SqrtField;
 
     assert_eq!(QuadraticResidue, Fr::one().legendre());
     assert_eq!(Zero, Fr::zero().legendre());
@@ -785,7 +785,7 @@ fn test_fr_pow() {
 
 #[test]
 fn test_fr_sqrt() {
-    use crate::librustzcash::ff::SqrtField;
+    use crate::librustzcash::algebra::field::SqrtField;
 
     let mut rng = XorShiftRng::from_seed([
         0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
@@ -957,7 +957,7 @@ fn test_fr_num_bits() {
 
 #[test]
 fn test_fr_root_of_unity() {
-    use crate::librustzcash::ff::SqrtField;
+    use crate::librustzcash::algebra::field::SqrtField;
 
     assert_eq!(Fr::S, 32);
     assert_eq!(Fr::multiplicative_generator(), Fr::from_repr(FrRepr::from(7)).unwrap());
@@ -971,13 +971,13 @@ fn test_fr_root_of_unity() {
 
 #[test]
 fn fr_field_tests() {
-    crate::librustzcash::pairing::tests::field::random_field_tests::<Fr>();
-    crate::librustzcash::pairing::tests::field::random_sqrt_tests::<Fr>();
-    crate::librustzcash::pairing::tests::field::random_frobenius_tests::<Fr, _>(Fr::char(), 13);
-    crate::librustzcash::pairing::tests::field::from_str_tests::<Fr>();
+    crate::librustzcash::algebra::curve::tests::field::random_field_tests::<Fr>();
+    crate::librustzcash::algebra::curve::tests::field::random_sqrt_tests::<Fr>();
+    crate::librustzcash::algebra::curve::tests::field::random_frobenius_tests::<Fr, _>(Fr::char(), 13);
+    crate::librustzcash::algebra::curve::tests::field::from_str_tests::<Fr>();
 }
 
 #[test]
 fn fr_repr_tests() {
-    crate::librustzcash::pairing::tests::repr::random_repr_tests::<Fr>();
+    crate::librustzcash::algebra::curve::tests::repr::random_repr_tests::<Fr>();
 }

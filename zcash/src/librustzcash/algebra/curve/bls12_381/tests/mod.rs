@@ -1,6 +1,6 @@
-use crate::librustzcash::ff::PrimeFieldRepr;
-use crate::librustzcash::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
-use crate::librustzcash::pairing::*;
+use crate::librustzcash::algebra::curve::*;
+use crate::librustzcash::algebra::field::PrimeFieldRepr;
+use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
 use super::*;
 

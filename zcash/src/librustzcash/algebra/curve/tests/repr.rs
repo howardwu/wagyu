@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{PrimeField, PrimeFieldRepr};
+use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldRepr};
 
 use rand_core::SeedableRng;
 use rand_xorshift::XorShiftRng;

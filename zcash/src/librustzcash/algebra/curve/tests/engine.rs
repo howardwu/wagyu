@@ -1,5 +1,5 @@
-use crate::librustzcash::group::{CurveAffine, CurveProjective};
-use crate::librustzcash::pairing::{Engine, Field, PairingCurveAffine, PrimeField};
+use crate::librustzcash::algebra::curve::{Engine, Field, PairingCurveAffine, PrimeField};
+use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective};
 
 use rand_core::SeedableRng;
 use rand_xorshift::XorShiftRng;

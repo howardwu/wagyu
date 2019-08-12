@@ -1,9 +1,12 @@
 use crate::address::{Format, ZcashAddress};
-use crate::librustzcash::pairing::bls12_381::Bls12;
-use crate::librustzcash::sapling_crypto::jubjub::JubjubBls12;
-use crate::librustzcash::zcash_primitives::{keys::FullViewingKey, JUBJUB};
+use crate::librustzcash::algebra::curve::bls12_381::Bls12;
+use crate::librustzcash::sapling_crypto::{
+    jubjub::{edwards, FixedGenerators, JubjubBls12, JubjubEngine, JubjubParams, Unknown},
+    primitives::ViewingKey as SaplingViewingKey,
+};
+use crate::librustzcash::JUBJUB;
 use crate::network::ZcashNetwork;
-use crate::private_key::{SpendingKey, ZcashPrivateKey};
+use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey, ZcashPrivateKey};
 use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};
 
 use base58::{FromBase58, ToBase58};
@@ -12,6 +15,7 @@ use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
+use std::io::{self, Read, Write};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Display};
@@ -35,88 +39,6 @@ pub struct P2SHViewingKey {}
 pub struct SproutViewingKey {
     pub key_a: [u8; 32],
     pub key_b: [u8; 32],
-}
-
-#[derive(Debug, Clone)]
-pub struct SaplingViewingKey(pub(super) FullViewingKey<Bls12>);
-
-impl PartialEq for SaplingViewingKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.vk.ak == other.0.vk.ak && self.0.vk.nk == other.0.vk.nk && self.0.ovk == other.0.ovk
-    }
-}
-
-impl Eq for SaplingViewingKey {}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ViewingKey {
-    /// P2PKH transparent viewing key
-    P2PKH(P2PKHViewingKey),
-    /// P2SH transparent viewing key
-    P2SH(P2SHViewingKey),
-    /// Sprout shielded viewing key
-    Sprout(SproutViewingKey),
-    /// Sapling shielded viewing key
-    Sapling(SaplingViewingKey),
-}
-
-///Represents a Zcash public key
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZcashPublicKey<N: ZcashNetwork>(ViewingKey, PhantomData<N>);
-
-impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
-    type Address = ZcashAddress<N>;
-    type Format = Format;
-    type PrivateKey = ZcashPrivateKey<N>;
-
-    /// Returns the public key corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        match &private_key.to_spending_key() {
-            // Transparent Public Key
-            SpendingKey::P2PKH(spending_key) => Self(
-                ViewingKey::P2PKH(P2PKHViewingKey {
-                    public_key: secp256k1::PublicKey::from_secret_key(
-                        &secp256k1::Secp256k1::new(),
-                        &spending_key.secret_key,
-                    ),
-                    compressed: spending_key.compressed,
-                }),
-                PhantomData,
-            ),
-            // Transparent Multisignature
-            SpendingKey::P2SH(_) => Self(ViewingKey::P2SH(P2SHViewingKey {}), PhantomData),
-            // Sprout Viewing Key
-            SpendingKey::Sprout(spending_key) => Self(
-                ViewingKey::Sprout(SproutViewingKey::from_sprout_spending_key(&spending_key.spending_key)),
-                PhantomData,
-            ),
-            // Sapling Full Viewing Key
-            SpendingKey::Sapling(spending_key) => Self(
-                ViewingKey::Sapling(SaplingViewingKey(FullViewingKey::<Bls12>::from_expanded_spending_key(
-                    &spending_key.expanded_spending_key,
-                    &JUBJUB,
-                ))),
-                PhantomData,
-            ),
-        }
-    }
-
-    /// Returns the address of the corresponding private key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        ZcashAddress::<N>::from_public_key(self, format)
-    }
-}
-
-impl<N: ZcashNetwork> ZcashPublicKey<N> {
-    /// Returns a Zcash public key given a viewing key.
-    pub fn from_viewing_key(viewing_key: ViewingKey) -> Self {
-        Self(viewing_key, PhantomData)
-    }
-
-    /// Returns the viewing key of the Zcash public key.
-    pub fn to_viewing_key(&self) -> ViewingKey {
-        self.0.clone()
-    }
 }
 
 impl SproutViewingKey {
@@ -147,18 +69,159 @@ impl SproutViewingKey {
     }
 }
 
+#[derive(Debug)]
+pub struct SaplingFullViewingKey<N: ZcashNetwork> {
+    pub(super) vk: SaplingViewingKey<Bls12>,
+    pub(super) ovk: SaplingOutgoingViewingKey,
+    pub(super) _network: PhantomData<N>,
+}
+
+impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
+    pub fn from_spending_key(key: &SaplingSpendingKey<N>, params: &<Bls12 as JubjubEngine>::Params) -> Self {
+        Self {
+            vk: SaplingViewingKey {
+                ak: params
+                    .generator(FixedGenerators::SpendingKeyGenerator)
+                    .mul(key.ask, params),
+                nk: params
+                    .generator(FixedGenerators::ProofGenerationKey)
+                    .mul(key.nsk, params),
+            },
+            ovk: key.ovk,
+            _network: PhantomData,
+        }
+    }
+
+    pub fn read<R: Read>(mut reader: R, params: &<Bls12 as JubjubEngine>::Params) -> io::Result<Self> {
+        let ak = edwards::Point::<Bls12, Unknown>::read(&mut reader, params)?;
+        let ak = match ak.as_prime_order(params) {
+            Some(p) => p,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ak not in prime-order subgroup",
+                ))
+            }
+        };
+        if ak == edwards::Point::zero() {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "ak not of prime order"));
+        }
+
+        let nk = edwards::Point::<Bls12, Unknown>::read(&mut reader, params)?;
+        let nk = match nk.as_prime_order(params) {
+            Some(p) => p,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "nk not in prime-order subgroup",
+                ))
+            }
+        };
+
+        let mut ovk = [0; 32];
+        reader.read_exact(&mut ovk)?;
+
+        Ok(Self {
+            vk: SaplingViewingKey { ak, nk },
+            ovk: SaplingOutgoingViewingKey(ovk),
+            _network: PhantomData,
+        })
+    }
+
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        self.vk.ak.write(&mut writer)?;
+        self.vk.nk.write(&mut writer)?;
+        writer.write_all(&self.ovk.0)?;
+
+        Ok(())
+    }
+
+    pub fn to_bytes(&self) -> [u8; 96] {
+        let mut result = [0u8; 96];
+        self.write(&mut result[..])
+            .expect("should be able to serialize a FullViewingKey");
+        result
+    }
+}
+
+impl<N: ZcashNetwork> PartialEq for SaplingFullViewingKey<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.vk.ak == other.vk.ak && self.vk.nk == other.vk.nk && self.ovk == other.ovk
+    }
+}
+
+impl<N: ZcashNetwork> Eq for SaplingFullViewingKey<N> {}
+
+impl<N: ZcashNetwork> Clone for SaplingFullViewingKey<N> {
+    fn clone(&self) -> Self {
+        Self {
+            vk: SaplingViewingKey {
+                ak: self.vk.ak.clone(),
+                nk: self.vk.nk.clone(),
+            },
+            ovk: self.ovk.clone(),
+            _network: PhantomData,
+        }
+    }
+}
+
+/// Represents a Zcash public key
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ZcashPublicKey<N: ZcashNetwork> {
+    /// P2PKH transparent viewing key
+    P2PKH(P2PKHViewingKey),
+    /// P2SH transparent viewing key
+    P2SH(P2SHViewingKey),
+    /// Sprout shielded viewing key
+    Sprout(SproutViewingKey),
+    /// Sapling shielded viewing key
+    Sapling(SaplingFullViewingKey<N>),
+}
+
+impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
+    type Address = ZcashAddress<N>;
+    type Format = Format;
+    type PrivateKey = ZcashPrivateKey<N>;
+
+    /// Returns the public key corresponding to the given private key.
+    fn from_private_key(private_key: &Self::PrivateKey) -> Self {
+        match private_key {
+            // Transparent Public Key
+            ZcashPrivateKey::<N>::P2PKH(spending_key) => ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
+                public_key: secp256k1::PublicKey::from_secret_key(
+                    &secp256k1::Secp256k1::new(),
+                    &spending_key.secret_key,
+                ),
+                compressed: spending_key.compressed,
+            }),
+            // Transparent Multisignature
+            ZcashPrivateKey::<N>::P2SH(_) => ZcashPublicKey::<N>::P2SH(P2SHViewingKey {}),
+            // Sprout Viewing Key
+            ZcashPrivateKey::<N>::Sprout(spending_key) => {
+                ZcashPublicKey::<N>::Sprout(SproutViewingKey::from_sprout_spending_key(&spending_key.spending_key))
+            }
+            // Sapling Full Viewing Key
+            ZcashPrivateKey::<N>::Sapling(spending_key) => {
+                ZcashPublicKey::<N>::Sapling(SaplingFullViewingKey::from_spending_key(&spending_key, &JUBJUB))
+            }
+        }
+    }
+
+    /// Returns the address of the corresponding private key.
+    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
+        Self::Address::from_public_key(self, format)
+    }
+}
+
 impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         match public_key.len() {
-            66 | 130 => Ok(Self(
-                ViewingKey::P2PKH(P2PKHViewingKey {
-                    public_key: secp256k1::PublicKey::from_str(public_key)?,
-                    compressed: public_key.len() == 66,
-                }),
-                PhantomData,
-            )),
+            66 | 130 => Ok(ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
+                public_key: secp256k1::PublicKey::from_str(public_key)?,
+                compressed: public_key.len() == 66,
+            })),
             97 => {
                 let data = public_key.from_base58()?;
                 let prefix = &data[..3];
@@ -173,7 +236,7 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
                 key_a.copy_from_slice(&data[3..35]);
                 key_b.copy_from_slice(&data[35..67]);
 
-                Ok(Self(ViewingKey::Sprout(SproutViewingKey { key_a, key_b }), PhantomData))
+                Ok(ZcashPublicKey::<N>::Sprout(SproutViewingKey { key_a, key_b }))
             }
             167 | 177 => {
                 let key = Bech32::from_str(public_key)?;
@@ -184,8 +247,10 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
                     let mut key = [0u8; 96];
                     key.copy_from_slice(&viewing_key);
 
-                    let fvk = FullViewingKey::read(&key[..], &JubjubBls12::new())?;
-                    Ok(Self(ViewingKey::Sapling(SaplingViewingKey(fvk)), PhantomData))
+                    Ok(ZcashPublicKey::<N>::Sapling(SaplingFullViewingKey::read(
+                        &key[..],
+                        &JubjubBls12::new(),
+                    )?))
                 } else {
                     Err(PublicKeyError::InvalidPrefix(prefix.into()))
                 }
@@ -197,8 +262,8 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
 
 impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.0 {
-            ViewingKey::P2PKH(p2pkh) => {
+        match &self {
+            ZcashPublicKey::<N>::P2PKH(p2pkh) => {
                 if p2pkh.compressed {
                     for s in &p2pkh.public_key.serialize()[..] {
                         write!(f, "{:02x}", s)?;
@@ -209,7 +274,7 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
                     }
                 }
             }
-            ViewingKey::Sprout(sprout) => {
+            ZcashPublicKey::<N>::Sprout(sprout) => {
                 let mut data = [0u8; 71];
                 data[..3].copy_from_slice(&N::to_sprout_viewing_key_prefix());
                 data[3..35].copy_from_slice(&sprout.key_a);
@@ -220,8 +285,8 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
 
                 write!(f, "{}", data.to_base58())?
             }
-            ViewingKey::Sapling(sapling) => {
-                let key = sapling.0.to_bytes().to_vec();
+            ZcashPublicKey::<N>::Sapling(sapling) => {
+                let key = sapling.to_bytes().to_vec();
                 match Bech32::new(N::to_sapling_viewing_key_prefix(), key.to_base32()) {
                     Ok(key) => write!(f, "{}", key.to_string())?,
                     Err(_) => return Err(fmt::Error),

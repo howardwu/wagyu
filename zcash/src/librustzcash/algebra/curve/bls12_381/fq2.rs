@@ -1,5 +1,5 @@
 use super::fq::{Fq, FROBENIUS_COEFF_FQ2_C1, NEGATIVE_ONE};
-use crate::librustzcash::ff::{Field, LegendreSymbol, SqrtField};
+use crate::librustzcash::algebra::field::{Field, LegendreSymbol, SqrtField};
 
 use rand_core::RngCore;
 use std::cmp::Ordering;
@@ -271,7 +271,7 @@ fn test_fq2_basics() {
 #[test]
 fn test_fq2_squaring() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::one(),
@@ -349,7 +349,7 @@ fn test_fq2_squaring() {
 #[test]
 fn test_fq2_mul() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::from_repr(FqRepr([
@@ -419,7 +419,7 @@ fn test_fq2_mul() {
 #[test]
 fn test_fq2_inverse() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     assert!(Fq2::zero().inverse().is_none());
 
@@ -472,7 +472,7 @@ fn test_fq2_inverse() {
 #[test]
 fn test_fq2_addition() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::from_repr(FqRepr([
@@ -542,7 +542,7 @@ fn test_fq2_addition() {
 #[test]
 fn test_fq2_subtraction() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::from_repr(FqRepr([
@@ -612,7 +612,7 @@ fn test_fq2_subtraction() {
 #[test]
 fn test_fq2_negation() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::from_repr(FqRepr([
@@ -663,7 +663,7 @@ fn test_fq2_negation() {
 #[test]
 fn test_fq2_doubling() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::from_repr(FqRepr([
@@ -714,7 +714,7 @@ fn test_fq2_doubling() {
 #[test]
 fn test_fq2_frobenius_map() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     let mut a = Fq2 {
         c0: Fq::from_repr(FqRepr([
@@ -837,7 +837,7 @@ fn test_fq2_frobenius_map() {
 #[test]
 fn test_fq2_sqrt() {
     use super::fq::FqRepr;
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
     assert_eq!(
         Fq2 {
@@ -916,7 +916,7 @@ fn test_fq2_sqrt() {
 
 #[test]
 fn test_fq2_legendre() {
-    use crate::librustzcash::ff::LegendreSymbol::*;
+    use crate::librustzcash::algebra::field::LegendreSymbol::*;
 
     assert_eq!(Zero, Fq2::zero().legendre());
     // i^2 = -1
@@ -955,9 +955,9 @@ fn test_fq2_mul_nonresidue() {
 
 #[test]
 fn fq2_field_tests() {
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
-    crate::librustzcash::pairing::tests::field::random_field_tests::<Fq2>();
-    crate::librustzcash::pairing::tests::field::random_sqrt_tests::<Fq2>();
-    crate::librustzcash::pairing::tests::field::random_frobenius_tests::<Fq2, _>(super::fq::Fq::char(), 13);
+    crate::librustzcash::algebra::curve::tests::field::random_field_tests::<Fq2>();
+    crate::librustzcash::algebra::curve::tests::field::random_sqrt_tests::<Fq2>();
+    crate::librustzcash::algebra::curve::tests::field::random_frobenius_tests::<Fq2, _>(super::fq::Fq::char(), 13);
 }

@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::PrimeField;
+use crate::librustzcash::algebra::field::PrimeField;
 use crate::librustzcash::sapling_crypto::constants;
 use crate::librustzcash::sapling_crypto::jubjub::{edwards, JubjubEngine, PrimeOrder};
 

@@ -1,5 +1,4 @@
-#[macro_use]
-pub use ff_derive::*;
+pub use field_derive::*;
 
 use rand_core::RngCore;
 use std::error::Error;

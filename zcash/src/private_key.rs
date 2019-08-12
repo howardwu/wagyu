@@ -1,6 +1,11 @@
 use crate::address::{Format, ZcashAddress};
-use crate::librustzcash::pairing::bls12_381::Bls12;
-use crate::librustzcash::zcash_primitives::keys::ExpandedSpendingKey;
+use crate::librustzcash::algebra::curve::bls12_381::Bls12;
+use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldRepr};
+use crate::librustzcash::sapling_crypto::{
+    jubjub::{FixedGenerators, JubjubEngine, JubjubParams, ToUniform},
+    primitives::ProofGenerationKey as SaplingProofGenerationKey,
+};
+use crate::librustzcash::zip32::prf_expand;
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
@@ -10,6 +15,7 @@ use bech32::{Bech32, FromBase32, ToBase32};
 use rand::Rng;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
+use std::io::{self, Read, Write};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Debug, fmt::Display};
@@ -100,14 +106,80 @@ impl<N: ZcashNetwork> Display for SproutSpendingKey<N> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SaplingOutgoingViewingKey(pub [u8; 32]);
+
 #[derive(Clone)]
 pub struct SaplingSpendingKey<N: ZcashNetwork> {
     /// Raw encoding of LEBS2OSP_256(sk)
     pub(super) spending_key: Option<[u8; 32]>,
-    /// Expanded spending key
-    pub(super) expanded_spending_key: ExpandedSpendingKey<Bls12>,
-    /// PhantomData
+    pub(super) ask: <Bls12 as JubjubEngine>::Fs,
+    pub(super) nsk: <Bls12 as JubjubEngine>::Fs,
+    pub(super) ovk: SaplingOutgoingViewingKey,
     pub(super) _network: PhantomData<N>,
+}
+
+impl<N: ZcashNetwork> SaplingSpendingKey<N> {
+    pub fn from_spending_key(sk: &[u8; 32]) -> Self {
+        let ask = <Bls12 as JubjubEngine>::Fs::to_uniform(prf_expand(sk, &[0x00]).as_bytes());
+        let nsk = <Bls12 as JubjubEngine>::Fs::to_uniform(prf_expand(sk, &[0x01]).as_bytes());
+        let mut ovk = SaplingOutgoingViewingKey([0u8; 32]);
+        ovk.0.copy_from_slice(&prf_expand(sk, &[0x02]).as_bytes()[..32]);
+        Self {
+            spending_key: Some(*sk),
+            ask,
+            nsk,
+            ovk,
+            _network: PhantomData,
+        }
+    }
+
+    pub fn proof_generation_key(&self, params: &<Bls12 as JubjubEngine>::Params) -> SaplingProofGenerationKey<Bls12> {
+        SaplingProofGenerationKey {
+            ak: params
+                .generator(FixedGenerators::SpendingKeyGenerator)
+                .mul(self.ask, params),
+            nsk: self.nsk,
+        }
+    }
+
+    pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+        let mut ask_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
+        ask_repr.read_le(&mut reader)?;
+        let ask = <Bls12 as JubjubEngine>::Fs::from_repr(ask_repr)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        let mut nsk_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
+        nsk_repr.read_le(&mut reader)?;
+        let nsk = <Bls12 as JubjubEngine>::Fs::from_repr(nsk_repr)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        let mut ovk = [0; 32];
+        reader.read_exact(&mut ovk)?;
+
+        Ok(Self {
+            spending_key: None,
+            ask,
+            nsk,
+            ovk: SaplingOutgoingViewingKey(ovk),
+            _network: PhantomData,
+        })
+    }
+
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        self.ask.into_repr().write_le(&mut writer)?;
+        self.nsk.into_repr().write_le(&mut writer)?;
+        writer.write_all(&self.ovk.0)?;
+
+        Ok(())
+    }
+
+    pub fn to_bytes(&self) -> [u8; 96] {
+        let mut result = [0u8; 96];
+        self.write(&mut result[..])
+            .expect("should be able to serialize an ExpandedSpendingKey");
+        result
+    }
 }
 
 impl<N: ZcashNetwork> Debug for SaplingSpendingKey<N> {
@@ -115,10 +187,7 @@ impl<N: ZcashNetwork> Debug for SaplingSpendingKey<N> {
         write!(
             f,
             "SaplingSpendingKey {{ sk: {:?}, ask: {:?}, nsk: {:?}, ovk: {:?} }}",
-            self.spending_key,
-            self.expanded_spending_key.ask,
-            self.expanded_spending_key.nsk,
-            self.expanded_spending_key.ovk
+            self.spending_key, self.ask, self.nsk, self.ovk
         )?;
         Ok(())
     }
@@ -133,7 +202,7 @@ impl<N: ZcashNetwork> Display for SaplingSpendingKey<N> {
             }
         } else {
             let mut buffer = vec![0; 96];
-            match self.expanded_spending_key.write(buffer.as_mut_slice()).is_ok() {
+            match self.write(buffer.as_mut_slice()).is_ok() {
                 true => {
                     for s in &buffer[..] {
                         write!(f, "{:02x}", s)?;
@@ -155,16 +224,15 @@ impl<N: ZcashNetwork> PartialEq for SaplingSpendingKey<N> {
                 }
             }
         }
-        self.expanded_spending_key.ask == other.expanded_spending_key.ask
-            && self.expanded_spending_key.nsk == other.expanded_spending_key.nsk
-            && self.expanded_spending_key.ovk == other.expanded_spending_key.ovk
+        self.ask == other.ask && self.nsk == other.nsk && self.ovk == other.ovk
     }
 }
 
 impl<N: ZcashNetwork> Eq for SaplingSpendingKey<N> {}
 
+/// Represents a Zcash private key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpendingKey<N: ZcashNetwork> {
+pub enum ZcashPrivateKey<N: ZcashNetwork> {
     /// P2PKH transparent spending key
     P2PKH(P2PKHSpendingKey<N>),
     /// P2SH transparent spending key
@@ -174,10 +242,6 @@ pub enum SpendingKey<N: ZcashNetwork> {
     /// Sapling shielded spending key
     Sapling(SaplingSpendingKey<N>),
 }
-
-/// Represents a Zcash Private Key
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZcashPrivateKey<N: ZcashNetwork>(SpendingKey<N>, PhantomData<N>);
 
 impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type Address = ZcashAddress<N>;
@@ -205,10 +269,9 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     pub fn new_p2pkh<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         let random: [u8; 32] = rng.gen();
         let secret_key = secp256k1::SecretKey::from_slice(&random)?;
-        Ok(Self(
-            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(secret_key, true)),
-            PhantomData,
-        ))
+        Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
+            secret_key, true,
+        )))
     }
 
     /// Returns a randomly-generated Zcash Sprout private key.
@@ -220,16 +283,6 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     /// Returns a randomly-generated Zcash Sapling private key.
     pub fn new_sapling<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         Self::sapling(&rng.gen())
-    }
-
-    /// Returns a Zcash private key given a spending key.
-    pub fn from_spending_key(spending_key: SpendingKey<N>) -> Self {
-        Self(spending_key, PhantomData)
-    }
-
-    /// Returns the spending key of the Zcash private key.
-    pub fn to_spending_key(&self) -> SpendingKey<N> {
-        self.0.clone()
     }
 
     /// Returns a P2PKH private key from a given WIF.
@@ -248,13 +301,10 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
-        Ok(Self(
-            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
-                secp256k1::SecretKey::from_slice(&data[1..33])?,
-                len == 38,
-            )),
-            PhantomData,
-        ))
+        Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
+            secp256k1::SecretKey::from_slice(&data[1..33])?,
+            len == 38,
+        )))
     }
 
     /// Returns a Sprout private key from a given spending key.
@@ -277,21 +327,13 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         sk.copy_from_slice(&data[2..34]);
         sk[0] &= 0x0f;
 
-        Ok(Self(
-            SpendingKey::<N>::Sprout(SproutSpendingKey::<N>::new(sk)),
-            PhantomData,
-        ))
+        Ok(ZcashPrivateKey::<N>::Sprout(SproutSpendingKey::<N>::new(sk)))
     }
 
     /// Returns a Sapling private key from a given seed.
     fn sapling(spending_key: &[u8; 32]) -> Result<Self, PrivateKeyError> {
-        Ok(Self(
-            SpendingKey::Sapling(SaplingSpendingKey::<N> {
-                spending_key: Some(*spending_key),
-                expanded_spending_key: ExpandedSpendingKey::from_spending_key(spending_key),
-                _network: PhantomData,
-            }),
-            PhantomData,
+        Ok(ZcashPrivateKey::<N>::Sapling(
+            SaplingSpendingKey::<N>::from_spending_key(spending_key),
         ))
     }
 
@@ -301,15 +343,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         if data.len() != 96 {
             return Err(PrivateKeyError::InvalidByteLength(data.len()));
         }
-
-        Ok(Self(
-            SpendingKey::Sapling(SaplingSpendingKey::<N> {
-                spending_key: None,
-                expanded_spending_key: ExpandedSpendingKey::read(&data[..])?,
-                _network: PhantomData,
-            }),
-            PhantomData,
-        ))
+        Ok(ZcashPrivateKey::<N>::Sapling(SaplingSpendingKey::<N>::read(&data[..])?))
     }
 }
 
@@ -370,10 +404,10 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
 
 impl<N: ZcashNetwork> Display for ZcashPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.0 {
-            SpendingKey::P2PKH(p2pkh) => write!(f, "{}", p2pkh.to_string()),
-            SpendingKey::Sprout(sprout) => write!(f, "{}", sprout.to_string()),
-            SpendingKey::Sapling(sapling) => write!(f, "{}", sapling.to_string()),
+        match &self {
+            ZcashPrivateKey::<N>::P2PKH(p2pkh) => write!(f, "{}", p2pkh.to_string()),
+            ZcashPrivateKey::<N>::Sprout(sprout) => write!(f, "{}", sprout.to_string()),
+            ZcashPrivateKey::<N>::Sapling(sapling) => write!(f, "{}", sapling.to_string()),
             _ => write!(f, ""),
         }
     }
@@ -399,14 +433,14 @@ mod tests {
     }
 
     fn test_from_str<N: ZcashNetwork>(
-        expected_spending_key: &SpendingKey<N>,
+        expected_private_key: &ZcashPrivateKey<N>,
         expected_public_key: &str,
         expected_address: &str,
         expected_format: &Format,
         seed: &str,
     ) {
         let private_key = ZcashPrivateKey::<N>::from_str(seed).unwrap();
-        assert_eq!(*expected_spending_key, private_key.0);
+        assert_eq!(*expected_private_key, private_key);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(
             expected_address,
@@ -496,7 +530,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::P2PKH,
@@ -586,7 +620,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::P2PKH,
@@ -676,7 +710,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::P2PKH,
@@ -766,7 +800,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::P2PKH,
@@ -856,7 +890,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::Sprout,
@@ -946,7 +980,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
@@ -1029,7 +1063,7 @@ mod tests {
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key,
                         expected_public_key,
                         expected_address,
                         &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
