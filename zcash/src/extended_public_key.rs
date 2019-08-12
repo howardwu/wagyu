@@ -1,13 +1,13 @@
 use crate::address::{Format, ZcashAddress};
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
+use crate::librustzcash::zcash_primitives::zip32::{ChildIndex as ZIP32ChildIndex, ExtendedFullViewingKey};
 use crate::network::ZcashNetwork;
 use crate::public_key::{SaplingViewingKey, ViewingKey, ZcashPublicKey};
 use wagyu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
-use zcash_primitives::zip32::ExtendedFullViewingKey;
 
 /// Represents a Zcash extended public key
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
                     extended_public_key = Self {
                         extended_full_viewing_key: match extended_public_key
                             .extended_full_viewing_key
-                            .derive_child(zcash_primitives::zip32::ChildIndex::NonHardened(*number))
+                            .derive_child(ZIP32ChildIndex::NonHardened(*number))
                         {
                             Ok(extended_full_viewing_key) => extended_full_viewing_key,
                             _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),
