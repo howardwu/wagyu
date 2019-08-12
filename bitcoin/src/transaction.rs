@@ -6,7 +6,6 @@ use crate::witness_program::WitnessProgram;
 
 use base58::{FromBase58};
 use bech32::{Bech32,FromBase32};
-use byteorder::{LittleEndian, WriteBytesExt};
 use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -146,7 +145,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
     pub fn serialize_transaction(&mut self, raw: bool) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_transaction: Vec<u8> = Vec::new();
 
-        serialized_transaction.extend(u32_to_bytes(self.version)?);
+        serialized_transaction.extend(&self.version.to_le_bytes());
 
         if self.segwit_flag {
             serialized_transaction.extend(vec![0x00, 0x01]);
@@ -181,7 +180,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
             }
         }
 
-        serialized_transaction.extend(u32_to_bytes(self.lock_time)?);
+        serialized_transaction.extend(&self.lock_time.to_le_bytes());
 
         Ok(serialized_transaction)
     }
@@ -201,7 +200,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
         let message = secp256k1::Message::from_slice(&transaction_hash)?;
         let mut signature =  secp256k1::Secp256k1::signing_only().sign(&message, &private_key.to_secp256k1_secret_key()).serialize_der().to_vec();
-        signature.push(u32_to_bytes(input.sig_hash_code as u32)?[0]);
+        signature.push((input.sig_hash_code as u32).to_le_bytes()[0]);
 
         let public_key = private_key.to_public_key();
         let public_key_bytes = if address_format == Format::P2PKH && !public_key.is_compressed() {
@@ -235,7 +234,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         sig_hash_code: SigHashCode
     ) -> Result<Vec<u8>, TransactionError> {
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
-        transaction_hash_preimage.extend(u32_to_bytes(self.version)?);
+        transaction_hash_preimage.extend(&self.version.to_le_bytes());
         transaction_hash_preimage.extend(variable_length_integer(self.inputs.len() as u64)?);
 
         for (index, input) in self.inputs.iter().enumerate() {
@@ -247,8 +246,8 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
             transaction_hash_preimage.extend(output.serialize()?);
         }
 
-        transaction_hash_preimage.extend( u32_to_bytes(self.lock_time)?);
-        transaction_hash_preimage.extend(u32_to_bytes(sig_hash_code as u32)?);
+        transaction_hash_preimage.extend( &self.lock_time.to_le_bytes());
+        transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
 
         Ok(transaction_hash_preimage)
     }
@@ -266,7 +265,7 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
 
         for input in &self.inputs {
             prev_outputs.extend(&input.out_point.reverse_transaction_id);
-            prev_outputs.extend(u32_to_bytes(input.out_point.index)?);
+            prev_outputs.extend(&input.out_point.index.to_le_bytes());
             prev_sequences.extend(&input.sequence);
         }
 
@@ -278,10 +277,6 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let hash_prev_outputs = Sha256::digest(&Sha256::digest(&prev_outputs));
         let hash_sequence = Sha256::digest(&Sha256::digest(&prev_sequences));
         let hash_outputs = Sha256::digest(&Sha256::digest(&outputs));
-
-        let mut amount: Vec<u8> = Vec::new();
-        amount.write_u64::<LittleEndian>(input.out_point.amount)?;
-
         let script = match input.out_point.address.format() {
             Format::Bech32 => input.out_point.script_pub_key.clone(),
             _ => input.out_point.redeem_script.clone()
@@ -297,17 +292,17 @@ impl <N: BitcoinNetwork> BitcoinTransaction<N> {
         let script_code = [variable_length_integer(script_code.len() as u64)?, script_code].concat();
 
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
-        transaction_hash_preimage.extend(u32_to_bytes(self.version)?);
+        transaction_hash_preimage.extend(&self.version.to_le_bytes());
         transaction_hash_preimage.extend(hash_prev_outputs);
         transaction_hash_preimage.extend(hash_sequence);
         transaction_hash_preimage.extend(&input.out_point.reverse_transaction_id);
-        transaction_hash_preimage.extend(u32_to_bytes(input.out_point.index)?);
+        transaction_hash_preimage.extend(&input.out_point.index.to_le_bytes());
         transaction_hash_preimage.extend(&script_code);
-        transaction_hash_preimage.extend(amount);
+        transaction_hash_preimage.extend(&input.out_point.amount.to_le_bytes());
         transaction_hash_preimage.extend(&input.sequence);
         transaction_hash_preimage.extend(hash_outputs);
-        transaction_hash_preimage.extend(u32_to_bytes(self.lock_time)?);
-        transaction_hash_preimage.extend(u32_to_bytes(sig_hash_code as u32)?);
+        transaction_hash_preimage.extend(&self.lock_time.to_le_bytes());
+        transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
 
         Ok(transaction_hash_preimage)
     }
@@ -353,7 +348,7 @@ impl <N: BitcoinNetwork> BitcoinTransactionInput<N> {
     pub fn serialize(&self, raw: bool) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_input: Vec<u8> = Vec::new();
         serialized_input.extend(&self.out_point.reverse_transaction_id);
-        serialized_input.extend(u32_to_bytes(self.out_point.index)?);
+        serialized_input.extend(&self.out_point.index.to_le_bytes());
         if raw {
             serialized_input.extend(vec![0x00]);
         } else {
@@ -390,18 +385,11 @@ impl <N: BitcoinNetwork> BitcoinTransactionOutput<N> {
     /// Serialize the transaction output
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_output: Vec<u8> = Vec::new();
-        serialized_output.write_u64::<LittleEndian>(self.amount)?;
+        serialized_output.extend(&self.amount.to_le_bytes());
         serialized_output.extend( variable_length_integer(self.output_public_key.len() as u64)?);
         serialized_output.extend(&self.output_public_key);
         Ok(serialized_output)
     }
-}
-
-/// Write a u32 into a 4 byte vector
-fn u32_to_bytes(num: u32) -> Result<Vec<u8>, TransactionError> {
-    let mut num_vec: Vec<u8> = Vec::new();
-    num_vec.write_u32::<LittleEndian>(num)?;
-    Ok(num_vec)
 }
 
 /// Generate the script_pub_key of a corresponding address
@@ -488,19 +476,14 @@ pub fn validate_address_format(
 /// Return Bitcoin variable length integer of the size
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
-    let mut size_bytes: Vec<u8> = Vec::new();
     if size < 253 {
         Ok(vec![size as u8])
     } else if size <= 65535 { // u16::max_value()
-//        size_bytes.extend(size as u16).to_le_bytes();
-        size_bytes.write_u16::<LittleEndian>(size as u16)?;
-        Ok([vec![0xfd], size_bytes].concat())
+        Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat())
     } else if size <= 4294967295 { // u32::max_value()
-        size_bytes.write_u32::<LittleEndian>(size as u32)?;
-        Ok([vec![0xfe], size_bytes].concat())
+        Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat())
     } else {
-        size_bytes.write_u64::<LittleEndian>(size)?;
-        Ok([vec![0xff], size_bytes].concat())
+        Ok([vec![0xff], size.to_le_bytes().to_vec()].concat())
     }
 }
 
