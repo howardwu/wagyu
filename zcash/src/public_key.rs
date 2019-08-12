@@ -1,4 +1,7 @@
 use crate::address::{Format, ZcashAddress};
+use crate::librustzcash::pairing::bls12_381::Bls12;
+use crate::librustzcash::sapling_crypto::jubjub::JubjubBls12;
+use crate::librustzcash::zcash_primitives::{keys::FullViewingKey, JUBJUB};
 use crate::network::ZcashNetwork;
 use crate::private_key::{SpendingKey, ZcashPrivateKey};
 use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};
@@ -7,14 +10,11 @@ use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
 use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
-use pairing::bls12_381::Bls12;
-use sapling_crypto::jubjub::JubjubBls12;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Display};
-use zcash_primitives::{keys::FullViewingKey, JUBJUB};
 
 static H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
