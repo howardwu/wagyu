@@ -8,7 +8,6 @@ use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyE
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
-use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 use secp256k1;
 use std::{
@@ -146,7 +145,13 @@ impl SproutViewingKey {
 
         let mut state = H256;
         sha256_digest_block(&mut state, &buf);
-        BigEndian::write_u32_into(&state, result);
+
+        result.copy_from_slice(
+            &state
+                .iter()
+                .flat_map(|num| num.to_be_bytes().to_vec())
+                .collect::<Vec<u8>>(),
+        );
     }
 }
 
