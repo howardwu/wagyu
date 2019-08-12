@@ -39,6 +39,7 @@ impl TryFrom<Vec<ChildIndex>> for ZcashDerivationPath {
             true => &path[0..3],
             false => &path,
         };
+
         if !primary
             .iter()
             .filter(|&&index| index.is_normal())

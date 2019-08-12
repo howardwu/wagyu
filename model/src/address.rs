@@ -52,6 +52,9 @@ pub enum AddressError {
     #[fail(display = "{}", _0)]
     Message(String),
 
+    #[fail(display = "missing public spend key and/or public view key")]
+    MissingPublicKey,
+
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
 
@@ -62,6 +65,18 @@ pub enum AddressError {
 impl From<&'static str> for AddressError {
     fn from(msg: &'static str) -> Self {
         AddressError::Message(msg.into())
+    }
+}
+
+impl From<PrivateKeyError> for AddressError {
+    fn from(error: PrivateKeyError) -> Self {
+        AddressError::PrivateKeyError(error)
+    }
+}
+
+impl From<PublicKeyError> for AddressError {
+    fn from(error: PublicKeyError) -> Self {
+        AddressError::PublicKeyError(error)
     }
 }
 
@@ -83,15 +98,9 @@ impl From<bech32::Error> for AddressError {
     }
 }
 
-impl From<PrivateKeyError> for AddressError {
-    fn from(error: PrivateKeyError) -> Self {
-        AddressError::PrivateKeyError(error)
-    }
-}
-
-impl From<PublicKeyError> for AddressError {
-    fn from(error: PublicKeyError) -> Self {
-        AddressError::PublicKeyError(error)
+impl From<hex::FromHexError> for AddressError {
+    fn from(error: hex::FromHexError) -> Self {
+        AddressError::Crate("hex", format!("{:?}", error))
     }
 }
 

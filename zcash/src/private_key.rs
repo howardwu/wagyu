@@ -4,6 +4,7 @@ use crate::public_key::ZcashPublicKey;
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
+use bech32::{Bech32, FromBase32, ToBase32};
 use pairing::bls12_381::Bls12;
 use rand::Rng;
 use secp256k1;
@@ -31,12 +32,22 @@ impl<N: ZcashNetwork> P2PKHSpendingKey<N> {
             _network: PhantomData,
         }
     }
+
+    /// Returns the p2pkh spending key (secp256k1 secret key)
+    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
+        self.secret_key.clone()
+    }
+
+    /// Returns `true` if the p2pkh spending key is in compressed form.
+    pub fn is_compressed(&self) -> bool {
+        self.compressed
+    }
 }
 
 impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         /// Returns a WIF string given a secp256k1 secret key.
-        fn secret_key_to_wif<N: ZcashNetwork>(secret_key: &secp256k1::SecretKey, compressed: bool) -> String {
+        fn to_wif<N: ZcashNetwork>(secret_key: &secp256k1::SecretKey, compressed: bool) -> String {
             let mut wif = [0u8; 38];
             wif[0] = N::to_wif_prefix();
             wif[1..33].copy_from_slice(&secret_key[..]);
@@ -52,7 +63,7 @@ impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
                 wif[..37].to_base58()
             }
         }
-        write!(f, "{}", secret_key_to_wif::<N>(&self.secret_key, self.compressed))
+        write!(f, "{}", to_wif::<N>(&self.secret_key, self.compressed))
     }
 }
 
@@ -60,15 +71,46 @@ impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
 pub struct P2SHSpendingKey {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SproutSpendingKey {}
-
-#[derive(Clone)]
-pub struct SaplingSpendingKey {
-    pub(super) spending_key: Option<[u8; 32]>,
-    pub(super) expanded_spending_key: ExpandedSpendingKey<Bls12>,
+pub struct SproutSpendingKey<N: ZcashNetwork> {
+    /// Raw encoding of (0000 || 252-bit a_sk)
+    pub(super) spending_key: [u8; 32],
+    /// PhantomData
+    _network: PhantomData<N>,
 }
 
-impl Debug for SaplingSpendingKey {
+impl<N: ZcashNetwork> SproutSpendingKey<N> {
+    pub fn new(spending_key: [u8; 32]) -> Self {
+        Self {
+            spending_key,
+            _network: PhantomData,
+        }
+    }
+}
+
+impl<N: ZcashNetwork> Display for SproutSpendingKey<N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut spending_key = [0u8; 38];
+        spending_key[0..2].copy_from_slice(&N::to_sprout_spending_key_prefix());
+        spending_key[2..34].copy_from_slice(&self.spending_key);
+
+        let sum = &checksum(&spending_key[0..34])[0..4];
+        spending_key[34..].copy_from_slice(sum);
+
+        write!(f, "{}", spending_key.to_base58())
+    }
+}
+
+#[derive(Clone)]
+pub struct SaplingSpendingKey<N: ZcashNetwork> {
+    /// Raw encoding of LEBS2OSP_256(sk)
+    pub(super) spending_key: Option<[u8; 32]>,
+    /// Expanded spending key
+    pub(super) expanded_spending_key: ExpandedSpendingKey<Bls12>,
+    /// PhantomData
+    pub(super) _network: PhantomData<N>,
+}
+
+impl<N: ZcashNetwork> Debug for SaplingSpendingKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -82,11 +124,12 @@ impl Debug for SaplingSpendingKey {
     }
 }
 
-impl Display for SaplingSpendingKey {
+impl<N: ZcashNetwork> Display for SaplingSpendingKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(spending_key) = self.spending_key {
-            for s in &spending_key[..] {
-                write!(f, "{:02x}", s)?;
+            match Bech32::new(N::to_sapling_spending_key_prefix(), spending_key.to_base32()) {
+                Ok(key) => write!(f, "{}", key.to_string())?,
+                Err(_) => return Err(fmt::Error),
             }
         } else {
             let mut buffer = vec![0; 96];
@@ -96,16 +139,14 @@ impl Display for SaplingSpendingKey {
                         write!(f, "{:02x}", s)?;
                     }
                 }
-                false => {
-                    write!(f, "unable to print expanded spending key")?;
-                }
+                false => return Err(fmt::Error),
             }
         }
         Ok(())
     }
 }
 
-impl PartialEq for SaplingSpendingKey {
+impl<N: ZcashNetwork> PartialEq for SaplingSpendingKey<N> {
     fn eq(&self, other: &Self) -> bool {
         if let Some(this) = self.spending_key {
             if let Some(that) = other.spending_key {
@@ -120,7 +161,7 @@ impl PartialEq for SaplingSpendingKey {
     }
 }
 
-impl Eq for SaplingSpendingKey {}
+impl<N: ZcashNetwork> Eq for SaplingSpendingKey<N> {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpendingKey<N: ZcashNetwork> {
@@ -129,9 +170,9 @@ pub enum SpendingKey<N: ZcashNetwork> {
     /// P2SH transparent spending key
     P2SH(P2SHSpendingKey),
     /// Sprout shielded spending key
-    Sprout(SproutSpendingKey),
+    Sprout(SproutSpendingKey<N>),
     /// Sapling shielded spending key
-    Sapling(SaplingSpendingKey),
+    Sapling(SaplingSpendingKey<N>),
 }
 
 /// Represents a Zcash Private Key
@@ -145,14 +186,7 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
 
     /// Returns a randomly-generated compressed Zcash private key.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
-        let random: [u8; 32] = rng.gen();
-        Ok(Self(
-            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
-                secp256k1::SecretKey::from_slice(&random)?,
-                true,
-            )),
-            PhantomData,
-        ))
+        Self::new_p2pkh(rng)
     }
 
     /// Returns the public key of the corresponding Zcash private key.
@@ -167,6 +201,27 @@ impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
 }
 
 impl<N: ZcashNetwork> ZcashPrivateKey<N> {
+    /// Returns a randomly-generated Zcash P2PKH private key.
+    pub fn new_p2pkh<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let random: [u8; 32] = rng.gen();
+        let secret_key = secp256k1::SecretKey::from_slice(&random)?;
+        Ok(Self(
+            SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(secret_key, true)),
+            PhantomData,
+        ))
+    }
+
+    /// Returns a randomly-generated Zcash Sprout private key.
+    pub fn new_sprout<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        let spending_key = SproutSpendingKey::<N>::new(rng.gen());
+        Self::sprout(&spending_key.to_string())
+    }
+
+    /// Returns a randomly-generated Zcash Sapling private key.
+    pub fn new_sapling<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
+        Self::sapling(&rng.gen())
+    }
+
     /// Returns a Zcash private key given a spending key.
     pub fn from_spending_key(spending_key: SpendingKey<N>) -> Self {
         Self(spending_key, PhantomData)
@@ -175,19 +230,6 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     /// Returns the spending key of the Zcash private key.
     pub fn to_spending_key(&self) -> SpendingKey<N> {
         self.0.clone()
-    }
-
-    /// Returns either a Zcash private key struct or errors.
-    pub fn from(s: &str, format: &Format) -> Result<Self, PrivateKeyError> {
-        match format {
-            Format::P2PKH => Self::p2pkh(s),
-            Format::Sapling(_) => match hex::decode(s)?.len() {
-                32 => Self::sapling(s),
-                96 => Self::sapling_expanded(s),
-                length => Err(PrivateKeyError::InvalidByteLength(length)),
-            },
-            _ => Err(PrivateKeyError::UnsupportedFormat),
-        }
     }
 
     /// Returns a P2PKH private key from a given WIF.
@@ -206,9 +248,6 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
-        // Check that the network byte correspond with the correct network.
-        let _ = N::from_wif_prefix(data[0])?;
-
         Ok(Self(
             SpendingKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
                 secp256k1::SecretKey::from_slice(&data[1..33])?,
@@ -218,20 +257,39 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         ))
     }
 
-    /// Returns a Sapling private key from a given seed.
-    fn sapling(spending_key: &str) -> Result<Self, PrivateKeyError> {
-        let data = hex::decode(spending_key)?;
-        if data.len() != 32 {
-            return Err(PrivateKeyError::InvalidByteLength(data.len()));
+    /// Returns a Sprout private key from a given spending key.
+    fn sprout(spending_key: &str) -> Result<Self, PrivateKeyError> {
+        let data = spending_key.from_base58()?;
+        let len = data.len();
+        if len != 38 {
+            return Err(PrivateKeyError::InvalidByteLength(len));
+        }
+
+        let expected = &data[len - 4..][0..4];
+        let checksum = &checksum(&data[0..len - 4])[0..4];
+        if *expected != *checksum {
+            let expected = expected.to_base58();
+            let found = checksum.to_base58();
+            return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
         let mut sk = [0u8; 32];
-        sk.copy_from_slice(data.as_slice());
+        sk.copy_from_slice(&data[2..34]);
+        sk[0] &= 0x0f;
 
         Ok(Self(
-            SpendingKey::Sapling(SaplingSpendingKey {
-                spending_key: Some(sk),
-                expanded_spending_key: ExpandedSpendingKey::from_spending_key(&sk[..]),
+            SpendingKey::<N>::Sprout(SproutSpendingKey::<N>::new(sk)),
+            PhantomData,
+        ))
+    }
+
+    /// Returns a Sapling private key from a given seed.
+    fn sapling(spending_key: &[u8; 32]) -> Result<Self, PrivateKeyError> {
+        Ok(Self(
+            SpendingKey::Sapling(SaplingSpendingKey::<N> {
+                spending_key: Some(*spending_key),
+                expanded_spending_key: ExpandedSpendingKey::from_spending_key(spending_key),
+                _network: PhantomData,
             }),
             PhantomData,
         ))
@@ -245,9 +303,10 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         }
 
         Ok(Self(
-            SpendingKey::Sapling(SaplingSpendingKey {
+            SpendingKey::Sapling(SaplingSpendingKey::<N> {
                 spending_key: None,
                 expanded_spending_key: ExpandedSpendingKey::read(&data[..])?,
+                _network: PhantomData,
             }),
             PhantomData,
         ))
@@ -260,23 +319,48 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let b58 = s.from_base58();
         let hex = hex::decode(s);
+        let b32 = Bech32::from_str(s);
 
-        // Transparent
-        if b58.is_ok() && hex.is_err() {
-            let data = b58.unwrap();
+        if b58.is_ok() && hex.is_err() && b32.is_err() {
+            let data = b58?;
             if data.len() != 37 && data.len() != 38 {
                 return Err(PrivateKeyError::InvalidByteLength(data.len()));
             }
-            return Self::p2pkh(s);
+
+            let prefix = &data[0..2];
+
+            // Sprout
+            if prefix == N::to_sprout_spending_key_prefix() {
+                return Self::sprout(s);
+            }
+
+            // Transparent
+            // Check that the network byte correspond with the correct network.
+            if N::from_wif_prefix(data[0]).is_ok() {
+                return Self::p2pkh(s);
+            }
+
+            return Err(PrivateKeyError::UnsupportedFormat);
         }
 
-        // Shielded
-        if b58.is_err() && hex.is_ok() {
-            let data = hex.unwrap();
-            if data.len() == 32 {
-                return Self::sapling(s);
-            } else if data.len() == 96 {
+        // Sapling expanded spending key
+        if hex.is_ok() && b32.is_err() {
+            let data = hex?;
+            if data.len() == 96 {
                 return Self::sapling_expanded(s);
+            }
+        }
+
+        // Sapling spending key
+        if b58.is_err() && b32.is_ok() {
+            let key = b32?;
+            let prefix = key.hrp();
+            let spending_key: Vec<u8> = FromBase32::from_base32(key.data())?;
+
+            if prefix == N::to_sapling_spending_key_prefix() {
+                let mut key = [0u8; 32];
+                key.copy_from_slice(&spending_key);
+                return Self::sapling(&key);
             }
         }
 
@@ -288,6 +372,7 @@ impl<N: ZcashNetwork> Display for ZcashPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             SpendingKey::P2PKH(p2pkh) => write!(f, "{}", p2pkh.to_string()),
+            SpendingKey::Sprout(sprout) => write!(f, "{}", sprout.to_string()),
             SpendingKey::Sapling(sapling) => write!(f, "{}", sapling.to_string()),
             _ => write!(f, ""),
         }
@@ -313,14 +398,14 @@ mod tests {
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from<N: ZcashNetwork>(
+    fn test_from_str<N: ZcashNetwork>(
         expected_spending_key: &SpendingKey<N>,
         expected_public_key: &str,
         expected_address: &str,
         expected_format: &Format,
         seed: &str,
     ) {
-        let private_key = ZcashPrivateKey::<N>::from(seed, expected_format).unwrap();
+        let private_key = ZcashPrivateKey::<N>::from_str(seed).unwrap();
         assert_eq!(*expected_spending_key, private_key.0);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(
@@ -343,6 +428,14 @@ mod tests {
         assert!(ZcashPrivateKey::<N>::from_str(&spending_key[0..(length - 1)]).is_err());
         assert!(ZcashPrivateKey::<N>::from_str(&format!("{}{}", spending_key, first)).is_err());
         assert!(ZcashPrivateKey::<N>::from_str(&format!("{}{}", spending_key, spending_key)).is_err());
+    }
+
+    fn test_invalid_checksum<N: ZcashNetwork>(spending_key: &str) {
+        let length = spending_key.len();
+        let mut s = String::from(spending_key);
+        s.replace_range((length - 4).., "AAAA");
+
+        assert!(ZcashPrivateKey::<N>::from_str(&s).is_err())
     }
 
     mod p2pkh_mainnet_compressed {
@@ -402,7 +495,7 @@ mod tests {
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                    test_from(
+                    test_from_str(
                         &expected_private_key.0,
                         expected_public_key,
                         expected_address,
@@ -424,6 +517,13 @@ mod tests {
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
                 test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
             });
         }
     }
@@ -485,7 +585,7 @@ mod tests {
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                    test_from(
+                    test_from_str(
                         &expected_private_key.0,
                         expected_public_key,
                         expected_address,
@@ -507,6 +607,13 @@ mod tests {
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
                 test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
             });
         }
     }
@@ -568,7 +675,7 @@ mod tests {
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                    test_from(
+                    test_from_str(
                         &expected_private_key.0,
                         expected_public_key,
                         expected_address,
@@ -590,6 +697,13 @@ mod tests {
         fn invalid_spending_key_length() {
             KEYPAIRS.iter().for_each(|(private_key, _, _)| {
                 test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
             });
         }
     }
@@ -651,7 +765,7 @@ mod tests {
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
                     let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                    test_from(
+                    test_from_str(
                         &expected_private_key.0,
                         expected_public_key,
                         expected_address,
@@ -675,6 +789,103 @@ mod tests {
                 test_invalid_spending_key_length::<N>(private_key);
             });
         }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
+            });
+        }
+    }
+
+    mod sprout_mainnet {
+        use super::*;
+
+        type N = Mainnet;
+
+        const KEYPAIRS: [(&str, &str, &str); 5] = [
+            (
+                "SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
+                "ZiVKYQyUcyAJLKwcosSeDxkGRhygFdAPWsr3m8UgjC5X85yqNyLTtJJJYNH83Wf2AQKU6TZsd65MXBZLFj6eSCAFcnCFuVCFS",
+                "zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
+            ),
+            (
+                "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
+                "ZiVKfdhhmQ1fpXaxyW5zRXw4Dhg9cbKRgK7mNFoBLiKjiBZiHJYJTpV2gNMDMPY9sRC96vnKZcnTMSi65SKPyL4WNQNm9PT5H",
+                "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
+            ),
+            (
+                "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
+                "ZiVKkMUGwx4GgtwxTedRHYewVVskWicz8APQgdcYmvUsiLYgSh3cLAa8TwiR3shyNngGbLiUbYMkZ8F1giXmmcED98rDMwNSG",
+                "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
+            ),
+            (
+                "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
+                "ZiVKkeb8STw7kpJQsjRCQKovQBciPcfjkpajuuS25DTXSQSVasnq4BkyaMLBBxAkZ8fv6f18woWgaA8W7kGvYp1C1ESaWGjwV",
+                "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
+            ),
+            (
+                "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
+                "ZiVKvpWQiDpxAvWTMLkjjSbCiBGc4kXhtkgAJfW1JVbCTUY4YaAVvVZzCz6wspG9qttciRFLEXm3HLQAmssFbUp9uPEkP3uu5",
+                "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
+            ),
+        ];
+
+        #[test]
+        fn to_public_key() {
+            KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
+                let public_key = ZcashPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_to_public_key(&public_key, &private_key);
+            });
+        }
+
+        #[test]
+        fn to_address() {
+            KEYPAIRS.iter().for_each(|(private_key, _, address)| {
+                let address = ZcashAddress::from_str(address).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_to_address(&address, &Format::Sprout, &private_key);
+            });
+        }
+
+        #[test]
+        fn from() {
+            KEYPAIRS
+                .iter()
+                .for_each(|(private_key, expected_public_key, expected_address)| {
+                    let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                    test_from_str(
+                        &expected_private_key.0,
+                        expected_public_key,
+                        expected_address,
+                        &Format::Sprout,
+                        &private_key,
+                    );
+                });
+        }
+
+        #[test]
+        fn to_str() {
+            KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
+                let private_key = ZcashPrivateKey::<N>::from_str(&expected_private_key).unwrap();
+                test_to_str(expected_private_key, &private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_spending_key_length() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_spending_key_length::<N>(private_key);
+            });
+        }
+
+        #[test]
+        fn invalid_checksum() {
+            KEYPAIRS.iter().for_each(|(private_key, _, _)| {
+                test_invalid_checksum::<N>(private_key);
+            });
+        }
     }
 
     mod sapling_mainnet {
@@ -684,28 +895,28 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
-                "bb69cdb5e70e2bbd24f771cd15a18ad58d3ab9e1aa3cab186b9b65d17f7aadef",
-                "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "secret-spending-key-main1hd5umd08pc4m6f8hw8x3tgv26kxn4w0p4g72kxrtndjazlm64hhsnczrtx",
+                "zviews16ggk069w3n9u6d8edmzchhme3jnejssh6qupyyqw48ju6ns4jm8r508jkmrr93zank3mpszymqn9t95lw9jj2plwhuj72pzgddlm3e90e8c73nmt36hp3duxa3uayxxs588ljz6ryul2zck6nx5a9csalupjg0s0",
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
                 "275043030be0d6106d40077090821249cb94973266f8058a390c1a123df9b108fbd3af756453d58e31ff2a8f3c621767c57bbcf3a0127b15b73cb7237a48da0bafc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
-                "d21167e8ae8ccbcd34f96ec58bdf798ca7994217d03812100ea9e5cd4e1596ce3a3cf2b6c632c45d9da3b0c044d82655969f71652507eebf25e504486b7fb8e4afc9f1e8cf6b8eae18b786ec79d218d0a1cff90b43273ea162da99a9d2e21dff",
+                "zviews16ggk069w3n9u6d8edmzchhme3jnejssh6qupyyqw48ju6ns4jm8r508jkmrr93zank3mpszymqn9t95lw9jj2plwhuj72pzgddlm3e90e8c73nmt36hp3duxa3uayxxs588ljz6ryul2zck6nx5a9csalupjg0s0",
                 "zs1dq9dlh6u6hna0u96aqtynxt3acddtgkgdx4re65500nmc2aze0my65ky36vaqvj4hkc9ut66eyf"
             ),
             (
-                "0c9f5d70eaac46862150ae3f2a4eecc68753a72567eb66210df8e18a91425adf",
-                "bb2d4d7e05b1afb686a7e4d7d8e82a592f25b26caa78a06e939e0ef835c6100c738d89a62c2acd969ef1c68d67d9d365b277145cc60a8e95e11315e192b22c29f612476ea95aa2d4b7df5b881c363829b39ccaa6318c6df3bd2ba6274a15fea0",
+                "secret-spending-key-main1pj046u8243rgvg2s4clj5nhvc6r48fe9vl4kvggdlrsc4y2ztt0skswpn9",
+                "zviews1hvk56ls9kxhmdp48unta36p2tyhjtvnv4fu2qm5nnc80sdwxzqx88rvf5ckz4nvknmcudrt8m8fktvnhz3wvvz5wjhs3x90pj2ezc20kzfrka2265t2t0h6m3qwrvwpfkwwv4f3333kl80ft5cn559075qt2lj8x",
                 "zs1akf8swew32rr4n63qedewhp2yz3wcjeazp6efs82lgealmux0h30ayju440rqyuscdr3wd5yuap"
             ),
             (
-                "fc1edae9146d5c7f9398871ac09097fea6c1593e8c7b6f3384af36ff9cc3b2ee",
-                "d610ec21ba084c1b4f42e9c38eefce1dfbf5c0843a549d08b5119007745b171db468b58307cd2c7e54ede334c4e98593e21776043e8956740b102513c03cb023301a9133ee59b826143304b041d8e1f2f1f91d3625ad7dac9e4c88e630a76d8d",
+                "secret-spending-key-main1ls0d46g5d4w8lyucsudvpyyhl6nvzkf733ak7vuy4um0l8xrkthqnh9a7d",
+                "zviews16cgwcgd6ppxpkn6za8pcam7wrhaltsyy8f2f6z94zxgqwazmzuwmg694svru6tr72nk7xdxyaxze8cshwczraz2kws93qfgncq7tqgesr2gn8mjehqnpgvcykpqa3c0j78u36d394476e8jv3rnrpfmd3525eysp",
                 "zs14q3vapgrd6wfs9pr7hfy37y9djm3gnq09ztxsqs2x2vzv0lck978843q8r2ysejgwp9mcx7ws48"
             ),
             (
-                "6038f5e45498c92edd5e6a2588bcce7bcbac604e4e825ee7015d11f33d1e9673",
-                "9847a15f3393ad8921f2b282e3033d48adb2eae9455f1e6b77038be913e04c51967b6db4f726fc21c57cf73d3c1fac7d044bc8ea2c5a75334f4641d18f2d0c1335c884a4853f740e93e55d7b9a7b82e7d8c6d17b2305282143359807f2d690d1",
+                "secret-spending-key-main1vqu0tez5nryjah27dgjc30xw0096cczwf6p9aecpt5glx0g7jees99g9fe",
+                "zviews1npr6zhenjwkcjg0jk2pwxqeafzkm96hfg403u6mhqw97jylqf3gev7mdknmjdlppc470w0fur7k86pzter4zckn4xd85vsw33ukscye4ezz2fpflws8f8e2a0wd8hqh8mrrdz7erq55zzse4nqrl945s6yx2ttmj",
                 "zs1rzjhudlm99h5fyrh7dfsvkfg9l5z587w97pm3ce9hpwfxpgck6p55lwu5mcapz7g3r40y597n2c"
             )
         ];
@@ -714,7 +925,7 @@ mod tests {
         fn to_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
                 let public_key = ZcashPublicKey::<N>::from_str(public_key).unwrap();
-                let private_key = ZcashPrivateKey::<N>::from(&private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_to_public_key(&public_key, &private_key);
             });
         }
@@ -723,7 +934,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
-                let private_key = ZcashPrivateKey::<N>::from(&private_key, &address.format()).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_to_address(&address, &address.format(), &private_key);
             });
         }
@@ -733,9 +944,8 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
-                    let expected_private_key =
-                        ZcashPrivateKey::<N>::from(&private_key, &Format::Sapling(None)).unwrap();
-                    test_from(
+                    let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                    test_from_str(
                         &expected_private_key.0,
                         expected_public_key,
                         expected_address,
@@ -748,7 +958,7 @@ mod tests {
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
-                let private_key = ZcashPrivateKey::<N>::from(&expected_private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&expected_private_key).unwrap();
                 test_to_str(expected_private_key, &private_key);
             });
         }
@@ -768,28 +978,28 @@ mod tests {
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
-                "49110debf1fac0086a2fabd60aab413d0281732b6e51a03dd6ec4f334469ef9f",
-                "35d5cf61a3d8cf3078112693c1839a14307179008ea5f0902810d03e4a05d8bd194129f2b82ded4a973ad24aa3e4d8e49a10e039f5060616981511d6a888ca8eca66a812697612fc31fa4e0928ac144a3938d5793beda10f7513e15a6f95ad80",
+                "secret-spending-key-test1fygsm6l3ltqqs63040tq426p85pgzuetdeg6q0wka38nx3rfa70sa9qp0v",
+                "zviewtestsapling1xh2u7cdrmr8nq7q3y6furqu6zsc8z7gq36jlpypgzrgrujs9mz73jsff72uzmm22juadyj4runvwfxssuqul2psxz6vp2ywk4zyv4rk2v65py6tkzt7rr7jwpy52c9z28yud27fmakss7agnu9dxl9ddsqjvgydw",
                 "ztestsapling1jzzt7gjscav7lmdpemknv0v8rmmdzpcaqrx95azrgaky94drrvf0fg4wlnlkaclqj3r3s23g2sf"
             ),
             (
-                "4e9d5d14d776a93e8aa1dd7e69eda7cefd9651ad140443ca11553e379b2ae90b",
-                "b8f5a0b850db6424b704e0eda9d01ef472fc58dd1519cb60a97d9240641e105e8856e062da9c729bb3580b64c5d933190af86066e518922e7967255746c024ea4bc12f2e92f93f4f853161bf774fe4d9c32581020c9cc52ee42216c8e575d4bb",
+                "secret-spending-key-test1f6w469xhw65naz4pm4lxnmd8em7ev5ddzszy8js325lr0xe2ay9snuw9t5",
+                "zviewtestsapling1hr66pwzsmdjzfdcyurk6n5q773e0ckxaz5vukc9f0kfyqeq7zp0gs4hqvtdfcu5mkdvqkex9mye3jzhcvpnw2xyj9eukwf2hgmqzf6jtcyhjayhe8a8c2vtpham5lexecvjczqsvnnzjaepzzmyw2aw5hvg4f7pf",
                 "ztestsapling19epsvtxnzf59pr993fq4g0gu0fmrn2jl2z9jm2lgj3220c7r9shyvcpe25ul7wxvzk60z82zyf7"
             ),
             (
-                "8544e9cfc6423e22bca5b62bf56649fd3716b6cc092391ecba78fb017d5feda1",
-                "75b6233bd29155a361ec2a98552f5c1ddded2fd47af880d78a3f26b4ce8cc2d262008e3d2904bfeb61abdb70432860fbe6557a406c1ae72a4a204fe934985116cdf80f5b52fbc7d22c2dd630939b7641cec76b2e4f8ef6dc53276ea4b3efc1a9",
+                "secret-spending-key-test1s4zwnn7xgglz9099kc4l2ejfl5m3ddkvpy3erm960raszl2lakss48u07t",
+                "zviewtestsapling1wkmzxw7jj926xc0v92v92t6urhw76t750tugp4u28untfn5vctfxyqyw855sf0ltvx4akuzr9ps0hej40fqxcxh89f9zqnlfxjv9z9kdlq84k5hmclfzctwkxzfekajpemrkktj03mmdc5e8d6jt8m7p4ycfqv6s",
                 "ztestsapling18ur694qcm6w657u9xt8aekutn98gyvpzwzjgjz99594x775ppeze5vwnp2ndw0u205vkuh2tqcu"
             ),
             (
-                "6d21907f6ad14d2823625036e0951a3c566d4df7b101dfb2899107d02e9bd8bd",
-                "e35af2ffa9c77482e11d998d087492e9f80672558253ef30ddb6d712d51a4aacc58455349ccd5be0de5a9584cfe63a5be7e86eb9f20f8efb3fb1ef84d8fc6625aa38f308de656736fb6b02929d695bb904108d5b680952ce774e938b3c50418b",
+                "secret-spending-key-test1d5seqlm269xjsgmz2qmwp9g683tx6n0hkyqalv5fjyraqt5mmz7snwyhek",
+                "zviewtestsapling1udd09lafca6g9cganxxssayja8uqvuj4sff77vxakmt394g6f2kvtpz4xjwv6klqmedftpx0uca9helgd6ulyruwlvlmrmuymr7xvfd28res3hn9vum0k6czj2wkjkaeqsgg6kmgp9fvua6wjw9nc5zp3vrv2zlu",
                 "ztestsapling1hkyeldalqna6kxzkkpc3gl4yvtd842sld4kkx7mhtm4srhndnqm347q7x672t05j245skqsctvs"
             ),
             (
-                "d800f2b919cb06f7396a9e253c77f65e1cb5f972372cac196ec6546e09355bfe",
-                "1ba76bdbb4036d8564562e6664af996c53eebd5fd0209894d9100d6caf3fd149bb2550161ca124c672d7d5d2d7fd9fbbda1423e49585f22d269f59898c58e5bdea43b13df61ecd6cd23e6151a873e575db9b54a43e17cd5b12a406f6e9db6073",
+                "secret-spending-key-test1mqq09wgeevr0wwt2ncjncalktcwtt7tjxuk2cxtwce2xuzf4t0lqf5jn03",
+                "zviewtestsapling1rwnkhka5qdkc2ezk9enxftued3f7a02l6qsf39xezqxketel69ymkf2szcw2zfxxwttat5khlk0mhks5y0jftp0j95nf7kvf33vwt002gwcnmas7e4kdy0np2x588et4mwd4ffp7zlx4ky4yqmmwnkmqwvupsy6f",
                 "ztestsapling12n4jm24lflgmjk4crm0322p0gpmww98v5cqyurphq6tr4r4q9kxyz2f3tp9x92mm8kruwwg2u5w"
             )
         ];
@@ -798,7 +1008,7 @@ mod tests {
         fn to_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
                 let public_key = ZcashPublicKey::<N>::from_str(public_key).unwrap();
-                let private_key = ZcashPrivateKey::<N>::from(&private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_to_public_key(&public_key, &private_key);
             });
         }
@@ -807,7 +1017,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
-                let private_key = ZcashPrivateKey::<N>::from(&private_key, &address.format()).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_to_address(&address, &address.format(), &private_key);
             });
         }
@@ -817,9 +1027,8 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
-                    let expected_private_key =
-                        ZcashPrivateKey::<N>::from(&private_key, &Format::Sapling(None)).unwrap();
-                    test_from(
+                    let expected_private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
+                    test_from_str(
                         &expected_private_key.0,
                         expected_public_key,
                         expected_address,
@@ -832,7 +1041,7 @@ mod tests {
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
-                let private_key = ZcashPrivateKey::<N>::from(&expected_private_key, &Format::Sapling(None)).unwrap();
+                let private_key = ZcashPrivateKey::<N>::from_str(&expected_private_key).unwrap();
                 test_to_str(expected_private_key, &private_key);
             });
         }

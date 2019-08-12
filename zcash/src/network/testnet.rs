@@ -36,17 +36,37 @@ impl ZcashNetwork for Testnet {
         }
     }
 
-    /// Returns the wif prefix of the given network.
+    /// Returns the WIF prefix of the given network.
     fn to_wif_prefix() -> u8 {
         0xEF
     }
 
-    /// Returns the network of the given wif prefix.
+    /// Returns the network of the given WIF prefix.
     fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0xEF => Ok(Self),
             _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix])),
         }
+    }
+
+    /// Returns the prefix for a Sprout spending key.
+    fn to_sprout_spending_key_prefix() -> [u8; 2] {
+        [0xAC, 0x08]
+    }
+
+    /// Returns the prefix for a Sprout viewing key.
+    fn to_sprout_viewing_key_prefix() -> [u8; 3] {
+        [0xA8, 0xAC, 0x0C]
+    }
+
+    /// Returns the Sapling spending key prefix of the given network.
+    fn to_sapling_spending_key_prefix() -> String {
+        "secret-spending-key-test".into()
+    }
+
+    /// Returns the Sapling viewing key prefix of the given network.
+    fn to_sapling_viewing_key_prefix() -> String {
+        "zviewtestsapling".into()
     }
 
     /// Returns the extended private key prefix of the given network.

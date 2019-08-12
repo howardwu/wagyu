@@ -4,10 +4,7 @@ use crate::extended_public_key::ZcashExtendedPublicKey;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, SpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
-use wagyu_model::{
-    Address, AddressError, ChildIndex, DerivationPathError, ExtendedPrivateKey, ExtendedPrivateKeyError,
-    ExtendedPublicKey, PublicKey,
-};
+use wagyu_model::{Address, AddressError, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::cmp::Ordering;
@@ -34,8 +31,8 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     type PublicKey = ZcashPublicKey<N>;
 
     /// Returns a new Zcash extended private key.
-    fn new(seed: &[u8], format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
-        Ok(Self::new_master(seed, format)?.derive(path)?)
+    fn new(seed: &[u8], _format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
+        Ok(Self::new_master(seed, _format)?.derive(path)?)
     }
 
     /// Returns a new Zcash extended private key.
@@ -50,17 +47,12 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
         let mut extended_private_key = self.clone();
         for index in path.into_iter() {
-            match index {
-                ChildIndex::Hardened(number) => {
-                    extended_private_key = Self {
-                        extended_spending_key: extended_private_key
-                            .extended_spending_key
-                            .derive_child(zcash_primitives::zip32::ChildIndex::Hardened(*number)),
-                        _network: PhantomData,
-                    }
-                }
-                ChildIndex::Normal(_) => return Err(DerivationPathError::ExpectedHardenedPath.into()),
-            }
+            extended_private_key = Self {
+                extended_spending_key: extended_private_key
+                    .extended_spending_key
+                    .derive_child(zcash_primitives::zip32::ChildIndex::from_index(index.to_index())),
+                _network: PhantomData,
+            };
         }
         Ok(extended_private_key)
     }
@@ -72,9 +64,10 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
 
     /// Returns the private key of the corresponding extended private key.
     fn to_private_key(&self) -> Self::PrivateKey {
-        ZcashPrivateKey::from_spending_key(SpendingKey::<N>::Sapling(SaplingSpendingKey {
+        ZcashPrivateKey::from_spending_key(SpendingKey::<N>::Sapling(SaplingSpendingKey::<N> {
             spending_key: None,
             expanded_spending_key: self.extended_spending_key.expsk.clone(),
+            _network: PhantomData,
         }))
     }
 
