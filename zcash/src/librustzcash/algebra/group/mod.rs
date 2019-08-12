@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{PrimeField, PrimeFieldDecodingError, ScalarEngine, SqrtField};
+use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldDecodingError, ScalarEngine, SqrtField};
 
 use rand::RngCore;
 use std::error::Error;
@@ -6,9 +6,6 @@ use std::fmt;
 
 #[cfg(test)]
 pub mod tests;
-
-mod wnaf;
-pub use self::wnaf::Wnaf;
 
 /// Projective representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.
@@ -119,9 +116,7 @@ pub trait CurveAffine:
 }
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.
-pub trait EncodedPoint:
-    Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy + 'static
-{
+pub trait EncodedPoint: Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy + 'static {
     type Affine: CurveAffine;
 
     /// Creates an empty representation.
@@ -169,9 +164,7 @@ impl Error for GroupDecodingError {
             GroupDecodingError::NotOnCurve => "coordinate(s) do not lie on the curve",
             GroupDecodingError::NotInSubgroup => "the element is not part of an r-order subgroup",
             GroupDecodingError::CoordinateDecodingError(..) => "coordinate(s) could not be decoded",
-            GroupDecodingError::UnexpectedCompressionMode => {
-                "encoding has unexpected compression mode"
-            }
+            GroupDecodingError::UnexpectedCompressionMode => "encoding has unexpected compression mode",
             GroupDecodingError::UnexpectedInformation => "encoding has unexpected information",
         }
     }

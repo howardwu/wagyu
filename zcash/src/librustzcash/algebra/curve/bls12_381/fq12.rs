@@ -1,9 +1,9 @@
 use super::fq::FROBENIUS_COEFF_FQ12_C1;
 use super::fq2::Fq2;
 use super::fq6::Fq6;
-use crate::librustzcash::ff::Field;
+use crate::librustzcash::algebra::field::Field;
 
-use rand_core::{RngCore};
+use rand_core::RngCore;
 
 /// An element of Fq12, represented by c0 + c1 * w.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -155,8 +155,7 @@ use rand_xorshift::XorShiftRng;
 #[test]
 fn test_fq12_mul_by_014() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -169,8 +168,8 @@ fn test_fq12_mul_by_014() {
         a.mul_by_014(&c0, &c1, &c5);
         b.mul_assign(&Fq12 {
             c0: Fq6 {
-                c0: c0,
-                c1: c1,
+                c0,
+                c1,
                 c2: Fq2::zero(),
             },
             c1: Fq6 {
@@ -186,8 +185,8 @@ fn test_fq12_mul_by_014() {
 
 #[test]
 fn fq12_field_tests() {
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
-    crate::librustzcash::pairing::tests::field::random_field_tests::<Fq12>();
-    crate::librustzcash::pairing::tests::field::random_frobenius_tests::<Fq12, _>(super::fq::Fq::char(), 13);
+    crate::librustzcash::algebra::curve::tests::field::random_field_tests::<Fq12>();
+    crate::librustzcash::algebra::curve::tests::field::random_frobenius_tests::<Fq12, _>(super::fq::Fq::char(), 13);
 }

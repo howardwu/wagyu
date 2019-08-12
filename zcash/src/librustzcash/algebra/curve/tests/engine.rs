@@ -1,13 +1,12 @@
-use crate::librustzcash::group::{CurveAffine, CurveProjective};
-use crate::librustzcash::pairing::{Engine, Field, PairingCurveAffine, PrimeField};
+use crate::librustzcash::algebra::curve::{Engine, Field, PairingCurveAffine, PrimeField};
+use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective};
 
 use rand_core::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
 pub fn engine_tests<E: Engine>() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..10 {
@@ -54,8 +53,7 @@ pub fn engine_tests<E: Engine>() {
 
 fn random_miller_loop_tests<E: Engine>() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     // Exercise the miller loop for a reduced pairing
@@ -91,8 +89,7 @@ fn random_miller_loop_tests<E: Engine>() {
         let c = c.into_affine().prepare();
         let d = d.into_affine().prepare();
 
-        let abcd_with_double_loop =
-            E::final_exponentiation(&E::miller_loop(&[(&a, &b), (&c, &d)])).unwrap();
+        let abcd_with_double_loop = E::final_exponentiation(&E::miller_loop(&[(&a, &b), (&c, &d)])).unwrap();
 
         assert_eq!(abcd, abcd_with_double_loop);
     }
@@ -100,8 +97,7 @@ fn random_miller_loop_tests<E: Engine>() {
 
 fn random_bilinearity_tests<E: Engine>() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {

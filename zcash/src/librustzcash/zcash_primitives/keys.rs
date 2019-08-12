@@ -2,7 +2,7 @@
 //!
 //! Implements section 4.2.2 of the Zcash Protocol Specification.
 
-use crate::librustzcash::ff::{PrimeField, PrimeFieldRepr};
+use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldRepr};
 use crate::librustzcash::sapling_crypto::{
     jubjub::{edwards, FixedGenerators, JubjubEngine, JubjubParams, ToUniform, Unknown},
     primitives::{ProofGenerationKey, ViewingKey},
@@ -54,8 +54,7 @@ impl<E: JubjubEngine> ExpandedSpendingKey<E> {
         let ask = E::Fs::to_uniform(prf_expand(sk, &[0x00]).as_bytes());
         let nsk = E::Fs::to_uniform(prf_expand(sk, &[0x01]).as_bytes());
         let mut ovk = OutgoingViewingKey([0u8; 32]);
-        ovk.0
-            .copy_from_slice(&prf_expand(sk, &[0x02]).as_bytes()[..32]);
+        ovk.0.copy_from_slice(&prf_expand(sk, &[0x02]).as_bytes()[..32]);
         ExpandedSpendingKey { ask, nsk, ovk }
     }
 
@@ -71,13 +70,11 @@ impl<E: JubjubEngine> ExpandedSpendingKey<E> {
     pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut ask_repr = <E::Fs as PrimeField>::Repr::default();
         ask_repr.read_le(&mut reader)?;
-        let ask = E::Fs::from_repr(ask_repr)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let ask = E::Fs::from_repr(ask_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let mut nsk_repr = <E::Fs as PrimeField>::Repr::default();
         nsk_repr.read_le(&mut reader)?;
-        let nsk = E::Fs::from_repr(nsk_repr)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let nsk = E::Fs::from_repr(nsk_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let mut ovk = [0; 32];
         reader.read_exact(&mut ovk)?;
@@ -144,10 +141,7 @@ impl<E: JubjubEngine> FullViewingKey<E> {
             }
         };
         if ak == edwards::Point::zero() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "ak not of prime order",
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "ak not of prime order"));
         }
 
         let nk = edwards::Point::<E, Unknown>::read(&mut reader, params)?;
@@ -189,7 +183,7 @@ impl<E: JubjubEngine> FullViewingKey<E> {
 #[cfg(test)]
 mod tests {
     use super::FullViewingKey;
-    use crate::librustzcash::pairing::bls12_381::Bls12;
+    use crate::librustzcash::algebra::curve::bls12_381::Bls12;
     use crate::librustzcash::sapling_crypto::jubjub::{edwards, FixedGenerators, JubjubParams, PrimeOrder};
     use crate::librustzcash::zcash_primitives::JUBJUB;
 

@@ -1,6 +1,6 @@
-use crate::librustzcash::ff::PrimeFieldRepr;
-use crate::librustzcash::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
-use crate::librustzcash::pairing::*;
+use crate::librustzcash::algebra::curve::*;
+use crate::librustzcash::algebra::field::PrimeFieldRepr;
+use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
 use super::*;
 
@@ -130,7 +130,9 @@ fn test_g1_uncompressed_invalid_vectors() {
             if let Err(GroupDecodingError::UnexpectedInformation) = z.into_affine() {
                 // :)
             } else {
-                panic!("should have rejected the point because the coordinates should be zeroes at the point at infinity");
+                panic!(
+                    "should have rejected the point because the coordinates should be zeroes at the point at infinity"
+                );
             }
         }
     }
@@ -202,9 +204,7 @@ fn test_g1_uncompressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq::one());
@@ -244,7 +244,9 @@ fn test_g2_uncompressed_invalid_vectors() {
             if let Err(GroupDecodingError::UnexpectedInformation) = z.into_affine() {
                 // :)
             } else {
-                panic!("should have rejected the point because the coordinates should be zeroes at the point at infinity");
+                panic!(
+                    "should have rejected the point because the coordinates should be zeroes at the point at infinity"
+                );
             }
         }
     }
@@ -344,9 +346,7 @@ fn test_g2_uncompressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq2::one());
@@ -386,7 +386,9 @@ fn test_g1_compressed_invalid_vectors() {
             if let Err(GroupDecodingError::UnexpectedInformation) = z.into_affine() {
                 // :)
             } else {
-                panic!("should have rejected the point because the coordinates should be zeroes at the point at infinity");
+                panic!(
+                    "should have rejected the point because the coordinates should be zeroes at the point at infinity"
+                );
             }
         }
     }
@@ -460,9 +462,7 @@ fn test_g1_compressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq::one());
@@ -502,7 +502,9 @@ fn test_g2_compressed_invalid_vectors() {
             if let Err(GroupDecodingError::UnexpectedInformation) = z.into_affine() {
                 // :)
             } else {
-                panic!("should have rejected the point because the coordinates should be zeroes at the point at infinity");
+                panic!(
+                    "should have rejected the point because the coordinates should be zeroes at the point at infinity"
+                );
             }
         }
     }
@@ -602,9 +604,7 @@ fn test_g2_compressed_invalid_vectors() {
                 if let Err(GroupDecodingError::NotInSubgroup) = o.into_affine() {
                     break;
                 } else {
-                    panic!(
-                        "should have rejected the point because it isn't in the correct subgroup"
-                    )
+                    panic!("should have rejected the point because it isn't in the correct subgroup")
                 }
             } else {
                 x.add_assign(&Fq2::one());

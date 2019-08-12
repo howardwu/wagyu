@@ -1,5 +1,5 @@
 use crate::address::{Format, ZcashAddress};
-use crate::librustzcash::pairing::bls12_381::Bls12;
+use crate::librustzcash::algebra::curve::bls12_381::Bls12;
 use crate::librustzcash::sapling_crypto::jubjub::JubjubBls12;
 use crate::librustzcash::zcash_primitives::{keys::FullViewingKey, JUBJUB};
 use crate::network::ZcashNetwork;

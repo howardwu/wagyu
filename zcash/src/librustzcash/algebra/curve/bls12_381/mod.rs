@@ -9,8 +9,7 @@ mod fr;
 mod tests;
 
 pub use self::ec::{
-    G1, G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2, G2Affine, G2Compressed, G2Prepared,
-    G2Uncompressed,
+    G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2Affine, G2Compressed, G2Prepared, G2Uncompressed, G1, G2,
 };
 pub use self::fq::{Fq, FqRepr};
 pub use self::fq12::Fq12;
@@ -20,8 +19,8 @@ pub use self::fr::{Fr, FrRepr};
 
 use super::{Engine, PairingCurveAffine};
 
-use crate::librustzcash::ff::{BitIterator, Field, ScalarEngine};
-use crate::librustzcash::group::CurveAffine;
+use crate::librustzcash::algebra::field::{BitIterator, Field, ScalarEngine};
+use crate::librustzcash::algebra::group::CurveAffine;
 
 // The BLS parameter x for BLS12-381 is -0xd201000000010000
 const BLS_X: u64 = 0xd201000000010000;
@@ -366,5 +365,5 @@ impl G2Prepared {
 
 #[test]
 fn bls12_engine_tests() {
-    crate::librustzcash::pairing::tests::engine::engine_tests::<Bls12>();
+    crate::librustzcash::algebra::curve::tests::engine::engine_tests::<Bls12>();
 }
