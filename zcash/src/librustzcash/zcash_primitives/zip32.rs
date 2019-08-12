@@ -29,7 +29,7 @@ fn derive_child_ovk(parent: &OutgoingViewingKey, i_l: &[u8]) -> OutgoingViewingK
 
 // ZIP 32 structures
 
-/// A Sapling full viewing key fingerprint
+/// Represents a Sapling full viewing key fingerprint
 struct FVKFingerprint([u8; 32]);
 
 impl<E: JubjubEngine> From<&FullViewingKey<E>> for FVKFingerprint {
@@ -45,7 +45,7 @@ impl<E: JubjubEngine> From<&FullViewingKey<E>> for FVKFingerprint {
     }
 }
 
-/// A Sapling full viewing key tag
+/// Represents a Sapling full viewing key tag
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct FVKTag([u8; 4]);
 
@@ -63,7 +63,7 @@ impl FVKTag {
     }
 }
 
-/// A chain code
+/// Represents a chain code instance
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct ChainCode([u8; 32]);
 
@@ -130,7 +130,7 @@ impl DiversifierKey {
     }
 }
 
-/// A Sapling extended spending key
+/// Represents a Sapling extended spending key
 #[derive(Clone)]
 pub struct ExtendedSpendingKey {
     depth: u8,
@@ -138,17 +138,6 @@ pub struct ExtendedSpendingKey {
     child_index: ChildIndex,
     chain_code: ChainCode,
     pub expsk: ExpandedSpendingKey<Bls12>,
-    dk: DiversifierKey,
-}
-
-// A Sapling extended full viewing key
-#[derive(Clone)]
-pub struct ExtendedFullViewingKey {
-    depth: u8,
-    parent_fvk_tag: FVKTag,
-    child_index: ChildIndex,
-    chain_code: ChainCode,
-    pub fvk: FullViewingKey<Bls12>,
     dk: DiversifierKey,
 }
 
@@ -170,29 +159,6 @@ impl std::fmt::Debug for ExtendedSpendingKey {
         write!(
             f,
             "ExtendedSpendingKey(d = {}, tag_p = {:?}, i = {:?})",
-            self.depth, self.parent_fvk_tag, self.child_index
-        )
-    }
-}
-
-impl std::cmp::PartialEq for ExtendedFullViewingKey {
-    fn eq(&self, rhs: &ExtendedFullViewingKey) -> bool {
-        self.depth == rhs.depth
-            && self.parent_fvk_tag == rhs.parent_fvk_tag
-            && self.child_index == rhs.child_index
-            && self.chain_code == rhs.chain_code
-            && self.fvk.vk.ak == rhs.fvk.vk.ak
-            && self.fvk.vk.nk == rhs.fvk.vk.nk
-            && self.fvk.ovk == rhs.fvk.ovk
-            && self.dk == rhs.dk
-    }
-}
-
-impl std::fmt::Debug for ExtendedFullViewingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(
-            f,
-            "ExtendedFullViewingKey(d = {}, tag_p = {:?}, i = {:?})",
             self.depth, self.parent_fvk_tag, self.child_index
         )
     }
@@ -300,6 +266,40 @@ impl ExtendedSpendingKey {
 
     pub fn default_address(&self) -> Result<(DiversifierIndex, PaymentAddress<Bls12>), ()> {
         ExtendedFullViewingKey::from(self).default_address()
+    }
+}
+
+/// Represents a Sapling extended full viewing key
+#[derive(Clone)]
+pub struct ExtendedFullViewingKey {
+    depth: u8,
+    parent_fvk_tag: FVKTag,
+    child_index: ChildIndex,
+    chain_code: ChainCode,
+    pub fvk: FullViewingKey<Bls12>,
+    dk: DiversifierKey,
+}
+
+impl std::cmp::PartialEq for ExtendedFullViewingKey {
+    fn eq(&self, rhs: &ExtendedFullViewingKey) -> bool {
+        self.depth == rhs.depth
+            && self.parent_fvk_tag == rhs.parent_fvk_tag
+            && self.child_index == rhs.child_index
+            && self.chain_code == rhs.chain_code
+            && self.fvk.vk.ak == rhs.fvk.vk.ak
+            && self.fvk.vk.nk == rhs.fvk.vk.nk
+            && self.fvk.ovk == rhs.fvk.ovk
+            && self.dk == rhs.dk
+    }
+}
+
+impl std::fmt::Debug for ExtendedFullViewingKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "ExtendedFullViewingKey(d = {}, tag_p = {:?}, i = {:?})",
+            self.depth, self.parent_fvk_tag, self.child_index
+        )
     }
 }
 
