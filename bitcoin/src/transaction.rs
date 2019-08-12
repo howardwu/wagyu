@@ -499,7 +499,7 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     if size < 253 {
         Ok(vec![size as u8])
     } else if size <= 65535 {
-        //  size <= u16::max_value()
+        // size <= u16::max_value()
         Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat())
     } else if size <= 4294967295 {
         // size <= u32::max_value()
