@@ -56,7 +56,7 @@ impl From<base58::FromBase58Error> for TransactionError {
 
 impl From<bech32::Error> for TransactionError {
     fn from(error: bech32::Error) -> Self {
-        TransactionError::Crate("hex", format!("{:?}", error))
+        TransactionError::Crate("bech32", format!("{:?}", error))
     }
 }
 

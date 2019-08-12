@@ -5,8 +5,7 @@ use crate::private_key::EthereumPrivateKey;
 use ethereum_types::U256;
 use rlp::RlpStream;
 use secp256k1;
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 use wagyu_model::{Transaction, TransactionError};
 
