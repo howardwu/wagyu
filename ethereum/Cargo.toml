@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A library for generating Ethereum wallets"
 homepage = "https://github.com/ArgusHQ/wagyu"
-repository = "https://github.com/ArgusHQ/wagyu/ethereum"
+repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.0/ethereum"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["blockchain", "crypto", "cryptocurrency", "ethereum", "wallet"]
 readme = "README.md"

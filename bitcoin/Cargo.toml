@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A library for generating Bitcoin wallets"
 homepage = "https://github.com/ArgusHQ/wagyu"
-repository = "https://github.com/ArgusHQ/wagyu/bitcoin"
+repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.0/bitcoin"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["bitcoin", "blockchain", "crypto", "cryptocurrency", "wallet"]
 readme = "README.md"
