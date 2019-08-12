@@ -8,6 +8,7 @@ use crate::librustzcash::zcash_primitives::{
     keys::{prf_expand, prf_expand_vec, ExpandedSpendingKey, FullViewingKey, OutgoingViewingKey},
     JUBJUB,
 };
+use wagyu_model::ChildIndex;
 
 use aes::Aes256;
 use blake2b_simd::Params as Blake2bParams;
@@ -59,33 +60,6 @@ impl FVKFingerprint {
 impl FVKTag {
     fn master() -> Self {
         FVKTag([0u8; 4])
-    }
-}
-
-/// A child index for a derived key
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ChildIndex {
-    NonHardened(u32),
-    Hardened(u32), // Hardened(n) == n + (1 << 31) == n' in path notation
-}
-
-impl ChildIndex {
-    pub fn from_index(i: u32) -> Self {
-        match i {
-            n if n >= (1 << 31) => ChildIndex::Hardened(n - (1 << 31)),
-            n => ChildIndex::NonHardened(n),
-        }
-    }
-
-    fn master() -> Self {
-        ChildIndex::from_index(0)
-    }
-
-    fn to_index(&self) -> u32 {
-        match self {
-            &ChildIndex::Hardened(i) => i + (1 << 31),
-            &ChildIndex::NonHardened(i) => i,
-        }
     }
 }
 
@@ -238,7 +212,7 @@ impl ExtendedSpendingKey {
         ExtendedSpendingKey {
             depth: 0,
             parent_fvk_tag: FVKTag::master(),
-            child_index: ChildIndex::master(),
+            child_index: ChildIndex::from(0),
             chain_code: ChainCode(c_m),
             expsk: ExpandedSpendingKey::from_spending_key(sk_m),
             dk: DiversifierKey::master(sk_m),
@@ -259,7 +233,7 @@ impl ExtendedSpendingKey {
         Ok(ExtendedSpendingKey {
             depth,
             parent_fvk_tag: FVKTag(tag),
-            child_index: ChildIndex::from_index(i),
+            child_index: ChildIndex::from(i),
             chain_code: ChainCode(c),
             expsk,
             dk: DiversifierKey(dk),
@@ -297,7 +271,7 @@ impl ExtendedSpendingKey {
                     &[&[0x11], &self.expsk.to_bytes(), &self.dk.0, &le_i],
                 )
             }
-            ChildIndex::NonHardened(i) => {
+            ChildIndex::Normal(i) => {
                 let mut le_i = [0; 4];
                 LittleEndian::write_u32(&mut le_i, i);
                 prf_expand_vec(&self.chain_code.0, &[&[0x12], &fvk.to_bytes(), &self.dk.0, &le_i])
@@ -357,7 +331,7 @@ impl ExtendedFullViewingKey {
         Ok(ExtendedFullViewingKey {
             depth,
             parent_fvk_tag: FVKTag(tag),
-            child_index: ChildIndex::from_index(i),
+            child_index: ChildIndex::from(i),
             chain_code: ChainCode(c),
             fvk,
             dk: DiversifierKey(dk),
@@ -378,7 +352,7 @@ impl ExtendedFullViewingKey {
     pub fn derive_child(&self, i: ChildIndex) -> Result<Self, ()> {
         let tmp = match i {
             ChildIndex::Hardened(_) => return Err(()),
-            ChildIndex::NonHardened(i) => {
+            ChildIndex::Normal(i) => {
                 let mut le_i = [0; 4];
                 LittleEndian::write_u32(&mut le_i, i);
                 prf_expand_vec(&self.chain_code.0, &[&[0x12], &self.fvk.to_bytes(), &self.dk.0, &le_i])
@@ -441,7 +415,7 @@ mod tests {
         let xsk_m = ExtendedSpendingKey::master(&seed);
         let xfvk_m = ExtendedFullViewingKey::from(&xsk_m);
 
-        let i_5 = ChildIndex::NonHardened(5);
+        let i_5 = ChildIndex::Normal(5);
         let xsk_5 = xsk_m.derive_child(i_5);
         let xfvk_5 = xfvk_m.derive_child(i_5);
 
@@ -463,7 +437,7 @@ mod tests {
         assert!(xfvk_5h.is_err());
         let xfvk_5h = ExtendedFullViewingKey::from(&xsk_5h);
 
-        let i_7 = ChildIndex::NonHardened(7);
+        let i_7 = ChildIndex::Normal(7);
         let xsk_5h_7 = xsk_5h.derive_child(i_7);
         let xfvk_5h_7 = xfvk_5h.derive_child(i_7);
 
@@ -483,9 +457,9 @@ mod tests {
             xsk_5h
         );
 
-        let xsk_5h_7 = xsk_5h.derive_child(ChildIndex::NonHardened(7));
+        let xsk_5h_7 = xsk_5h.derive_child(ChildIndex::Normal(7));
         assert_eq!(
-            ExtendedSpendingKey::from_path(&xsk_m, &[ChildIndex::Hardened(5), ChildIndex::NonHardened(7)]),
+            ExtendedSpendingKey::from_path(&xsk_m, &[ChildIndex::Hardened(5), ChildIndex::Normal(7)]),
             xsk_5h_7
         );
     }
@@ -885,9 +859,9 @@ mod tests {
             29, 30, 31,
         ];
 
-        let i1 = ChildIndex::NonHardened(1);
+        let i1 = ChildIndex::Normal(1);
         let i2h = ChildIndex::Hardened(2);
-        let i3 = ChildIndex::NonHardened(3);
+        let i3 = ChildIndex::Normal(3);
 
         let m = ExtendedSpendingKey::master(&seed);
         let m_1 = m.derive_child(i1);

@@ -1,11 +1,11 @@
 use crate::address::{Format, ZcashAddress};
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_public_key::ZcashExtendedPublicKey;
-use crate::librustzcash::zcash_primitives::zip32::{ChildIndex as ZIP32ChildIndex, ExtendedSpendingKey};
+use crate::librustzcash::zcash_primitives::zip32::ExtendedSpendingKey;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, SpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
-use wagyu_model::{Address, AddressError, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey};
+use wagyu_model::{Address, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::cmp::Ordering;
@@ -50,7 +50,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
             extended_private_key = Self {
                 extended_spending_key: extended_private_key
                     .extended_spending_key
-                    .derive_child(ZIP32ChildIndex::from_index(index.to_index())),
+                    .derive_child(ChildIndex::from(index.to_index())),
                 _network: PhantomData,
             };
         }
