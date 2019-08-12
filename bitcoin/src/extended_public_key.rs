@@ -12,7 +12,7 @@ use base58::{FromBase58, ToBase58};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::{fmt, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -135,9 +135,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
 
-        let mut index = [0u8; 4];
-        index.copy_from_slice(&data[9..13]);
-        let child_index = ChildIndex::from(u32::from_be_bytes(index));
+        let child_index = ChildIndex::from(u32::from_be_bytes(<[u8; 4]>::try_from(&data[9..13])?));
 
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);

@@ -111,6 +111,12 @@ impl From<secp256k1::Error> for ExtendedPublicKeyError {
     }
 }
 
+impl From<std::array::TryFromSliceError> for ExtendedPublicKeyError {
+    fn from(error: std::array::TryFromSliceError) -> Self {
+        ExtendedPublicKeyError::Crate("std::array", format!("{:?}", error))
+    }
+}
+
 impl From<std::io::Error> for ExtendedPublicKeyError {
     fn from(error: std::io::Error) -> Self {
         ExtendedPublicKeyError::Crate("std::io", format!("{:?}", error))
