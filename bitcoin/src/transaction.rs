@@ -568,7 +568,7 @@ mod tests {
             let private_key = BitcoinPrivateKey::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
             let transaction_id = hex::decode(input.transaction_id).unwrap();
-            let redeem_script = match (input.redeem_script, input.address_format) {
+            let redeem_script = match (input.redeem_script, input.address_format.clone()) {
                 (Some(script), _) => Some(hex::decode(script).unwrap()),
                 (None, Format::P2SH_P2WPKH) => {
                     let mut redeem_script: Vec<u8> = vec![0x00, 0x14];
