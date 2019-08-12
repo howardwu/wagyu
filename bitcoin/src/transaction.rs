@@ -433,11 +433,12 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
         Format::Bech32 => {
             let bech32 = Bech32::from_str(&address.to_string())?;
             let (v, program) = bech32.data().split_at(1);
-            let program_bytes = Vec::from_base32(program)?;
+            let program_data = Vec::from_base32(program)?;
+            let mut program_bytes = vec![v[0].to_u8(), program_data.len() as u8];
+            program_bytes.extend(program_data);
+            let witness_program = WitnessProgram::new(&program_bytes).unwrap();
 
-            script.push(WitnessProgram::convert_version(v[0].to_u8()));
-            script.extend(variable_length_integer(program_bytes.len() as u64)?);
-            script.extend(program_bytes);
+            script.extend(witness_program.to_scriptpubkey());
         }
     }
 
@@ -491,6 +492,7 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     if size < 253 {
         Ok(vec![size as u8])
     } else if size <= 65535 { // u16::max_value()
+//        size_bytes.extend(size as u16).to_le_bytes();
         size_bytes.write_u16::<LittleEndian>(size as u16)?;
         Ok([vec![0xfd], size_bytes].concat())
     } else if size <= 4294967295 { // u32::max_value()
