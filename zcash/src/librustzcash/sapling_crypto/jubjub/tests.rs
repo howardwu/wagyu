@@ -1,17 +1,5 @@
-use crate::librustzcash::ff::{
-    Field,
-    PrimeField,
-    PrimeFieldRepr,
-    SqrtField,
-    LegendreSymbol
-};
-use crate::librustzcash::sapling_crypto::jubjub::{
-    JubjubEngine,
-    JubjubParams,
-    PrimeOrder,
-    montgomery,
-    edwards
-};
+use crate::librustzcash::ff::{Field, LegendreSymbol, PrimeField, PrimeFieldRepr, SqrtField};
+use crate::librustzcash::sapling_crypto::jubjub::{edwards, montgomery, JubjubEngine, JubjubParams, PrimeOrder};
 
 use rand_core::{RngCore, SeedableRng};
 use rand_xorshift::XorShiftRng;
@@ -29,12 +17,7 @@ pub fn test_suite<E: JubjubEngine>(params: &E::Params) {
     test_read_write::<E>(params);
 }
 
-fn is_on_mont_curve<E: JubjubEngine, P: JubjubParams<E>>(
-    x: E::Fr,
-    y: E::Fr,
-    params: &P
-) -> bool
-{
+fn is_on_mont_curve<E: JubjubEngine, P: JubjubParams<E>>(x: E::Fr, y: E::Fr, params: &P) -> bool {
     let mut lhs = y;
     lhs.square();
 
@@ -52,12 +35,7 @@ fn is_on_mont_curve<E: JubjubEngine, P: JubjubParams<E>>(
     lhs == rhs
 }
 
-fn is_on_twisted_edwards_curve<E: JubjubEngine, P: JubjubParams<E>>(
-    x: E::Fr,
-    y: E::Fr,
-    params: &P
-) -> bool
-{
+fn is_on_twisted_edwards_curve<E: JubjubEngine, P: JubjubParams<E>>(x: E::Fr, y: E::Fr, params: &P) -> bool {
     let mut x2 = x;
     x2.square();
 
@@ -79,8 +57,7 @@ fn is_on_twisted_edwards_curve<E: JubjubEngine, P: JubjubParams<E>>(
 
 fn test_loworder<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
     let inf = montgomery::Point::zero();
 
@@ -113,8 +90,7 @@ fn test_loworder<E: JubjubEngine>(params: &E::Params) {
 fn test_mul_associativity<E: JubjubEngine>(params: &E::Params) {
     use self::edwards::Point;
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..100 {
@@ -150,8 +126,7 @@ fn test_mul_associativity<E: JubjubEngine>(params: &E::Params) {
 fn test_order<E: JubjubEngine>(params: &E::Params) {
     use self::edwards::Point;
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     // The neutral element is in the prime order subgroup.
@@ -180,8 +155,7 @@ fn test_order<E: JubjubEngine>(params: &E::Params) {
 
 fn test_addition_associativity<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -207,8 +181,7 @@ fn test_addition_associativity<E: JubjubEngine>(params: &E::Params) {
 
 fn test_identities<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     {
@@ -244,8 +217,7 @@ fn test_identities<E: JubjubEngine>(params: &E::Params) {
 
 fn test_get_for<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -255,19 +227,14 @@ fn test_get_for<E: JubjubEngine>(params: &E::Params) {
         if let Some(mut p) = edwards::Point::<E, _>::get_for_y(y, sign, params) {
             assert!(p.into_xy().0.into_repr().is_odd() == sign);
             p = p.negate();
-            assert!(
-                edwards::Point::<E, _>::get_for_y(y, !sign, params).unwrap()
-                ==
-                p
-            );
+            assert!(edwards::Point::<E, _>::get_for_y(y, !sign, params).unwrap() == p);
         }
     }
 }
 
 fn test_read_write<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -284,8 +251,7 @@ fn test_read_write<E: JubjubEngine>(params: &E::Params) {
 
 fn test_rand<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -306,8 +272,7 @@ fn test_rand<E: JubjubEngine>(params: &E::Params) {
 
 fn test_back_and_forth<E: JubjubEngine>(params: &E::Params) {
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x5d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x3d, 0x76, 0x5d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -320,13 +285,9 @@ fn test_back_and_forth<E: JubjubEngine>(params: &E::Params) {
         let mont = mont_p1.add(&mont_p2, params).mul(s, params);
         let edwards = edwards_p1.add(&edwards_p2, params).mul(s, params);
 
-        assert!(
-            montgomery::Point::from_edwards(&edwards, params) == mont
-        );
+        assert!(montgomery::Point::from_edwards(&edwards, params) == mont);
 
-        assert!(
-            edwards::Point::from_montgomery(&mont, params) == edwards
-        );
+        assert!(edwards::Point::from_montgomery(&mont, params) == edwards);
     }
 }
 
@@ -410,8 +371,7 @@ fn test_jubjub_params<E: JubjubEngine>(params: &E::Params) {
         let mut pacc = E::Fs::zero().into_repr();
         let mut nacc = E::Fs::char();
 
-        for _ in 0..params.pedersen_hash_chunks_per_generator()
-        {
+        for _ in 0..params.pedersen_hash_chunks_per_generator() {
             // tmp = cur * 4
             let mut tmp = cur;
             tmp.mul2();

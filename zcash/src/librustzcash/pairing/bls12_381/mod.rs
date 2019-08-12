@@ -9,8 +9,7 @@ mod fr;
 mod tests;
 
 pub use self::ec::{
-    G1, G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2, G2Affine, G2Compressed, G2Prepared,
-    G2Uncompressed,
+    G1Affine, G1Compressed, G1Prepared, G1Uncompressed, G2Affine, G2Compressed, G2Prepared, G2Uncompressed, G1, G2,
 };
 pub use self::fq::{Fq, FqRepr};
 pub use self::fq12::Fq12;

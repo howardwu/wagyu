@@ -119,9 +119,7 @@ pub trait CurveAffine:
 }
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.
-pub trait EncodedPoint:
-    Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy + 'static
-{
+pub trait EncodedPoint: Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy + 'static {
     type Affine: CurveAffine;
 
     /// Creates an empty representation.
@@ -169,9 +167,7 @@ impl Error for GroupDecodingError {
             GroupDecodingError::NotOnCurve => "coordinate(s) do not lie on the curve",
             GroupDecodingError::NotInSubgroup => "the element is not part of an r-order subgroup",
             GroupDecodingError::CoordinateDecodingError(..) => "coordinate(s) could not be decoded",
-            GroupDecodingError::UnexpectedCompressionMode => {
-                "encoding has unexpected compression mode"
-            }
+            GroupDecodingError::UnexpectedCompressionMode => "encoding has unexpected compression mode",
             GroupDecodingError::UnexpectedInformation => "encoding has unexpected information",
         }
     }

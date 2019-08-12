@@ -7,9 +7,7 @@ use std::fmt;
 use std::io::{self, Read, Write};
 
 /// This trait represents an element of a field.
-pub trait Field:
-    Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static
-{
+pub trait Field: Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static {
     /// Returns an element chosen uniformly at random using a user-provided RNG.
     fn random<R: RngCore>(rng: &mut R) -> Self;
 
@@ -203,9 +201,7 @@ impl Error for PrimeFieldDecodingError {
 impl fmt::Display for PrimeFieldDecodingError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            PrimeFieldDecodingError::NotInField(ref repr) => {
-                write!(f, "{} is not an element of the field", repr)
-            }
+            PrimeFieldDecodingError::NotInField(ref repr) => write!(f, "{} is not an element of the field", repr),
         }
     }
 }

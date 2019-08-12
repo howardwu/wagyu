@@ -1352,10 +1352,7 @@ fn test_fq_repr_shr() {
         ])
     );
     a.shr(64);
-    assert_eq!(
-        a,
-        FqRepr([0x4067a038f0582e2a, 0x2f9480d7528a70b0, 0x91, 0x0, 0x0, 0x0])
-    );
+    assert_eq!(a, FqRepr([0x4067a038f0582e2a, 0x2f9480d7528a70b0, 0x91, 0x0, 0x0, 0x0]));
 }
 
 #[test]
@@ -1366,10 +1363,7 @@ fn test_fq_repr_mul2() {
     for _ in 0..60 {
         a.mul2();
     }
-    assert_eq!(
-        a,
-        FqRepr([0x6000000000000000, 0xb0acd6c9, 0x0, 0x0, 0x0, 0x0])
-    );
+    assert_eq!(a, FqRepr([0x6000000000000000, 0xb0acd6c9, 0x0, 0x0, 0x0, 0x0]));
     for _ in 0..300 {
         a.mul2();
     }
@@ -1399,8 +1393,7 @@ fn test_fq_repr_num_bits() {
 #[test]
 fn test_fq_repr_sub_noborrow() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let mut t = FqRepr([
@@ -1489,8 +1482,7 @@ fn test_fq_repr_sub_noborrow() {
 #[test]
 fn test_fq_repr_add_nocarry() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let mut t = FqRepr([
@@ -1582,30 +1574,27 @@ fn test_fq_is_valid() {
     a.0.sub_noborrow(&FqRepr::from(1));
     assert!(a.is_valid());
     assert!(Fq(FqRepr::from(0)).is_valid());
-    assert!(
-        Fq(FqRepr([
-            0xdf4671abd14dab3e,
-            0xe2dc0c9f534fbd33,
-            0x31ca6c880cc444a6,
-            0x257a67e70ef33359,
-            0xf9b29e493f899b36,
-            0x17c8be1800b9f059
-        ])).is_valid()
-    );
-    assert!(
-        !Fq(FqRepr([
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff
-        ])).is_valid()
-    );
+    assert!(Fq(FqRepr([
+        0xdf4671abd14dab3e,
+        0xe2dc0c9f534fbd33,
+        0x31ca6c880cc444a6,
+        0x257a67e70ef33359,
+        0xf9b29e493f899b36,
+        0x17c8be1800b9f059
+    ]))
+    .is_valid());
+    assert!(!Fq(FqRepr([
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff
+    ]))
+    .is_valid());
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -1720,8 +1709,7 @@ fn test_fq_add_assign() {
     // Test associativity
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -1833,8 +1821,7 @@ fn test_fq_sub_assign() {
     }
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -1883,8 +1870,7 @@ fn test_fq_mul_assign() {
     );
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000000 {
@@ -1949,12 +1935,12 @@ fn test_fq_squaring() {
             0xdc05c659b4e15b27,
             0x79361e5a802c6a23,
             0x24bcbe5d51b9a6f
-        ])).unwrap()
+        ]))
+        .unwrap()
     );
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000000 {
@@ -1976,8 +1962,7 @@ fn test_fq_inverse() {
     assert!(Fq::zero().inverse().is_none());
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let one = Fq::one();
@@ -1994,8 +1979,7 @@ fn test_fq_inverse() {
 #[test]
 fn test_fq_double() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -2018,8 +2002,7 @@ fn test_fq_negate() {
     }
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -2036,8 +2019,7 @@ fn test_fq_negate() {
 #[test]
 fn test_fq_pow() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for i in 0..1000 {
@@ -2065,8 +2047,7 @@ fn test_fq_sqrt() {
     use crate::librustzcash::ff::SqrtField;
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     assert_eq!(Fq::zero().sqrt().unwrap(), Fq::zero());
@@ -2099,16 +2080,15 @@ fn test_fq_sqrt() {
 #[test]
 fn test_fq_from_into_repr() {
     // q + 1 should not be in the field
-    assert!(
-        Fq::from_repr(FqRepr([
-            0xb9feffffffffaaac,
-            0x1eabfffeb153ffff,
-            0x6730d2a0f6b0f624,
-            0x64774b84f38512bf,
-            0x4b1ba7b6434bacd7,
-            0x1a0111ea397fe69a
-        ])).is_err()
-    );
+    assert!(Fq::from_repr(FqRepr([
+        0xb9feffffffffaaac,
+        0x1eabfffeb153ffff,
+        0x6730d2a0f6b0f624,
+        0x64774b84f38512bf,
+        0x4b1ba7b6434bacd7,
+        0x1a0111ea397fe69a
+    ]))
+    .is_err());
 
     // q should not be in the field
     assert!(Fq::from_repr(Fq::char()).is_err());
@@ -2147,8 +2127,7 @@ fn test_fq_from_into_repr() {
     assert!(Fq::from_repr(FqRepr::from(0)).unwrap().is_zero());
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -2166,32 +2145,90 @@ fn test_fq_from_into_repr() {
 #[test]
 fn test_fq_repr_display() {
     assert_eq!(
-        format!("{}", FqRepr([0xa956babf9301ea24, 0x39a8f184f3535c7b, 0xb38d35b3f6779585, 0x676cc4eef4c46f2c, 0xb1d4aad87651e694, 0x1947f0d5f4fe325a])),
-        "0x1947f0d5f4fe325ab1d4aad87651e694676cc4eef4c46f2cb38d35b3f677958539a8f184f3535c7ba956babf9301ea24".to_string()
+        format!(
+            "{}",
+            FqRepr([
+                0xa956babf9301ea24,
+                0x39a8f184f3535c7b,
+                0xb38d35b3f6779585,
+                0x676cc4eef4c46f2c,
+                0xb1d4aad87651e694,
+                0x1947f0d5f4fe325a
+            ])
+        ),
+        "0x1947f0d5f4fe325ab1d4aad87651e694676cc4eef4c46f2cb38d35b3f677958539a8f184f3535c7ba956babf9301ea24"
+            .to_string()
     );
     assert_eq!(
-        format!("{}", FqRepr([0xb4171485fd8622dd, 0x864229a6edec7ec5, 0xc57f7bdcf8dfb707, 0x6db7ff0ecea4584a, 0xf8d8578c4a57132d, 0x6eb66d42d9fcaaa])),
-        "0x06eb66d42d9fcaaaf8d8578c4a57132d6db7ff0ecea4584ac57f7bdcf8dfb707864229a6edec7ec5b4171485fd8622dd".to_string()
+        format!(
+            "{}",
+            FqRepr([
+                0xb4171485fd8622dd,
+                0x864229a6edec7ec5,
+                0xc57f7bdcf8dfb707,
+                0x6db7ff0ecea4584a,
+                0xf8d8578c4a57132d,
+                0x6eb66d42d9fcaaa
+            ])
+        ),
+        "0x06eb66d42d9fcaaaf8d8578c4a57132d6db7ff0ecea4584ac57f7bdcf8dfb707864229a6edec7ec5b4171485fd8622dd"
+            .to_string()
     );
     assert_eq!(
-        format!("{}", FqRepr([0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff])),
-        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".to_string()
+        format!(
+            "{}",
+            FqRepr([
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff
+            ])
+        ),
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            .to_string()
     );
     assert_eq!(
         format!("{}", FqRepr([0, 0, 0, 0, 0, 0])),
-        "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string()
+        "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            .to_string()
     );
 }
 
 #[test]
 fn test_fq_display() {
     assert_eq!(
-        format!("{}", Fq::from_repr(FqRepr([0xa956babf9301ea24, 0x39a8f184f3535c7b, 0xb38d35b3f6779585, 0x676cc4eef4c46f2c, 0xb1d4aad87651e694, 0x1947f0d5f4fe325a])).unwrap()),
-        "Fq(0x1947f0d5f4fe325ab1d4aad87651e694676cc4eef4c46f2cb38d35b3f677958539a8f184f3535c7ba956babf9301ea24)".to_string()
+        format!(
+            "{}",
+            Fq::from_repr(FqRepr([
+                0xa956babf9301ea24,
+                0x39a8f184f3535c7b,
+                0xb38d35b3f6779585,
+                0x676cc4eef4c46f2c,
+                0xb1d4aad87651e694,
+                0x1947f0d5f4fe325a
+            ]))
+            .unwrap()
+        ),
+        "Fq(0x1947f0d5f4fe325ab1d4aad87651e694676cc4eef4c46f2cb38d35b3f677958539a8f184f3535c7ba956babf9301ea24)"
+            .to_string()
     );
     assert_eq!(
-        format!("{}", Fq::from_repr(FqRepr([0xe28e79396ac2bbf8, 0x413f6f7f06ea87eb, 0xa4b62af4a792a689, 0xb7f89f88f59c1dc5, 0x9a551859b1e43a9a, 0x6c9f5a1060de974])).unwrap()),
-        "Fq(0x06c9f5a1060de9749a551859b1e43a9ab7f89f88f59c1dc5a4b62af4a792a689413f6f7f06ea87ebe28e79396ac2bbf8)".to_string()
+        format!(
+            "{}",
+            Fq::from_repr(FqRepr([
+                0xe28e79396ac2bbf8,
+                0x413f6f7f06ea87eb,
+                0xa4b62af4a792a689,
+                0xb7f89f88f59c1dc5,
+                0x9a551859b1e43a9a,
+                0x6c9f5a1060de974
+            ]))
+            .unwrap()
+        ),
+        "Fq(0x06c9f5a1060de9749a551859b1e43a9ab7f89f88f59c1dc5a4b62af4a792a689413f6f7f06ea87ebe28e79396ac2bbf8)"
+            .to_string()
     );
 }
 
@@ -2206,10 +2243,7 @@ fn test_fq_root_of_unity() {
     use crate::librustzcash::ff::SqrtField;
 
     assert_eq!(Fq::S, 1);
-    assert_eq!(
-        Fq::multiplicative_generator(),
-        Fq::from_repr(FqRepr::from(2)).unwrap()
-    );
+    assert_eq!(Fq::multiplicative_generator(), Fq::from_repr(FqRepr::from(2)).unwrap());
     assert_eq!(
         Fq::multiplicative_generator().pow([
             0xdcff7fffffffd555,
@@ -2238,9 +2272,7 @@ fn test_fq_ordering() {
     // FqRepr's ordering is well-tested, but we still need to make sure the Fq
     // elements aren't being compared in Montgomery form.
     for i in 0..100 {
-        assert!(
-            Fq::from_repr(FqRepr::from(i + 1)).unwrap() > Fq::from_repr(FqRepr::from(i)).unwrap()
-        );
+        assert!(Fq::from_repr(FqRepr::from(i + 1)).unwrap() > Fq::from_repr(FqRepr::from(i)).unwrap());
     }
 }
 
@@ -2257,14 +2289,8 @@ fn test_fq_legendre() {
     assert_eq!(QuadraticResidue, Fq::one().legendre());
     assert_eq!(Zero, Fq::zero().legendre());
 
-    assert_eq!(
-        QuadraticNonResidue,
-        Fq::from_repr(FqRepr::from(2)).unwrap().legendre()
-    );
-    assert_eq!(
-        QuadraticResidue,
-        Fq::from_repr(FqRepr::from(4)).unwrap().legendre()
-    );
+    assert_eq!(QuadraticNonResidue, Fq::from_repr(FqRepr::from(2)).unwrap().legendre());
+    assert_eq!(QuadraticResidue, Fq::from_repr(FqRepr::from(4)).unwrap().legendre());
 
     let e = FqRepr([
         0x52a112f249778642,

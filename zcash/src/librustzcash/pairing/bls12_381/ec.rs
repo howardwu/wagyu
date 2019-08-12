@@ -14,11 +14,10 @@ macro_rules! curve_impl {
         pub struct $affine {
             pub(crate) x: $basefield,
             pub(crate) y: $basefield,
-            pub(crate) infinity: bool
+            pub(crate) infinity: bool,
         }
 
-        impl ::std::fmt::Display for $affine
-        {
+        impl ::std::fmt::Display for $affine {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 if self.infinity {
                     write!(f, "{}(Infinity)", $name)
@@ -30,13 +29,12 @@ macro_rules! curve_impl {
 
         #[derive(Copy, Clone, Debug, Eq)]
         pub struct $projective {
-           pub(crate) x: $basefield,
-           pub(crate) y: $basefield,
-           pub(crate) z: $basefield
+            pub(crate) x: $basefield,
+            pub(crate) y: $basefield,
+            pub(crate) z: $basefield,
         }
 
-        impl ::std::fmt::Display for $projective
-        {
+        impl ::std::fmt::Display for $projective {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 write!(f, "{}", self.into_affine())
             }
@@ -89,7 +87,9 @@ macro_rules! curve_impl {
                 let mut res = $projective::zero();
                 for i in bits {
                     res.double();
-                    if i { res.add_assign_mixed(self) }
+                    if i {
+                        res.add_assign_mixed(self)
+                    }
                 }
                 res
             }
@@ -111,13 +111,9 @@ macro_rules! curve_impl {
                     negy.negate();
 
                     $affine {
-                        x: x,
-                        y: if (y < negy) ^ greatest {
-                            y
-                        } else {
-                            negy
-                        },
-                        infinity: false
+                        x,
+                        y: if (y < negy) ^ greatest { y } else { negy },
+                        infinity: false,
                     }
                 })
             }
@@ -156,7 +152,7 @@ macro_rules! curve_impl {
                 $affine {
                     x: $basefield::zero(),
                     y: $basefield::one(),
-                    infinity: true
+                    infinity: true,
                 }
             }
 
@@ -182,7 +178,6 @@ macro_rules! curve_impl {
             fn into_projective(&self) -> $projective {
                 (*self).into()
             }
-
         }
 
         impl PairingCurveAffine for $affine {
@@ -197,7 +192,6 @@ macro_rules! curve_impl {
             fn pairing_with(&self, other: &Self::Pair) -> Self::PairingResult {
                 self.perform_pairing(other)
             }
-
         }
 
         impl CurveProjective for $projective {
@@ -227,7 +221,7 @@ macro_rules! curve_impl {
                 $projective {
                     x: $basefield::zero(),
                     y: $basefield::one(),
-                    z: $basefield::zero()
+                    z: $basefield::zero(),
                 }
             }
 
@@ -245,8 +239,7 @@ macro_rules! curve_impl {
                 self.is_zero() || self.z == $basefield::one()
             }
 
-            fn batch_normalization(v: &mut [Self])
-            {
+            fn batch_normalization(v: &mut [Self]) {
                 // Montgomery’s Trick and Fast Implementation of Masked AES
                 // Genelle, Prouff and Quisquater
                 // Section 3.2
@@ -255,8 +248,8 @@ macro_rules! curve_impl {
                 let mut prod = Vec::with_capacity(v.len());
                 let mut tmp = $basefield::one();
                 for g in v.iter_mut()
-                          // Ignore normalized elements
-                          .filter(|g| !g.is_normalized())
+                                  // Ignore normalized elements
+                                  .filter(|g| !g.is_normalized())
                 {
                     tmp.mul_assign(&g.z);
                     prod.push(tmp);
@@ -267,12 +260,12 @@ macro_rules! curve_impl {
 
                 // Second pass: iterate backwards to compute inverses
                 for (g, s) in v.iter_mut()
-                               // Backwards
-                               .rev()
-                               // Ignore normalized elements
-                               .filter(|g| !g.is_normalized())
-                               // Backwards, skip last element, fill in one for last term.
-                               .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
+                                       // Backwards
+                                       .rev()
+                                       // Ignore normalized elements
+                                       .filter(|g| !g.is_normalized())
+                                       // Backwards, skip last element, fill in one for last term.
+                                       .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
                 {
                     // tmp := tmp * g.z; g.z := tmp * s = 1/z
                     let mut newtmp = tmp;
@@ -283,9 +276,7 @@ macro_rules! curve_impl {
                 }
 
                 // Perform affine transformations
-                for g in v.iter_mut()
-                          .filter(|g| !g.is_normalized())
-                {
+                for g in v.iter_mut().filter(|g| !g.is_normalized()) {
                     let mut z = g.z; // 1/z
                     z.square(); // 1/z^2
                     g.x.mul_assign(&z); // x/z^2
@@ -538,8 +529,7 @@ macro_rules! curve_impl {
 
                 let mut found_one = false;
 
-                for i in BitIterator::new(other.into())
-                {
+                for i in BitIterator::new(other.into()) {
                     if found_one {
                         res.double();
                     } else {
@@ -577,7 +567,7 @@ macro_rules! curve_impl {
                     $projective {
                         x: p.x,
                         y: p.y,
-                        z: $basefield::one()
+                        z: $basefield::one(),
                     }
                 }
             }
@@ -594,7 +584,7 @@ macro_rules! curve_impl {
                     $affine {
                         x: p.x,
                         y: p.y,
-                        infinity: false
+                        infinity: false,
                     }
                 } else {
                     // Z is nonzero, so it must have an inverse in a field.
@@ -612,14 +602,14 @@ macro_rules! curve_impl {
                     y.mul_assign(&zinv_powered);
 
                     $affine {
-                        x: x,
-                        y: y,
-                        infinity: false
+                        x,
+                        y,
+                        infinity: false,
                     }
                 }
             }
         }
-    }
+    };
 }
 
 pub mod g1 {
@@ -726,12 +716,8 @@ pub mod g1 {
                 }
 
                 Ok(G1Affine {
-                    x: Fq::from_repr(x).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("x coordinate", e)
-                    })?,
-                    y: Fq::from_repr(y).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("y coordinate", e)
-                    })?,
+                    x: Fq::from_repr(x).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?,
+                    y: Fq::from_repr(y).map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate", e))?,
                     infinity: false,
                 })
             }
@@ -832,8 +818,7 @@ pub mod g1 {
                 }
 
                 // Interpret as Fq element.
-                let x = Fq::from_repr(x)
-                    .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?;
+                let x = Fq::from_repr(x).map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate", e))?;
 
                 G1Affine::get_point_from_x(x, greatest).ok_or(GroupDecodingError::NotOnCurve)
             }
@@ -907,8 +892,7 @@ pub mod g1 {
         }
 
         fn empirical_recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
-            const RECOMMENDATIONS: [usize; 12] =
-                [1, 3, 7, 20, 43, 120, 273, 563, 1630, 3128, 7933, 62569];
+            const RECOMMENDATIONS: [usize; 12] = [1, 3, 7, 20, 43, 120, 273, 563, 1630, 3128, 7933, 62569];
 
             let mut ret = 4;
             for r in &RECOMMENDATIONS {
@@ -956,7 +940,7 @@ pub mod g1 {
                 let negyrepr = negy.into_repr();
 
                 let p = G1Affine {
-                    x: x,
+                    x,
                     y: if yrepr < negyrepr { y } else { negy },
                     infinity: false,
                 };
@@ -991,7 +975,8 @@ pub mod g1 {
                     0x9fe83b1b4a5d648d,
                     0xf583cc5a508f6a40,
                     0xc3ad2aefde0bb13,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 y: Fq::from_repr(FqRepr([
                     0x60aa6f9552f03aae,
                     0xecd01d5181300d35,
@@ -999,7 +984,8 @@ pub mod g1 {
                     0xe760f57922998c9d,
                     0x953703f5795a39e5,
                     0xfe3ae0922df702c,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 infinity: false,
             };
             assert!(!p.is_on_curve());
@@ -1016,7 +1002,8 @@ pub mod g1 {
                     0xea034ee2928b30a8,
                     0xbd8833dc7c79a7f7,
                     0xe45c9f0c0438675,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 y: Fq::from_repr(FqRepr([
                     0x3b450eb1ab7b5dad,
                     0xa65cb81e975e8675,
@@ -1024,7 +1011,8 @@ pub mod g1 {
                     0x753ddf21a2601d20,
                     0x532d0b640bd3ff8b,
                     0x118d2c543f031102,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 infinity: false,
             };
             assert!(!p.is_on_curve());
@@ -1042,7 +1030,8 @@ pub mod g1 {
                     0xf35de9ce0d6b4e84,
                     0x265bddd23d1dec54,
                     0x12a8778088458308,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 y: Fq::from_repr(FqRepr([
                     0x8a22defa0d526256,
                     0xc57ca55456fcb9ae,
@@ -1050,7 +1039,8 @@ pub mod g1 {
                     0x921beef89d4f29df,
                     0x5b6fda44ad85fa78,
                     0xed74ab9f302cbe0,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 infinity: false,
             };
             assert!(p.is_on_curve());
@@ -1068,7 +1058,8 @@ pub mod g1 {
                 0x485e77d50a5df10d,
                 0x4c6fcac4b55fd479,
                 0x86ed4d9906fb064,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             y: Fq::from_repr(FqRepr([
                 0xd25ee6461538c65,
                 0x9f3bbb2ecd3719b9,
@@ -1076,7 +1067,8 @@ pub mod g1 {
                 0xcefca68333c35288,
                 0x570c8005f8573fa6,
                 0x152ca696fe034442,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             z: Fq::one(),
         };
 
@@ -1088,7 +1080,8 @@ pub mod g1 {
                 0x5f44314ec5e3fb03,
                 0x24e8538737c6e675,
                 0x8abd623a594fba8,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             y: Fq::from_repr(FqRepr([
                 0x6b0528f088bb7044,
                 0x2fdeb5c82917ff9e,
@@ -1096,7 +1089,8 @@ pub mod g1 {
                 0xd65104c6f95a872a,
                 0x1f2998a5a9c61253,
                 0xe74846154a9e44,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             z: Fq::one(),
         });
 
@@ -1112,7 +1106,8 @@ pub mod g1 {
                     0xc4f9a52a428e23bb,
                     0xd178b28dd4f407ef,
                     0x17fb8905e9183c69
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 y: Fq::from_repr(FqRepr([
                     0xd0de9d65292b7710,
                     0xf6a05f2bcf1d9ca7,
@@ -1120,7 +1115,8 @@ pub mod g1 {
                     0xeec8d1a5b7466c58,
                     0x4bc362649dce6376,
                     0x430cbdc5455b00a
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 infinity: false,
             }
         );
@@ -1136,7 +1132,8 @@ pub mod g1 {
                 0x485e77d50a5df10d,
                 0x4c6fcac4b55fd479,
                 0x86ed4d9906fb064,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             y: Fq::from_repr(FqRepr([
                 0xd25ee6461538c65,
                 0x9f3bbb2ecd3719b9,
@@ -1144,7 +1141,8 @@ pub mod g1 {
                 0xcefca68333c35288,
                 0x570c8005f8573fa6,
                 0x152ca696fe034442,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             z: Fq::one(),
         };
 
@@ -1162,7 +1160,8 @@ pub mod g1 {
                     0x4b914c16687dcde0,
                     0x66c8baf177d20533,
                     0xaf960cff3d83833
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 y: Fq::from_repr(FqRepr([
                     0x3f0675695f5177a8,
                     0x2b6d82ae178a1ba0,
@@ -1170,7 +1169,8 @@ pub mod g1 {
                     0x1771a65b60572f4e,
                     0x8b547c1313b27555,
                     0x135075589a687b1e
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 infinity: false,
             }
         );
@@ -1193,7 +1193,8 @@ pub mod g1 {
                 0x71ffa8021531705,
                 0x7418d484386d267,
                 0xd5108d8ff1fbd6,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             y: Fq::from_repr(FqRepr([
                 0xa776ccbfe9981766,
                 0x255632964ff40f4a,
@@ -1201,7 +1202,8 @@ pub mod g1 {
                 0x520f74773e74c8c3,
                 0x484c8fc982008f0,
                 0xee2c3d922008cc6,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             infinity: false,
         };
 
@@ -1213,7 +1215,8 @@ pub mod g1 {
                 0xc6e05201e5f83991,
                 0xf7c75910816f207c,
                 0x18d4043e78103106,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             y: Fq::from_repr(FqRepr([
                 0xa776ccbfe9981766,
                 0x255632964ff40f4a,
@@ -1221,7 +1224,8 @@ pub mod g1 {
                 0x520f74773e74c8c3,
                 0x484c8fc982008f0,
                 0xee2c3d922008cc6,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             infinity: false,
         };
 
@@ -1236,7 +1240,8 @@ pub mod g1 {
                 0x9676ff02ec39c227,
                 0x4c12c15d7e55b9f3,
                 0x57fd1e317db9bd,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             y: Fq::from_repr(FqRepr([
                 0x1288334016679345,
                 0xf955cd68615ff0b5,
@@ -1244,7 +1249,8 @@ pub mod g1 {
                 0x1267d70db51049fb,
                 0x4696deb9ab2ba3e7,
                 0xb1e4e11177f59d4,
-            ])).unwrap(),
+            ]))
+            .unwrap(),
             infinity: false,
         };
 
@@ -1378,20 +1384,16 @@ pub mod g2 {
 
                 Ok(G2Affine {
                     x: Fq2 {
-                        c0: Fq::from_repr(x_c0).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e)
-                        })?,
-                        c1: Fq::from_repr(x_c1).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e)
-                        })?,
+                        c0: Fq::from_repr(x_c0)
+                            .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e))?,
+                        c1: Fq::from_repr(x_c1)
+                            .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e))?,
                     },
                     y: Fq2 {
-                        c0: Fq::from_repr(y_c0).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("y coordinate (c0)", e)
-                        })?,
-                        c1: Fq::from_repr(y_c1).map_err(|e| {
-                            GroupDecodingError::CoordinateDecodingError("y coordinate (c1)", e)
-                        })?,
+                        c0: Fq::from_repr(y_c0)
+                            .map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate (c0)", e))?,
+                        c1: Fq::from_repr(y_c1)
+                            .map_err(|e| GroupDecodingError::CoordinateDecodingError("y coordinate (c1)", e))?,
                     },
                     infinity: false,
                 })
@@ -1498,12 +1500,10 @@ pub mod g2 {
 
                 // Interpret as Fq element.
                 let x = Fq2 {
-                    c0: Fq::from_repr(x_c0).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e)
-                    })?,
-                    c1: Fq::from_repr(x_c1).map_err(|e| {
-                        GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e)
-                    })?,
+                    c0: Fq::from_repr(x_c0)
+                        .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c0)", e))?,
+                    c1: Fq::from_repr(x_c1)
+                        .map_err(|e| GroupDecodingError::CoordinateDecodingError("x coordinate (c1)", e))?,
                 };
 
                 G2Affine::get_point_from_x(x, greatest).ok_or(GroupDecodingError::NotOnCurve)
@@ -1598,8 +1598,7 @@ pub mod g2 {
         }
 
         fn empirical_recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
-            const RECOMMENDATIONS: [usize; 11] =
-                [1, 3, 8, 20, 47, 126, 260, 826, 1501, 4555, 84071];
+            const RECOMMENDATIONS: [usize; 11] = [1, 3, 8, 20, 47, 126, 260, 826, 1501, 4555, 84071];
 
             let mut ret = 4;
             for r in &RECOMMENDATIONS {
@@ -1638,7 +1637,7 @@ pub mod g2 {
                 negy.negate();
 
                 let p = G2Affine {
-                    x: x,
+                    x,
                     y: if y < negy { y } else { negy },
                     infinity: false,
                 };
@@ -1674,7 +1673,8 @@ pub mod g2 {
                         0x7a17a004747e3dbe,
                         0xcc65406a7c2e5a73,
                         0x10b8c03d64db4d0c,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0xd30e70fe2f029778,
                         0xda30772df0f5212e,
@@ -1682,7 +1682,8 @@ pub mod g2 {
                         0xfb777e5b9b568608,
                         0x789bac1fec71a2b9,
                         0x1342f02e2da54405,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 y: Fq2 {
                     c0: Fq::from_repr(FqRepr([
@@ -1692,7 +1693,8 @@ pub mod g2 {
                         0x663015d9410eb608,
                         0x78e82a79d829a544,
                         0x40a00545bb3c1e,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0x4709802348e79377,
                         0xb5ac4dc9204bcfbd,
@@ -1700,7 +1702,8 @@ pub mod g2 {
                         0x15008b1dc399e8df,
                         0x68128fd0548a3829,
                         0x16a613db5c873aaa,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 infinity: false,
             };
@@ -1719,7 +1722,8 @@ pub mod g2 {
                         0x41abba710d6c692c,
                         0xffcc4b2b62ce8484,
                         0x6993ec01b8934ed,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0xb94e92d5f874e26,
                         0x44516408bc115d95,
@@ -1727,7 +1731,8 @@ pub mod g2 {
                         0xa5a0c2b7131f3555,
                         0x83800965822367e7,
                         0x10cf1d3ad8d90bfa,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 y: Fq2 {
                     c0: Fq::from_repr(FqRepr([
@@ -1737,7 +1742,8 @@ pub mod g2 {
                         0x5a9171720e73eb51,
                         0x38eb4fd8d658adb7,
                         0xb649051bbc1164d,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0x9225814253d7df75,
                         0xc196c2513477f887,
@@ -1745,7 +1751,8 @@ pub mod g2 {
                         0x55f2b8efad953e04,
                         0x7379345eda55265e,
                         0x377f2e6208fd4cb,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 infinity: false,
             };
@@ -1765,7 +1772,8 @@ pub mod g2 {
                         0x2199bc19c48c393d,
                         0x4a151b732a6075bf,
                         0x17762a3b9108c4a7,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0x26f461e944bbd3d1,
                         0x298f3189a9cf6ed6,
@@ -1773,7 +1781,8 @@ pub mod g2 {
                         0x7e147f3f9e6e241,
                         0x72a9b63583963fff,
                         0x158b0083c000462,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 y: Fq2 {
                     c0: Fq::from_repr(FqRepr([
@@ -1783,7 +1792,8 @@ pub mod g2 {
                         0x68cad19430706b4d,
                         0x3ccfb97b924dcea8,
                         0x1660f93434588f8d,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0xaaed3985b6dcb9c7,
                         0xc1e985d6d898d9f4,
@@ -1791,7 +1801,8 @@ pub mod g2 {
                         0x3940a2dbb914b529,
                         0xbeb88137cf34f3e7,
                         0x1699ee577c61b694,
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 infinity: false,
             };
@@ -1811,7 +1822,8 @@ pub mod g2 {
                     0x72556c999f3707ac,
                     0x4617f2e6774e9711,
                     0x100b2fe5bffe030b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 c1: Fq::from_repr(FqRepr([
                     0x7a33555977ec608,
                     0xe23039d1fe9c0881,
@@ -1819,7 +1831,8 @@ pub mod g2 {
                     0x4637c4f417667e2e,
                     0x93ebe7c3e41f6acc,
                     0xde884f89a9a371b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
             },
             y: Fq2 {
                 c0: Fq::from_repr(FqRepr([
@@ -1829,7 +1842,8 @@ pub mod g2 {
                     0x25fd427b4122f231,
                     0xd83112aace35cae,
                     0x191b2432407cbb7f,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 c1: Fq::from_repr(FqRepr([
                     0xf68ae82fe97662f5,
                     0xe986057068b50b7d,
@@ -1837,7 +1851,8 @@ pub mod g2 {
                     0x9eaa6d19de569196,
                     0xf6a03d31e2ec2183,
                     0x3bdafaf7ca9b39b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
             },
             z: Fq2::one(),
         };
@@ -1851,7 +1866,8 @@ pub mod g2 {
                     0x8e73a96b329ad190,
                     0x27c546f75ee1f3ab,
                     0xa33d27add5e7e82,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 c1: Fq::from_repr(FqRepr([
                     0x93b1ebcd54870dfe,
                     0xf1578300e1342e11,
@@ -1859,7 +1875,8 @@ pub mod g2 {
                     0x2089faf462438296,
                     0x828e5848cd48ea66,
                     0x141ecbac1deb038b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
             },
             y: Fq2 {
                 c0: Fq::from_repr(FqRepr([
@@ -1869,7 +1886,8 @@ pub mod g2 {
                     0x2767032fc37cc31d,
                     0xd5ee2aba84fd10fe,
                     0x16576ccd3dd0a4e8,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 c1: Fq::from_repr(FqRepr([
                     0x4da9b6f6a96d1dd2,
                     0x9657f7da77f1650e,
@@ -1877,7 +1895,8 @@ pub mod g2 {
                     0x31898db63f87363a,
                     0xabab040ddbd097cc,
                     0x11ad236b9ba02990,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
             },
             z: Fq2::one(),
         });
@@ -1895,7 +1914,8 @@ pub mod g2 {
                         0xf1273e6406eef9cc,
                         0xababd760ff05cb92,
                         0xd7c20456617e89
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0xd1a50b8572cbd2b8,
                         0x238f0ac6119d07df,
@@ -1903,7 +1923,8 @@ pub mod g2 {
                         0x8b203284c51edf6b,
                         0xc8a0b730bbb21f5e,
                         0x1a3b59d29a31274
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 y: Fq2 {
                     c0: Fq::from_repr(FqRepr([
@@ -1913,7 +1934,8 @@ pub mod g2 {
                         0x64528ab3863633dc,
                         0x159384333d7cba97,
                         0x4cb84741f3cafe8
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0x242af0dc3640e1a4,
                         0xe90a73ad65c66919,
@@ -1921,7 +1943,8 @@ pub mod g2 {
                         0x38528f92b689644d,
                         0xb6884deec59fb21f,
                         0x3c075d3ec52ba90
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 infinity: false,
             }
@@ -1939,7 +1962,8 @@ pub mod g2 {
                     0x72556c999f3707ac,
                     0x4617f2e6774e9711,
                     0x100b2fe5bffe030b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 c1: Fq::from_repr(FqRepr([
                     0x7a33555977ec608,
                     0xe23039d1fe9c0881,
@@ -1947,7 +1971,8 @@ pub mod g2 {
                     0x4637c4f417667e2e,
                     0x93ebe7c3e41f6acc,
                     0xde884f89a9a371b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
             },
             y: Fq2 {
                 c0: Fq::from_repr(FqRepr([
@@ -1957,7 +1982,8 @@ pub mod g2 {
                     0x25fd427b4122f231,
                     0xd83112aace35cae,
                     0x191b2432407cbb7f,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
                 c1: Fq::from_repr(FqRepr([
                     0xf68ae82fe97662f5,
                     0xe986057068b50b7d,
@@ -1965,7 +1991,8 @@ pub mod g2 {
                     0x9eaa6d19de569196,
                     0xf6a03d31e2ec2183,
                     0x3bdafaf7ca9b39b,
-                ])).unwrap(),
+                ]))
+                .unwrap(),
             },
             z: Fq2::one(),
         };
@@ -1985,7 +2012,8 @@ pub mod g2 {
                         0xbcedcfce1e52d986,
                         0x9755d4a3926e9862,
                         0x18bab73760fd8024
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0x4e7c5e0a2ae5b99e,
                         0x96e582a27f028961,
@@ -1993,7 +2021,8 @@ pub mod g2 {
                         0xeb0cf5e610ef4fe7,
                         0x7b4c2bae8db6e70b,
                         0xf136e43909fca0
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 y: Fq2 {
                     c0: Fq::from_repr(FqRepr([
@@ -2003,7 +2032,8 @@ pub mod g2 {
                         0xa5a2a51f7fde787b,
                         0x8b92866bc6384188,
                         0x81a53fe531d64ef
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                     c1: Fq::from_repr(FqRepr([
                         0x4c5d607666239b34,
                         0xeddb5f48304d14b3,
@@ -2011,7 +2041,8 @@ pub mod g2 {
                         0xb271f52f12ead742,
                         0x244e6c2015c83348,
                         0x19e2deae6eb9b441
-                    ])).unwrap(),
+                    ]))
+                    .unwrap(),
                 },
                 infinity: false,
             }

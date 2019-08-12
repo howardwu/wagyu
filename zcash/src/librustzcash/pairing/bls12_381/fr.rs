@@ -22,30 +22,12 @@ fn test_fr_repr_ordering() {
         assert!(b > a);
     }
 
-    assert_equality(
-        FrRepr([9999, 9999, 9999, 9999]),
-        FrRepr([9999, 9999, 9999, 9999]),
-    );
-    assert_equality(
-        FrRepr([9999, 9998, 9999, 9999]),
-        FrRepr([9999, 9998, 9999, 9999]),
-    );
-    assert_equality(
-        FrRepr([9999, 9999, 9999, 9997]),
-        FrRepr([9999, 9999, 9999, 9997]),
-    );
-    assert_lt(
-        FrRepr([9999, 9997, 9999, 9998]),
-        FrRepr([9999, 9997, 9999, 9999]),
-    );
-    assert_lt(
-        FrRepr([9999, 9997, 9998, 9999]),
-        FrRepr([9999, 9997, 9999, 9999]),
-    );
-    assert_lt(
-        FrRepr([9, 9999, 9999, 9997]),
-        FrRepr([9999, 9999, 9999, 9997]),
-    );
+    assert_equality(FrRepr([9999, 9999, 9999, 9999]), FrRepr([9999, 9999, 9999, 9999]));
+    assert_equality(FrRepr([9999, 9998, 9999, 9999]), FrRepr([9999, 9998, 9999, 9999]));
+    assert_equality(FrRepr([9999, 9999, 9999, 9997]), FrRepr([9999, 9999, 9999, 9997]));
+    assert_lt(FrRepr([9999, 9997, 9999, 9998]), FrRepr([9999, 9997, 9999, 9999]));
+    assert_lt(FrRepr([9999, 9997, 9998, 9999]), FrRepr([9999, 9997, 9999, 9999]));
+    assert_lt(FrRepr([9, 9999, 9999, 9997]), FrRepr([9999, 9999, 9999, 9997]));
 }
 
 #[test]
@@ -149,12 +131,7 @@ fn test_fr_repr_shr() {
     a.shr(50);
     assert_eq!(
         a,
-        FrRepr([
-            0xbc1a7511967bf667,
-            0xc5a55341caa4b32f,
-            0x75611bce1b4335e,
-            0x6c0
-        ])
+        FrRepr([0xbc1a7511967bf667, 0xc5a55341caa4b32f, 0x75611bce1b4335e, 0x6c0])
     );
     a.shr(130);
     assert_eq!(a, FrRepr([0x1d5846f386d0cd7, 0x1b0, 0x0, 0x0]));
@@ -200,8 +177,7 @@ fn test_fr_repr_num_bits() {
 #[test]
 fn test_fr_repr_sub_noborrow() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let mut t = FrRepr([
@@ -302,8 +278,7 @@ fn test_fr_legendre() {
 #[test]
 fn test_fr_repr_add_nocarry() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let mut t = FrRepr([
@@ -388,26 +363,23 @@ fn test_fr_is_valid() {
     a.0.sub_noborrow(&FrRepr::from(1));
     assert!(a.is_valid());
     assert!(Fr(FrRepr::from(0)).is_valid());
-    assert!(
-        Fr(FrRepr([
-            0xffffffff00000000,
-            0x53bda402fffe5bfe,
-            0x3339d80809a1d805,
-            0x73eda753299d7d48
-        ])).is_valid()
-    );
-    assert!(
-        !Fr(FrRepr([
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff
-        ])).is_valid()
-    );
+    assert!(Fr(FrRepr([
+        0xffffffff00000000,
+        0x53bda402fffe5bfe,
+        0x3339d80809a1d805,
+        0x73eda753299d7d48
+    ]))
+    .is_valid());
+    assert!(!Fr(FrRepr([
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff
+    ]))
+    .is_valid());
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -504,8 +476,7 @@ fn test_fr_add_assign() {
     // Test associativity
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -601,8 +572,7 @@ fn test_fr_sub_assign() {
     }
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -645,8 +615,7 @@ fn test_fr_mul_assign() {
     );
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000000 {
@@ -707,12 +676,12 @@ fn test_fr_squaring() {
             0xb79a310579e76ec2,
             0xac1da8d0a9af4e5f,
             0x13f629c49bf23e97
-        ])).unwrap()
+        ]))
+        .unwrap()
     );
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000000 {
@@ -734,8 +703,7 @@ fn test_fr_inverse() {
     assert!(Fr::zero().inverse().is_none());
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let one = Fr::one();
@@ -752,8 +720,7 @@ fn test_fr_inverse() {
 #[test]
 fn test_fr_double() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -776,8 +743,7 @@ fn test_fr_negate() {
     }
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -794,8 +760,7 @@ fn test_fr_negate() {
 #[test]
 fn test_fr_pow() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for i in 0..1000 {
@@ -823,8 +788,7 @@ fn test_fr_sqrt() {
     use crate::librustzcash::ff::SqrtField;
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     assert_eq!(Fr::zero().sqrt().unwrap(), Fr::zero());
@@ -857,14 +821,13 @@ fn test_fr_sqrt() {
 #[test]
 fn test_fr_from_into_repr() {
     // r + 1 should not be in the field
-    assert!(
-        Fr::from_repr(FrRepr([
-            0xffffffff00000002,
-            0x53bda402fffe5bfe,
-            0x3339d80809a1d805,
-            0x73eda753299d7d48
-        ])).is_err()
-    );
+    assert!(Fr::from_repr(FrRepr([
+        0xffffffff00000002,
+        0x53bda402fffe5bfe,
+        0x3339d80809a1d805,
+        0x73eda753299d7d48
+    ]))
+    .is_err());
 
     // r should not be in the field
     assert!(Fr::from_repr(Fr::char()).is_err());
@@ -897,8 +860,7 @@ fn test_fr_from_into_repr() {
     assert!(Fr::from_repr(FrRepr::from(0)).unwrap().is_zero());
 
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -967,7 +929,8 @@ fn test_fr_display() {
                 0x185ec8eb3f5b5aee,
                 0x684499ffe4b9dd99,
                 0x7c9bba7afb68faa
-            ])).unwrap()
+            ]))
+            .unwrap()
         ),
         "Fr(0x07c9bba7afb68faa684499ffe4b9dd99185ec8eb3f5b5aeec3cae746a3b5ecc7)".to_string()
     );
@@ -979,7 +942,8 @@ fn test_fr_display() {
                 0xb0ad10817df79b6a,
                 0xd034a80a2b74132b,
                 0x41cf9a1336f50719
-            ])).unwrap()
+            ]))
+            .unwrap()
         ),
         "Fr(0x41cf9a1336f50719d034a80a2b74132bb0ad10817df79b6a44c71298ff198106)".to_string()
     );
@@ -996,17 +960,9 @@ fn test_fr_root_of_unity() {
     use crate::librustzcash::ff::SqrtField;
 
     assert_eq!(Fr::S, 32);
+    assert_eq!(Fr::multiplicative_generator(), Fr::from_repr(FrRepr::from(7)).unwrap());
     assert_eq!(
-        Fr::multiplicative_generator(),
-        Fr::from_repr(FrRepr::from(7)).unwrap()
-    );
-    assert_eq!(
-        Fr::multiplicative_generator().pow([
-            0xfffe5bfeffffffff,
-            0x9a1d80553bda402,
-            0x299d7d483339d808,
-            0x73eda753
-        ]),
+        Fr::multiplicative_generator().pow([0xfffe5bfeffffffff, 0x9a1d80553bda402, 0x299d7d483339d808, 0x73eda753]),
         Fr::root_of_unity()
     );
     assert_eq!(Fr::root_of_unity().pow([1 << Fr::S]), Fr::one());

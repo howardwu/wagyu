@@ -11,44 +11,32 @@ use crate::librustzcash::group::{CurveAffine, CurveProjective};
 /// of prime order `r`, and are equipped with a bilinear pairing function.
 pub trait Engine: ScalarEngine {
     /// The projective representation of an element in G1.
-    type G1: CurveProjective<
-        Engine = Self,
-        Base = Self::Fq,
-        Scalar = Self::Fr,
-        Affine = Self::G1Affine,
-    >
-    + From<Self::G1Affine>;
+    type G1: CurveProjective<Engine = Self, Base = Self::Fq, Scalar = Self::Fr, Affine = Self::G1Affine>
+        + From<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
     type G1Affine: PairingCurveAffine<
-        Engine = Self,
-        Base = Self::Fq,
-        Scalar = Self::Fr,
-        Projective = Self::G1,
-        Pair = Self::G2Affine,
-        PairingResult = Self::Fqk,
-    >
-    + From<Self::G1>;
+            Engine = Self,
+            Base = Self::Fq,
+            Scalar = Self::Fr,
+            Projective = Self::G1,
+            Pair = Self::G2Affine,
+            PairingResult = Self::Fqk,
+        > + From<Self::G1>;
 
     /// The projective representation of an element in G2.
-    type G2: CurveProjective<
-        Engine = Self,
-        Base = Self::Fqe,
-        Scalar = Self::Fr,
-        Affine = Self::G2Affine,
-    >
-    + From<Self::G2Affine>;
+    type G2: CurveProjective<Engine = Self, Base = Self::Fqe, Scalar = Self::Fr, Affine = Self::G2Affine>
+        + From<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
     type G2Affine: PairingCurveAffine<
-        Engine = Self,
-        Base = Self::Fqe,
-        Scalar = Self::Fr,
-        Projective = Self::G2,
-        Pair = Self::G1Affine,
-        PairingResult = Self::Fqk,
-    >
-    + From<Self::G2>;
+            Engine = Self,
+            Base = Self::Fqe,
+            Scalar = Self::Fr,
+            Projective = Self::G2,
+            Pair = Self::G1Affine,
+            PairingResult = Self::Fqk,
+        > + From<Self::G2>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SqrtField;
@@ -61,26 +49,27 @@ pub trait Engine: ScalarEngine {
 
     /// Perform a miller loop with some number of (G1, G2) pairs.
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
-        where
-            I: IntoIterator<
-                Item = &'a (
-                    &'a <Self::G1Affine as PairingCurveAffine>::Prepared,
-                    &'a <Self::G2Affine as PairingCurveAffine>::Prepared,
-                ),
-            >;
+    where
+        I: IntoIterator<
+            Item = &'a (
+                &'a <Self::G1Affine as PairingCurveAffine>::Prepared,
+                &'a <Self::G2Affine as PairingCurveAffine>::Prepared,
+            ),
+        >;
 
     /// Perform final exponentiation of the result of a miller loop.
     fn final_exponentiation(input: &Self::Fqk) -> Option<Self::Fqk>;
 
     /// Performs a complete pairing operation `(p, q)`.
     fn pairing<G1, G2>(p: G1, q: G2) -> Self::Fqk
-        where
-            G1: Into<Self::G1Affine>,
-            G2: Into<Self::G2Affine>,
+    where
+        G1: Into<Self::G1Affine>,
+        G2: Into<Self::G2Affine>,
     {
         Self::final_exponentiation(&Self::miller_loop(
             [(&(p.into().prepare()), &(q.into().prepare()))].into_iter(),
-        )).unwrap()
+        ))
+        .unwrap()
     }
 }
 

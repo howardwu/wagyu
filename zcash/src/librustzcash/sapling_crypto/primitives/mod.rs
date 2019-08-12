@@ -1,59 +1,46 @@
 use crate::librustzcash::ff::{Field, PrimeField, PrimeFieldRepr};
 use crate::librustzcash::sapling_crypto::constants;
 use crate::librustzcash::sapling_crypto::group_hash::group_hash;
-use crate::librustzcash::sapling_crypto::jubjub::{
-    JubjubEngine,
-    JubjubParams,
-    edwards,
-    PrimeOrder,
-    FixedGenerators
-};
-use crate::librustzcash::sapling_crypto::pedersen_hash::{
-    pedersen_hash,
-    Personalization
-};
+use crate::librustzcash::sapling_crypto::jubjub::{edwards, FixedGenerators, JubjubEngine, JubjubParams, PrimeOrder};
+use crate::librustzcash::sapling_crypto::pedersen_hash::{pedersen_hash, Personalization};
 
-use byteorder::{
-    LittleEndian,
-    WriteBytesExt
-};
+use byteorder::{LittleEndian, WriteBytesExt};
 
 use blake2s_simd::Params as Blake2sParams;
 
 #[derive(Clone)]
 pub struct ValueCommitment<E: JubjubEngine> {
     pub value: u64,
-    pub randomness: E::Fs
+    pub randomness: E::Fs,
 }
 
 impl<E: JubjubEngine> ValueCommitment<E> {
-    pub fn cm(
-        &self,
-        params: &E::Params
-    ) -> edwards::Point<E, PrimeOrder>
-    {
-        params.generator(FixedGenerators::ValueCommitmentValue)
-              .mul(self.value, params)
-              .add(
-                  &params.generator(FixedGenerators::ValueCommitmentRandomness)
-                  .mul(self.randomness, params),
-                  params
-              )
+    pub fn cm(&self, params: &E::Params) -> edwards::Point<E, PrimeOrder> {
+        params
+            .generator(FixedGenerators::ValueCommitmentValue)
+            .mul(self.value, params)
+            .add(
+                &params
+                    .generator(FixedGenerators::ValueCommitmentRandomness)
+                    .mul(self.randomness, params),
+                params,
+            )
     }
 }
 
 #[derive(Clone)]
 pub struct ProofGenerationKey<E: JubjubEngine> {
     pub ak: edwards::Point<E, PrimeOrder>,
-    pub nsk: E::Fs
+    pub nsk: E::Fs,
 }
 
 impl<E: JubjubEngine> ProofGenerationKey<E> {
     pub fn into_viewing_key(&self, params: &E::Params) -> ViewingKey<E> {
         ViewingKey {
             ak: self.ak.clone(),
-            nk: params.generator(FixedGenerators::ProofGenerationKey)
-                      .mul(self.nsk, params)
+            nk: params
+                .generator(FixedGenerators::ProofGenerationKey)
+                .mul(self.nsk, params),
         }
     }
 }
@@ -61,19 +48,14 @@ impl<E: JubjubEngine> ProofGenerationKey<E> {
 #[derive(Debug)]
 pub struct ViewingKey<E: JubjubEngine> {
     pub ak: edwards::Point<E, PrimeOrder>,
-    pub nk: edwards::Point<E, PrimeOrder>
+    pub nk: edwards::Point<E, PrimeOrder>,
 }
 
 impl<E: JubjubEngine> ViewingKey<E> {
-    pub fn rk(
-        &self,
-        ar: E::Fs,
-        params: &E::Params
-    ) -> edwards::Point<E, PrimeOrder> {
+    pub fn rk(&self, ar: E::Fs, params: &E::Params) -> edwards::Point<E, PrimeOrder> {
         self.ak.add(
-            &params.generator(FixedGenerators::SpendingKeyGenerator)
-                   .mul(ar, params),
-            params
+            &params.generator(FixedGenerators::SpendingKeyGenerator).mul(ar, params),
+            params,
         )
     }
 
@@ -84,11 +66,13 @@ impl<E: JubjubEngine> ViewingKey<E> {
         self.nk.write(&mut preimage[32..64]).unwrap();
 
         let mut h = [0; 32];
-        h.copy_from_slice(Blake2sParams::new()
-            .hash_length(32)
-            .personal(constants::CRH_IVK_PERSONALIZATION)
-            .hash(&preimage)
-            .as_bytes());
+        h.copy_from_slice(
+            Blake2sParams::new()
+                .hash_length(32)
+                .personal(constants::CRH_IVK_PERSONALIZATION)
+                .hash(&preimage)
+                .as_bytes(),
+        );
 
         // Drop the most significant five bits, so it can be interpreted as a scalar.
         h[31] &= 0b0000_0111;
@@ -99,19 +83,11 @@ impl<E: JubjubEngine> ViewingKey<E> {
         E::Fs::from_repr(e).expect("should be a valid scalar")
     }
 
-    pub fn into_payment_address(
-        &self,
-        diversifier: Diversifier,
-        params: &E::Params
-    ) -> Option<PaymentAddress<E>>
-    {
+    pub fn into_payment_address(&self, diversifier: Diversifier, params: &E::Params) -> Option<PaymentAddress<E>> {
         diversifier.g_d(params).map(|g_d| {
             let pk_d = g_d.mul(self.ivk(), params);
 
-            PaymentAddress {
-                pk_d: pk_d,
-                diversifier: diversifier
-            }
+            PaymentAddress { pk_d, diversifier }
         })
     }
 }
@@ -120,11 +96,7 @@ impl<E: JubjubEngine> ViewingKey<E> {
 pub struct Diversifier(pub [u8; 11]);
 
 impl Diversifier {
-    pub fn g_d<E: JubjubEngine>(
-        &self,
-        params: &E::Params
-    ) -> Option<edwards::Point<E, PrimeOrder>>
-    {
+    pub fn g_d<E: JubjubEngine>(&self, params: &E::Params) -> Option<edwards::Point<E, PrimeOrder>> {
         group_hash::<E>(&self.0, constants::KEY_DIVERSIFICATION_PERSONALIZATION, params)
     }
 }
@@ -132,7 +104,7 @@ impl Diversifier {
 #[derive(Clone, Debug)]
 pub struct PaymentAddress<E: JubjubEngine> {
     pub pk_d: edwards::Point<E, PrimeOrder>,
-    pub diversifier: Diversifier
+    pub diversifier: Diversifier,
 }
 
 impl<E: JubjubEngine> PartialEq for PaymentAddress<E> {
@@ -142,28 +114,16 @@ impl<E: JubjubEngine> PartialEq for PaymentAddress<E> {
 }
 
 impl<E: JubjubEngine> PaymentAddress<E> {
-    pub fn g_d(
-        &self,
-        params: &E::Params
-    ) -> Option<edwards::Point<E, PrimeOrder>>
-    {
+    pub fn g_d(&self, params: &E::Params) -> Option<edwards::Point<E, PrimeOrder>> {
         self.diversifier.g_d(params)
     }
 
-    pub fn create_note(
-        &self,
-        value: u64,
-        randomness: E::Fs,
-        params: &E::Params
-    ) -> Option<Note<E>>
-    {
-        self.g_d(params).map(|g_d| {
-            Note {
-                value: value,
-                r: randomness,
-                g_d: g_d,
-                pk_d: self.pk_d.clone()
-            }
+    pub fn create_note(&self, value: u64, randomness: E::Fs, params: &E::Params) -> Option<Note<E>> {
+        self.g_d(params).map(|g_d| Note {
+            value,
+            r: randomness,
+            g_d,
+            pk_d: self.pk_d.clone(),
         })
     }
 }
@@ -177,15 +137,12 @@ pub struct Note<E: JubjubEngine> {
     /// The public key of the address, g_d^ivk
     pub pk_d: edwards::Point<E, PrimeOrder>,
     /// The commitment randomness
-    pub r: E::Fs
+    pub r: E::Fs,
 }
 
 impl<E: JubjubEngine> PartialEq for Note<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-            && self.g_d == other.g_d
-            && self.pk_d == other.pk_d
-            && self.r == other.r
+        self.value == other.value && self.g_d == other.g_d && self.pk_d == other.pk_d && self.r == other.r
     }
 }
 
@@ -200,8 +157,7 @@ impl<E: JubjubEngine> Note<E> {
     }
 
     /// Computes the note commitment, returning the full point.
-    fn cm_full_point(&self, params: &E::Params) -> edwards::Point<E, PrimeOrder>
-    {
+    fn cm_full_point(&self, params: &E::Params) -> edwards::Point<E, PrimeOrder> {
         // Calculate the note contents, as bytes
         let mut note_contents = vec![];
 
@@ -219,36 +175,29 @@ impl<E: JubjubEngine> Note<E> {
         // Compute the Pedersen hash of the note contents
         let hash_of_contents = pedersen_hash(
             Personalization::NoteCommitment,
-            note_contents.into_iter()
-                         .flat_map(|byte| {
-                            (0..8).map(move |i| ((byte >> i) & 1) == 1)
-                         }),
-            params
+            note_contents
+                .into_iter()
+                .flat_map(|byte| (0..8).map(move |i| ((byte >> i) & 1) == 1)),
+            params,
         );
 
         // Compute final commitment
-        params.generator(FixedGenerators::NoteCommitmentRandomness)
-              .mul(self.r, params)
-              .add(&hash_of_contents, params)
+        params
+            .generator(FixedGenerators::NoteCommitmentRandomness)
+            .mul(self.r, params)
+            .add(&hash_of_contents, params)
     }
 
     /// Computes the nullifier given the viewing key and
     /// note position
-    pub fn nf(
-        &self,
-        viewing_key: &ViewingKey<E>,
-        position: u64,
-        params: &E::Params
-    ) -> Vec<u8>
-    {
+    pub fn nf(&self, viewing_key: &ViewingKey<E>, position: u64, params: &E::Params) -> Vec<u8> {
         // Compute rho = cm + position.G
-        let rho = self
-            .cm_full_point(params)
-            .add(
-                &params.generator(FixedGenerators::NullifierPosition)
-                       .mul(position, params),
-                params
-            );
+        let rho = self.cm_full_point(params).add(
+            &params
+                .generator(FixedGenerators::NullifierPosition)
+                .mul(position, params),
+            params,
+        );
 
         // Compute nf = BLAKE2s(nk | rho)
         let mut nf_preimage = [0u8; 64];
@@ -263,8 +212,7 @@ impl<E: JubjubEngine> Note<E> {
     }
 
     /// Computes the note commitment
-    pub fn cm(&self, params: &E::Params) -> E::Fr
-    {
+    pub fn cm(&self, params: &E::Params) -> E::Fr {
         // The commitment is in the prime order subgroup, so mapping the
         // commitment to the x-coordinate is an injective encoding.
         self.cm_full_point(params).into_xy().0

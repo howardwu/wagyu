@@ -18,7 +18,6 @@ impl ::std::fmt::Display for Fq6 {
     }
 }
 
-
 impl Fq6 {
     /// Multiply by quadratic nonresidue v.
     pub fn mul_by_nonresidue(&mut self) {
@@ -285,11 +284,7 @@ impl Field for Fq6 {
 
         match tmp1.inverse() {
             Some(t) => {
-                let mut tmp = Fq6 {
-                    c0: t,
-                    c1: t,
-                    c2: t,
-                };
+                let mut tmp = Fq6 { c0: t, c1: t, c2: t };
                 tmp.c0.mul_assign(&c0);
                 tmp.c1.mul_assign(&c1);
                 tmp.c2.mul_assign(&c2);
@@ -309,8 +304,7 @@ use rand_xorshift::XorShiftRng;
 #[test]
 fn test_fq6_mul_nonresidue() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     let nqr = Fq6 {
@@ -332,8 +326,7 @@ fn test_fq6_mul_nonresidue() {
 #[test]
 fn test_fq6_mul_by_1() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -344,7 +337,7 @@ fn test_fq6_mul_by_1() {
         a.mul_by_1(&c1);
         b.mul_assign(&Fq6 {
             c0: Fq2::zero(),
-            c1: c1,
+            c1,
             c2: Fq2::zero(),
         });
 
@@ -355,8 +348,7 @@ fn test_fq6_mul_by_1() {
 #[test]
 fn test_fq6_mul_by_01() {
     let mut rng = XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
     for _ in 0..1000 {
@@ -367,8 +359,8 @@ fn test_fq6_mul_by_01() {
 
         a.mul_by_01(&c0, &c1);
         b.mul_assign(&Fq6 {
-            c0: c0,
-            c1: c1,
+            c0,
+            c1,
             c2: Fq2::zero(),
         });
 

@@ -168,10 +168,7 @@ impl<B, S: AsRef<[i64]>> Wnaf<usize, B, S> {
 
 impl<B, S: AsMut<Vec<i64>>> Wnaf<usize, B, S> {
     /// Performs exponentiation given a scalar.
-    pub fn scalar<G: CurveProjective>(
-        &mut self,
-        scalar: <<G as CurveProjective>::Scalar as PrimeField>::Repr,
-    ) -> G
+    pub fn scalar<G: CurveProjective>(&mut self, scalar: <<G as CurveProjective>::Scalar as PrimeField>::Repr) -> G
     where
         B: AsRef<[G]>,
     {
