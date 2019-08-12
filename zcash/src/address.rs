@@ -1,3 +1,5 @@
+use crate::librustzcash::sapling_crypto::primitives::Diversifier;
+use crate::librustzcash::zcash_primitives::JUBJUB;
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
@@ -12,13 +14,11 @@ use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::scalar::Scalar;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
-use sapling_crypto::primitives::Diversifier;
 use serde::Serialize;
 use std::convert::TryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 use std::{str, str::FromStr};
-use zcash_primitives::JUBJUB;
 
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

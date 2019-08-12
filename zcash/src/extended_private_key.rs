@@ -1,6 +1,7 @@
 use crate::address::{Format, ZcashAddress};
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_public_key::ZcashExtendedPublicKey;
+use crate::librustzcash::zcash_primitives::zip32::{ChildIndex as ZIP32ChildIndex, ExtendedSpendingKey};
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, SpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
@@ -11,7 +12,6 @@ use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Display};
-use zcash_primitives::zip32::ExtendedSpendingKey;
 
 /// Represents a Zcash extended private key
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
             extended_private_key = Self {
                 extended_spending_key: extended_private_key
                     .extended_spending_key
-                    .derive_child(zcash_primitives::zip32::ChildIndex::from_index(index.to_index())),
+                    .derive_child(ZIP32ChildIndex::from_index(index.to_index())),
                 _network: PhantomData,
             };
         }

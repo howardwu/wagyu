@@ -1,18 +1,18 @@
 use crate::address::{Format, ZcashAddress};
+use crate::librustzcash::pairing::bls12_381::Bls12;
+use crate::librustzcash::zcash_primitives::keys::ExpandedSpendingKey;
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
-use pairing::bls12_381::Bls12;
 use rand::Rng;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Debug, fmt::Display};
-use zcash_primitives::keys::ExpandedSpendingKey;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P2PKHSpendingKey<N: ZcashNetwork> {
