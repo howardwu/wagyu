@@ -6,11 +6,12 @@ use crate::librustzcash::sapling_crypto::{
 };
 use crate::librustzcash::JUBJUB;
 use crate::network::ZcashNetwork;
-use crate::public_key::SaplingFullViewingKey;
 use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey};
+use crate::public_key::SaplingFullViewingKey;
 use wagyu_model::ChildIndex;
 
 use aes::Aes256;
+use blake2b_simd::{Hash as Blake2bHash, Params as Blake2bParams};
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use fpe::ff1::{BinaryNumeralString, FF1};
 use std::io::{self, Read, Write};
@@ -20,8 +21,6 @@ pub const ZIP32_SAPLING_MASTER_PERSONALIZATION: &'static [u8; 16] = b"ZcashIP32S
 pub const ZIP32_SAPLING_FVFP_PERSONALIZATION: &'static [u8; 16] = b"ZcashSaplingFVFP";
 
 // Common helper functions
-
-use blake2b_simd::{Hash as Blake2bHash, Params as Blake2bParams};
 
 pub const PRF_EXPAND_PERSONALIZATION: &'static [u8; 16] = b"Zcash_ExpandSeed";
 
@@ -258,7 +257,13 @@ impl<N: ZcashNetwork> ExtendedSpendingKey<N> {
                 ask.add_assign(&self.expsk.ask);
                 nsk.add_assign(&self.expsk.nsk);
                 let ovk = derive_child_ovk(&self.expsk.ovk, i_l);
-                SaplingSpendingKey::<N> { spending_key: None, ask, nsk, ovk, _network: PhantomData }
+                SaplingSpendingKey::<N> {
+                    spending_key: None,
+                    ask,
+                    nsk,
+                    ovk,
+                    _network: PhantomData,
+                }
             },
             dk: self.dk.derive_child(i_l),
         }
@@ -369,7 +374,7 @@ impl<N: ZcashNetwork> ExtendedFullViewingKey<N> {
                 SaplingFullViewingKey::<N> {
                     vk: ViewingKey { ak, nk },
                     ovk: derive_child_ovk(&self.fvk.ovk, i_l),
-                    _network: PhantomData
+                    _network: PhantomData,
                 }
             },
             dk: self.dk.derive_child(i_l),

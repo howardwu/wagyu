@@ -5,7 +5,9 @@ use crate::librustzcash::zip32::ExtendedSpendingKey;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
-use wagyu_model::{Address, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey};
+use wagyu_model::{
+    Address, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey,
+};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::cmp::Ordering;
@@ -69,7 +71,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
             ask: self.extended_spending_key.expsk.ask,
             nsk: self.extended_spending_key.expsk.nsk,
             ovk: self.extended_spending_key.expsk.ovk,
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 

@@ -15,10 +15,10 @@ use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
+use std::io::{self, Read, Write};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Display};
-use std::io::{self, Read, Write};
 
 static H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
@@ -73,7 +73,7 @@ impl SproutViewingKey {
 pub struct SaplingFullViewingKey<N: ZcashNetwork> {
     pub(super) vk: SaplingViewingKey<Bls12>,
     pub(super) ovk: SaplingOutgoingViewingKey,
-    pub(super) _network: PhantomData<N>
+    pub(super) _network: PhantomData<N>,
 }
 
 impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
@@ -88,7 +88,7 @@ impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
                     .mul(key.nsk, params),
             },
             ovk: key.ovk,
-            _network: PhantomData
+            _network: PhantomData,
         }
     }
 
@@ -96,7 +96,12 @@ impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
         let ak = edwards::Point::<Bls12, Unknown>::read(&mut reader, params)?;
         let ak = match ak.as_prime_order(params) {
             Some(p) => p,
-            None => return Err(io::Error::new(io::ErrorKind::InvalidData, "ak not in prime-order subgroup"))
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ak not in prime-order subgroup",
+                ))
+            }
         };
         if ak == edwards::Point::zero() {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "ak not of prime order"));
@@ -105,7 +110,12 @@ impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
         let nk = edwards::Point::<Bls12, Unknown>::read(&mut reader, params)?;
         let nk = match nk.as_prime_order(params) {
             Some(p) => p,
-            None => return Err(io::Error::new(io::ErrorKind::InvalidData, "nk not in prime-order subgroup"))
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "nk not in prime-order subgroup",
+                ))
+            }
         };
 
         let mut ovk = [0; 32];
@@ -114,7 +124,7 @@ impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
         Ok(Self {
             vk: SaplingViewingKey { ak, nk },
             ovk: SaplingOutgoingViewingKey(ovk),
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 
@@ -128,16 +138,15 @@ impl<N: ZcashNetwork> SaplingFullViewingKey<N> {
 
     pub fn to_bytes(&self) -> [u8; 96] {
         let mut result = [0u8; 96];
-        self.write(&mut result[..]).expect("should be able to serialize a FullViewingKey");
+        self.write(&mut result[..])
+            .expect("should be able to serialize a FullViewingKey");
         result
     }
 }
 
 impl<N: ZcashNetwork> PartialEq for SaplingFullViewingKey<N> {
     fn eq(&self, other: &Self) -> bool {
-        self.vk.ak == other.vk.ak
-            && self.vk.nk == other.vk.nk
-            && self.ovk == other.ovk
+        self.vk.ak == other.vk.ak && self.vk.nk == other.vk.nk && self.ovk == other.ovk
     }
 }
 
@@ -151,7 +160,7 @@ impl<N: ZcashNetwork> Clone for SaplingFullViewingKey<N> {
                 nk: self.vk.nk.clone(),
             },
             ovk: self.ovk.clone(),
-            _network: PhantomData
+            _network: PhantomData,
         }
     }
 }
@@ -179,21 +188,22 @@ impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
         match private_key {
             // Transparent Public Key
             ZcashPrivateKey::<N>::P2PKH(spending_key) => ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
-                    public_key: secp256k1::PublicKey::from_secret_key(
-                        &secp256k1::Secp256k1::new(),
-                        &spending_key.secret_key,
-                    ),
-                    compressed: spending_key.compressed,
-                }),
+                public_key: secp256k1::PublicKey::from_secret_key(
+                    &secp256k1::Secp256k1::new(),
+                    &spending_key.secret_key,
+                ),
+                compressed: spending_key.compressed,
+            }),
             // Transparent Multisignature
             ZcashPrivateKey::<N>::P2SH(_) => ZcashPublicKey::<N>::P2SH(P2SHViewingKey {}),
             // Sprout Viewing Key
-            ZcashPrivateKey::<N>::Sprout(spending_key) => ZcashPublicKey::<N>::Sprout(SproutViewingKey::from_sprout_spending_key(&spending_key.spending_key)),
+            ZcashPrivateKey::<N>::Sprout(spending_key) => {
+                ZcashPublicKey::<N>::Sprout(SproutViewingKey::from_sprout_spending_key(&spending_key.spending_key))
+            }
             // Sapling Full Viewing Key
-            ZcashPrivateKey::<N>::Sapling(spending_key) => ZcashPublicKey::<N>::Sapling(SaplingFullViewingKey::from_spending_key(
-                    &spending_key,
-                    &JUBJUB,
-                )),
+            ZcashPrivateKey::<N>::Sapling(spending_key) => {
+                ZcashPublicKey::<N>::Sapling(SaplingFullViewingKey::from_spending_key(&spending_key, &JUBJUB))
+            }
         }
     }
 
@@ -209,10 +219,9 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         match public_key.len() {
             66 | 130 => Ok(ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
-                    public_key: secp256k1::PublicKey::from_str(public_key)?,
-                    compressed: public_key.len() == 66,
-                })
-            ),
+                public_key: secp256k1::PublicKey::from_str(public_key)?,
+                compressed: public_key.len() == 66,
+            })),
             97 => {
                 let data = public_key.from_base58()?;
                 let prefix = &data[..3];
@@ -238,7 +247,10 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
                     let mut key = [0u8; 96];
                     key.copy_from_slice(&viewing_key);
 
-                    Ok(ZcashPublicKey::<N>::Sapling(SaplingFullViewingKey::read(&key[..], &JubjubBls12::new())?))
+                    Ok(ZcashPublicKey::<N>::Sapling(SaplingFullViewingKey::read(
+                        &key[..],
+                        &JubjubBls12::new(),
+                    )?))
                 } else {
                     Err(PublicKeyError::InvalidPrefix(prefix.into()))
                 }

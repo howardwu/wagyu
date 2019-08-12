@@ -15,7 +15,7 @@ use std::{fmt, fmt::Display};
 #[derive(Debug, Clone)]
 pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
     /// The extended full viewing key
-    extended_full_viewing_key: ExtendedFullViewingKey<N>
+    extended_full_viewing_key: ExtendedFullViewingKey<N>,
 }
 
 impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
@@ -83,7 +83,7 @@ impl<N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
         let data: Vec<u8> = FromBase32::from_base32(bech32.data())?;
         match ExtendedFullViewingKey::read(data.as_slice()) {
             Ok(extended_full_viewing_key) => Ok(Self {
-                extended_full_viewing_key
+                extended_full_viewing_key,
             }),
             Err(error) => Err(ExtendedPublicKeyError::Message(error.to_string())),
         }

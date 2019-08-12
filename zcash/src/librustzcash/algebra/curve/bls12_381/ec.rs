@@ -248,8 +248,8 @@ macro_rules! curve_impl {
                 let mut prod = Vec::with_capacity(v.len());
                 let mut tmp = $basefield::one();
                 for g in v.iter_mut()
-                                  // Ignore normalized elements
-                                  .filter(|g| !g.is_normalized())
+                                          // Ignore normalized elements
+                                          .filter(|g| !g.is_normalized())
                 {
                     tmp.mul_assign(&g.z);
                     prod.push(tmp);
@@ -260,12 +260,12 @@ macro_rules! curve_impl {
 
                 // Second pass: iterate backwards to compute inverses
                 for (g, s) in v.iter_mut()
-                                       // Backwards
-                                       .rev()
-                                       // Ignore normalized elements
-                                       .filter(|g| !g.is_normalized())
-                                       // Backwards, skip last element, fill in one for last term.
-                                       .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
+                                               // Backwards
+                                               .rev()
+                                               // Ignore normalized elements
+                                               .filter(|g| !g.is_normalized())
+                                               // Backwards, skip last element, fill in one for last term.
+                                               .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
                 {
                     // tmp := tmp * g.z; g.z := tmp * s = 1/z
                     let mut newtmp = tmp;

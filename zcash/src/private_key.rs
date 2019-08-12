@@ -15,10 +15,10 @@ use bech32::{Bech32, FromBase32, ToBase32};
 use rand::Rng;
 use secp256k1;
 use std::cmp::{Eq, PartialEq};
+use std::io::{self, Read, Write};
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{fmt, fmt::Debug, fmt::Display};
-use std::io::{self, Read, Write};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P2PKHSpendingKey<N: ZcashNetwork> {
@@ -125,7 +125,13 @@ impl<N: ZcashNetwork> SaplingSpendingKey<N> {
         let nsk = <Bls12 as JubjubEngine>::Fs::to_uniform(prf_expand(sk, &[0x01]).as_bytes());
         let mut ovk = SaplingOutgoingViewingKey([0u8; 32]);
         ovk.0.copy_from_slice(&prf_expand(sk, &[0x02]).as_bytes()[..32]);
-        Self { spending_key: Some(*sk), ask, nsk, ovk, _network: PhantomData }
+        Self {
+            spending_key: Some(*sk),
+            ask,
+            nsk,
+            ovk,
+            _network: PhantomData,
+        }
     }
 
     pub fn proof_generation_key(&self, params: &<Bls12 as JubjubEngine>::Params) -> SaplingProofGenerationKey<Bls12> {
@@ -140,11 +146,13 @@ impl<N: ZcashNetwork> SaplingSpendingKey<N> {
     pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
         let mut ask_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
         ask_repr.read_le(&mut reader)?;
-        let ask = <Bls12 as JubjubEngine>::Fs::from_repr(ask_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let ask = <Bls12 as JubjubEngine>::Fs::from_repr(ask_repr)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let mut nsk_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
         nsk_repr.read_le(&mut reader)?;
-        let nsk = <Bls12 as JubjubEngine>::Fs::from_repr(nsk_repr).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let nsk = <Bls12 as JubjubEngine>::Fs::from_repr(nsk_repr)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let mut ovk = [0; 32];
         reader.read_exact(&mut ovk)?;
@@ -154,7 +162,7 @@ impl<N: ZcashNetwork> SaplingSpendingKey<N> {
             ask,
             nsk,
             ovk: SaplingOutgoingViewingKey(ovk),
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 
@@ -179,10 +187,7 @@ impl<N: ZcashNetwork> Debug for SaplingSpendingKey<N> {
         write!(
             f,
             "SaplingSpendingKey {{ sk: {:?}, ask: {:?}, nsk: {:?}, ovk: {:?} }}",
-            self.spending_key,
-            self.ask,
-            self.nsk,
-            self.ovk
+            self.spending_key, self.ask, self.nsk, self.ovk
         )?;
         Ok(())
     }
@@ -198,9 +203,11 @@ impl<N: ZcashNetwork> Display for SaplingSpendingKey<N> {
         } else {
             let mut buffer = vec![0; 96];
             match self.write(buffer.as_mut_slice()).is_ok() {
-                true => for s in &buffer[..] {
-                    write!(f, "{:02x}", s)?;
-                },
+                true => {
+                    for s in &buffer[..] {
+                        write!(f, "{:02x}", s)?;
+                    }
+                }
                 false => return Err(fmt::Error),
             }
         }
@@ -217,9 +224,7 @@ impl<N: ZcashNetwork> PartialEq for SaplingSpendingKey<N> {
                 }
             }
         }
-        self.ask == other.ask
-            && self.nsk == other.nsk
-            && self.ovk == other.ovk
+        self.ask == other.ask && self.nsk == other.nsk && self.ovk == other.ovk
     }
 }
 
@@ -264,7 +269,9 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     pub fn new_p2pkh<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         let random: [u8; 32] = rng.gen();
         let secret_key = secp256k1::SecretKey::from_slice(&random)?;
-        Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(secret_key, true)))
+        Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
+            secret_key, true,
+        )))
     }
 
     /// Returns a randomly-generated Zcash Sprout private key.
@@ -294,7 +301,10 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
             return Err(PrivateKeyError::InvalidChecksum(expected, found));
         }
 
-        Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(secp256k1::SecretKey::from_slice(&data[1..33])?, len == 38)))
+        Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
+            secp256k1::SecretKey::from_slice(&data[1..33])?,
+            len == 38,
+        )))
     }
 
     /// Returns a Sprout private key from a given spending key.
@@ -322,7 +332,9 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
 
     /// Returns a Sapling private key from a given seed.
     fn sapling(spending_key: &[u8; 32]) -> Result<Self, PrivateKeyError> {
-        Ok(ZcashPrivateKey::<N>::Sapling(SaplingSpendingKey::<N>::from_spending_key(spending_key)))
+        Ok(ZcashPrivateKey::<N>::Sapling(
+            SaplingSpendingKey::<N>::from_spending_key(spending_key),
+        ))
     }
 
     /// Returns a Sapling private key from a given expanded spending key.
