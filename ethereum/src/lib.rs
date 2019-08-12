@@ -30,4 +30,3 @@ pub use self::transaction::*;
 
 pub mod wordlist;
 pub use self::wordlist::*;
-

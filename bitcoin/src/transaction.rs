@@ -499,10 +499,10 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     if size < 253 {
         Ok(vec![size as u8])
     } else if size <= 65535 {
-        // u16::max_value()
+        //  size <= u16::max_value()
         Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat())
     } else if size <= 4294967295 {
-        // u32::max_value()
+        // size <= u32::max_value()
         Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat())
     } else {
         Ok([vec![0xff], size.to_le_bytes().to_vec()].concat())
@@ -568,32 +568,20 @@ mod tests {
             let private_key = BitcoinPrivateKey::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
             let transaction_id = hex::decode(input.transaction_id).unwrap();
-
-            let redeem_script = if let Some(script) = input.redeem_script {
-                Some(hex::decode(script).unwrap())
-            } else {
-                if input.address_format == Format::P2SH_P2WPKH {
+            let redeem_script = match (input.redeem_script, input.address_format) {
+                (Some(script), _) => Some(hex::decode(script).unwrap()),
+                (None, Format::P2SH_P2WPKH) => {
                     let mut redeem_script: Vec<u8> = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
                         &private_key.to_public_key().to_secp256k1_public_key().serialize(),
                     ));
                     Some(redeem_script)
-                } else {
-                    None
                 }
+                (None, _) => None,
             };
 
-            let script_pub_key = if let Some(script) = input.script_pub_key {
-                Some(hex::decode(script).unwrap())
-            } else {
-                None
-            };
-
-            let sequence = if let Some(seq) = input.sequence {
-                Some(seq.to_vec())
-            } else {
-                None
-            };
+            let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+            let sequence = input.sequence.map(|seq| seq.to_vec());
 
             let transaction_input = BitcoinTransactionInput::<N>::new(
                 address,
