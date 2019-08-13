@@ -1,5 +1,5 @@
 use super::fq2::Fq2;
-use crate::librustzcash::ff::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
+use crate::librustzcash::algebra::field::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
 
 // B coefficient of BLS12-381 curve, 4.
 pub const B_COEFF: Fq = Fq(FqRepr([
@@ -2044,7 +2044,7 @@ fn test_fq_pow() {
 
 #[test]
 fn test_fq_sqrt() {
-    use crate::librustzcash::ff::SqrtField;
+    use crate::librustzcash::algebra::field::SqrtField;
 
     let mut rng = XorShiftRng::from_seed([
         0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
@@ -2240,7 +2240,7 @@ fn test_fq_num_bits() {
 
 #[test]
 fn test_fq_root_of_unity() {
-    use crate::librustzcash::ff::SqrtField;
+    use crate::librustzcash::algebra::field::SqrtField;
 
     assert_eq!(Fq::S, 1);
     assert_eq!(Fq::multiplicative_generator(), Fq::from_repr(FqRepr::from(2)).unwrap());
@@ -2261,10 +2261,10 @@ fn test_fq_root_of_unity() {
 
 #[test]
 fn fq_field_tests() {
-    crate::librustzcash::pairing::tests::field::random_field_tests::<Fq>();
-    crate::librustzcash::pairing::tests::field::random_sqrt_tests::<Fq>();
-    crate::librustzcash::pairing::tests::field::random_frobenius_tests::<Fq, _>(Fq::char(), 13);
-    crate::librustzcash::pairing::tests::field::from_str_tests::<Fq>();
+    crate::librustzcash::algebra::curve::tests::field::random_field_tests::<Fq>();
+    crate::librustzcash::algebra::curve::tests::field::random_sqrt_tests::<Fq>();
+    crate::librustzcash::algebra::curve::tests::field::random_frobenius_tests::<Fq, _>(Fq::char(), 13);
+    crate::librustzcash::algebra::curve::tests::field::from_str_tests::<Fq>();
 }
 
 #[test]
@@ -2278,13 +2278,13 @@ fn test_fq_ordering() {
 
 #[test]
 fn fq_repr_tests() {
-    crate::librustzcash::pairing::tests::repr::random_repr_tests::<Fq>();
+    crate::librustzcash::algebra::curve::tests::repr::random_repr_tests::<Fq>();
 }
 
 #[test]
 fn test_fq_legendre() {
-    use crate::librustzcash::ff::LegendreSymbol::*;
-    use crate::librustzcash::ff::SqrtField;
+    use crate::librustzcash::algebra::field::LegendreSymbol::*;
+    use crate::librustzcash::algebra::field::SqrtField;
 
     assert_eq!(QuadraticResidue, Fq::one().legendre());
     assert_eq!(Zero, Fq::zero().legendre());

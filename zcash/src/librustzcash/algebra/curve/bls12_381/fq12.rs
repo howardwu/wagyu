@@ -1,7 +1,7 @@
 use super::fq::FROBENIUS_COEFF_FQ12_C1;
 use super::fq2::Fq2;
 use super::fq6::Fq6;
-use crate::librustzcash::ff::Field;
+use crate::librustzcash::algebra::field::Field;
 
 use rand_core::RngCore;
 
@@ -185,8 +185,8 @@ fn test_fq12_mul_by_014() {
 
 #[test]
 fn fq12_field_tests() {
-    use crate::librustzcash::ff::PrimeField;
+    use crate::librustzcash::algebra::field::PrimeField;
 
-    crate::librustzcash::pairing::tests::field::random_field_tests::<Fq12>();
-    crate::librustzcash::pairing::tests::field::random_frobenius_tests::<Fq12, _>(super::fq::Fq::char(), 13);
+    crate::librustzcash::algebra::curve::tests::field::random_field_tests::<Fq12>();
+    crate::librustzcash::algebra::curve::tests::field::random_frobenius_tests::<Fq12, _>(super::fq::Fq::char(), 13);
 }

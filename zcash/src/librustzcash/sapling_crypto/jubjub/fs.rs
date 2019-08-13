@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{
+use crate::librustzcash::algebra::field::{
     adc, mac_with_carry, sbb, BitIterator, Field,
     LegendreSymbol::{self, *},
     PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField,

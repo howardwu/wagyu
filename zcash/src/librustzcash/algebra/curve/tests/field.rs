@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{Field, LegendreSymbol, PrimeField, SqrtField};
+use crate::librustzcash::algebra::field::{Field, LegendreSymbol, PrimeField, SqrtField};
 
 use rand_core::{RngCore, SeedableRng};
 use rand_xorshift::XorShiftRng;

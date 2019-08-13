@@ -17,9 +17,9 @@
 //! the Montgomery curve forms a group isomorphism, allowing points
 //! to be freely converted between the two forms.
 
-use crate::librustzcash::ff::{Field, PrimeField, SqrtField};
-use crate::librustzcash::pairing::bls12_381::{Bls12, Fr};
-use crate::librustzcash::pairing::Engine;
+use crate::librustzcash::algebra::curve::bls12_381::{Bls12, Fr};
+use crate::librustzcash::algebra::curve::Engine;
+use crate::librustzcash::algebra::field::{Field, PrimeField, SqrtField};
 use crate::librustzcash::sapling_crypto::constants;
 use crate::librustzcash::sapling_crypto::group_hash::group_hash;
 
@@ -350,7 +350,7 @@ impl JubjubBls12 {
             let mut pedersen_circuit_generators = vec![];
 
             // Process each segment
-            for mut gen in tmp_params.pedersen_hash_generators.iter().cloned() {
+            for gen in tmp_params.pedersen_hash_generators.iter().cloned() {
                 let mut gen = montgomery::Point::from_edwards(&gen, &tmp_params);
                 let mut windows = vec![];
                 for _ in 0..tmp_params.pedersen_hash_chunks_per_generator() {

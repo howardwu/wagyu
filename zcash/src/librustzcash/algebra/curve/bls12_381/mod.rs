@@ -19,8 +19,8 @@ pub use self::fr::{Fr, FrRepr};
 
 use super::{Engine, PairingCurveAffine};
 
-use crate::librustzcash::ff::{BitIterator, Field, ScalarEngine};
-use crate::librustzcash::group::CurveAffine;
+use crate::librustzcash::algebra::field::{BitIterator, Field, ScalarEngine};
+use crate::librustzcash::algebra::group::CurveAffine;
 
 // The BLS parameter x for BLS12-381 is -0xd201000000010000
 const BLS_X: u64 = 0xd201000000010000;
@@ -365,5 +365,5 @@ impl G2Prepared {
 
 #[test]
 fn bls12_engine_tests() {
-    crate::librustzcash::pairing::tests::engine::engine_tests::<Bls12>();
+    crate::librustzcash::algebra::curve::tests::engine::engine_tests::<Bls12>();
 }

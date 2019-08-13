@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{Field, PrimeField, PrimeFieldRepr};
+use crate::librustzcash::algebra::field::{Field, PrimeField, PrimeFieldRepr};
 use crate::librustzcash::sapling_crypto::jubjub::*;
 
 #[derive(Copy, Clone)]
