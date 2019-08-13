@@ -1,7 +1,17 @@
 [package]
-name = "field_derive"
-version = "0.3.0"
+name = "field-derive"
 description = "Procedural macro library used to build custom prime field implementations"
+version = "0.6.0"
+authors = [
+    "Collin Chin",
+    "Raymond Chu",
+    "Ali Mousa",
+    "Howard Wu"
+]
+categories = ["cryptography"]
+readme = "README.md"
+license = "MIT/Apache-2.0"
+edition = "2018"
 
 [lib]
 proc-macro = true
