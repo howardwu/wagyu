@@ -116,9 +116,9 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
         impl ::std::fmt::Debug for #repr
         {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                try!(write!(f, "0x"));
+                write!(f, "0x")?;
                 for i in self.0.iter().rev() {
-                    try!(write!(f, "{:016x}", *i));
+                    write!(f, "{:016x}", *i)?;
                 }
 
                 Ok(())
@@ -127,9 +127,9 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
 
         impl ::std::fmt::Display for #repr {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                try!(write!(f, "0x"));
+                write!(f, "0x")?;
                 for i in self.0.iter().rev() {
-                    try!(write!(f, "{:016x}", *i));
+                    write!(f, "{:016x}", *i)?;
                 }
 
                 Ok(())
