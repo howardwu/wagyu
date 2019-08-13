@@ -9,6 +9,9 @@ pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'sta
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum DerivationPathError {
+    #[fail(display = "expected BIP44 path")]
+    ExpectedBIP44Path,
+
     #[fail(display = "expected hardened path")]
     ExpectedHardenedPath,
 
@@ -63,6 +66,14 @@ impl ChildIndex {
         match *self {
             ChildIndex::Hardened(_) => true,
             ChildIndex::Normal(_) => false,
+        }
+    }
+
+    /// Returns the child index.
+    pub fn to_index(&self) -> u32 {
+        match self {
+            &ChildIndex::Hardened(i) => i + (1 << 31),
+            &ChildIndex::Normal(i) => i,
         }
     }
 }

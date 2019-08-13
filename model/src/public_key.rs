@@ -29,6 +29,21 @@ pub enum PublicKeyError {
 
     #[fail(display = "invalid character length: {}", _0)]
     InvalidCharacterLength(usize),
+
+    #[fail(display = "invalid public key prefix: {:?}", _0)]
+    InvalidPrefix(String),
+}
+
+impl From<base58::FromBase58Error> for PublicKeyError {
+    fn from(error: base58::FromBase58Error) -> Self {
+        PublicKeyError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for PublicKeyError {
+    fn from(error: bech32::Error) -> Self {
+        PublicKeyError::Crate("bech32", format!("{:?}", error))
+    }
 }
 
 impl From<hex::FromHexError> for PublicKeyError {

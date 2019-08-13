@@ -10,10 +10,7 @@ use wagyu_model::{
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -70,9 +67,9 @@ impl Format {
 impl fmt::Display for Format {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Format::P2PKH => write!(f, "P2PKH"),
-            Format::P2SH_P2WPKH => write!(f, "P2SH_P2WPKH"),
-            Format::Bech32 => write!(f, "Bech32"),
+            Format::P2PKH => write!(f, "p2pkh"),
+            Format::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),
+            Format::Bech32 => write!(f, "bech32"),
         }
     }
 }

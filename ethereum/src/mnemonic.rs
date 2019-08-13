@@ -12,11 +12,7 @@ use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Div;
-use std::str;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
@@ -56,6 +52,15 @@ impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
+    /// Returns the mnemonic for the given phrase.
+    fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
+        Ok(Self {
+            entropy: Self::to_entropy(phrase)?,
+            phrase: phrase.to_owned(),
+            _wordlist: PhantomData,
+        })
+    }
+
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(self.to_extended_private_key(password)?.to_private_key())
@@ -85,15 +90,6 @@ impl<W: EthereumWordlist> EthereumMnemonic<W> {
         };
         let entropy: [u8; 32] = rng.gen();
         Ok(Self::from_entropy(&entropy[0..length].to_vec())?)
-    }
-
-    /// Returns the mnemonic for the given phrase.
-    pub fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        Ok(Self {
-            entropy: Self::to_entropy(phrase)?,
-            phrase: phrase.to_owned(),
-            _wordlist: PhantomData,
-        })
     }
 
     /// Compares the given phrase against the phrase extracted from its entropy.

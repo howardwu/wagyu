@@ -3,8 +3,7 @@ use crate::address::Format;
 use wagyu_model::{AddressError, Network, NetworkError};
 
 use serde::Serialize;
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Stagenet;

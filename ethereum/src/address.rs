@@ -4,10 +4,7 @@ use wagyu_model::{to_hex_string, Address, AddressError, PrivateKey};
 
 use regex::Regex;
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents an Ethereum address

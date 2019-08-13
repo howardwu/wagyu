@@ -3,8 +3,7 @@ use crate::address::Format;
 use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Mainnet;
@@ -36,17 +35,37 @@ impl ZcashNetwork for Mainnet {
         }
     }
 
-    /// Returns the wif prefix of the given network.
+    /// Returns the WIF prefix of the given network.
     fn to_wif_prefix() -> u8 {
         0x80
     }
 
-    /// Returns the network of the given wif prefix.
+    /// Returns the network of the given WIF prefix.
     fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0x80 => Ok(Self),
             _ => return Err(PrivateKeyError::InvalidPrefix(vec![prefix])),
         }
+    }
+
+    /// Returns the prefix for a Sprout spending key.
+    fn to_sprout_spending_key_prefix() -> [u8; 2] {
+        [0xAB, 0x36]
+    }
+
+    /// Returns the prefix for a Sprout viewing key.
+    fn to_sprout_viewing_key_prefix() -> [u8; 3] {
+        [0xA8, 0xAB, 0xD3]
+    }
+
+    /// Returns the Sapling spending key prefix of the given network.
+    fn to_sapling_spending_key_prefix() -> String {
+        "secret-spending-key-main".into()
+    }
+
+    /// Returns the Sapling viewing key prefix of the given network.
+    fn to_sapling_viewing_key_prefix() -> String {
+        "zviews".into()
     }
 
     /// Returns the extended private key prefix of the given network.

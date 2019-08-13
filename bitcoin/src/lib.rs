@@ -4,6 +4,9 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+#[macro_use]
+extern crate failure;
+
 pub mod address;
 pub use self::address::*;
 
@@ -27,9 +30,6 @@ pub use self::private_key::*;
 
 pub mod public_key;
 pub use self::public_key::*;
-
-pub mod transaction;
-pub use self::transaction::*;
 
 mod witness_program;
 

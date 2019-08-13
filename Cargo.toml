@@ -10,8 +10,8 @@ authors = [
 description = "A command-line tool to generate cryptocurrency wallets"
 homepage = "https://github.com/ArgusHQ/wagyu"
 repository = "https://github.com/ArgusHQ/wagyu"
-categories = ["command-line-utilities"]
-keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+categories = ["command-line-utilities", "cryptocurrency"]
+keywords = ["blockchain", "command-line", "crypto", "cryptocurrency", "wallet"]
 readme = "README.md"
 license = "MIT/Apache-2.0"
 edition = "2018"
@@ -21,7 +21,7 @@ path = "wagyu/lib.rs"
 
 [[bin]]
 name = "wagyu"
-path = "wagyu/cli.rs"
+path = "wagyu/main.rs"
 
 [workspace]
 members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
@@ -30,17 +30,20 @@ members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
 travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
 
 [dependencies]
-bitcoin = { path = "./bitcoin" }
-ethereum = { path = "./ethereum" }
-wagyu-model = { path = "./model" }
-monero = { path = "./monero" }
-zcash = { path = "./zcash" }
+wagyu-bitcoin = { path = "./bitcoin", version = "0.6.0" }
+wagyu-ethereum = { path = "./ethereum", version = "0.6.0" }
+wagyu-model = { path = "./model", version = "0.6.0" }
+wagyu-monero = { path = "./monero", version = "0.6.0" }
+wagyu-zcash = { path = "./zcash", version = "0.6.0" }
 
 arrayvec = { version = "0.4.7" }
 base58 = { version = "0.1" }
 clap = { version = "~2.33.0" }
+colored = { version = "1.8" }
 digest = { version = "0.7.5" }
 either = { version = "1.5.0" }
+failure = { version = "0.1.5" }
+hex = { version = "0.3.2" }
 lazy_static = { version = "1.1.0" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.0" }

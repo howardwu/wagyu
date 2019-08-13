@@ -4,6 +4,13 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate hex_literal;
+
+#[macro_use]
+extern crate lazy_static;
+
 pub mod address;
 pub use self::address::*;
 
@@ -15,6 +22,9 @@ pub use self::extended_private_key::*;
 
 pub mod extended_public_key;
 pub use self::extended_public_key::*;
+
+#[cfg_attr(tarpaulin, skip)]
+pub mod librustzcash;
 
 pub mod network;
 pub use self::network::*;

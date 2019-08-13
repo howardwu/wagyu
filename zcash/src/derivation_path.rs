@@ -1,8 +1,6 @@
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::convert::TryFrom;
-use std::fmt;
-use std::str::FromStr;
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 /// Represents a Zcash derivation path
 ///
@@ -39,6 +37,7 @@ impl TryFrom<Vec<ChildIndex>> for ZcashDerivationPath {
             true => &path[0..3],
             false => &path,
         };
+
         if !primary
             .iter()
             .filter(|&&index| index.is_normal())

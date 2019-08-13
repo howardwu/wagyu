@@ -9,14 +9,10 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
-use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::io::Cursor;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -50,7 +46,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
 
     /// Returns a new Ethereum extended private key.
     fn new_master(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?;
+        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?; // This is correct. Ethereum uses BIP32.
         mac.input(seed);
         let hmac = mac.result().code();
         let private_key = Self::PrivateKey::from_secp256k1_secret_key(SecretKey::from_slice(&hmac[0..32])?);
@@ -94,9 +90,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
                 }
             }
             // Append the child index in big-endian format
-            let mut index_be = [0u8; 4];
-            BigEndian::write_u32(&mut index_be, u32::from(*index));
-            mac.input(&index_be);
+            mac.input(&u32::from(*index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
@@ -161,7 +155,7 @@ impl FromStr for EthereumExtendedPrivateKey {
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
 
-        let child_index = ChildIndex::from(Cursor::new(&data[9..13]).read_u32::<BigEndian>()?);
+        let child_index = ChildIndex::from(u32::from_be_bytes(<[u8; 4]>::try_from(&data[9..13])?));
 
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
@@ -194,9 +188,7 @@ impl Display for EthereumExtendedPrivateKey {
         result[0..4].copy_from_slice(&[0x04, 0x88, 0xAD, 0xE4][..]);
         result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
-
-        BigEndian::write_u32(&mut result[9..13], u32::from(self.child_index));
-
+        result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45] = 0;
         result[46..78].copy_from_slice(&self.private_key.to_secp256k1_secret_key()[..]);
@@ -443,6 +435,7 @@ mod tests {
                 "xprvA1fzCYJXXiAYQ5epqaDqgkPGeTUkwHRuzqGVWKZEtBSSEXKu91wrPhfihHJRHQtXXcRfLbMitd64PJeiL7upKh81RoSxHmNXLgQanCtbTK2",
                 "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
             ),
+            // Ledger Live Derivation Paths
             (
                 "m/44'/60'/0'/0/0",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
@@ -454,7 +447,7 @@ mod tests {
                 "xpub6FdBNxzgjycX2yb47doxGFfLEi1SjkVzJeCpSKwUjbocKH9yZ2r8djyA9Md5oDG846jjJGBGE5hBuxtyWdHHoLWcZUrBq2RCLTUKxusyGvX"
             ),
 
-            // Ethereum (Ledger) Derivation Paths
+            // Ledger Legacy Derivation Paths
             (
                 "m/44'/60'/0'",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
@@ -476,7 +469,7 @@ mod tests {
                 "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
             ),
 
-            // Ethereum (Ledger Live, KeepKey) Derivation Paths
+            // KeepKey Derivation Paths
             (
                 "m/44'/60'",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",

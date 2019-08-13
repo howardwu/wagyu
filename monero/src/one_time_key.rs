@@ -24,10 +24,10 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     pub fn new(public: &MoneroPublicKey<N>, rand: [u8; 32], index: u64) -> OneTimeKey<N> {
         //P = H_s(rA || n)G + B
         let r = Scalar::from_bits(rand);
-        let A = CompressedEdwardsY::from_slice(&public.to_public_view_key())
+        let A = CompressedEdwardsY::from_slice(&public.to_public_view_key().unwrap())
             .decompress()
             .unwrap(); //TODO: remove unwraps
-        let B = CompressedEdwardsY::from_slice(&public.to_public_spend_key())
+        let B = CompressedEdwardsY::from_slice(&public.to_public_spend_key().unwrap())
             .decompress()
             .unwrap();
 
