@@ -29,8 +29,7 @@
 
 ## 1. Overview
 
-Wagyu is a lightweight command-line utility to generate a cryptocurrency wallet.
-
+Wagyu is a feature-rich command-line utility to generate a cryptocurrency wallet.
 
 Wagyu enables developers to build their own cryptocurrency application using the following modules.
 
