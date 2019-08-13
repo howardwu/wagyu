@@ -49,7 +49,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         }
     }
 
-    /// Returns one time private key given recipient private keys
+    /// Returns the one time private key given recipient private keys
     pub fn to_private(&self, private: &MoneroPrivateKey<N>, index: u64) -> [u8; 32] {
         //x = H_s(aR || n) + b
         let R = CompressedEdwardsY(self.to_transaction_public_key())
@@ -78,7 +78,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         P.compress().to_bytes()
     }
 
-    /// Verifies that a one time public key can be generated from recipient private keys
+    /// Verifies that the one time public key can be generated from recipient private keys
     pub fn verify(&self, private: &MoneroPrivateKey<N>, index: u64) -> bool {
         let expected = self.to_public(private, index);
 
@@ -110,7 +110,10 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let mut encoded_bytes = vec![];
         match res.split_last() {
             Some((last, arr)) => {
-                let _a: Vec<_> = arr.iter().map(|bits| encoded_bytes.push(*bits | 0b1000_0000)).collect();
+                let _a: Vec<_> = arr
+                    .iter()
+                    .map(|bits| encoded_bytes.push(*bits | 0b1000_0000))
+                    .collect();
                 encoded_bytes.push(*last);
             }
             None => encoded_bytes.push(0x00),
@@ -133,6 +136,7 @@ mod tests {
     // (rand, (private_spend_key, private_view_key), (public_spend_key, public_view_key), address, random_str, output_index)
     const KEYPAIRS: [(&str, (&str, &str), (&str, &str), &str, &str, &str); 1] = [
         // test vector from https://steemit.com/monero/@luigi1111/understanding-monero-cryptography-privacy-part-2-stealth-addresses
+        // generated from https://xmr.llcoins.net/
         (
             "c595161ea20ccd8c692947c2d3ced471e9b13a18b150c881232794e8042bf107",
             (
