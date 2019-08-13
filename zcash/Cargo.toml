@@ -20,7 +20,7 @@ edition = "2018"
 wagyu-model = { path = "../model", version = "0.6.0" }
 
 # librustzcash dependencies
-aes = { version = "0.2" }
+aes = { version = "0.3" }
 blake2b_simd = { version = "0.5" }
 blake2s_simd = { version = "0.5" }
 field-derive = { path = "src/librustzcash/algebra/field/field-derive", version = "0.6.1" }
