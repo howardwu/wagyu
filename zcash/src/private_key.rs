@@ -14,11 +14,13 @@ use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
 use rand::Rng;
 use secp256k1;
-use std::cmp::{Eq, PartialEq};
-use std::io::{self, Read, Write};
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Debug, fmt::Display};
+use std::{
+    cmp::{Eq, PartialEq},
+    fmt::{self, Debug, Display},
+    io::{self, Read, Write},
+    marker::PhantomData,
+    str::FromStr,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P2PKHSpendingKey<N: ZcashNetwork> {

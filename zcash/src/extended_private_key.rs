@@ -10,10 +10,7 @@ use wagyu_model::{
 };
 
 use bech32::{Bech32, FromBase32, ToBase32};
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a Zcash extended private key
 #[derive(Debug, Clone)]

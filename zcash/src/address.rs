@@ -15,10 +15,7 @@ use curve25519_dalek::scalar::Scalar;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::{str, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A library for generating Monero wallets"
 homepage = "https://github.com/ArgusHQ/wagyu"
-repository = "https://github.com/ArgusHQ/wagyu/monero"
+repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.0/monero"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["blockchain", "crypto", "cryptocurrency", "monero", "wallet"]
 readme = "README.md"

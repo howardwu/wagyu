@@ -11,14 +11,15 @@ use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyE
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
-use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 use secp256k1;
-use std::cmp::{Eq, PartialEq};
-use std::io::{self, Read, Write};
-use std::marker::PhantomData;
-use std::str::FromStr;
-use std::{fmt, fmt::Display};
+use std::{
+    cmp::{Eq, PartialEq},
+    fmt::{self, Display},
+    io::{self, Read, Write},
+    marker::PhantomData,
+    str::FromStr,
+};
 
 static H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
@@ -55,7 +56,7 @@ impl SproutViewingKey {
 
         SproutViewingKey { key_a, key_b }
     }
-
+  
     /// Returns output of pseudorandom function
     fn prf(result: &mut [u8; 32], payload: &[u8; 32], t: u8) {
         let mut buf = [0u8; 64];
@@ -65,7 +66,12 @@ impl SproutViewingKey {
 
         let mut state = H256;
         sha256_digest_block(&mut state, &buf);
-        BigEndian::write_u32_into(&state, result);
+        result.copy_from_slice(
+            &state
+                .iter()
+                .flat_map(|num| num.to_be_bytes().to_vec())
+                .collect::<Vec<u8>>(),
+        );
     }
 }
 

@@ -10,10 +10,7 @@ use wagyu_model::{
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

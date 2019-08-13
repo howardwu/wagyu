@@ -20,9 +20,9 @@
 //! If the version byte is 0, but the witness program is neither 20 nor 32 bytes, the script must fail.
 //!
 
-use std::str::FromStr;
-
 use wagyu_model::AddressError;
+
+use std::str::FromStr;
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum WitnessProgramError {
@@ -58,7 +58,7 @@ pub struct WitnessProgram {
 
 impl WitnessProgram {
     /// Returns a new witness program given a program with a version, data size, and data.
-    pub fn new(program: &[u8]) -> Result<WitnessProgram, WitnessProgramError> {
+    pub fn new(program: &[u8]) -> Result<Self, WitnessProgramError> {
         if program.len() < 2 {
             return Err(WitnessProgramError::InvalidProgramLength(program.len()));
         }
@@ -70,7 +70,7 @@ impl WitnessProgram {
             return Err(WitnessProgramError::MismatchedProgramLength(data.len(), data_size));
         }
 
-        let program = WitnessProgram {
+        let program = Self {
             version: program[0],
             program: data,
         };
