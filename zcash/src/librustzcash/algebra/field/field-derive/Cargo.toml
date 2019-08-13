@@ -1,7 +1,7 @@
 [package]
 name = "field-derive"
 description = "Procedural macro library used to build custom prime field implementations"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "Collin Chin",
     "Raymond Chu",
