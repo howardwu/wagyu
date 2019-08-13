@@ -24,7 +24,7 @@ aes = { version = "0.2" }
 blake2b_simd = { version = "0.5" }
 blake2s_simd = { version = "0.5" }
 field-derive = { path = "src/librustzcash/algebra/field/field-derive", version = "0.6.1" }
-fpe = { version = "0.1" }
+fpe = { version = "0.2" }
 lazy_static = { version = "1.3.0" }
 
 bech32 = { version = "0.6" }
