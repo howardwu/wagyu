@@ -8,6 +8,7 @@ use wagyu_model::{PrivateKey, TransactionError, Transaction};
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 use serde_json::value::Value::Null;
+use tiny_keccak::keccak256;
 
 ///// Fields needed to input a Monero transaction to script
 //pub struct ScriptInput<N: MoneroNetwork> {
@@ -57,6 +58,7 @@ pub struct MoneroTransactionInput<N: MoneroNetwork> {
 
 /// Fields needed to output a Monero transaction to one time key
 pub struct KeyOutput<N: MoneroNetwork> {
+    amount: u64,
     key: OneTimeKey<N>
 }
 
@@ -73,9 +75,9 @@ pub struct MoneroTransactionOutput<N: MoneroNetwork> {
 /// Represents a Monero transaction prefix
 pub struct MoneroTransactionPrefix<N: MoneroNetwork> {
     /// transaction format version 0 = miner, 1 = RctFull, 2 = RctSimple
-    version: usize,
+    version: u64,
     /// unix unlock time (or block), used as a limitation like: spend this tx not early then block/time
-    unlock: u64,
+    unlock_time: u64,
     /// extra field: transaction public key or additional public keys
     extra: Vec<u8>,
     /// transaction inputs
@@ -171,6 +173,66 @@ impl <N: MoneroNetwork> MoneroTransaction<N> {
 
 //        single_dest_subaddress
         (num_stdaddresses, num_subaddresses)
+    }
+
+    /// Returns keccak256 hash of serialized transaction prefix
+    fn get_transaction_prefix_hash(transaction: &MoneroTransaction<N>) -> [u8; 32] {
+        let mut prefix: Vec<u8> = Vec::new();
+        Self::serialize_transaction(transaction, &mut prefix, true);
+
+        keccak256(prefix.as_slice())
+    }
+
+    /// Returns keccak256 hash of transaction
+    fn get_transaction_hash(transaction: &MoneroTransaction<N>) -> [u8; 32] {
+        let mut tx: Vec<u8> = Vec::new();
+        Self::serialize_transaction(transaction, &mut tx, false);
+
+        keccak256(tx.as_slice())
+    }
+
+    /// Returns a serialized transaction or transaction prefix
+    fn serialize_transaction(transaction: &MoneroTransaction<N>, serialized: &mut Vec<u8>, header_only: bool) {
+        let transaction_prefix = &transaction.prefix;
+
+        //TODO: if possible, initialize vector of exact length based off header
+        serialized.extend(OneTimeKey::encode_varint(transaction_prefix.version));
+        serialized.extend(OneTimeKey::encode_varint(transaction_prefix.unlock_time));
+        serialized.extend(OneTimeKey::encode_varint(transaction_prefix.inputs.len() as u64));
+
+        transaction_prefix.inputs.iter().for_each(|&input| {
+            let offsets = input.to_key.key_offsets;
+
+            serialized.extend(OneTimeKey::encode_varint("02" as u64));
+            serialized.extend(&offsets.len() as u64);
+
+            offsets.iter().for_each(|&key_offset| {
+                serialized.extend(key_offset);
+            });
+        });
+
+        serialized.extend(transaction_prefix.outputs.len() as u64);
+
+        transaction_prefix.outputs.iter().for_each(|&output| {
+            serialized.extend(&output.amount);
+            serialized.extend("02" as u64);
+            serialized.extend_from_slice(&output.to_key.key.to_transaction_prefix_public_key());
+        });
+
+        serialized.extend((transaction_prefix.extra.len() / 2) as u64);
+        serialized.extend(&transaction_prefix.extra);
+
+//        uncomment after implementing signatures
+//        if !header_only {
+//            if transaction_prefix.inputs.len() != transaction.signatures.len() {
+//                return Err(TransactionError::MoneroTransactionError);
+//            }
+//            transaction.signatures.iter.for_each(|&signature_row| {
+//                signature_row.iter().for_each(|&signature_row_column| {
+//                    serialized.extend(&signature_row_column);
+//                });
+//            });
+//        }
     }
 
     /// Returns a Monero transaction from given arguments
@@ -272,6 +334,6 @@ impl <N: MoneroNetwork> MoneroTransaction<N> {
         if sources.is_empty() {
             return TransactionError::MoneroTransactionError; //TODO: return proper errors
         }
-        
+
     }
 }

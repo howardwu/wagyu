@@ -94,7 +94,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     }
 
     /// Encodes the index to conform to Monero consensus
-    fn encode_varint(index: u64) -> Vec<u8> {
+    pub fn encode_varint(index: u64) -> Vec<u8> {
         // used here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L195
         // impl here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/common/varint.h#L69
         let mut res: Vec<u8> = vec![];
