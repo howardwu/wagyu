@@ -31,6 +31,9 @@ pub enum TransactionError {
 
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
+
+    #[fail(display = "monero transaction error")]
+    MoneroTransactionError,
 }
 
 impl From<&'static str> for TransactionError {
