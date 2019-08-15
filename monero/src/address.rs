@@ -160,6 +160,18 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     pub fn format(&self) -> Result<Format, AddressError> {
         Format::from_address(&base58::decode(&self.address)?)
     }
+
+    /// Returns public spending key and public viewing key
+    pub fn get_raw_keys(&self) -> Result<([u8; 32], [u8; 32]), AddressError> {
+        let bytes = base58::decode(&self.address)?;
+        let mut public_spend_key= [0u8; 32];
+        let mut public_view_key= [0u8; 32];
+
+        public_spend_key[..].copy_from_slice(&bytes[1..33]);
+        public_view_key[..].copy_from_slice(&bytes[33..65]);
+
+        Ok((public_spend_key, public_view_key))
+    }
 }
 
 impl<'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
