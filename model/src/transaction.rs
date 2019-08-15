@@ -23,6 +23,9 @@ pub enum TransactionError {
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
 
+    #[fail(display = "invalid script pub key for format: {}", _0)]
+    InvalidScriptPubKey(String),
+
     #[fail(display = "invalid transaction id {:?}", _0)]
     InvalidTransactionId(usize),
 

@@ -477,16 +477,12 @@ pub fn validate_address_format(
         && script_pub_key[1] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_checksig
     {
-        return Err(TransactionError::Message(
-            "invalid script_pub_key for P2PKH".into(),
-        ));
+        return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
     } else if address_format == &Format::P2SH_P2WPKH
         && script_pub_key[0] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_equal
     {
-        return Err(TransactionError::Message(
-            "invalid script_pub_key for P2SH_P2WPKH transaction".into(),
-        ));
+        return Err(TransactionError::InvalidScriptPubKey("P2SH_P2WPKH".into()));
     } else {
         // UNIMPLEMENTED - P2SH/P2WSH SPENDING
         Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
