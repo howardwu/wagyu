@@ -2,6 +2,7 @@ use crate::address::Format;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
+use crate::transaction::MoneroTransaction;
 use wagyu_model::private_key::PrivateKey;
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
@@ -23,23 +24,22 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns one time key given recipient public keys, randomness, and output index
     pub fn new(public: &MoneroPublicKey<N>, rand: [u8; 32], index: u64) -> OneTimeKey<N> {
         //P = H_s(rA || n)G + B
+        let mut concat = Vec::<u8>::new();
         let r = Scalar::from_bits(rand);
-        let A = CompressedEdwardsY::from_slice(&public.to_public_view_key().unwrap())
-            .decompress()
-            .unwrap(); //TODO: remove unwraps
         let B = CompressedEdwardsY::from_slice(&public.to_public_spend_key().unwrap())
             .decompress()
             .unwrap();
 
-        let mut rA: EdwardsPoint = r * A;
-        rA = rA.mul_by_cofactor(); //https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L182
-        let mut concat: Vec<u8> = rA.compress().to_bytes().to_vec();
-        concat.extend(&OneTimeKey::<N>::encode_varint(index));
+        MoneroTransaction::<N>::generate_key_derivation(
+            &public.to_public_view_key().unwrap(),
+            &rand,
+            &mut concat
+        );
 
-        let H_s = Scalar::from_bytes_mod_order(keccak256(&concat));
+        let H_s = MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
         let base: EdwardsPoint = &H_s * &ED25519_BASEPOINT_TABLE;
-
         let P = &base + &B;
+
         let tx = &r * &ED25519_BASEPOINT_TABLE;
 
         Self {
@@ -52,18 +52,15 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns the one time private key given recipient private keys
     pub fn to_private(&self, private: &MoneroPrivateKey<N>, index: u64) -> [u8; 32] {
         //x = H_s(aR || n) + b
-        let R = CompressedEdwardsY(self.to_transaction_public_key())
-            .decompress()
-            .unwrap();
-        let a = Scalar::from_bits(private.to_private_view_key());
+        let mut concat = Vec::<u8>::new();
         let b = Scalar::from_bits(private.to_private_spend_key());
 
-        let mut aR: EdwardsPoint = a * R;
-        aR = aR.mul_by_cofactor();
-        let mut concat: Vec<u8> = aR.compress().to_bytes().to_vec();
-        concat.extend(&OneTimeKey::<N>::encode_varint(index));
+        MoneroTransaction::<N>::generate_key_derivation(
+            &self.to_transaction_public_key(),
+            &private.to_private_view_key(),
+            &mut concat);
 
-        let H_s = Scalar::from_bytes_mod_order(keccak256(&concat));
+        let H_s = MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
         let x: Scalar = H_s + b;
 
         x.to_bytes()
@@ -91,35 +88,6 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
 
     pub fn to_transaction_public_key(&self) -> [u8; 32] {
         self.transaction_public_key
-    }
-
-    /// Encodes the index to conform to Monero consensus
-    pub fn encode_varint(index: u64) -> Vec<u8> {
-        // used here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L195
-        // impl here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/common/varint.h#L69
-        let mut res: Vec<u8> = vec![];
-        let mut n = index;
-        loop {
-            let bits = (n & 0b0111_1111) as u8;
-            n = n >> 7;
-            res.push(bits);
-            if n == 0u64 {
-                break;
-            }
-        }
-        let mut encoded_bytes = vec![];
-        match res.split_last() {
-            Some((last, arr)) => {
-                let _a: Vec<_> = arr
-                    .iter()
-                    .map(|bits| encoded_bytes.push(*bits | 0b1000_0000))
-                    .collect();
-                encoded_bytes.push(*last);
-            }
-            None => encoded_bytes.push(0x00),
-        }
-
-        encoded_bytes
     }
 }
 

@@ -5,9 +5,11 @@ use crate::public_key::MoneroPublicKey;
 use crate::one_time_key::OneTimeKey;
 use wagyu_model::{PrivateKey, TransactionError, Transaction};
 
+use base58_monero as base58;
+use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
+use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
-use serde_json::value::Value::Null;
 use tiny_keccak::keccak256;
 
 ///// Fields needed to input a Monero transaction to script
@@ -27,17 +29,17 @@ use tiny_keccak::keccak256;
 
 
 /// Fields needed to input a Monero transaction to one time key
-pub struct KeyInput<N: MoneroNetwork> {
+pub struct KeyInput {
     key_offsets: Vec<u64>,
     key_image: [u8; 32],
 }
 
 /// Represents a Monero transaction input
-pub struct MoneroTransactionInput<N: MoneroNetwork> {
+pub struct MoneroTransactionInput {
     /// block height of where the coinbase transaction is included
     height: usize,
     /// a one time key input
-    to_key: KeyInput<N>,
+    to_key: KeyInput,
 //    /// Input from script input
 //    to_script: ScriptInput<N>,
 //    /// Input from script hash input
@@ -81,7 +83,7 @@ pub struct MoneroTransactionPrefix<N: MoneroNetwork> {
     /// extra field: transaction public key or additional public keys
     extra: Vec<u8>,
     /// transaction inputs
-    inputs: Vec<MoneroTransactionInput<N>>,
+    inputs: Vec<MoneroTransactionInput>,
     /// transaction outputs
     outputs: Vec<MoneroTransactionOutput<N>>,
 }
@@ -101,17 +103,17 @@ pub struct MoneroTransaction<N: MoneroNetwork> {
 //    prefix_size: u8,
 }
 
-impl <N: MoneroNetwork> Transaction for MoneroTransaction<N> {
-    type Address = MoneroAddress<N>;
-    type Format = Format;
-    type PrivateKey = MoneroPrivateKey<N>;
-    type PublicKey = MoneroPublicKey<N>;
-}
+//impl <N: MoneroNetwork> Transaction for MoneroTransaction<N> {
+//    type Address = MoneroAddress<N>;
+//    type Format = Format;
+//    type PrivateKey = MoneroPrivateKey<N>;
+//    type PublicKey = MoneroPublicKey<N>;
+//}
 
 /// Represents a source entry used to construct a Monero transaction
 pub struct TxSourceEntry {
     /// index + key + optional ringct commitment
-    outputs: Vec<(u64, CtKey)>,
+    outputs: Vec<(u64, [u8; 32])>,
     /// index in outputs vector of real output_entry
     real_output: usize,
     /// incoming real tx public key
@@ -124,14 +126,14 @@ pub struct TxSourceEntry {
     amount: u64,
     /// true if output is rct
     rct: bool,
-    /// ringct amount mask
-    mask: RctMask,
-    /// multisig info
-    multisig_kLRki: MultisigKLRki,
+    //// ringct amount mask
+//    mask: RctMask,
+//    /// multisig info
+//    multisig_kLRki: MultisigKLRki,
 }
 
 /// Represents a destination entry use to construct a Monero transaction
-pub struct TxDestinationEntry<N> {
+pub struct TxDestinationEntry<N: MoneroNetwork> {
     /// I have no idea
     original: String,
     /// money
@@ -159,9 +161,9 @@ impl <N: MoneroNetwork> MoneroTransaction<N> {
             }
             let num_of_occurrences = unique_dst_addresses.iter().filter(|&address| *address == dst_entr.address);
             if num_of_occurrences.count() == 0 {
-                unique_dst_addresses.push(dst_entr.address);
-                match Format::from_address(dst_entr.address) {
-                    Format::Subaddress() => {
+                unique_dst_addresses.push(dst_entr.address.clone());
+                match Format::from_address(&base58::decode(&dst_entr.address.to_string()).unwrap()).unwrap() {
+                    Format::Subaddress(_, _) => {
                         num_subaddresses += 1;
 //                        single_dest_subaddress = dst_entr.address;
                     },
@@ -175,165 +177,310 @@ impl <N: MoneroNetwork> MoneroTransaction<N> {
         (num_stdaddresses, num_subaddresses)
     }
 
-    /// Returns keccak256 hash of serialized transaction prefix
-    fn get_transaction_prefix_hash(transaction: &MoneroTransaction<N>) -> [u8; 32] {
-        let mut prefix: Vec<u8> = Vec::new();
-        Self::serialize_transaction(transaction, &mut prefix, true);
+//    /// Returns keccak256 hash of serialized transaction prefix
+//    fn get_transaction_prefix_hash(transaction: &MoneroTransaction<N>) -> [u8; 32] {
+//        let mut prefix: Vec<u8> = Vec::new();
+//        Self::serialize_transaction(transaction, &mut prefix, true);
+//
+//        keccak256(prefix.as_slice())
+//    }
+//
+//    /// Returns keccak256 hash of transaction
+//    fn get_transaction_hash(transaction: &MoneroTransaction<N>) -> [u8; 32] {
+//        let mut tx: Vec<u8> = Vec::new();
+//        Self::serialize_transaction(transaction, &mut tx, false);
+//
+//        keccak256(tx.as_slice())
+//    }
 
-        keccak256(prefix.as_slice())
-    }
-
-    /// Returns keccak256 hash of transaction
-    fn get_transaction_hash(transaction: &MoneroTransaction<N>) -> [u8; 32] {
-        let mut tx: Vec<u8> = Vec::new();
-        Self::serialize_transaction(transaction, &mut tx, false);
-
-        keccak256(tx.as_slice())
-    }
-
-    /// Returns a serialized transaction or transaction prefix
-    fn serialize_transaction(transaction: &MoneroTransaction<N>, serialized: &mut Vec<u8>, header_only: bool) {
-        let transaction_prefix = &transaction.prefix;
-
-        //TODO: if possible, initialize vector of exact length based off header
-        serialized.extend(OneTimeKey::encode_varint(transaction_prefix.version));
-        serialized.extend(OneTimeKey::encode_varint(transaction_prefix.unlock_time));
-        serialized.extend(OneTimeKey::encode_varint(transaction_prefix.inputs.len() as u64));
-
-        transaction_prefix.inputs.iter().for_each(|&input| {
-            let offsets = input.to_key.key_offsets;
-
-            serialized.extend(OneTimeKey::encode_varint("02" as u64));
-            serialized.extend(&offsets.len() as u64);
-
-            offsets.iter().for_each(|&key_offset| {
-                serialized.extend(key_offset);
-            });
-        });
-
-        serialized.extend(transaction_prefix.outputs.len() as u64);
-
-        transaction_prefix.outputs.iter().for_each(|&output| {
-            serialized.extend(&output.amount);
-            serialized.extend("02" as u64);
-            serialized.extend_from_slice(&output.to_key.key.to_transaction_prefix_public_key());
-        });
-
-        serialized.extend((transaction_prefix.extra.len() / 2) as u64);
-        serialized.extend(&transaction_prefix.extra);
-
-//        uncomment after implementing signatures
-//        if !header_only {
-//            if transaction_prefix.inputs.len() != transaction.signatures.len() {
-//                return Err(TransactionError::MoneroTransactionError);
-//            }
-//            transaction.signatures.iter.for_each(|&signature_row| {
-//                signature_row.iter().for_each(|&signature_row_column| {
-//                    serialized.extend(&signature_row_column);
-//                });
+//    /// Returns a serialized transaction or transaction prefix
+//    fn serialize_transaction(transaction: &MoneroTransaction<N>, serialized: &mut Vec<u8>, header_only: bool) {
+//        let transaction_prefix = &transaction.prefix;
+//
+//        //TODO: if possible, initialize vector of exact length based off header
+//        serialized.extend(Self::encode_varint(transaction_prefix.version));
+//        serialized.extend(Self::encode_varint(transaction_prefix.unlock_time));
+//        serialized.extend(Self::encode_varint(transaction_prefix.inputs.len() as u64));
+//
+//        transaction_prefix.inputs.iter().for_each(|&input| {
+//            let offsets = input.to_key.key_offsets;
+//
+//            serialized.extend(Self::encode_varint("02" as u64));
+//            serialized.extend(Self::encode_varint(&offsets.len() as u64));
+//
+//            offsets.iter().for_each(|&key_offset| {
+//                serialized.extend(key_offset);
 //            });
-//        }
-    }
+//        });
+//
+//        serialized.extend(transaction_prefix.outputs.len() as u64);
+//
+//        transaction_prefix.outputs.iter().for_each(|&output| {
+//            serialized.extend(&output.to_key.amount);
+//            serialized.extend(Self::encode_varint("02" as u64));
+//            serialized.extend_from_slice(&output.to_key.key.to_transaction_prefix_public_key());
+//        });
+//
+//        serialized.extend(Self::encode_varint(transaction_prefix.extra.len() / 2 as u64));
+//        serialized.extend(&transaction_prefix.extra);
+//
+////        uncomment after implementing signatures
+////        if !header_only {
+////            if transaction_prefix.inputs.len() != transaction.signatures.len() {
+////                return Err(TransactionError::MoneroTransactionError);
+////            }
+////            transaction.signatures.iter.for_each(|&signature_row| {
+////                signature_row.iter().for_each(|&signature_row_column| {
+////                    serialized.extend(&signature_row_column);
+////                });
+////            });
+////        }
+//    }
 
-    /// Returns a Monero transaction from given arguments
-    pub fn construct_tx(
-        sender_account_keys: MoneroPrivateKey<N>,
-        sources: Vec<TxSourceEntry>,
-        destinations: Vec<TxDestinationEntry<N>>,
-        change_address: MoneroAddress<N>,
-        extra: Vec<u8>,
-        unlock_time: u64,
-    ) -> Result<Self, TransactionError> {
-        let mut subaddresses: HashMap<[u8; 32], (u8, u8)> = HashMap::new();
-        subaddresses.insert(sender_account_keys.to_public_key().to_public_spend_key().unwrap(), (0, 0));
-
-        // TODO: generate new secret key instead of just random bytes here
-        let mut tx_key = [0u8; 32];
-        thread_rng().fill(&mut tx_key[..]);
-
-        let mut additional_tx_keys: Vec<[u8; 32]> = Vec::new();
-
-        let mut destinations_copy: Vec<TxDestinationEntry<N>> = destinations.clone();
-
-        construct_tx_and_get_tx_key(
-            sender_account_keys,
-            subaddresses,
-            sources,
-            &destinations_copy,
-            &change_address,
-            extra,
-            unlock_time,
-            tx_key,
-            &additional_tx_keys,
-            false,
-            0,
-            false,
-        )
-    }
-
-    /// Returns a Monero transaction and transaction key from given arguments
-    pub fn construct_tx_and_get_tx_key(
-        sender_account_keys: MoneroPrivateKey<N>,
-        subaddresses: HashMap<[u8; 32], (u8, u8)>,
-        sources: Vec<TxSourceEntry>,
-        destinations: &Vec<TxDestinationEntry<N>>,
-        change_address: &MoneroAddress<N>,
-        extra: Vec<u8>,
-        unlock_time: u64,
-        tx_key: [u8; 32],
-        additional_tx_keys: &mut Vec<[u8; 32]>,
-        rct: bool,
-        rct_config: u8,
-        multisig_out: bool,
-    ) -> Result<Self, TransactionError> {
-        // figure out if we need to make additional tx pubkeys
-        let (num_stdaddresses, num_subaddresses) = classify_addresses(destinations, change_address);
-        let need_additional_tx_keys = num_subaddresses > 0 && (num_stdaddresses > 0 || num_subaddresses > 1);
-
-        if need_additional_tx_keys {
-            additional_tx_keys.clear();
-            for dest in destinations.iter() {
-                // TODO: generate new secret key instead of just random bytes here
-                let mut random_bytes = [0u8; 32];
-                thread_rng().fill(&mut random_bytes[..]);
-                additional_tx_keys.push(random_bytes);
+    /// Encodes the index to conform to Monero consensus
+    pub fn encode_varint(index: u64) -> Vec<u8> {
+        // used here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L195
+        // impl here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/common/varint.h#L69
+        let mut res: Vec<u8> = vec![];
+        let mut n = index;
+        loop {
+            let bits = (n & 0b0111_1111) as u8;
+            n = n >> 7;
+            res.push(bits);
+            if n == 0u64 {
+                break;
             }
         }
-
-        construct_tx_with_tx_key(
-            sender_account_keys,
-            subaddresses,
-            sources,
-            destinations,
-            change_address,
-            extra,
-            unlock_time,
-            tx_key,
-            additional_tx_keys,
-            rct,
-            rct_config,
-            multisig_out
-        )
-    }
-
-    /// Returns a Monero transaction given a transaction key and arguments
-    pub fn construct_tx_with_tx_key(
-        sender_account_keys: MoneroPrivateKey<N>,
-        subaddresses: HashMap<[u8; 32], (u8, u8)>,
-        sources: Vec<TxSourceEntry>,
-        destinations: &Vec<TxDestinationEntry<N>>,
-        change_address: &MoneroAddress<N>,
-        extra: Vec<u8>,
-        unlock_time: u64,
-        tx_key: [u8; 32],
-        additional_tx_keys: &mut Vec<[u8; 32]>,
-        rct: bool,
-        rct_config: u8,
-        multisig_out: bool,
-    ) -> Result<Self, TransactionError> {
-        if sources.is_empty() {
-            return TransactionError::MoneroTransactionError; //TODO: return proper errors
+        let mut encoded_bytes = vec![];
+        match res.split_last() {
+            Some((last, arr)) => {
+                let _a: Vec<_> = arr
+                    .iter()
+                    .map(|bits| encoded_bytes.push(*bits | 0b1000_0000))
+                    .collect();
+                encoded_bytes.push(*last);
+            }
+            None => encoded_bytes.push(0x00),
         }
 
+        encoded_bytes
     }
+
+    /// Returns scalar base multiplication of public and secret key then multiplies result by cofactor
+    pub fn generate_key_derivation(public: &[u8; 32], secret_key: &[u8; 32], dest: &mut Vec<u8>) {
+        let r = Scalar::from_bits(*secret_key);
+        let A = CompressedEdwardsY::from_slice(public)
+            .decompress()
+            .unwrap(); //TODO: remove unwraps
+
+        let mut rA: EdwardsPoint = r * A;
+        rA = rA.mul_by_cofactor(); //https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L182
+
+        dest.clear();
+        dest.extend(rA.compress().to_bytes().to_vec());
+    }
+
+    /// Returns keccak256 hash of key derivation extended by output index as a scalar
+    pub fn derivation_to_scalar(derivation: &mut Vec<u8>, output_index: u64) -> Scalar {
+        derivation.extend(&MoneroTransaction::<N>::encode_varint(output_index));
+
+        Scalar::from_bytes_mod_order(keccak256(&derivation))
+    }
+
+    /// Returns help to generate the key image for the given source entry index
+    fn generate_key_image_helper(sender_account_keys: &MoneroPrivateKey<N>, transaction_public_key: &[u8; 32], transaction_output_index: u64) {
+        let mut recv_derivation = Vec::<u8>::new();
+        Self::generate_key_derivation(transaction_public_key, &sender_account_keys.to_private_view_key(), &mut recv_derivation);
+
+    }
+
+//    /// Returns a ring signature over
+//
+//    /// Returns a Monero transaction from given arguments
+//    pub fn construct_tx(
+//        sender_account_keys: MoneroPrivateKey<N>,
+//        sources: Vec<TxSourceEntry>,
+//        destinations: Vec<TxDestinationEntry<N>>,
+//        change_address: MoneroAddress<N>,
+//        extra: Vec<u8>,
+//        unlock_time: u64,
+//    ) -> Result<Self, TransactionError> {
+//        let mut subaddresses: HashMap<[u8; 32], (u8, u8)> = HashMap::new();
+//        subaddresses.insert(sender_account_keys.to_public_key().to_public_spend_key().unwrap(), (0, 0));
+//
+//        // TODO: generate new secret key instead of just random bytes here
+//        let mut tx_key = [0u8; 32];
+//        thread_rng().fill(&mut tx_key[..]);
+//
+//        let mut additional_tx_keys: Vec<[u8; 32]> = Vec::new();
+//
+//        let mut destinations_copy: Vec<TxDestinationEntry<N>> = destinations.clone();
+//
+//        construct_tx_and_get_tx_key(
+//            sender_account_keys,
+//            subaddresses,
+//            sources,
+//            &destinations_copy,
+//            &change_address,
+//            extra,
+//            unlock_time,
+//            tx_key,
+//            &additional_tx_keys,
+//            false,
+//            0,
+//            false,
+//        )
+//    }
+//
+//    /// Returns a Monero transaction and transaction key from given arguments
+//    pub fn construct_tx_and_get_tx_key(
+//        sender_account_keys: MoneroPrivateKey<N>,
+//        subaddresses: HashMap<[u8; 32], (u8, u8)>,
+//        sources: Vec<TxSourceEntry>,
+//        destinations: &Vec<TxDestinationEntry<N>>,
+//        change_address: &MoneroAddress<N>,
+//        extra: Vec<u8>,
+//        unlock_time: u64,
+//        tx_key: [u8; 32],
+//        additional_tx_keys: &mut Vec<[u8; 32]>,
+//        rct: bool,
+//        rct_config: u8,
+//        multisig_out: bool,
+//    ) -> Result<Self, TransactionError> {
+//        // figure out if we need to make additional tx pubkeys
+//        let (num_stdaddresses, num_subaddresses) = classify_addresses(destinations, change_address);
+//        let need_additional_tx_keys = num_subaddresses > 0 && (num_stdaddresses > 0 || num_subaddresses > 1);
+//
+//        if need_additional_tx_keys {
+//            additional_tx_keys.clear();
+//            for dest in destinations.iter() {
+//                // TODO: generate new secret key instead of just random bytes here
+//                let mut random_bytes = [0u8; 32];
+//                thread_rng().fill(&mut random_bytes[..]);
+//                additional_tx_keys.push(random_bytes);
+//            }
+//        }
+//
+//        construct_tx_with_tx_key(
+//            sender_account_keys,
+//            subaddresses,
+//            sources,
+//            destinations,
+//            change_address,
+//            extra,
+//            unlock_time,
+//            tx_key,
+//            additional_tx_keys,
+//            rct,
+//            rct_config,
+//            multisig_out
+//        )
+//    }
+//
+//    /// Returns a Monero transaction given a transaction key and arguments
+//    pub fn construct_tx_with_tx_key(
+//        sender_account_keys: MoneroPrivateKey<N>,
+//        subaddresses: HashMap<[u8; 32], (u8, u8)>,
+//        sources: Vec<TxSourceEntry>,
+//        destinations: &Vec<TxDestinationEntry<N>>,
+//        change_address: &MoneroAddress<N>,
+//        extra: Vec<u8>,
+//        unlock_time: u64,
+//        tx_key: [u8; 32],
+//        additional_tx_keys: &mut Vec<[u8; 32]>,
+//        rct: bool,
+//        rct_config: u8,
+//        multisig_out: bool,
+//    ) -> Result<Self, TransactionError> {
+//        // line 205 - 209 - if no tx sources, output error
+//        if sources.is_empty() {
+//            return Err(TransactionError::MoneroTransactionError); //TODO: return proper errors
+//        }
+//
+//        // line 219 - if rct is true, set tx.version to 2, else 1
+//        let version = match rct {
+//            true => 2,
+//            false => 1,
+//        };
+//
+//        // line 222 - set tx.extra
+//
+//        // line 225 - 266 if we have a stealth payment id, find it and encrypt it with the tx key now
+//        let mut add_dummy_payment_id = false;
+//        if extra.len() != 0 {
+//            add_dummy_payment_id = true;
+//            // weird nonce stuff, will come back to
+//
+//            // line 268 - 270 if we don't add one if we've got more than the usual 1 destination plus change
+//            if destinations.len() > 2 {
+//                add_dummy_payment_id = false;
+//            }
+//
+//            // line 272 - 292 add a dummy short payment id
+//            if add_dummy_payment_id {
+//
+//            }
+//        }
+//
+//
+//        // line 308 - set up data structures to parse tx inputs, store tx images, track summary of money in, generate tx outputs
+//        let mut in_contexts: Vec<([u8; 32], [u8; 32])> = Vec::new();
+//        let mut summary_inputs_money = 0u64;
+//
+//        sources.iter().for_each(|&source_entry| {
+//            if source_entry.real_output >= source_entry.outputs.len() {
+//                println!("real output index out of range");
+//                return Err(TransactionError::MoneroTransactionError);
+//            }
+//
+//            summary_inputs_money += source_entry.amount;
+//
+//            // line 320 - 329 - generate key image key_derivation recv_derivation
+//            let key_image = Self::generate_key_image_helper(sender_account_keys, &source_entry.real_out_tx_key, &source_entry.real_output_in_tx_index);
+//
+//            // line 331 - 340 - check that derived key is equal with real output key (if non-multisig)
+//
+//            // line 342 - 345 - put key image into tx input
+//
+//            // line 347 - 349 - fill outputs array and use relative offsets
+//        })
+//
+//
+//        // line 355 - 358 - shuffle outputs
+//
+//        // line 360 - 373 - sort ins by their key image
+//
+//        // line 375 - 379 - figure out if we need to make additional tx pubkeys
+//
+//        // line 381 - 391 - if this is a single-destination transfer to a subaddress, set tx pubkey to R=s*D
+//
+//        // line 395 - 400 - we don’t need to include additional tx keys if
+//        //    - all destinations are standard addresses
+//        //    - there’s only one destination which is a subaddress
+//
+//        // line 402 - 424 - set up data structures to parse tx outputs, and track summary of money out
+//
+//        // line 426 remove additional pub key field from tx extra
+//
+//        // line 428 - 435 - add additional public keys
+//
+//        // line 440 - 445 - check summary of money out is not greater than money in
+//
+//        // line 447 - 454 - check for watch only wallet
+//
+//        // line 456 - 491 - rct_full_tx_type = 1
+//
+//        // line 491 - 552 - rct_simple_tx_type = 2
+//
+//        // line 554 - 576 - mixRing indexing
+//
+//        // line 579 - 580 - calculate fee (amounts in - amounts out) - verified that this was positive above
+//
+//        // line 582 - 589 - zero out all amounts to mask rct outputs, real amounts are now encrypted
+//
+//        // line 591 - 598 - generate transaction Rct signatures
+//
+//        // line 600 - 602 - check and assert tx size, then create transaction
+//
+//    }
 }
