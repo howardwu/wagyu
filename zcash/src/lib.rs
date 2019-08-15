@@ -34,3 +34,6 @@ pub use self::private_key::*;
 
 pub mod public_key;
 pub use self::public_key::*;
+
+pub mod transaction;
+pub use self::transaction::*;
