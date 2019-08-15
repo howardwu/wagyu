@@ -396,15 +396,9 @@ impl <N: ZcashNetwork> ZcashTransactionOutput<N> {
 fn blake2_256_hash(personalization: &str, message: Vec<u8>, consensus_id: Option<&str>) -> Hash {
 
     let personalization = match consensus_id {
-        Some("sapling") => {
-            [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat()
-        },
-        Some("overwinter") => {
-            [personalization.as_bytes(), &(0x5ba81b19 as u32).to_le_bytes()].concat()
-        },
-        Some(_) => {
-            [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat()
-        },
+        Some("sapling") => [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat(),
+        Some("overwinter") => [personalization.as_bytes(), &(0x5ba81b19 as u32).to_le_bytes()].concat(),
+        Some(_) => [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat(),
         None => personalization.as_bytes().to_vec(),
     };
 
@@ -419,7 +413,6 @@ fn blake2_256_hash(personalization: &str, message: Vec<u8>, consensus_id: Option
 /// Generate the script_pub_key of a corresponding address
 pub fn generate_script_pub_key<N: ZcashNetwork>(address: &str) -> Result<Vec<u8>, TransactionError> {
     let address = ZcashAddress::<N>::from_str(address)?;
-
     let mut script: Vec<u8> = Vec::new();
     let format = address.format();
     match format {
@@ -450,16 +443,19 @@ pub fn validate_address_format(
     let op_dup = OPCodes::OP_DUP as u8;
     let op_hash160 = OPCodes::OP_HASH160 as u8;
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
-    let op_equal = OPCodes::OP_EQUAL as u8;
 
-    //TODO do address validation for P2PKH
+    if address_format == &Format::P2PKH
+        && script_pub_key[0] != op_dup
+        && script_pub_key[1] != op_hash160
+        && script_pub_key[script_pub_key.len() - 1] != op_checksig
+    {
+        return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
+    }
 
-    Ok(
-        (
-            amount.unwrap_or(0),
-            redeem_script.clone().unwrap_or(Vec::new())
-        )
-    )
+    Ok((
+        amount.unwrap_or(0),
+        redeem_script.clone().unwrap_or(Vec::new())
+    ))
 }
 
 /// Return the variable length integer of the size
@@ -481,7 +477,6 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
 mod tests {
     use super::*;
     use crate::Testnet;
-    use crate::Mainnet;
 
     pub struct Transaction {
         pub header: u32,
