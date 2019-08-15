@@ -216,7 +216,6 @@ impl <N: ZcashNetwork> ZcashTransaction<N> {
     pub fn sign_raw_transaction(&mut self,
                                 private_key: <Self as Transaction>::PrivateKey,
                                 input_index: usize,
-                                address_format: Format
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
         let transaction_hash_preimage = match input.out_point.address.format() {
@@ -476,6 +475,7 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Mainnet;
     use crate::Testnet;
 
     pub struct Transaction {
@@ -485,7 +485,7 @@ mod tests {
         pub expiry_height: u32,
         pub value_balance: i64,
         pub inputs: [Input; 4],
-        pub outputs: [Output; 4],
+        pub outputs: [Output; 8],
         pub expected_signed_transaction: &'static str,
     }
 
@@ -577,22 +577,257 @@ mod tests {
                 None
             ).unwrap();
 
+        println!("raw transaction: {:}", hex::encode(transaction.serialize_transaction(true).unwrap()));
+
         for (index, input) in inputs.iter().enumerate() {
             transaction
                 .sign_raw_transaction(
                     ZcashPrivateKey::from_str(input.private_key).unwrap(),
                     index,
-                    input.address_format.clone(),
                 )
                 .unwrap();
         }
 
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
+
+        println!("signed transaction: {}", signed_transaction);
+
         assert_eq!(expected_signed_transaction, signed_transaction);
+    }
+
+    mod test_mainnet_transactions {
+        use super::*;
+
+        type N = Mainnet;
+
+        /// Keys and addresses were generated randomly and test transactions were built using zcash-cli
+        const TRANSACTIONS: [Transaction; 4] = [
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 0,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "KwbK8JibyGAKz7h7uXAmW2hmM68SDGZenurVMKvUMoH5n97dEekL",
+                        address_format: Format::P2PKH,
+                        transaction_id: "1097b2e1ffbaf193ec0123c0d20b0e217f77250446485e3e9af906f314a01055",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(101000000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "t1S5TMtjLu73QwjMkYDwa67B39qqneqq4yY",
+                        amount: 100000000
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f89015510a014f306f99a3e5e48460425777f210e0bd2c02301ec93f1baffe1b29710000000006a47304402207c2e6d5ec25a8ab67229f23a581ee8898eb087c2aa6c8db8acf21c3b96bab5fb02202ff7689945891a20961de1b4e18b40995fe7f07cb6dd1c97607c65259adeb1bd012102a7b8361f36eee68b96cbc72bab73295494161b8e670a29c99819e2b793939d25ffffffff0100e1f505000000001976a91459fec7e62fcf3e580656bc1bc6c220dad37709ab88ac00000000000000000000000000000000000000"
+            },
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 456789,
+                expiry_height: 600000,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "KyWLtuy5hiPejU1muc2ENTQ6U6WVueWErEYtye96oeB9QrPZMj1t",
+                        address_format: Format::P2PKH,
+                        transaction_id: "f234d95b8313c7f8534e3dd3cc0549b307759ec3909626920c129e493ac84f39",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(200010000),
+                        sequence: Some([0xfe, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "t1bq98GbMv8wbjkEQqQkMxiHi7Qefb67jXr",
+                        amount: 50000000
+                    },
+                    Output {
+                        address: "t1MkLsaPmTuc8XQjLENxppkCFUkCtTRCsZZ",
+                        amount: 50000000
+                    },
+                    Output {
+                        address: "t1KvUTiJ8LJeFygnzNFigUCpiUqak7Yzbqq",
+                        amount: 50000000
+                    },
+                    Output {
+                        address: "t1QNGuoLLkYXDfCFJUGGajQugMCUGRxbAvn",
+                        amount: 50000000
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f8901394fc83a499e120c92269690c39e7507b34905ccd33d4e53f8c713835bd934f2000000006a473044022053637ac8ece0fd2c5cd2fa2c6abb6fec36317a7e60be6c5215ff83ab903409a502206cdcb354b7bca6a4aed08fc6409a6e0000ba263c47f6bb22ab74ad2fe270250501210325c97e86e09f91a9894b856c9b9ca6d7ea90754d66acc95fb57b46117492d3bdfeffffff0480f0fa02000000001976a914c4fafe5725a6ec3d2218458c00da884cd9a0507c88ac80f0fa02000000001976a9142a80f5573b12de286ecbe0f8d46acb9c2334375588ac80f0fa02000000001976a914167b3376103f458ea847ec6f5e763b0de2808f3e88ac80f0fa02000000001976a914473ce0a50b7a876fcba71973b49770b79cfb10b188ac55f80600c02709000000000000000000000000"
+            },
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 456789,
+                expiry_height: 0,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "KyXn7mdxMm4GC2BLPopZTjkSp17P86vvDh25enpDRcma6vUnicCk",
+                        address_format: Format::P2PKH,
+                        transaction_id: "ffb595919dd6a431bc74948317cd56be39802b6a2c9a9f0d08606c7b01edb250",
+                        index: 1,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(500000000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "KwY2f9ohrQoHv39dat6hdBnprxtD165dikuW21nExQVhY7KU2VHW",
+                        address_format: Format::P2PKH,
+                        transaction_id: "466351234fb03d3c09c501194f778342314307e923fc7cd6eec9e3fc581a9474",
+                        index: 2,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(500000000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "L1CTbTh1npyZLjVdpfc2uYwW4mwRD549KGAY8d3RP2Fbk38Kryh4",
+                        address_format: Format::P2PKH,
+                        transaction_id: "2ed71a12ed95aa64c1812c5bbaceddfc706054dc439d206b42c191a5f790305d",
+                        index: 3,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(10000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "t1YEmnC2MMFnsAFQwiijeJYeEy4Hui8ZFju",
+                        amount: 1000000000
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f890350b2ed017b6c60080d9f9a2c6a2b8039be56cd17839474bc31a4d69d9195b5ff010000006b483045022100adcab54a2e437df28eebf4c19f33061467d951a035f12125d3ba16dc3a7ed21c02204a13ba64160a5a11fb22ada860202995df5f51f05eb882fc197109fba298b96e012103f632eeb38fa2fcc7af1881f1b6c1f4fe6155ee6267d92657d9a95fdbb15c010effffffff74941a58fce3c9eed67cfc23e90743314283774f1901c5093c3db04f23516346020000006b483045022100a14d25f96742b6a06f201db6811ed1bbbeab80be29ea45ad8e54ce583337056502200e04272216609ca7cf38729156c860e59a1e88632697456fb0639efebc6509bd0121026fba2e786f9351532a8f93de404d0c44b54e01a7f10bf1a61f734bc4249b58f9ffffffff5d3090f7a591c1426b209d43dc546070fcddceba5b2c81c164aa95ed121ad72e030000006a473044022005e9df51bedd7f95d567ef472040fb295f7dc7d742e1a894d48f67f5239fd860022076d170cb5be8435628c738f0beecbeb85fc6fb1f8f74d5dd18db0fdc584df6650121020621d94a64caf7183bef70f89cfca4cd3d30a76ce0335f7f10eb787e266bb2cdffffffff0100ca9a3b000000001976a9149d92a791abc62a9ca93ced9086c2129d31757ee088ac55f80600000000000000000000000000000000"
+            },
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 584789,
+                expiry_height: 710482,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "KxN4JLuVGg7A64gCrKxg2aiH1vsq3QGUhgXnARrsiqQpWFFdv7bU",
+                        address_format: Format::P2PKH,
+                        transaction_id: "0f4b24007bdf5eb11c1e62f186ef3478d70e46453ba06ae290ea323959af380d",
+                        index: 1,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(360100000), //3.601
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "t1JfgVaB5JXx7dQ8gvJzoQH6ng975V1B25G",
+                        amount: 10000000
+                    },
+                    Output {
+                        address: "t1MsywTe4TT3QtLjV6CwS1Y4Q1WSBE6vaPS",
+                        amount: 20000000
+                    },
+                    Output {
+                        address: "t1cx5apduMvoVGYxPkkM3ygsZv8uVHxdn7C",
+                        amount: 30000000
+                    },
+                    Output {
+                        address: "t1JMFpgce1Tex6jHMmJcUHVWZB57KGezWby",
+                        amount: 40000000
+                    },
+                    Output {
+                        address: "t1MPCPc6KGbC2shZauK1J7wAitkeLK7SVYU",
+                        amount: 50000000
+                    },
+                    Output {
+                        address: "t1g1VEHW9Z69acSHwxcr2tQgmUnV8kX5Kat",
+                        amount: 60000000
+                    },
+                    Output {
+                        address: "t1PqYvqKND2ex5rB1BaVQ1MzWumxV9qzhLz",
+                        amount: 70000000
+                    },
+                    Output {
+                        address: "t1JQKfrVZtFVBw6vQ1sSxCp7AbHjBfRrVVc",
+                        amount: 80000000
+                    }
+                ],
+                expected_signed_transaction: "0400008085202f89010d38af593932ea90e26aa03b45460ed77834ef86f1621e1cb15edf7b00244b0f010000006b4830450221008092fa7e36ee33d24e4325d94d2edc79094a2cc7ee9b5a9b927327eaedeba8b10220221452eab944f6c11ea7c3db4737acec9bc7db2a0bb0a3c90e2c96a5cae40bd00121026c6b54c8303dedb35591698afa9fbc5501763c5a18341d1e7c0a2b68148c69bcffffffff0880969800000000001976a91408b6e1325af5b5017f0dab34965540fac91d3b2788ac002d3101000000001976a9142bf2cfe165f273fbf3e323c4c694769ad24afc9388ac80c3c901000000001976a914d14312fbd36be1b32a1461634694cc7ebe81bb6288ac005a6202000000001976a914053acc6851cc71df9715c68b7ca93e1ad6007c5288ac80f0fa02000000001976a9142681247d3de732e1867edfc085cc4197334c785188ac00879303000000001976a914f2d0702165e099a7cde104b3e3a963b0f79c7b2e88ac801d2c04000000001976a914416d5a8d0daa988ebf0f415bc35a41d74751d95788ac00b4c404000000001976a91405cf42203276331ca0b5b121730c89273cb1e5fc88ac55ec080052d70a000000000000000000000000"
+            },
+        ];
+
+        #[test]
+        fn test_mainnet_transactions() {
+            TRANSACTIONS.iter().for_each(|transaction| {
+                let mut pruned_inputs = transaction.inputs.to_vec();
+                pruned_inputs.retain(|input| input.transaction_id != "");
+
+                let mut pruned_outputs = transaction.outputs.to_vec();
+                pruned_outputs.retain(|output| output.address != "");
+
+                test_transaction::<N>(
+                    transaction.header,
+                    transaction.version_group_id,
+                    transaction.lock_time,
+                    transaction.expiry_height,
+                    transaction.value_balance,
+                    pruned_inputs,
+                    pruned_outputs,
+                    transaction.expected_signed_transaction,
+                );
+            });
+        }
     }
 
     mod test_testnet_transactions {
         use super::*;
+
         type N = Testnet;
 
         const TRANSACTIONS: [Transaction; 4] = [
@@ -627,6 +862,10 @@ mod tests {
                         address: "tmHQEbDidJm3t6RDp4Y5F8inXd84CqHwTDA",
                         amount: 9999755
                     },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER
                 ],
@@ -667,6 +906,10 @@ mod tests {
                         address: "tmDrbFH5RELCJnMTEaWMo9VF3YaBgqTEgX6",
                         amount: 49900000
                     },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f89013121b82a43576452d0136cd3a78852f4cd0f46bdb265a349b62d4d790ff103ce0c0000006a47304402201e563ac13e9ae03b0c0f19313dfc5ef32d633adc46d0e2ecad6185b46961e37902207d33d054cfaf1f25149298bb12f5f9dd063034415ec4ee0bad71437f846b04e00121029862bf5d37725419b03e9e3db90f60060de42d187c5ed28bdb41ed435742bd51feffffff0300e9a435000000001976a914c847ac8eafe8ecfac934a41c37b2720ab266b8b688ac80f0fa02000000001976a91416837e1ef0b93ef72d9a2cc235e4d342b476d1d788ace069f902000000001976a9142d6f726f415eaf3e8b609bb0cdc451d4777c800d88acd0dd060069d908000000000000000000000000"
@@ -698,6 +941,10 @@ mod tests {
                         address: "tmL1qkaq3yedV1kbGommnx7tVNXQVpq4cNy",
                         amount: 99000000
                     },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER
@@ -753,6 +1000,10 @@ mod tests {
                         address: "tmKDzQrKDbPGeET81pM3v5y6M7CiijyoeEo",
                         amount: 31000000
                     },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f89024234fafb1d6b06d30e40873ed313c8b7fe84d43d6ff42008d235083cf33b5377000000006a47304402204b631eb3a5f335b3de5693decc757164c711785d9e9260e997b290f6f2265f6402204bdb57d435d966645d42ae40ce58f88a28922063d365cf49b04ffafb959e338d012103d417fc48280160dbf89ea4e3c34b3d47c79bfc43cc211846c22b3538c267a082feffffff52eaa713f84727425f3caa6506dd4924f590a35b0ca6721757316193f72990e3010000006b483045022100f5b4368cbc84a548b48b15acc5589d93c9cc5032476b331f7fd14bf93c0176da02205b93f2439e5ca49e1a0af344d0654b0ec4b22783c31579bd52722a890a8b2ac401210335232f77fae42c4737ddd8d8c9df538767065aa17b9e6a388b6081d2893b9801feffffff0440a5ae02000000001976a914935628220a6e53fec7a6829a69b1139099a95ee688ac00e1f505000000001976a914bdb78536ed86bab756d96c227ff05a156d0994f188acc0f35e01000000001976a9142ffb196b33124bcbac37e85142e14db096202c4a88acc005d901000000001976a914685425f98a20f92e880b10de6e84416683a7010c88ac20a107007ac608000000000000000000000000"
             },
