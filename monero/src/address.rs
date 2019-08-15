@@ -1,7 +1,7 @@
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use wagyu_model::{Address, AddressError, PrivateKey};
+use wagyu_model::{Address, AddressError, PrivateKey, PublicKeyError};
 
 use base58_monero as base58;
 use serde::Serialize;
@@ -162,15 +162,14 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     }
 
     /// Returns public spending key and public viewing key
-    pub fn get_raw_keys(&self) -> Result<([u8; 32], [u8; 32]), AddressError> {
+    pub fn to_public_key(&self) -> Result<MoneroPublicKey<N>, AddressError> {
         let bytes = base58::decode(&self.address)?;
-        let mut public_spend_key= [0u8; 32];
-        let mut public_view_key= [0u8; 32];
+        let format = Format::from_address(&bytes)?;
 
-        public_spend_key[..].copy_from_slice(&bytes[1..33]);
-        public_view_key[..].copy_from_slice(&bytes[33..65]);
+        let public_spend_key = hex::encode(&bytes[1..33]);
+        let public_view_key = hex::encode(&bytes[33..65]);
 
-        Ok((public_spend_key, public_view_key))
+        Ok(MoneroPublicKey::<N>::from(&public_spend_key, &public_view_key, &format)?)
     }
 }
 

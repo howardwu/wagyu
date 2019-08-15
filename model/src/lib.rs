@@ -25,6 +25,9 @@ pub use self::mnemonic::*;
 pub mod network;
 pub use self::network::*;
 
+pub mod one_time_key;
+pub use self::one_time_key::*;
+
 pub mod private_key;
 pub use self::private_key::*;
 

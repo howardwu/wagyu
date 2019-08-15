@@ -1,6 +1,7 @@
 use crate::address::{Address, AddressError};
 use crate::private_key::PrivateKey;
-use crate::public_key::PublicKey;
+use crate::public_key::{PublicKey, PublicKeyError};
+use crate::one_time_key::{OneTimeKeyError};
 
 use std::{fmt::Debug, hash::Hash};
 
@@ -14,11 +15,14 @@ pub trait Transaction: Clone + Debug + Send + Sync + 'static + Eq + Ord + Sized 
 
 #[derive(Debug, Fail)]
 pub enum TransactionError {
+    #[fail(display = "{}", _0)]
+    AddressError(AddressError),
+
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
-    #[fail(display = "{}", _0)]
-    Message(String),
+    #[fail(display = "could not generate Edwards point from slice {:?}", _0)]
+    EdwardsPointError([u8; 32]),
 
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
@@ -29,11 +33,20 @@ pub enum TransactionError {
     #[fail(display = "invalid chain id {:?}", _0)]
     InvalidChainId(u8),
 
+    #[fail(display = "could not generate keys for key image")]
+    KeyImageError,
+
     #[fail(display = "{}", _0)]
-    AddressError(AddressError),
+    Message(String),
 
     #[fail(display = "monero transaction error")]
     MoneroTransactionError,
+
+    #[fail(display = "{}", _0)]
+    OneTimeKeyError(OneTimeKeyError),
+
+    #[fail(display = "{}", _0)]
+    PublicKeyError(PublicKeyError),
 }
 
 impl From<&'static str> for TransactionError {
@@ -54,6 +67,12 @@ impl From<base58::FromBase58Error> for TransactionError {
     }
 }
 
+impl From<base58_monero::base58::Error> for TransactionError {
+    fn from(error: base58_monero::base58::Error) -> Self {
+        TransactionError::Crate("base58_monero", format!("{:?}", error))
+    }
+}
+
 impl From<bech32::Error> for TransactionError {
     fn from(error: bech32::Error) -> Self {
         TransactionError::Crate("hex", format!("{:?}", error))
@@ -63,6 +82,18 @@ impl From<bech32::Error> for TransactionError {
 impl From<hex::FromHexError> for TransactionError {
     fn from(error: hex::FromHexError) -> Self {
         TransactionError::Crate("hex", format!("{:?}", error))
+    }
+}
+
+impl From<OneTimeKeyError> for TransactionError {
+    fn from(error: OneTimeKeyError) -> Self {
+        TransactionError::OneTimeKeyError(error)
+    }
+}
+
+impl From<PublicKeyError> for TransactionError {
+    fn from(error: PublicKeyError) -> Self {
+        TransactionError::PublicKeyError(error)
     }
 }
 

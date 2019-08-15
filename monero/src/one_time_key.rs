@@ -3,14 +3,14 @@ use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use crate::transaction::MoneroTransaction;
-use wagyu_model::private_key::PrivateKey;
+use wagyu_model::{one_time_key::OneTimeKeyError, PublicKeyError};
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
-use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
+use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
 use std::marker::PhantomData;
-use tiny_keccak::keccak256;
 
 /// Represents a one time key
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OneTimeKey<N: MoneroNetwork> {
     /// Destination key from receiver's public keys and sender randomness
     destination_key: [u8; 32],
@@ -22,31 +22,41 @@ pub struct OneTimeKey<N: MoneroNetwork> {
 
 impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns one time key given recipient public keys, randomness, and output index
-    pub fn new(public: &MoneroPublicKey<N>, rand: [u8; 32], index: u64) -> OneTimeKey<N> {
+    pub fn new(public: &MoneroPublicKey<N>, rand: &[u8; 32], index: u64) -> Result<OneTimeKey<N>, OneTimeKeyError> {
         //P = H_s(rA || n)G + B
+        const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
+
+        let public_spend_key: [u8; 32] = match public.to_public_spend_key() {
+            Some(key) => key,
+            None => return Err(OneTimeKeyError::PublicKeyError(PublicKeyError::NoSpendingKey)),
+        };
+        let public_view_key: [u8; 32] = match public.to_public_view_key() {
+            Some(key) => key,
+            None => return Err(OneTimeKeyError::PublicKeyError(PublicKeyError::NoViewingKey)),
+        };
+
+        let B = &match CompressedEdwardsY::from_slice(&public_spend_key).decompress() {
+            Some(point) => point,
+            None => return Err(OneTimeKeyError::EdwardsPointError(public_spend_key)),
+        };
         let mut concat = Vec::<u8>::new();
-        let r = Scalar::from_bits(rand);
-        let B = CompressedEdwardsY::from_slice(&public.to_public_spend_key().unwrap())
-            .decompress()
-            .unwrap();
 
         MoneroTransaction::<N>::generate_key_derivation(
-            &public.to_public_view_key().unwrap(),
+            &public_view_key,
             &rand,
             &mut concat
         );
 
-        let H_s = MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
-        let base: EdwardsPoint = &H_s * &ED25519_BASEPOINT_TABLE;
-        let P = &base + &B;
+        let H_s = &MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
+        let P: EdwardsPoint = H_s * G + B;
 
-        let tx = &r * &ED25519_BASEPOINT_TABLE;
+        let tx = &Scalar::from_bits(*rand) * G;
 
-        Self {
+        Ok(Self {
             destination_key: P.compress().to_bytes(),
             transaction_public_key: tx.compress().to_bytes(),
             _network: PhantomData,
-        }
+        })
     }
 
     /// Returns the one time private key given recipient private keys
@@ -66,11 +76,12 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         x.to_bytes()
     }
 
-    /// Returns one time public key given recipient private keys
+    /// Returns one time public key given recipient private keys for verification
     pub fn to_public(&self, private: &MoneroPrivateKey<N>, index: u64) -> [u8; 32] {
         //P = (H_s(aR || n) + b) * G
+        const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
         let one_time_private_key = self.to_private(private, index);
-        let P = &Scalar::from_bits(one_time_private_key) * &ED25519_BASEPOINT_TABLE;
+        let P = &Scalar::from_bits(one_time_private_key) * G;
 
         P.compress().to_bytes()
     }
@@ -124,10 +135,10 @@ mod tests {
     fn test_new(
         receiver_public_key: &MoneroPublicKey<N>,
         receiver_private_key: &MoneroPrivateKey<N>,
-        random_bytes: [u8; 32],
+        random_bytes: &[u8; 32],
         output_index: u64,
     ) {
-        let one_time_key = OneTimeKey::new(receiver_public_key, random_bytes, output_index);
+        let one_time_key = OneTimeKey::new(receiver_public_key, random_bytes, output_index).unwrap();
 
         println!(
             "one time public key    {:?}",
@@ -161,7 +172,7 @@ mod tests {
 
                 let index: u64 = output_index.parse::<u64>().unwrap();
 
-                test_new(&public_key, &private_key, random_bytes, index);
+                test_new(&public_key, &private_key, &random_bytes, index);
             },
         );
     }
