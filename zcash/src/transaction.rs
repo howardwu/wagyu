@@ -1,7 +1,7 @@
 use crate::address::{ZcashAddress, Format};
 use crate::network::ZcashNetwork;
-use crate::private_key::{SpendingKey, ZcashPrivateKey,};
-use crate::public_key::{ViewingKey, ZcashPublicKey};
+use crate::private_key::ZcashPrivateKey;
+use crate::public_key::ZcashPublicKey;
 
 use base58::{FromBase58};
 use blake2b_simd::{Hash, Params};
@@ -226,9 +226,9 @@ impl <N: ZcashNetwork> ZcashTransaction<N> {
 
         let transaction_hash = blake2_256_hash("ZcashSigHash", transaction_hash_preimage, Some("sapling"));
         let message = secp256k1::Message::from_slice(&transaction_hash.as_bytes())?;
-        let spending_key = &private_key.to_spending_key();
+        let spending_key = &private_key;
         let mut signature = match spending_key {
-            SpendingKey::P2PKH(p2pkh_spending_key) => {
+            ZcashPrivateKey::P2PKH(p2pkh_spending_key) => {
                 secp256k1::Secp256k1::signing_only().sign(&message, &p2pkh_spending_key.to_secp256k1_secret_key()).serialize_der().to_vec()
             },
             _ => unimplemented!(),
@@ -237,9 +237,9 @@ impl <N: ZcashNetwork> ZcashTransaction<N> {
         signature.push((input.sig_hash_code as u32).to_le_bytes()[0]);
         let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
 
-        let viewing_key = private_key.to_public_key().to_viewing_key();
+        let viewing_key = private_key.to_public_key();
         let viewing_key_bytes = match viewing_key {
-            ViewingKey::P2PKH(p2pkh_view_key) => {
+            ZcashPublicKey::P2PKH(p2pkh_view_key) => {
                 match p2pkh_view_key.is_compressed() {
                     true => p2pkh_view_key.to_secp256k1_public_key().serialize().to_vec(),
                     false => p2pkh_view_key.to_secp256k1_public_key().serialize_uncompressed().to_vec(),

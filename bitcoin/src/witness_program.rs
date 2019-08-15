@@ -20,9 +20,9 @@
 //! If the version byte is 0, but the witness program is neither 20 nor 32 bytes, the script must fail.
 //!
 
-use std::str::FromStr;
-
 use wagyu_model::AddressError;
+
+use std::str::FromStr;
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum WitnessProgramError {

@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{Field, LegendreSymbol, PrimeField, PrimeFieldRepr, SqrtField};
+use crate::librustzcash::algebra::field::{Field, LegendreSymbol, PrimeField, PrimeFieldRepr, SqrtField};
 use crate::librustzcash::sapling_crypto::jubjub::{edwards, montgomery, JubjubEngine, JubjubParams, PrimeOrder};
 
 use rand_core::{RngCore, SeedableRng};

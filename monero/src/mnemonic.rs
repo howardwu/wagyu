@@ -8,10 +8,7 @@ use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
 use crc::{crc32, Hasher32};
 use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
-use std::fmt;
-use std::marker::PhantomData;
-use std::str;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, str, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Represents a Monero mnemonic

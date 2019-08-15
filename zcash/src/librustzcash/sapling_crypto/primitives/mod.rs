@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{Field, PrimeField, PrimeFieldRepr};
+use crate::librustzcash::algebra::field::{Field, PrimeField, PrimeFieldRepr};
 use crate::librustzcash::sapling_crypto::constants;
 use crate::librustzcash::sapling_crypto::group_hash::group_hash;
 use crate::librustzcash::sapling_crypto::jubjub::{edwards, FixedGenerators, JubjubEngine, JubjubParams, PrimeOrder};

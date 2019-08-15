@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{PrimeField, PrimeFieldDecodingError, ScalarEngine, SqrtField};
+use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldDecodingError, ScalarEngine, SqrtField};
 
 use rand::RngCore;
 use std::error::Error;
@@ -6,9 +6,6 @@ use std::fmt;
 
 #[cfg(test)]
 pub mod tests;
-
-mod wnaf;
-pub use self::wnaf::Wnaf;
 
 /// Projective representation of an elliptic curve point guaranteed to be
 /// in the correct prime order subgroup.

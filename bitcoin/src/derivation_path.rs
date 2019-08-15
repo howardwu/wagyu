@@ -1,7 +1,6 @@
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 /// Represents a Bitcoin derivation path
 #[derive(Clone, PartialEq, Eq)]

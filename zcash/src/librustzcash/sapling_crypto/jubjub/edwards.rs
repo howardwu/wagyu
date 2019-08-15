@@ -1,4 +1,4 @@
-use crate::librustzcash::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
+use crate::librustzcash::algebra::field::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
 use crate::librustzcash::sapling_crypto::jubjub::{montgomery, JubjubEngine, JubjubParams, PrimeOrder, Unknown};
 
 use rand_core::RngCore;

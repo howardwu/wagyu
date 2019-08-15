@@ -248,8 +248,8 @@ macro_rules! curve_impl {
                 let mut prod = Vec::with_capacity(v.len());
                 let mut tmp = $basefield::one();
                 for g in v.iter_mut()
-                                  // Ignore normalized elements
-                                  .filter(|g| !g.is_normalized())
+                                          // Ignore normalized elements
+                                          .filter(|g| !g.is_normalized())
                 {
                     tmp.mul_assign(&g.z);
                     prod.push(tmp);
@@ -260,12 +260,12 @@ macro_rules! curve_impl {
 
                 // Second pass: iterate backwards to compute inverses
                 for (g, s) in v.iter_mut()
-                                       // Backwards
-                                       .rev()
-                                       // Ignore normalized elements
-                                       .filter(|g| !g.is_normalized())
-                                       // Backwards, skip last element, fill in one for last term.
-                                       .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
+                                               // Backwards
+                                               .rev()
+                                               // Ignore normalized elements
+                                               .filter(|g| !g.is_normalized())
+                                               // Backwards, skip last element, fill in one for last term.
+                                               .zip(prod.into_iter().rev().skip(1).chain(Some($basefield::one())))
                 {
                     // tmp := tmp * g.z; g.z := tmp * s = 1/z
                     let mut newtmp = tmp;
@@ -615,9 +615,9 @@ macro_rules! curve_impl {
 pub mod g1 {
     use super::super::{Bls12, Fq, Fq12, FqRepr, Fr, FrRepr};
     use super::g2::G2Affine;
-    use crate::librustzcash::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
-    use crate::librustzcash::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
-    use crate::librustzcash::pairing::{Engine, PairingCurveAffine};
+    use crate::librustzcash::algebra::curve::{Engine, PairingCurveAffine};
+    use crate::librustzcash::algebra::field::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
+    use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
     use rand_core::RngCore;
     use std::fmt;
@@ -1271,7 +1271,7 @@ pub mod g1 {
 
     #[test]
     fn g1_curve_tests() {
-        use crate::librustzcash::group::tests::curve_tests;
+        use crate::librustzcash::algebra::group::tests::curve_tests;
         curve_tests::<G1>();
     }
 }
@@ -1279,9 +1279,9 @@ pub mod g1 {
 pub mod g2 {
     use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
     use super::g1::G1Affine;
-    use crate::librustzcash::ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
-    use crate::librustzcash::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
-    use crate::librustzcash::pairing::{Engine, PairingCurveAffine};
+    use crate::librustzcash::algebra::curve::{Engine, PairingCurveAffine};
+    use crate::librustzcash::algebra::field::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
+    use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
     use rand_core::RngCore;
     use std::fmt;
@@ -2051,7 +2051,7 @@ pub mod g2 {
 
     #[test]
     fn g2_curve_tests() {
-        use crate::librustzcash::group::tests::curve_tests;
+        use crate::librustzcash::algebra::group::tests::curve_tests;
         curve_tests::<G2>();
     }
 }

@@ -3,8 +3,8 @@
 </h1>
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
-    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg"></a>
-    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0"></a>
+    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.1.svg"></a>
+    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.1"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.1"></a>
     <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
     <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
 </p>
@@ -29,8 +29,7 @@
 
 ## 1. Overview
 
-Wagyu is a lightweight command-line utility to generate a cryptocurrency wallet.
-
+Wagyu is a feature-rich command-line utility to generate a cryptocurrency wallet.
 
 Wagyu enables developers to build their own cryptocurrency application using the following modules.
 
@@ -39,7 +38,7 @@ Wagyu enables developers to build their own cryptocurrency application using the
 | [**wagyu-bitcoin**](./bitcoin)   <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu-bitcoin.svg?color=neon)](https://crates.io/crates/wagyu-bitcoin)  | <br/><ul><li>P2PKH</li><li>P2SH-P2WPKH</li><li>Bech32</li></ul>       | <br/><ul><li>BIP-32</li><li>BIP-44</li><li>BIP-49</li><li>Custom</li></ul>                   | <br/><ul><li>BIP-39</li></ul>   | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
 | [**wagyu-ethereum**](./ethereum) <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu-ethereum.svg?color=neon)](https://crates.io/crates/wagyu-ethereum)| <br/><ul><li>Standard</li></ul>                                       | <br/><ul><li>Ethereum</li><li>Ledger</li><li>Trezor</li><li>Keepkey</li><li>Custom</li></ul> | <br/><ul><li>BIP-39</li></ul>   | <br/><ul><li>All</li></ul>                                      |
 | [**wagyu-monero**](./monero)     <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu-monero.svg?color=neon)](https://crates.io/crates/wagyu-monero)    | <br/><ul><li>Standard</li><li>Integrated</li><li>Subaddress</li></ul> | <br/><ul><li>N/A</ul>                                                                        | <br/><ul><li>Electrum</li></ul> | <br/><ul><li>Mainnet</li><li>Testnet</li><li>Stagenet</li></ul> |
-| [**wagyu-zcash**](./zcash)       <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu-zcash.svg?color=neon)](https://crates.io/crates/wagyu-zcash)      | <br/><ul><li>P2PKH</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32</li><li>Custom</li></ul>                                                 | <br/><ul><li>N/A</li></ul>      | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
+| [**wagyu-zcash**](./zcash)       <br/> [![Crates.io](https://img.shields.io/crates/v/wagyu-zcash.svg?color=neon)](https://crates.io/crates/wagyu-zcash)      | <br/><ul><li>P2PKH</li><li>Sprout</li><li>Sapling</li></ul>                          | <br/><ul><li>ZIP-32</li></ul>                                                 | <br/><ul><li>N/A</li></ul>      | <br/><ul><li>Mainnet</li><li>Testnet</li></ul>                  |
 
 Wagyu can support new cryptocurrencies by implementing the model as outlined in this module.
 
