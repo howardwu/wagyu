@@ -454,7 +454,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
     Ok(script)
 }
 
-/// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
+/// Validate the address format (P2PKH, P2SH_P2PKH, etc.) with the given scripts
 pub fn validate_address_format(
     address_format: &Format,
     amount: &Option<u64>,
@@ -1293,8 +1293,6 @@ mod tests {
 
         #[test]
         fn test_invalid_inputs() {
-            // Not enough information to craft a bitcoin transaction input
-
             for input in INVALID_INPUTS.iter() {
                 let transaction_id = hex::decode(input.transaction_id).unwrap();
 
@@ -1334,8 +1332,6 @@ mod tests {
 
         #[test]
         fn test_invalid_outputs() {
-            // Invalid output address
-
             for output in INVALID_OUTPUTS.iter() {
                 let invalid_output = BitcoinTransactionOutput::<N>::new(output.address, output.amount);
                 assert!(invalid_output.is_err());
