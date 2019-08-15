@@ -472,13 +472,13 @@ pub fn validate_address_format(
         return Err(TransactionError::InvalidInputs("Bech32".into()));
     } else if address_format == &Format::P2PKH && redeem_script.is_some() && amount.is_some() {
         return Err(TransactionError::InvalidInputs("P2PKH".into()));
-    } else if (address_format == &Format::P2PKH || address_format == &Format::P2PKH)
+    } else if address_format == &Format::P2PKH
         && script_pub_key[0] != op_dup
         && script_pub_key[1] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_checksig
     {
         return Err(TransactionError::Message(
-            "invalid script_pub_key for P2PKH or Bech32 transaction".into(),
+            "invalid script_pub_key for P2PKH".into(),
         ));
     } else if address_format == &Format::P2SH_P2WPKH
         && script_pub_key[0] != op_hash160
