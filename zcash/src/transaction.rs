@@ -438,7 +438,7 @@ pub fn generate_script_pub_key<N: ZcashNetwork>(address: &str) -> Result<Vec<u8>
     Ok(script)
 }
 
-/// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
+/// Validate the address format (P2PKH) with the given scripts
 pub fn validate_address_format(
     address_format: &Format,
     amount: &Option<u64>,
@@ -460,7 +460,7 @@ pub fn validate_address_format(
     Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
 }
 
-/// Return the variable length integer of the size
+/// Return the variable length integer of the size (compactSize uint)
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     if size < 253 {
@@ -594,10 +594,9 @@ mod tests {
 
     mod test_mainnet_transactions {
         use super::*;
-
         type N = Mainnet;
 
-        /// Keys and addresses were generated randomly and test transactions were built using zcash-cli
+        /// Keys and addresses were generated randomly and test transactions were built using the zcash-cli
         const TRANSACTIONS: [Transaction; 4] = [
             Transaction {
                 header: 2147483652,
@@ -824,9 +823,9 @@ mod tests {
 
     mod test_testnet_transactions {
         use super::*;
-
         type N = Testnet;
 
+        /// Keys and addresses were generated randomly and test transactions were built using the zcash-cli
         const TRANSACTIONS: [Transaction; 4] = [
             Transaction {
                 header: 2147483652,
@@ -1025,6 +1024,151 @@ mod tests {
                     pruned_outputs,
                     transaction.expected_signed_transaction,
                 );
+            });
+        }
+    }
+
+    mod test_invalid_transactions {
+        use super::*;
+        type N = Mainnet;
+
+        const INVALID_INPUTS: [Input; 4] = [
+            Input {
+                private_key: "KwNJ5ppQ1wCbXdpW5GBoxcBex1avA99cBFgBvgH16rf5pmBLu6WX",
+                address_format: Format::P2PKH,
+                transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: Some("0000000000"),
+                utxo_amount: None,
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL,
+            },
+            Input {
+                private_key: "KxyXFjrX9FjFX3HWWbRNxBrfZCRmD8A5kG31meyXtJDRPXrCXufK",
+                address_format: Format::P2PKH,
+                transaction_id: "7dabce",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL,
+            },
+            Input {
+                private_key: "KxyXFjrX9FjFX3HWWbRNxBrfZCRmD8A5kG31meyXtJDRPXrCXufK",
+                address_format: Format::P2PKH,
+                transaction_id: "7dabce",
+                index: 0,
+                redeem_script: None,
+                script_pub_key: Some("000014ff3e3ce0fc1febf95e0e0eac49a205ad04a7d47688ac"),
+                utxo_amount: Some(10000),
+                sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                sig_hash_code: SigHashCode::SIGHASH_ALL,
+            },
+            INPUT_FILLER,
+        ];
+
+        const INVALID_OUTPUTS: [Output; 5] = [
+            Output {
+                address: "ABCD",
+                amount: 100,
+            },
+            Output {
+                address: "INVALID ADDRESS",
+                amount: 12345,
+            },
+            Output {
+                address: "0xE345828db876E265Dc2cea04c6b16F62021841A1",
+                amount: 100000,
+            },
+            Output {
+                address: "t1Z2Jwhs5D4vmYgH5MDgSATADnGqrjeRy",
+                amount: 5,
+            },
+            OUTPUT_FILLER,
+        ];
+
+        #[test]
+        fn test_invalid_inputs() {
+            for input in INVALID_INPUTS.iter() {
+                let transaction_id = hex::decode(input.transaction_id).unwrap();
+
+                let redeem_script = if let Some(script) = input.redeem_script {
+                    Some(hex::decode(script).unwrap())
+                } else {
+                    None
+                };
+
+                let script_pub_key = if let Some(script) = input.script_pub_key {
+                    Some(hex::decode(script).unwrap())
+                } else {
+                    None
+                };
+
+                let sequence = if let Some(seq) = input.sequence {
+                    Some(seq.to_vec())
+                } else {
+                    None
+                };
+
+                let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
+                let address = private_key.to_address(&input.address_format).unwrap();
+                let invalid_input = ZcashTransactionInput::new(
+                    address,
+                    transaction_id,
+                    input.index,
+                    input.utxo_amount,
+                    redeem_script,
+                    script_pub_key,
+                    sequence,
+                    input.sig_hash_code,
+                );
+                assert!(invalid_input.is_err());
+            }
+        }
+
+        #[test]
+        fn test_invalid_outputs() {
+            for output in INVALID_OUTPUTS.iter() {
+                let invalid_output = ZcashTransactionOutput::<N>::new(output.address, output.amount);
+                assert!(invalid_output.is_err());
+            }
+        }
+    }
+
+    mod test_helper_functions {
+        use super::*;
+
+        const LENGTH_VALUES: [(u64, [u8; 9]); 14] = [
+            (20, [0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (32, [0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (200, [0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (252, [0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (253, [0xfd, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (40000, [0xfd, 0x40, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (65535, [0xfd, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (65536, [0xfe, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            (2000000000, [0xfe, 0x00, 0x94, 0x35, 0x77, 0x00, 0x00, 0x00, 0x00]),
+            (2000000000, [0xfe, 0x00, 0x94, 0x35, 0x77, 0x00, 0x00, 0x00, 0x00]),
+            (4294967295, [0xfe, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00]),
+            (4294967296, [0xff, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]),
+            (
+                500000000000000000,
+                [0xff, 0x00, 0x00, 0xb2, 0xd3, 0x59, 0x5b, 0xf0, 0x06],
+            ),
+            (
+                18446744073709551615,
+                [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+            ),
+        ];
+
+        #[test]
+        fn test_variable_length_integer() {
+            LENGTH_VALUES.iter().for_each(|(size, expected_output)| {
+                let variable_length_int = variable_length_integer(*size).unwrap();
+                let pruned_expected_output = &expected_output[..variable_length_int.len()];
+                assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
             });
         }
     }
