@@ -68,7 +68,7 @@ impl SproutViewingKey {
 
         SproutViewingKey { key_a, key_b }
     }
-  
+
     /// Returns output of pseudorandom function
     fn prf(result: &mut [u8; 32], payload: &[u8; 32], t: u8) {
         let mut buf = [0u8; 64];
