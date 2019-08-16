@@ -582,6 +582,8 @@ mod tests {
         )
         .unwrap();
 
+        println!("raw transaction: {:?}", hex::encode(transaction.serialize_transaction(true).unwrap()));
+
         for (index, input) in inputs.iter().enumerate() {
             transaction
                 .sign_raw_transaction(ZcashPrivateKey::from_str(input.private_key).unwrap(), index)
@@ -589,6 +591,9 @@ mod tests {
         }
 
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
+
+        println!("signed_transaction: {:?}", signed_transaction);
+
         assert_eq!(expected_signed_transaction, signed_transaction);
     }
 
@@ -1007,6 +1012,236 @@ mod tests {
 
         #[test]
         fn test_testnet_transactions() {
+            TRANSACTIONS.iter().for_each(|transaction| {
+                let mut pruned_inputs = transaction.inputs.to_vec();
+                pruned_inputs.retain(|input| input.transaction_id != "");
+
+                let mut pruned_outputs = transaction.outputs.to_vec();
+                pruned_outputs.retain(|output| output.address != "");
+
+                test_transaction::<N>(
+                    transaction.header,
+                    transaction.version_group_id,
+                    transaction.lock_time,
+                    transaction.expiry_height,
+                    transaction.value_balance,
+                    pruned_inputs,
+                    pruned_outputs,
+                    transaction.expected_signed_transaction,
+                );
+            });
+        }
+    }
+
+    mod test_real_testnet_transactions {
+        use super::*;
+        type N = Testnet;
+
+        const TRANSACTIONS: [Transaction; 4] = [
+            Transaction { // d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "cVDVjUASqQn7qokRZqpHTdFpTEkwbpf7ZzhgTsqt79y9XWDyPod6",
+                        address_format: Format::P2PKH,
+                        transaction_id: "72a67442781a84eee2b327f9bb7030d725cf0fc90798aa51cb45a8acfd08c12d",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(20000000000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "tmNP9aZHniVeXmsMQxrN2pDJt4aCd6MGcYE",
+                        amount: 10000000000
+                    },
+                    Output {
+                        address: "tmVK7tKxTjnXdaEuDhyoAdZ1iViM2CrTQuV",
+                        amount: 9999900000
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f89012dc108fdaca845cb51aa9807c90fcf25d73070bbf927b3e2ee841a784274a672000000006b483045022100a6255438be743890d53bf5a0818f58370361a0ff82f88dca30fba0aec1b2859b022055950c72f1111babcf01f58087300eb80e3acfff169d05338d8e2c7a0dd0b1fe012102386cb1f3211d689bcf9fd763381a4d7a9a0d719667c979ac485d6d2ec69a17e0ffffffff0200e40b54020000001976a9148af7ebff7dad3862258a44992915615bfd9e6d4388ac605d0a54020000001976a914d6fdb988e0ca149cb74eda244d8fc52481d6452088ac00000000ff64cd1d0000000000000000000000"
+            },
+            Transaction { // 22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 576566,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "cTQpmkaF8YNivhZKw6PposeYz1FN9PxmW2r776rBKBWcAP8nA4bf",
+                        address_format: Format::P2PKH,
+                        transaction_id: "d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf",
+                        index: 1,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(9999900000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "tmFgo8Damu8M6fKF5rJzZnkFMERMvo97sjT",
+                        amount: 3333266667
+                    },
+                    Output {
+                        address: "tmLTBB1na4qudp1TMDqzxr6dcE8dAQXJxrK",
+                        amount: 3333266667
+                    },
+                    Output {
+                        address: "tmLmTTRLwYAsMWJgKWVW14echT89pYztU7u",
+                        amount: 3333266666
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f8901bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7010000006b4830450221009b69008f53a9970c2f5c771b76462773baf18a2937cbc70af4dad9d7987fd13e022038a3d14301c657172759885a5e2e65d5c10b3208e6120cb819d66f56fae3c09401210332d388288132f696b4a75b2d2f40ccbd9a463d32e3c6c335f671df33f1a05973ffffffff03eb9cadc6000000001976a914418574564a7c48387a6557c491d14da904a4306c88aceb9cadc6000000001976a91475caaa31ae391da8121fe8d9577c30710bafc7f988acea9cadc6000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac0000000036cc08000000000000000000000000"
+            },
+            Transaction { //19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 576600,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "cN2PtrZdZrZmoxgsg7fKcJPLGPX4sHDaZaNBsiRZQbQyC7kxAGxb",
+                        address_format: Format::P2PKH,
+                        transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(3333266667),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "cT9pKXC1KMMG6g8dsCUGEHj3J4xnxwfBEhyv1ALs6Z6Ly9XH4qvj",
+                        address_format: Format::P2PKH,
+                        transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
+                        index: 1,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(3333266667),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    Output {
+                        address: "tmLmTTRLwYAsMWJgKWVW14echT89pYztU7u",
+                        amount: 1666500000
+                    },
+                    Output {
+                        address: "tmAgmYQnL7fnHvBHJExK2oZXrJBnkRfcq5f",
+                        amount: 5000000000
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f8902fc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22000000006b483045022100ea49efe4132ce18d039cb2abe99ea52163611c25a35a8640a4bb15a88c93b60402202f7d4334bccd8f961d1becfd08bccdc1c0669533810cbbbfa5837f99ba94a7fe0121024aed9637c78499154afc06af10b2344233b3c968f1e7b1cfd9905fc38e440c12fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22010000006a47304402203576c518c1f628469efcd182fa7d1d578cccdf7b51a41e44d119ca0c010747cc022069d9f390735567efff5e8f70afec6595060a79693540d6174b21681b21b4df70012102e49919f81e1fc11a65283e71dcce22dc65271f4ab6ef96f9e9b3d20fd62d1e87ffffffff02a0c55463000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac00f2052a010000001976a9140aab8113729e010d852820561dbee87459ad8dc888ac0000000058cc08000000000000000000000000"
+            },
+            Transaction { //fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 576600,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "cR6NQzn89sCdRj1WmgQxF4mGJWi4bbgqzTDpmSfhmMQ2tfJCTPDF",
+                        address_format: Format::P2PKH,
+                        transaction_id: "d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(10000000000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "cUSFcxAXwFkLVciaxm7Le3mZF3g1nX5MZsxwDs23sCwWgUekfd18",
+                        address_format: Format::P2PKH,
+                        transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
+                        index: 2,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(3333266666),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "cUSFcxAXwFkLVciaxm7Le3mZF3g1nX5MZsxwDs23sCwWgUekfd18",
+                        address_format: Format::P2PKH,
+                        transaction_id: "19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(1666500000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "cMjLTdEgp48viTAL5eFXxaEpdj7jBJAg8ehw114BjBiZdUbCJLCr",
+                        address_format: Format::P2PKH,
+                        transaction_id: "19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a",
+                        index: 1,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(5000000000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                ],
+                outputs: [
+                    Output {
+                        address: "tmFCcsdkr247okCfD61PBpzkP1GmkS7Zk6h",
+                        amount: 19999500000
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                expected_signed_transaction: "0400008085202f8904bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7000000006a47304402203f44fdfa0abb604a0b123fc95b4b0ad97bf535c9b2f9c2e37440a5627eabc6b902206c533152ba2efd78c16136f108847d8ea60e571f4dd7cbb47a5df582011cb3920121037517903ed1fafb50ab557970fc2d1948eaf88ad807308cc1fd50a63ca5f2d4d9fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22020000006b48304502210089fe440a2b97bd12ad09c21cf4b3c811cddd17917fb5f4b84ec3fafa3c8ce26b022029e1bc2385d291eef1591775a73a77c5891afcfcf020a58c4fa35fb7d2995d280121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719000000006b483045022100d3c08145d11226c24acba293943f649b6acced719eaba5eee168705faa060046022077a220546a4654ee8bf14217da8c5dae9c64160b424be83557b24b79fb7b22400121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719010000006b483045022100a2649c5a237ac25db15ada343ea331865b9544a5ac32752c7800d3296085665602206c1722f0a3b0533f047e06ec2931fbe9dc9f6c01f4f1391fa02421369f8e4952012103b485498fb0843a5a058f251d7094fe8d2878faba8c17e7b3bbf854adb855a377ffffffff01e02610a8040000001976a9143c314002f07cf5ff5c84da1d9b456671b915bf8588ac0000000058cc08000000000000000000000000"
+            },
+        ];
+
+        #[test]
+        fn test_real_testnet_transactions() {
             TRANSACTIONS.iter().for_each(|transaction| {
                 let mut pruned_inputs = transaction.inputs.to_vec();
                 pruned_inputs.retain(|input| input.transaction_id != "");
