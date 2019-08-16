@@ -540,14 +540,12 @@ mod tests {
         for input in &inputs {
             let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
-            let transaction_id = hex::decode(input.transaction_id).unwrap();
-            let redeem_script = match input.redeem_script {
-                Some(script) => Some(hex::decode(script).unwrap()),
-                None => None,
-            };
 
+            let transaction_id = hex::decode(input.transaction_id).unwrap();
+            let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
             let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
             let sequence = input.sequence.map(|seq| seq.to_vec());
+
             let transaction_input = ZcashTransactionInput::<N>::new(
                 address,
                 transaction_id,
@@ -582,8 +580,6 @@ mod tests {
         )
         .unwrap();
 
-        println!("raw transaction: {:?}", hex::encode(transaction.serialize_transaction(true).unwrap()));
-
         for (index, input) in inputs.iter().enumerate() {
             transaction
                 .sign_raw_transaction(ZcashPrivateKey::from_str(input.private_key).unwrap(), index)
@@ -591,9 +587,6 @@ mod tests {
         }
 
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
-
-        println!("signed_transaction: {:?}", signed_transaction);
-
         assert_eq!(expected_signed_transaction, signed_transaction);
     }
 
@@ -1328,24 +1321,9 @@ mod tests {
         fn test_invalid_inputs() {
             for input in INVALID_INPUTS.iter() {
                 let transaction_id = hex::decode(input.transaction_id).unwrap();
-
-                let redeem_script = if let Some(script) = input.redeem_script {
-                    Some(hex::decode(script).unwrap())
-                } else {
-                    None
-                };
-
-                let script_pub_key = if let Some(script) = input.script_pub_key {
-                    Some(hex::decode(script).unwrap())
-                } else {
-                    None
-                };
-
-                let sequence = if let Some(seq) = input.sequence {
-                    Some(seq.to_vec())
-                } else {
-                    None
-                };
+                let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
+                let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+                let sequence = input.sequence.map(|seq| seq.to_vec());
 
                 let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
                 let address = private_key.to_address(&input.address_format).unwrap();

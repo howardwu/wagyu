@@ -1294,28 +1294,14 @@ mod tests {
         #[test]
         fn test_invalid_inputs() {
             for input in INVALID_INPUTS.iter() {
-                let transaction_id = hex::decode(input.transaction_id).unwrap();
-
-                let redeem_script = if let Some(script) = input.redeem_script {
-                    Some(hex::decode(script).unwrap())
-                } else {
-                    None
-                };
-
-                let script_pub_key = if let Some(script) = input.script_pub_key {
-                    Some(hex::decode(script).unwrap())
-                } else {
-                    None
-                };
-
-                let sequence = if let Some(seq) = input.sequence {
-                    Some(seq.to_vec())
-                } else {
-                    None
-                };
-
                 let private_key = BitcoinPrivateKey::<N>::from_str(input.private_key).unwrap();
                 let address = private_key.to_address(&input.address_format).unwrap();
+
+                let transaction_id = hex::decode(input.transaction_id).unwrap();
+                let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
+                let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+                let sequence = input.sequence.map(|seq| seq.to_vec());
+
                 let invalid_input = BitcoinTransactionInput::new(
                     address,
                     transaction_id,
