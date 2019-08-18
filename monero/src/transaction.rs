@@ -9,8 +9,19 @@ use base58_monero as base58;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, scalar::Scalar};
 use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Result as SerdeResult};
 use std::collections::HashMap;
 use tiny_keccak::keccak256;
+
+//#[link(name="serial_bridge_index.cpp", kind="static")]
+//    extern "C" {
+//    fn decode_address(args_string: &String);
+//
+//    fn send_step1__prepare_params_for_get_decoys(args_string: &String);
+//
+//    fn send_step2__try_create_transaction(args_string: &String);
+//}
 
 /// Represents a Monero transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -381,7 +392,6 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         };
         subaddresses.insert(public_spend_key, (0, 0));
 
-        // TODO: generate new secret key instead of just random bytes here. Make separate struct and generate_new() method
         let tx_key = TransactionKeypair::new();
 
         let mut additional_tx_keys = Vec::<(TransactionKeypair)>::new();
@@ -426,7 +436,6 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         if need_additional_tx_keys {
             additional_tx_keys.clear();
             for dest in destinations.iter() {
-                // TODO: generate new secret key instead of just random bytes here
                 let random_tx_key = TransactionKeypair::new();
                 additional_tx_keys.push(random_tx_key);
             }
@@ -474,7 +483,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             false => 1,
         };
 
-        // line 222 - set tx.extra //TODO: add_pub_key_to_extra
+        // line 222 - set tx.extra
         let mut transaction_extra = Vec::<u8>::new();
         transaction_extra.extend_from_slice(&tx_key.to_public_key());
 
@@ -504,6 +513,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         for (_, source_entry) in sources.iter().enumerate() { //we use enumerate instead of for_each because for_each must return () so we would not be able to use ? on Result<>
             if source_entry.real_output >= source_entry.outputs.len() as u64 {
                 println!("real output index out of range");
+                return Err(TransactionError::MoneroTransactionError); //TODO: return proper errors
             }
 
             summary_inputs_money += source_entry.amount;
@@ -519,6 +529,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             // line 331 - 340 - check that derived key is equal with real output key (if non-multisig)
             if key_image.ephemeral_public_key != source_entry.outputs[source_entry.real_output as usize].1 {
                 println!("ephemeral public key is not equal to real output key");
+                return Err(TransactionError::MoneroTransactionError); //TODO: return proper errors
             }
 
 
@@ -554,11 +565,12 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
 
         // line 402 - 424 - set up data structures to parse tx outputs, and track summary of money out
         let mut transaction_outputs = Vec::<MoneroTransactionOutput<N>>::new();
-        let mut outputs_money = 0u64;
+        let mut summary_outputs_money = 0u64;
 //        let tx_secret_key = tx_key.to_secret_key();
         for (i, destination) in destinations.iter().enumerate() {
             if destination.amount != 0u64 {
                 println!("destinations must be equal to zero");
+                return Err(TransactionError::MoneroTransactionError); //TODO: return proper errors
             }
 
             let public_keys = destination.address.to_public_key()?;
@@ -570,7 +582,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             };
 
             transaction_outputs.push(output);
-            outputs_money += destination.amount;
+            summary_outputs_money += destination.amount;
         }
 
 
@@ -579,12 +591,22 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         // line 428 - 435 - add additional public keys
 
         // line 440 - 445 - check summary of money out is not greater than money in
+        if summary_outputs_money > summary_inputs_money {
+            println!("{:?} less than outputs money {:?}", summary_inputs_money, summary_outputs_money);
+        }
 
         // line 447 - 454 - check for watch only wallet
 
         // line 456 - 491 - rct_full_tx_type = 1
+        // line 460 generate transaction prefix hash
+        // line 464 for every transaction source (row)
+        // line 468 create vector of public keys
+        // line 470 for every transaction source output (column)
+        // line 472 add public key to vector
+        // line 478 create ring signature on vector and add to transaction signatures
 
         // line 491 - 552 - rct_simple_tx_type = 2
+        //
 
         // line 554 - 576 - mixRing indexing
 
@@ -597,5 +619,153 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         // line 600 - 602 - check and assert tx size, then create transaction
 
         return Err(TransactionError::MoneroTransactionError);
+    }
+
+    // Call into mymonero-core-cpp library json interface functions to send transaction
+    // https://github.com/mymonero/mymonero-core-cpp/blob/master/src/serial_bridge_index.cpp
+
+    pub fn call_step1(
+        sending_amount: u64,
+        is_sweeping: bool,
+        priority: u32,
+        fee_per_b: u64,
+        fee_mask: u64,
+        fork_version: u8,
+        unspent_outs: Vec<UnspentOutput>,
+        payment_id_string: Option<String>,
+        passedIn_attemptAt_fee: Option<String>
+    ) -> Result<Step1Result, TransactionError> {
+
+        // Do preprocessing checks here
+
+        let args_string = json!({
+            "sending_amount": sending_amount.to_string(),
+            "is_sweeping": is_sweeping.to_string(),
+            "priority": priority.to_string(),
+            "fee_per_b": fee_per_b.to_string(),
+            "fee_mask": fee_mask.to_string(),
+            "fork_version": fork_version.to_string(),
+            "unspent_outs": unspent_outs,
+//            "payment_id_string": payment_id_string_unwrapped
+//            "passedIn_attemptAt_fee": passedIn_attemptAt_fee_unwrapped
+        });
+        println!("{}", args_string.to_string());
+
+//        unsafe {
+//            send_step1__prepare_params_for_get_decoys(args_string);
+//        }
+
+        // Do postprocessing and return Step1Result
+        Err(TransactionError::MoneroTransactionError)
+    }
+//
+//    pub fn call_step2(
+//        from_address_string: String,
+//        sec_viewKey_string: String,
+//        to_address_string: String,
+//        final_total_wo_fee: u64,
+//        change_amount: u64,
+//        fee_amount: u64,
+//        priority: u32,
+//        fee_per_b: u64,
+//        fee_mask: u64,
+//        fork_version: u8,
+//        using_outs: Vec<UnspentOutput>,
+//        mix_outs: Vec<MixAmountAndOuts>,
+//        unlock_time: u64,
+//        nettype_string: String,
+//        payment_id_string: Option<String>
+//    ) -> bool {
+//
+//    }
+}
+
+pub struct Step1Result {
+    mixin: u32,
+    using_fee: u64,
+    change_amount: u64,
+    using_outs: Vec<UnspentOutput>,
+    final_total_wo_fee: u64,
+}
+
+// Structs mirrored from https://github.com/mymonero/mymonero-core-cpp
+#[derive(Serialize, Deserialize)]
+pub struct UnspentOutput {
+    amount: u64,
+    public_key: String,
+    rct: Option<String>,
+    global_index: u64,
+    index: u64,
+    tx_pub_key: String
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MixAmountAndOuts {
+    amount: u64,
+    outputs: Vec<MixOut>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MixOut {
+    global_index: u64,
+    public_key: [u8; 32],
+    rct: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Mainnet,
+    };
+    use super::*;
+
+    type N = Mainnet;
+
+
+    #[link(name="serial_bridge_index.cpp", kind="static")]
+    extern "C" {
+        fn decode_address(args_string: &String);
+//
+//        fn send_step1__prepare_params_for_get_decoys(args_string: &String);
+//
+//        fn send_step2__try_create_transaction(args_string: &String);
+    }
+
+    #[test]
+    fn test_create_transaction() {
+            let address = "43tXwm6UNNvSyMdHU4Jfeg4GRgU7KEVAfHo3B5RrXYMjZMRaowr68y12HSo14wv2qcYqqpG1U5AHrJtBdFHKPDEA9UxK6Hy";
+            unsafe {
+                decode_address(&String::from(address));
+//                send_step1__prepare_params_for_get_decoys()
+            }
+    }
+
+    // https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/test/test_all.cpp#L347
+    #[test]
+    fn test_bridge_transfers_send_amount() {
+        let unspent_outs_string = "[{\"amount\":3000000000,\"public_key\":\"41be1978f58cabf69a9bed5b6cb3c8d588621ef9b67602328da42a213ee42271\",\"index\":1,\"global_index\":7611174,\"rct\":\"86a2c9f1f8e66848cd99bfda7a14d4ac6c3525d06947e21e4e55fe42a368507eb5b234ccdd70beca8b1fc8de4f2ceb1374e0f1fd8810849e7f11316c2cc063060008ffa5ac9827b776993468df21af8c963d12148622354f950cbe1369a92a0c\",\"tx_id\":5334971,\"tx_hash\":\"9d37c7fdeab91abfd1e7e120f5c49eac17b7ac04a97a0c93b51c172115df21ea\",\"tx_pub_key\":\"bd703d7f37995cc7071fb4d2929594b5e2a4c27d2b7c68a9064500ca7bc638b8\"}]";
+//        let mix_outs_string = "[{\"amount\":\"0\",\"outputs\":[{\"global_index\":\"7453099\",\"public_key\":\"31f3a7fec0f6f09067e826b6c2904fd4b1684d7893dcf08c5b5d22e317e148bb\",\"rct\":\"ea6bcb193a25ce2787dd6abaaeef1ee0c924b323c6a5873db1406261e86145fc\"},{\"global_index\":\"7500097\",\"public_key\":\"f9d923500671da05a1bf44b932b872f0c4a3c88e6b3d4bf774c8be915e25f42b\",\"rct\":\"dcae4267a6c382bcd71fd1af4d2cbceb3749d576d7a3acc473dd579ea9231a52\"},{\"global_index\":\"7548483\",\"public_key\":\"839cbbb73685654b93e824c4843e745e8d5f7742e83494932307bf300641c480\",\"rct\":\"aa99d492f1d6f1b20dcd95b8fff8f67a219043d0d94b4551759016b4888573e7\"},{\"global_index\":\"7554755\",\"public_key\":\"b8860f0697988c8cefd7b4285fbb8bec463f136c2b9a9cadb3e57cebee10717f\",\"rct\":\"327f9b07bee9c4c25b5a990123cd2444228e5704ebe32016cd632866710279b5\"},{\"global_index\":\"7561477\",\"public_key\":\"561d734cb90bc4a64d49d37f85ea85575243e2ed749a3d6dcb4d27aa6bec6e88\",\"rct\":\"b5393e038df95b94bfda62b44a29141cac9e356127270af97193460d51949841\"},{\"global_index\":\"7567062\",\"public_key\":\"db1024ef67e7e73608ef8afab62f49e2402c8da3dc3197008e3ba720ad3c94a8\",\"rct\":\"1fedf95621881b77f823a70aa83ece26aef62974976d2b8cd87ed4862a4ec92c\"},{\"global_index\":\"7567508\",\"public_key\":\"6283f3cd2f050bba90276443fe04f6076ad2ad46a515bf07b84d424a3ba43d27\",\"rct\":\"10e16bb8a8b7b0c8a4b193467b010976b962809c9f3e6c047335dba09daa351f\"},{\"global_index\":\"7568716\",\"public_key\":\"7a7deb4eef81c1f5ce9cbd0552891cb19f1014a03a5863d549630824c7c7c0d3\",\"rct\":\"735d059dc3526334ac705ddc44c4316bb8805d2426dcea9544cde50cf6c7a850\"},{\"global_index\":\"7571196\",\"public_key\":\"535208e354cae530ed7ce752935e555d630cf2edd7f91525024ed9c332b2a347\",\"rct\":\"c3cf838faa14e993536c5581ca582fb0d96b70f713cf88f7f15c89336e5853ec\"},{\"global_index\":\"7571333\",\"public_key\":\"e73f27b7eb001aa7eac13df82814cda65b42ceeb6ef36227c25d5cbf82f6a5e4\",\"rct\":\"5f45f33c6800cdae202b37abe6d87b53d6873e7b30f3527161f44fa8db3104b6\"},{\"global_index\":\"7571335\",\"public_key\":\"fce982dbz8e7a6b71a1e632c7de8c5cbf54e8bacdfbf250f1ffc2a8d2f7055ce3\",\"rct\":\"407bdcc48e70eb3ef2cc22cefee6c6b5a3c59fd17bde12fda5f1a44a0fb39d14\"}]}]";
+
+        let unspent_outs: Vec<UnspentOutput> = serde_json::from_str(unspent_outs_string).unwrap();
+        let sending_amount= 200000000u64;
+        let is_sweeping= false;
+        let priority= 1u32;
+        let fee_per_b = 24658u64;
+        let fee_mask = 10000u64;
+        let fork_version = 10u8;
+        let payment_id_string: Option<String> = Some("d2f602b240fbe624".into());
+        let passedIn_attemptAt_fee: Option<String> = None;
+
+        let step1_result = MoneroTransaction::<N>::call_step1(
+            sending_amount,
+            is_sweeping,
+            priority,
+            fee_per_b,
+            fee_mask,
+            fork_version,
+            unspent_outs,
+            payment_id_string,
+            passedIn_attemptAt_fee,
+        ).unwrap();
     }
 }

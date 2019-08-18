@@ -105,7 +105,9 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Mainnet;
+    use crate::{
+        Mainnet,
+    };
     use hex;
 
     type N = Mainnet;
@@ -163,7 +165,7 @@ mod tests {
     #[test]
     fn new() {
         KEYPAIRS.iter().for_each(
-            |(_, (private_spend_key, _), (public_spend_key, public_view_key), _, random_str, output_index)| {
+            |(_, (private_spend_key, _), (public_spend_key, public_view_key), address, random_str, output_index)| {
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, FORMAT).unwrap();
                 let private_key = MoneroPrivateKey::<N>::from_private_spend_key(private_spend_key, FORMAT).unwrap();
 
@@ -171,6 +173,7 @@ mod tests {
                 random_bytes.copy_from_slice(hex::decode(random_str).unwrap().as_slice());
 
                 let index: u64 = output_index.parse::<u64>().unwrap();
+
 
                 test_new(&public_key, &private_key, &random_bytes, index);
             },
