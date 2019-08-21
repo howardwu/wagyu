@@ -2,10 +2,10 @@ use crate::address::{Address, AddressError};
 use crate::private_key::PrivateKey;
 use crate::public_key::PublicKey;
 
-use std::{fmt::Debug, hash::Hash};
+use std::fmt::Debug;
 
 /// The interface for a generic transactions.
-pub trait Transaction: Clone + Debug + Send + Sync + 'static + Eq + Ord + Sized + Hash {
+pub trait Transaction: Clone + Debug + Send + Sync + 'static {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;

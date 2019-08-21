@@ -1,5 +1,4 @@
 use crate::address::{Format, ZcashAddress};
-use crate::librustzcash::zip32::prf_expand;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
@@ -301,7 +300,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         let message = secp256k1::Message::from_slice(&transaction_hash.as_bytes())?;
         let spending_key = &private_key;
         let mut signature = match spending_key {
-            ZcashPrivateKey::P2PKH(p2pkh_spending_key) => secp256k1::Secp256k1::signing_only()
+            ZcashPrivateKey::<N>::P2PKH(p2pkh_spending_key) => secp256k1::Secp256k1::signing_only()
                 .sign(&message, &p2pkh_spending_key.to_secp256k1_secret_key())
                 .serialize_der()
                 .to_vec(),
@@ -313,7 +312,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
         let viewing_key = private_key.to_public_key();
         let viewing_key_bytes = match viewing_key {
-            ZcashPublicKey::P2PKH(p2pkh_view_key) => match p2pkh_view_key.is_compressed() {
+            ZcashPublicKey::<N>::P2PKH(p2pkh_view_key) => match p2pkh_view_key.is_compressed() {
                 true => p2pkh_view_key.to_secp256k1_public_key().serialize().to_vec(),
                 false => p2pkh_view_key
                     .to_secp256k1_public_key()
@@ -722,8 +721,8 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::{Mainnet, Testnet};
+    use crate::librustzcash::zip32::prf_expand;
     use rand::Rng;
     use std::path::Path;
     use zcash_proofs::load_parameters;
@@ -918,7 +917,7 @@ mod tests {
             output_vec.push(ZcashTransactionOutput::<N>::new(output.address, output.amount).unwrap());
         }
 
-        let mut transaction = ZcashTransaction::build_raw_transaction(
+        let mut transaction = ZcashTransaction::<N>::build_raw_transaction(
             header,
             version_group_id,
             input_vec,
@@ -932,7 +931,7 @@ mod tests {
 
         for (index, input) in inputs.iter().enumerate() {
             transaction
-                .sign_raw_transaction(ZcashPrivateKey::from_str(input.private_key).unwrap(), index)
+                .sign_raw_transaction(ZcashPrivateKey::<N>::from_str(input.private_key).unwrap(), index)
                 .unwrap();
         }
 
@@ -1767,7 +1766,7 @@ mod tests {
 
                 let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
                 let address = private_key.to_address(&input.address_format).unwrap();
-                let invalid_input = ZcashTransactionInput::new(
+                let invalid_input = ZcashTransactionInput::<N>::new(
                     address,
                     transaction_id,
                     input.index,
