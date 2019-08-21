@@ -4,29 +4,28 @@ use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 
-use bellman::groth16::Parameters;
-use zcash_proofs::sapling::{SaplingProvingContext};
-use ff::{Field, PrimeField};
-use pairing::bls12_381::Bls12;
-use zcash_primitives::{
-    note_encryption::SaplingNoteEncryption,
-    jubjub::fs::Fs,
-    JUBJUB,
-    primitives::{Diversifier, Note, PaymentAddress},
-    transaction::components::Amount,
-    note_encryption::Memo,
-    keys::OutgoingViewingKey
-};
-use rustzcash::get_point;
-
 use base58::FromBase58;
 use blake2b_simd::{Hash, Params};
-use rand::{rngs::StdRng, Rng};
+use rand::rngs::StdRng;
 use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
 use std::{fmt, marker::PhantomData, str::FromStr};
 use wagyu_model::{PrivateKey, Transaction, TransactionError};
+
+// librustzcash crates
+use bellman::groth16::Parameters;
+use ff::{Field, PrimeField};
+use pairing::bls12_381::Bls12;
+use zcash_primitives::{
+    jubjub::{edwards, fs::Fs},
+    JUBJUB,
+    keys::OutgoingViewingKey,
+    note_encryption::{Memo, SaplingNoteEncryption},
+    primitives::{Diversifier, Note, PaymentAddress},
+    transaction::components::Amount,
+};
+use zcash_proofs::sapling::SaplingProvingContext;
 
 const GROTH_PROOF_SIZE: usize = 48 // π_A
     + 96 // π_B
@@ -203,15 +202,15 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         outputs: Vec<ZcashTransactionOutput<N>>,
         lock_time: u32,
         expiry_height: u32,
-//        shielded_spends: Vec<SpendDescription>,
+        shielded_spends: Vec<SpendDescription>,
         shielded_outputs: Vec<SaplingOutput>,
-//        join_splits: Vec<JoinSplit>,
+        join_splits: Vec<JoinSplit>,
     ) -> Result<Self, TransactionError> {
 
         let mut value_balance: i64 = 0;
 
 //        for spend in shielded_spends {
-//            value_balance += spend.value;
+//            value_balance += spend.note.value as i64;
 //        }
 
         for output in &shielded_outputs {
@@ -226,9 +225,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             lock_time,
             expiry_height,
             value_balance,
-            shielded_spends: vec![],
+            shielded_spends,
             shielded_outputs,
-            join_splits: vec![],
+            join_splits,
             binding_sig: None
         })
     }
@@ -530,7 +529,11 @@ impl SaplingOutput {
         let diversifier = ZcashAddress::<N>::get_diversifier(&to)?;
         let pk_d = ZcashAddress::<N>::get_pk_d(&to)?;
 
-        let pk_d = get_point(&pk_d).unwrap();
+        let pk_d = edwards::Point::<Bls12, _>::read(&pk_d[..], &JUBJUB)
+            .unwrap()
+            .as_prime_order(&JUBJUB)
+            .unwrap();
+
         let to = PaymentAddress { pk_d: pk_d.clone(), diversifier: Diversifier(diversifier) };
 
         let rng = &mut StdRng::from_entropy();
@@ -730,7 +733,6 @@ mod tests {
         pub version_group_id: u32,
         pub lock_time: u32,
         pub expiry_height: u32,
-        pub value_balance: i64,
         pub inputs: [Input; 4],
         pub outputs: [Output; 8],
         pub sapling_outputs: [Output; 1],
@@ -775,7 +777,6 @@ mod tests {
         version_group_id: u32,
         lock_time: u32,
         expiry_height: u32,
-        _value_balance: i64,
         inputs: Vec<Input>,
         sapling_outputs: Vec<Output>,
         _expected_signed_transaction: &str,
@@ -839,13 +840,15 @@ mod tests {
             Vec::new(),
             lock_time,
             expiry_height,
+            vec![],
             sapling_outputs_vec,
+            vec![],
         ).unwrap();
 
         // Load Parameters TODO Make this a constant in the test suite
 
-        let spend_path = Path::new("src/rustzcash/src/sapling-spend.params");
-        let output_path = Path::new("src/rustzcash/src/sapling-output.params");
+        let spend_path = Path::new("src/librustzcash/params/sapling-spend.params");
+        let output_path = Path::new("src/librustzcash/params/sapling-output.params");
 
         let (_spend_params, _spend_vk, output_params, _output_vk, _sprout_vk) = load_parameters(
             spend_path,
@@ -881,7 +884,6 @@ mod tests {
         version_group_id: u32,
         lock_time: u32,
         expiry_height: u32,
-        _value_balance: i64,
         inputs: Vec<Input>,
         outputs: Vec<Output>,
         expected_signed_transaction: &str,
@@ -924,6 +926,8 @@ mod tests {
             lock_time,
             expiry_height,
             vec![],
+            vec![],
+            vec![],
         ).unwrap();
 
         for (index, input) in inputs.iter().enumerate() {
@@ -946,7 +950,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 499999999,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
@@ -997,7 +1000,6 @@ mod tests {
                     transaction.version_group_id,
                     transaction.lock_time,
                     transaction.expiry_height,
-                    transaction.value_balance,
                     pruned_inputs,
                     transaction.sapling_outputs.to_vec(),
                     transaction.expected_signed_transaction,
@@ -1018,7 +1020,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 0,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "KwbK8JibyGAKz7h7uXAmW2hmM68SDGZenurVMKvUMoH5n97dEekL",
@@ -1058,7 +1059,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 456789,
                 expiry_height: 600000,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "KyWLtuy5hiPejU1muc2ENTQ6U6WVueWErEYtye96oeB9QrPZMj1t",
@@ -1107,7 +1107,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 456789,
                 expiry_height: 0,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "KyXn7mdxMm4GC2BLPopZTjkSp17P86vvDh25enpDRcma6vUnicCk",
@@ -1167,7 +1166,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 584789,
                 expiry_height: 710482,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "KxN4JLuVGg7A64gCrKxg2aiH1vsq3QGUhgXnARrsiqQpWFFdv7bU",
@@ -1239,7 +1237,6 @@ mod tests {
                     transaction.version_group_id,
                     transaction.lock_time,
                     transaction.expiry_height,
-                    transaction.value_balance,
                     pruned_inputs,
                     pruned_outputs,
                     transaction.expected_signed_transaction,
@@ -1259,7 +1256,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 307241,
                 expiry_height: 307272,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cUacGttX6uipjEPinJv2BHuax2VNNpHGrf3psRABxtuAddpxLep7",
@@ -1302,7 +1298,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 450000,
                 expiry_height: 579945,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cVasUuNrNZCnfe4VAdVS2LpyxCh7UmFpdowUx1K9h5JigZxcpX4W",
@@ -1348,7 +1343,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 285895,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cQJJZoXt3fhmv7FVNqQX7H4kpVrihX2g6Mh5KpPreuT7XTGuUWiD",
@@ -1388,7 +1382,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 500000,
                 expiry_height: 575098,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cNmWGcSzDEwWB9FJkvsP4rUzrFt6nNRBUdfV8Krv6hSeDnTSjwzx",
@@ -1458,7 +1451,6 @@ mod tests {
                     transaction.version_group_id,
                     transaction.lock_time,
                     transaction.expiry_height,
-                    transaction.value_balance,
                     pruned_inputs,
                     pruned_outputs,
                     transaction.expected_signed_transaction,
@@ -1477,7 +1469,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 499999999,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cVDVjUASqQn7qokRZqpHTdFpTEkwbpf7ZzhgTsqt79y9XWDyPod6",
@@ -1520,7 +1511,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 576566,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cTQpmkaF8YNivhZKw6PposeYz1FN9PxmW2r776rBKBWcAP8nA4bf",
@@ -1566,7 +1556,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 576600,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cN2PtrZdZrZmoxgsg7fKcJPLGPX4sHDaZaNBsiRZQbQyC7kxAGxb",
@@ -1619,7 +1608,6 @@ mod tests {
                 version_group_id: 0x892F2085,
                 lock_time: 0,
                 expiry_height: 576600,
-                value_balance: 0,
                 inputs: [
                     Input {
                         private_key: "cR6NQzn89sCdRj1WmgQxF4mGJWi4bbgqzTDpmSfhmMQ2tfJCTPDF",
@@ -1700,7 +1688,6 @@ mod tests {
                     transaction.version_group_id,
                     transaction.lock_time,
                     transaction.expiry_height,
-                    transaction.value_balance,
                     pruned_inputs,
                     pruned_outputs,
                     transaction.expected_signed_transaction,
