@@ -4,28 +4,20 @@ use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 
-use crate::Testnet;
-
-use zcash_proofs::{sapling::{SaplingProvingContext}, load_parameters};
+use bellman::groth16::Parameters;
+use zcash_proofs::sapling::{SaplingProvingContext};
 use ff::{Field, PrimeField};
-use pairing::bls12_381::{Bls12, Fr, FrRepr};
+use pairing::bls12_381::Bls12;
 use zcash_primitives::{
     note_encryption::SaplingNoteEncryption,
-    jubjub::{edwards, edwards::Point, JubjubBls12, fs::{Fs, FsRepr}, Unknown},
+    jubjub::fs::Fs,
     JUBJUB,
-    primitives::{Diversifier, Note, PaymentAddress, ValueCommitment}
+    primitives::{Diversifier, Note, PaymentAddress},
+    transaction::components::Amount,
+    note_encryption::Memo,
+    keys::OutgoingViewingKey
 };
-use rustzcash::{
-//    librustzcash_sapling_compute_cm,
-    librustzcash_sapling_generate_r,
-//    librustzcash_sapling_ka_agree,
-    librustzcash_sapling_ka_derivepublic,
-//    librustzcash_sapling_proving_ctx_init,
-//    librustzcash_sapling_output_proof,
-//    priv_get_note,
-    get_point,
-    read_fs
-};
+use rustzcash::get_point;
 
 use base58::FromBase58;
 use blake2b_simd::{Hash, Params};
@@ -33,10 +25,8 @@ use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
-use std::{fmt, marker::PhantomData, path::Path, str::FromStr};
+use std::{fmt, marker::PhantomData, str::FromStr};
 use wagyu_model::{PrivateKey, Transaction, TransactionError};
-use zcash_primitives::keys::OutgoingViewingKey;
-use zcash_primitives::note_encryption::Memo;
 
 const GROTH_PROOF_SIZE: usize = 48 // π_A
     + 96 // π_B
@@ -87,7 +77,7 @@ impl fmt::Display for OPCodes {
 }
 
 /// Represents a Zcash transaction - Sapling
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct ZcashTransaction<N: ZcashNetwork> {
     /// Transactions header - overwintered flag and transaction version (04000080 for sapling)
     pub header: u32,
@@ -104,19 +94,17 @@ pub struct ZcashTransaction<N: ZcashNetwork> {
     /// Net value of sapling spend transfers minus output transfers
     pub value_balance: i64,
     /// Transaction shielded spends
-    pub shielded_spends: Option<Vec<SpendDescription>>,
+    pub shielded_spends: Vec<SpendDescription>,
     /// Transaction shielded outputs
-    pub shielded_outputs: Option<Vec<OutputDescription>>,
+    pub shielded_outputs: Vec<SaplingOutput>,
     /// Transaction join splits
-    pub join_splits: Option<Vec<JoinSplit>>,
+    pub join_splits: Vec<JoinSplit>,
     /// Binding Signature
-    pub binding_sig: Option<[u8; 32]>,
-    /// Proving context
-    pub ctx: Option<SaplingProvingContext>,
+    pub binding_sig: Option<Vec<u8>>,
 }
 
 /// Represents a Zcash transaction input
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct ZcashTransactionInput<N: ZcashNetwork> {
     /// OutPoint - transaction id and index - 36 bytes
     pub out_point: OutPoint<N>,
@@ -132,7 +120,7 @@ pub struct ZcashTransactionInput<N: ZcashNetwork> {
 }
 
 /// Represents a Zcash transaction output
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct ZcashTransactionOutput<N: ZcashNetwork> {
     /// Transfer amount in Satoshi
     pub amount: u64,
@@ -143,7 +131,7 @@ pub struct ZcashTransactionOutput<N: ZcashNetwork> {
 }
 
 /// Represents a specific UTXO
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct OutPoint<N: ZcashNetwork> {
     /// Previous transaction hash (using Zcash RPC's reversed hash order) - 32 bytes
     pub reverse_transaction_id: Vec<u8>,
@@ -160,11 +148,26 @@ pub struct OutPoint<N: ZcashNetwork> {
 }
 
 /// Represents a Zcash transaction Shielded Spend Description
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct SpendDescription {}
 
 /// Represents a Zcash transaction Shielded Output Description
-#[derive(Debug, Clone, PartialEq, Eq,  PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
+pub struct SaplingOutput {
+    /// outgoing view key
+    pub ovk: SaplingOutgoingViewingKey,
+    /// Sapling output address
+    pub to:  PaymentAddress<Bls12>,
+    /// Sapling output note
+    pub note: Note<Bls12>,
+    /// Optional memo
+    pub memo: Memo,
+    /// OutputDescription
+    pub output_description: Option<OutputDescription>,
+}
+
+/// Represents a Zcash transaction Shielded Output Description
+#[derive(Debug, Clone)]
 pub struct OutputDescription {
     /// Value commitment for the output note
     pub cv: [u8; 32],
@@ -181,7 +184,7 @@ pub struct OutputDescription {
 }
 
 /// Represents a Zcash transaction Join Split
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct JoinSplit {}
 
 impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
@@ -200,11 +203,21 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         outputs: Vec<ZcashTransactionOutput<N>>,
         lock_time: u32,
         expiry_height: u32,
-        value_balance: i64,
-//        shielded_spends: Option<Vec<SpendDescription>>,
-//        shielded_outputs: Option<Vec<OutputDescription>>,
-//        join_splits: Option<Vec<JoinSplit>>,
+//        shielded_spends: Vec<SpendDescription>,
+        shielded_outputs: Vec<SaplingOutput>,
+//        join_splits: Vec<JoinSplit>,
     ) -> Result<Self, TransactionError> {
+
+        let mut value_balance: i64 = 0;
+
+//        for spend in shielded_spends {
+//            value_balance += spend.value;
+//        }
+
+        for output in &shielded_outputs {
+            value_balance -= output.note.value as i64;
+        }
+
         Ok(Self {
             header,
             version_group_id,
@@ -212,12 +225,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             outputs,
             lock_time,
             expiry_height,
-            value_balance: 0,
-            shielded_spends: None,
-            shielded_outputs: None,
-            join_splits: None,
+            value_balance,
+            shielded_spends: vec![],
+            shielded_outputs,
+            join_splits: vec![],
             binding_sig: None
-            ctx: Some(SaplingProvingContext::new()),
         })
     }
 
@@ -243,24 +255,28 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         serialized_transaction.extend(&self.expiry_height.to_le_bytes());
         serialized_transaction.extend(&self.value_balance.to_le_bytes());
 
-        match &self.shielded_spends {
-            Some(_shielded_spends) => unimplemented!(),
-            None => serialized_transaction.push(0u8),
+        match &self.shielded_spends.len() {
+            0 => serialized_transaction.push(0u8),
+            _ => unimplemented!(),
         };
 
-        match &self.shielded_outputs {
-            Some(shielded_outputs) => {
+        match &self.shielded_outputs.len() {
+            0 => serialized_transaction.push(0u8),
+           _ => {
                 serialized_transaction.extend(variable_length_integer(self.shielded_outputs.len() as u64)?);
-                for output in shielded_outputs {
-                    serialized_transaction.extend(output.serialize()?);
+
+                for output in &self.shielded_outputs {
+                    match &output.output_description {
+                        Some(description) => serialized_transaction.extend(description.serialize()?),
+                        None => {}
+                    }
                 }
             },
-            None => serialized_transaction.push(0u8),
         };
 
-        match &self.join_splits {
-            Some(_join_splits) => unimplemented!(),
-            None => serialized_transaction.push(0u8),
+        match &self.join_splits.len() {
+            0 => serialized_transaction.push(0u8),
+            _ => unimplemented!(),
         };
 
         match &self.binding_sig {
@@ -278,12 +294,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         input_index: usize,
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
-        let transaction_hash_preimage = match input.out_point.address.format() {
-            Format::P2PKH => self.generate_hash_preimage(input_index, input.sig_hash_code)?,
+        let transaction_hash = match input.out_point.address.format() {
+            Format::P2PKH => self.generate_sighash(Some(input_index), input.sig_hash_code)?,
             _ => unimplemented!(),
         };
 
-        let transaction_hash = blake2_256_hash("ZcashSigHash", transaction_hash_preimage, Some("sapling"));
         let message = secp256k1::Message::from_slice(&transaction_hash.as_bytes())?;
         let spending_key = &private_key;
         let mut signature = match spending_key {
@@ -319,13 +334,44 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         Ok(signature)
     }
 
-    /// Return the hash preimage of the raw transaction
+    /// Build the sapling spends and outputs in the transaction
+    pub fn build_sapling_descriptions(&mut self, ctx: &mut SaplingProvingContext, output_params: Parameters<Bls12>) {
+        match &self.shielded_spends.len() {
+            0 => {},
+            _ => unimplemented!(),
+        };
+
+        match &self.shielded_outputs.len() {
+            0 => {},
+            _ => {
+                for output in &mut self.shielded_outputs {
+                    output.create_sapling_output_description(ctx, &output_params).unwrap();
+                }
+            },
+        };
+    }
+
+    /// Add the binding signature
+    pub fn generate_binding_sig(&mut self, ctx: &mut SaplingProvingContext) -> Result<(), TransactionError>{
+
+        let mut sighash = [0u8; 32];
+        sighash.copy_from_slice(self.generate_sighash(None, SigHashCode::SIGHASH_ALL)?.as_bytes());
+
+        let mut binding_sig = [0u8; 64];
+        let sig = ctx.binding_sig(Amount::from_i64(self.value_balance).unwrap(), &sighash, &JUBJUB).unwrap();
+        sig.write(&mut binding_sig[..]).unwrap();
+        self.binding_sig = Some(binding_sig.to_vec());
+
+        Ok(())
+    }
+
+    /// Generate the sighash
     /// https://github.com/zcash/zips/blob/master/zip-0243.rs
-    pub fn generate_hash_preimage(
+    pub fn generate_sighash(
         &self,
-        input_index: usize,
+        input_index: Option<usize>,
         sig_hash_code: SigHashCode,
-    ) -> Result<Vec<u8>, TransactionError> {
+    ) -> Result<Hash, TransactionError> {
         let mut prev_outputs: Vec<u8> = Vec::new();
         let mut prev_sequences: Vec<u8> = Vec::new();
         let mut outputs: Vec<u8> = Vec::new();
@@ -340,21 +386,23 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             outputs.extend(&output.serialize()?);
         }
 
-
-
         let hash_prev_outputs = blake2_256_hash("ZcashPrevoutHash", prev_outputs, None);
         let hash_sequence = blake2_256_hash("ZcashSequencHash", prev_sequences, None);
         let hash_outputs = blake2_256_hash("ZcashOutputsHash", outputs, None);
         let hash_joinsplits = [0u8; 32];
         let hash_shielded_spends = [0u8; 32];
 
-        let hash_shielded_outputs = match &self.shielded_outputs {
-            None => [0u8; 32].to_vec(),
-            Some(shielded_outputs) => {
+        let hash_shielded_outputs = match &self.shielded_outputs.len() {
+            0 => [0u8; 32].to_vec(),
+            _ => {
                 let mut output_descriptions: Vec<u8> = Vec::new();
-                for output_description in shielded_outputs {
-                    output_descriptions.extend(output_description.serialize()?);
+                for output in &self.shielded_outputs {
+                    match &output.output_description {
+                        Some(description) => output_descriptions.extend(description.serialize()?),
+                        None => {}
+                    }
                 }
+
                 blake2_256_hash("ZcashSOutputHash", output_descriptions, None).as_bytes().to_vec()
             }
         };
@@ -373,110 +421,14 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         transaction_hash_preimage.extend(&self.expiry_height.to_le_bytes());
         transaction_hash_preimage.extend(&self.value_balance.to_le_bytes());
         transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
-        transaction_hash_preimage.extend(&self.inputs[input_index].serialize(false, true)?);
+        match input_index {
+            Some(index) => transaction_hash_preimage.extend(&self.inputs[index].serialize(false, true)?),
+            None => {},
+        }
 
-        Ok(transaction_hash_preimage)
-    }
+        let transaction_hash = blake2_256_hash("ZcashSigHash", transaction_hash_preimage, Some("sapling"));
 
-
-    /// Create SAPLING OUTPUT DESCRIPTIONS HERE
-    pub fn add_sapling_output_description(&mut self, ovk: SaplingOutgoingViewingKey, output_address: String, value: u64) -> Result<(), TransactionError> {
-        /// Load Parameters
-
-        let spend_path = Path::new("src/rustzcash/src/sapling-spend.params");
-        let output_path = Path::new("src/rustzcash/src/sapling-output.params");
-
-        let (spend_params, spend_vk, output_params, output_vk, sprout_vk) = load_parameters(
-            spend_path,
-            "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
-            output_path,
-            "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
-            None,
-            None,
-        );
-
-        let sapling_address = ZcashAddress::<Testnet>::from_str(&output_address).unwrap();
-
-        let diversifier = ZcashAddress::<Testnet>::get_diversifier(&output_address).unwrap();
-        let pk_d = ZcashAddress::<Testnet>::get_pk_d(&output_address).unwrap();
-
-        let mut esk = [0u8; 32];
-        librustzcash_sapling_generate_r(&mut esk);
-
-        let mut epk = [0u8; 32]; // Ephemeral Key
-        librustzcash_sapling_ka_derivepublic(&diversifier, &esk, &mut epk);
-
-        /// Generate the proof and cv
-
-        let mut rcm = [0u8; 32];
-        librustzcash_sapling_generate_r(&mut rcm);
-
-        let esk_point = Fs::from_repr(read_fs(&esk)).unwrap();
-        let rcm_point = Fs::from_repr(read_fs(&rcm)).unwrap();
-        let pk_d = get_point(&pk_d).unwrap();
-        let to = PaymentAddress { pk_d: pk_d.clone(), diversifier: Diversifier(diversifier) };
-
-        let (proof, value_commitment) = self.ctx.output_proof(
-            esk_point,
-            to.clone(),
-            rcm_point,
-            value,
-            &output_params,
-            &JUBJUB
-        );
-
-        let mut cv = [0u8; 32]; // Value commitment
-        let mut zk_proof = [0u8; GROTH_PROOF_SIZE];
-
-        value_commitment.write(&mut cv[..]);
-        proof.write(&mut zk_proof[..]);
-
-        /// Generate the ciphertexts
-
-        let mut rng = &mut StdRng::from_entropy();
-        let ovk = OutgoingViewingKey(ovk.0);
-
-        let g_d = match to.g_d(&JUBJUB) {
-            Some(g_d) => g_d,
-            None => return Err(TransactionError::Message("invalid address".into())),
-        };
-
-        let note = Note {
-            g_d,
-            pk_d,
-            value,
-            r: Fs::random(rng),
-        };
-
-        let cm = note.cm(&JUBJUB);
-
-        let enc = SaplingNoteEncryption::new(ovk, note, to, Memo::default(), &mut rng );
-        let enc_ciphertext = enc.encrypt_note_plaintext();
-        let out_ciphertext = enc.encrypt_outgoing_plaintext(&value_commitment, &cm);
-
-        let mut cmu = [0u8;32];
-        cmu.copy_from_slice(
-            &cm.into_repr().0
-                .iter()
-                .flat_map(|num| num.to_le_bytes().to_vec())
-                .collect::<Vec<u8>>()
-        );
-
-        let output_description = OutputDescription {
-            cv,
-            cmu,
-            ephemeral_key: epk,
-            enc_ciphertext: enc_ciphertext.to_vec(),
-            out_ciphertext: out_ciphertext.to_vec(),
-            zk_proof: zk_proof.to_vec(),
-        };
-
-        match &self.shielded_outputs {
-            None => self.shielded_outputs = Some(vec![output_description]),
-            Some(shielded_outputs) => self.shielded_outputs.extend(output_description),
-        };
-
-        Ok(())
+        Ok(transaction_hash)
     }
 }
 
@@ -573,8 +525,94 @@ impl<N: ZcashNetwork> ZcashTransactionOutput<N> {
     }
 }
 
-impl OutputDescription {
+impl SaplingOutput {
+    pub fn new<N: ZcashNetwork>(ovk: SaplingOutgoingViewingKey, to: &str, value: u64) -> Result<Self, TransactionError>{
+        let diversifier = ZcashAddress::<N>::get_diversifier(&to)?;
+        let pk_d = ZcashAddress::<N>::get_pk_d(&to)?;
 
+        let pk_d = get_point(&pk_d).unwrap();
+        let to = PaymentAddress { pk_d: pk_d.clone(), diversifier: Diversifier(diversifier) };
+
+        let rng = &mut StdRng::from_entropy();
+
+        let g_d = match to.g_d(&JUBJUB) {
+            Some(g_d) => g_d,
+            None => return Err(TransactionError::Message("invalid address".into())),
+        };
+
+        let note = Note {
+            g_d,
+            pk_d,
+            value,
+            r: Fs::random(rng),
+        };
+
+        Ok(
+            Self {
+                ovk,
+                to,
+                note,
+                memo: Memo::default(),
+                output_description: None,
+            }
+        )
+    }
+
+    /// Create Sapling Output Description
+    pub fn create_sapling_output_description(&mut self, ctx: &mut SaplingProvingContext, output_params: &Parameters<Bls12>) -> Result<(), TransactionError> {
+
+        let mut rng = &mut StdRng::from_entropy();
+        let ovk = OutgoingViewingKey(self.ovk.0);
+        let enc = SaplingNoteEncryption::new(ovk, self.note.clone(), self.to.clone(), self.memo.clone(), &mut rng );
+
+        let (proof, value_commitment) = ctx.output_proof(
+            enc.esk().clone(),
+            self.to.clone(),
+            self.note.r,
+            self.note.value,
+            &output_params,
+            &JUBJUB
+        );
+
+        // Generate the ciphertexts
+
+        let cm = self.note.cm(&JUBJUB);
+        let enc_ciphertext = enc.encrypt_note_plaintext();
+        let out_ciphertext = enc.encrypt_outgoing_plaintext(&value_commitment, &cm);
+
+        // Write the points as bytes
+
+        let mut cmu = [0u8;32];
+        cmu.copy_from_slice(
+            &cm.into_repr().0
+                .iter()
+                .flat_map(|num| num.to_le_bytes().to_vec())
+                .collect::<Vec<u8>>()
+        );
+
+        let mut cv = [0u8; 32]; // Value commitment
+        let mut ephemeral_key = [0u8; 32]; // EPK
+        let mut zk_proof = [0u8; GROTH_PROOF_SIZE];
+        value_commitment.write(&mut cv[..]).unwrap();
+        enc.epk().write(&mut ephemeral_key[..]).unwrap();
+        proof.write(&mut zk_proof[..]).unwrap();
+
+        let output_description = OutputDescription {
+            cv,
+            cmu,
+            ephemeral_key,
+            enc_ciphertext: enc_ciphertext.to_vec(),
+            out_ciphertext: out_ciphertext.to_vec(),
+            zk_proof: zk_proof.to_vec(),
+        };
+
+        self.output_description = Some(output_description);
+
+        Ok(())
+    }
+}
+
+impl OutputDescription {
     /// Serialize the Sapling output description
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_output: Vec<u8> = Vec::new();
@@ -678,180 +716,14 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     }
 }
 
-
-/// Create SAPLING OUTPUT DESCRIPTIONS HERE
-pub fn add_sapling_output_description(ovk: SaplingOutgoingViewingKey, output_address: String, value: u64) -> Result<OutputDescription, TransactionError> {
-
-    /// Load Parameters
-
-    let spend_path = Path::new("src/rustzcash/src/sapling-spend.params");
-    let output_path = Path::new("src/rustzcash/src/sapling-output.params");
-
-    let (spend_params, spend_vk, output_params, output_vk, sprout_vk) = load_parameters(
-        spend_path,
-        "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
-        output_path,
-        "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
-        None,
-        None,
-    );
-
-    let sapling_address = ZcashAddress::<Testnet>::from_str(&output_address).unwrap();
-
-    let diversifier = ZcashAddress::<Testnet>::get_diversifier(&output_address).unwrap();
-    let pk_d = ZcashAddress::<Testnet>::get_pk_d(&output_address).unwrap();
-
-    let mut esk = [0u8; 32];
-    librustzcash_sapling_generate_r(&mut esk);
-
-    let mut epk = [0u8; 32]; // Ephemeral Key
-    librustzcash_sapling_ka_derivepublic(&diversifier, &esk, &mut epk);
-
-//    let mut shared_secret = [0u8; 32]; // Shared secret used to encrypt the notes
-//    librustzcash_sapling_ka_agree(&pk_d, &esk, &mut shared_secret);
-
-//    let mut r = [0u8; 32]; // Randomness
-//    librustzcash_sapling_generate_r(&mut r);
-
-//    let mut cmu = [0u8; 32]; // Note commitment
-//    librustzcash_sapling_compute_cm(&diversifier, &pk_d, value, &r, &mut cmu);
-
-    /// Generate the proof and cv
-
-    let mut ctx = SaplingProvingContext::new();
-
-    let mut rcm = [0u8; 32];
-    librustzcash_sapling_generate_r(&mut rcm);
-
-//    let mut lib_cv = [0u8; 32]; // Value commitment
-//    let mut lib_zk_proof = [0u8; GROTH_PROOF_SIZE];
-//    librustzcash_sapling_output_proof(& mut ctx, &esk, &diversifier, &pk_d, &rcm, value, &mut lib_cv, &mut lib_zk_proof);
-
-    let esk_point = Fs::from_repr(read_fs(&esk)).unwrap();
-    let rcm_point = Fs::from_repr(read_fs(&rcm)).unwrap();
-    let pk_d = get_point(&pk_d).unwrap();
-    let to = PaymentAddress { pk_d: pk_d.clone(), diversifier: Diversifier(diversifier) };
-
-    let (proof, value_commitment) = ctx.output_proof(
-        esk_point,
-        to.clone(),
-        rcm_point,
-        value,
-        &output_params,
-        &JUBJUB
-    );
-
-    let mut cv = [0u8; 32]; // Value commitment
-    let mut zk_proof = [0u8; GROTH_PROOF_SIZE];
-
-    value_commitment.write(&mut cv[..]);
-    proof.write(&mut zk_proof[..]);
-
-    /// Generate the ciphertexts
-
-    let mut rng = &mut StdRng::from_entropy();
-    let ovk = OutgoingViewingKey(ovk.0);
-
-//    let note = priv_get_note(&diversifier, &pk_d, value, &r).unwrap();
-
-    let g_d = match to.g_d(&JUBJUB) {
-        Some(g_d) => g_d,
-        None => return Err(TransactionError::Message("invalid address".into())),
-    };
-
-    let note = Note {
-        g_d,
-        pk_d,
-        value,
-        r: Fs::random(rng),
-    };
-
-    let cm = note.cm(&JUBJUB);
-
-    let enc = SaplingNoteEncryption::new(ovk, note, to, Memo::default(), &mut rng );
-    let enc_ciphertext = enc.encrypt_note_plaintext();
-    let out_ciphertext = enc.encrypt_outgoing_plaintext(&value_commitment, &cm);
-
-    let mut cmu = [0u8;32];
-    cmu.copy_from_slice(
-        &cm.into_repr().0
-            .iter()
-            .flat_map(|num| num.to_le_bytes().to_vec())
-            .collect::<Vec<u8>>()
-    );
-
-//    &cm.into_repr().write_le(cmu);
-
-    Ok(
-        OutputDescription {
-            cv,
-            cmu,
-            ephemeral_key: epk,
-            enc_ciphertext: enc_ciphertext.to_vec(),
-            out_ciphertext: out_ciphertext.to_vec(),
-            zk_proof: zk_proof.to_vec(),
-        }
-    )
-}
-
-pub fn handle_sapling_output(sapling_spend_key: Option<SaplingSpendingKey<Testnet>>) {
-
-    let ovk = match sapling_spend_key {
-        /// Generate a common ovk from HD seed
-        /// (optionally pass in a seed for wallet management purposes)
-        None => {
-            let mut rng = &mut StdRng::from_entropy();
-            let seed: [u8; 32] = rng.gen();
-            println!("1");
-            let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
-            println!("2");
-            let mut ovk = [0u8; 32];
-            ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
-
-            println!("3");
-
-            SaplingOutgoingViewingKey(ovk)
-        },
-        /// Get the ovk from the sapling extended spend key
-        Some( spend_key ) => {
-            spend_key.ovk
-        },
-    };
-
-    let value = 999990000;
-
-    let output = add_sapling_output_description(ovk, "ztestsapling1rdcfpgrafmt4xuru0rfsgv6cke6mfus9swljfma8uwkmsmg63fx3hlwfl4rtszqf3usjww0lu3e".into(), value);
-
-    println!("{}", output.unwrap());
-}
-
-pub fn init_params() {
-    let spend_path = Path::new("src/rustzcash/src/sapling-spend.params");
-
-    let output_path = Path::new("src/rustzcash/src/sapling-output.params");
-
-    let (spend_params, spend_vk, output_params, output_vk, sprout_vk) = load_parameters(
-        spend_path,
-        "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
-        output_path,
-        "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
-        None,
-        None,
-    );
-
-}
-
-#[test]
-fn test_params() {
-    handle_sapling_output(None);
-    assert_eq!(0,1);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Mainnet;
-    use crate::Testnet;
+
+    use crate::{Mainnet, Testnet};
+    use rand::Rng;
+    use std::path::Path;
+    use zcash_proofs::load_parameters;
 
     pub struct Transaction {
         pub header: u32,
@@ -861,6 +733,7 @@ mod tests {
         pub value_balance: i64,
         pub inputs: [Input; 4],
         pub outputs: [Output; 8],
+        pub sapling_outputs: [Output; 1],
         pub expected_signed_transaction: &'static str,
     }
 
@@ -897,12 +770,118 @@ mod tests {
 
     const OUTPUT_FILLER: Output = Output { address: "", amount: 0 };
 
+    fn test_sapling_transaction<N: ZcashNetwork>(
+        header: u32,
+        version_group_id: u32,
+        lock_time: u32,
+        expiry_height: u32,
+        _value_balance: i64,
+        inputs: Vec<Input>,
+        sapling_outputs: Vec<Output>,
+        _expected_signed_transaction: &str,
+    ) {
+
+        let mut input_vec: Vec<ZcashTransactionInput<N>> = Vec::new();
+        for input in &inputs {
+            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let address = private_key.to_address(&input.address_format).unwrap();
+
+            let transaction_id = hex::decode(input.transaction_id).unwrap();
+            let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
+            let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+            let sequence = input.sequence.map(|seq| seq.to_vec());
+
+            let transaction_input = ZcashTransactionInput::<N>::new(
+                address,
+                transaction_id,
+                input.index,
+                input.utxo_amount,
+                redeem_script,
+                script_pub_key,
+                sequence,
+                input.sig_hash_code,
+            ).unwrap();
+
+            input_vec.push(transaction_input);
+        }
+
+        // Create sapling output TODO Fix the location of this key generation Protocol pg. 33
+
+        let sapling_spend_key: Option<SaplingSpendingKey<N>> = None;
+        let ovk = match &sapling_spend_key {
+            // Generate a common ovk from HD seed
+            // (optionally pass in a seed for wallet management purposes)
+            None => {
+                let rng = &mut StdRng::from_entropy();
+                let seed: [u8; 32] = rng.gen();
+                let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
+                let mut ovk = [0u8; 32];
+                ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
+
+                SaplingOutgoingViewingKey(ovk)
+            },
+            // Get the ovk from the sapling extended spend key
+            Some( spend_key ) => {
+                spend_key.ovk
+            },
+        };
+
+        let mut sapling_outputs_vec = Vec::new();
+        for output in sapling_outputs {
+            let sapling_output = SaplingOutput::new::<N>(ovk, output.address, output.amount).unwrap();
+            sapling_outputs_vec.push(sapling_output);
+        }
+
+        let mut transaction = ZcashTransaction::build_raw_transaction(
+            header,
+            version_group_id,
+            input_vec,
+            Vec::new(),
+            lock_time,
+            expiry_height,
+            sapling_outputs_vec,
+        ).unwrap();
+
+        // Load Parameters TODO Make this a constant in the test suite
+
+        let spend_path = Path::new("src/rustzcash/src/sapling-spend.params");
+        let output_path = Path::new("src/rustzcash/src/sapling-output.params");
+
+        let (_spend_params, _spend_vk, output_params, _output_vk, _sprout_vk) = load_parameters(
+            spend_path,
+            "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
+            output_path,
+            "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
+            None,
+            None,
+        );
+
+        // Generate the sapling output
+        let mut ctx = SaplingProvingContext::new();
+
+        transaction.build_sapling_descriptions(&mut ctx, output_params);
+
+        for (index, input) in inputs.iter().enumerate() {
+            transaction
+                .sign_raw_transaction(ZcashPrivateKey::from_str(input.private_key).unwrap(), index)
+                .unwrap();
+        }
+
+        // Create binding sig
+        transaction.generate_binding_sig(&mut ctx).unwrap();
+
+        let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
+        println!("signed transaction: {}", signed_transaction);
+
+        // TODO figure out how to validate sapling tests given that each transaction is built with randomness
+    }
+
     fn test_transaction<N: ZcashNetwork>(
         header: u32,
         version_group_id: u32,
         lock_time: u32,
         expiry_height: u32,
-        value_balance: i64,
+        _value_balance: i64,
         inputs: Vec<Input>,
         outputs: Vec<Output>,
         expected_signed_transaction: &str,
@@ -944,7 +923,7 @@ mod tests {
             output_vec,
             lock_time,
             expiry_height,
-            0,
+            vec![],
         ).unwrap();
 
         for (index, input) in inputs.iter().enumerate() {
@@ -957,7 +936,78 @@ mod tests {
         assert_eq!(expected_signed_transaction, signed_transaction);
     }
 
-    mod test_mainnet_transactions {
+    mod test_testnet_sapling_transactions {
+        use super::*;
+        type N = Testnet;
+
+        const TRANSACTIONS: [Transaction; 1] = [
+            Transaction { // 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                value_balance: 0,
+                inputs: [
+                    Input {
+                        private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
+                        address_format: Format::P2PKH,
+                        transaction_id: "cdb426cbd9dfe1c27df683a891977d0a5be6cc87e3b618917bb124caba7a78f2",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(1000010000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER
+                ],
+                outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
+                    Output {
+                        address: "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
+                        amount: 1000000000
+                    },
+                ],
+                expected_signed_transaction: ""
+            },
+        ];
+
+        #[test]
+        fn test_sapling_output_transactions() {
+            TRANSACTIONS.iter().for_each(|transaction| {
+                let mut pruned_inputs = transaction.inputs.to_vec();
+                pruned_inputs.retain(|input| input.transaction_id != "");
+
+                let mut pruned_outputs = transaction.outputs.to_vec();
+                pruned_outputs.retain(|output| output.address != "");
+
+                test_sapling_transaction::<N>(
+                    transaction.header,
+                    transaction.version_group_id,
+                    transaction.lock_time,
+                    transaction.expiry_height,
+                    transaction.value_balance,
+                    pruned_inputs,
+                    transaction.sapling_outputs.to_vec(),
+                    transaction.expected_signed_transaction,
+                );
+            });
+        }
+
+    }
+
+    mod test_mainnet_transparent_transactions {
         use super::*;
         type N = Mainnet;
 
@@ -996,6 +1046,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f89015510a014f306f99a3e5e48460425777f210e0bd2c02301ec93f1baffe1b29710000000006a47304402207c2e6d5ec25a8ab67229f23a581ee8898eb087c2aa6c8db8acf21c3b96bab5fb02202ff7689945891a20961de1b4e18b40995fe7f07cb6dd1c97607c65259adeb1bd012102a7b8361f36eee68b96cbc72bab73295494161b8e670a29c99819e2b793939d25ffffffff0100e1f505000000001976a91459fec7e62fcf3e580656bc1bc6c220dad37709ab88ac00000000000000000000000000000000000000"
@@ -1042,6 +1095,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f8901394fc83a499e120c92269690c39e7507b34905ccd33d4e53f8c713835bd934f2000000006a473044022053637ac8ece0fd2c5cd2fa2c6abb6fec36317a7e60be6c5215ff83ab903409a502206cdcb354b7bca6a4aed08fc6409a6e0000ba263c47f6bb22ab74ad2fe270250501210325c97e86e09f91a9894b856c9b9ca6d7ea90754d66acc95fb57b46117492d3bdfeffffff0480f0fa02000000001976a914c4fafe5725a6ec3d2218458c00da884cd9a0507c88ac80f0fa02000000001976a9142a80f5573b12de286ecbe0f8d46acb9c2334375588ac80f0fa02000000001976a914167b3376103f458ea847ec6f5e763b0de2808f3e88ac80f0fa02000000001976a914473ce0a50b7a876fcba71973b49770b79cfb10b188ac55f80600c02709000000000000000000000000"
@@ -1099,6 +1155,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f890350b2ed017b6c60080d9f9a2c6a2b8039be56cd17839474bc31a4d69d9195b5ff010000006b483045022100adcab54a2e437df28eebf4c19f33061467d951a035f12125d3ba16dc3a7ed21c02204a13ba64160a5a11fb22ada860202995df5f51f05eb882fc197109fba298b96e012103f632eeb38fa2fcc7af1881f1b6c1f4fe6155ee6267d92657d9a95fdbb15c010effffffff74941a58fce3c9eed67cfc23e90743314283774f1901c5093c3db04f23516346020000006b483045022100a14d25f96742b6a06f201db6811ed1bbbeab80be29ea45ad8e54ce583337056502200e04272216609ca7cf38729156c860e59a1e88632697456fb0639efebc6509bd0121026fba2e786f9351532a8f93de404d0c44b54e01a7f10bf1a61f734bc4249b58f9ffffffff5d3090f7a591c1426b209d43dc546070fcddceba5b2c81c164aa95ed121ad72e030000006a473044022005e9df51bedd7f95d567ef472040fb295f7dc7d742e1a894d48f67f5239fd860022076d170cb5be8435628c738f0beecbeb85fc6fb1f8f74d5dd18db0fdc584df6650121020621d94a64caf7183bef70f89cfca4cd3d30a76ce0335f7f10eb787e266bb2cdffffffff0100ca9a3b000000001976a9149d92a791abc62a9ca93ced9086c2129d31757ee088ac55f80600000000000000000000000000000000"
@@ -1159,6 +1218,9 @@ mod tests {
                         amount: 80000000
                     }
                 ],
+                sapling_outputs: [
+                    OUTPUT_FILLER
+                ],
                 expected_signed_transaction: "0400008085202f89010d38af593932ea90e26aa03b45460ed77834ef86f1621e1cb15edf7b00244b0f010000006b4830450221008092fa7e36ee33d24e4325d94d2edc79094a2cc7ee9b5a9b927327eaedeba8b10220221452eab944f6c11ea7c3db4737acec9bc7db2a0bb0a3c90e2c96a5cae40bd00121026c6b54c8303dedb35591698afa9fbc5501763c5a18341d1e7c0a2b68148c69bcffffffff0880969800000000001976a91408b6e1325af5b5017f0dab34965540fac91d3b2788ac002d3101000000001976a9142bf2cfe165f273fbf3e323c4c694769ad24afc9388ac80c3c901000000001976a914d14312fbd36be1b32a1461634694cc7ebe81bb6288ac005a6202000000001976a914053acc6851cc71df9715c68b7ca93e1ad6007c5288ac80f0fa02000000001976a9142681247d3de732e1867edfc085cc4197334c785188ac00879303000000001976a914f2d0702165e099a7cde104b3e3a963b0f79c7b2e88ac801d2c04000000001976a914416d5a8d0daa988ebf0f415bc35a41d74751d95788ac00b4c404000000001976a91405cf42203276331ca0b5b121730c89273cb1e5fc88ac55ec080052d70a000000000000000000000000"
             },
         ];
@@ -1186,7 +1248,7 @@ mod tests {
         }
     }
 
-    mod test_testnet_transactions {
+    mod test_testnet_transparent_transactions {
         use super::*;
         type N = Testnet;
 
@@ -1228,6 +1290,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f8901a8c685478265f4c14dada651969c45a65e1aeb8cd6791f2f5bb6a1d9952104d9010000006b483045022100ef50a15eece0f43a0efd13a2c45aecf85e8e999858721150a70e75b106d80ea702202b3ff79fdcd2ff101dcacd74a7f6e3adb1250955f7a80962b259d1e17742f2f70121037e8e3a964e0f59c52633e25f9cec2fc8bb9af5b23eace85f6264f68b47db5cb6feffffff02005a6202000000001976a9148132712c3ff19f3a151234616777420a6d7ef22688ac8b959800000000001976a9145453e4698f02a38abdaa521cd1ff2dee6fac187188ac29b0040048b004000000000000000000000000"
@@ -1273,6 +1338,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER
                 ],
+                sapling_outputs: [
+                    OUTPUT_FILLER
+                ],
                 expected_signed_transaction: "0400008085202f89013121b82a43576452d0136cd3a78852f4cd0f46bdb265a349b62d4d790ff103ce0c0000006a47304402201e563ac13e9ae03b0c0f19313dfc5ef32d633adc46d0e2ecad6185b46961e37902207d33d054cfaf1f25149298bb12f5f9dd063034415ec4ee0bad71437f846b04e00121029862bf5d37725419b03e9e3db90f60060de42d187c5ed28bdb41ed435742bd51feffffff0300e9a435000000001976a914c847ac8eafe8ecfac934a41c37b2720ab266b8b688ac80f0fa02000000001976a91416837e1ef0b93ef72d9a2cc235e4d342b476d1d788ace069f902000000001976a9142d6f726f415eaf3e8b609bb0cdc451d4777c800d88acd0dd060069d908000000000000000000000000"
             },
             Transaction {
@@ -1308,6 +1376,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f89013194cd7a9f2a354b158ea891792b7c60ff2184852d2769a348870e54342ec21e000000006a47304402203b1f53d5f4c56e5120cd9574328f68c7403772db8eb26b75566a1499a8da1c5002205b22f8870c467d206494448f364b3f2f632e747563dbcc74ddcf27bb3c8033020121030cb32083e4b93572483ac4a3a39df5de63047973eb424b3f202bf0438e80b7bcffffffff01c09ee605000000001976a91471000dc3823178a6a14b0d41547f1a4163bb6fd488ac00000000c75c04000000000000000000000000"
@@ -1366,6 +1437,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER
                 ],
+                sapling_outputs: [
+                    OUTPUT_FILLER
+                ],
                 expected_signed_transaction: "0400008085202f89024234fafb1d6b06d30e40873ed313c8b7fe84d43d6ff42008d235083cf33b5377000000006a47304402204b631eb3a5f335b3de5693decc757164c711785d9e9260e997b290f6f2265f6402204bdb57d435d966645d42ae40ce58f88a28922063d365cf49b04ffafb959e338d012103d417fc48280160dbf89ea4e3c34b3d47c79bfc43cc211846c22b3538c267a082feffffff52eaa713f84727425f3caa6506dd4924f590a35b0ca6721757316193f72990e3010000006b483045022100f5b4368cbc84a548b48b15acc5589d93c9cc5032476b331f7fd14bf93c0176da02205b93f2439e5ca49e1a0af344d0654b0ec4b22783c31579bd52722a890a8b2ac401210335232f77fae42c4737ddd8d8c9df538767065aa17b9e6a388b6081d2893b9801feffffff0440a5ae02000000001976a914935628220a6e53fec7a6829a69b1139099a95ee688ac00e1f505000000001976a914bdb78536ed86bab756d96c227ff05a156d0994f188acc0f35e01000000001976a9142ffb196b33124bcbac37e85142e14db096202c4a88acc005d901000000001976a914685425f98a20f92e880b10de6e84416683a7010c88ac20a107007ac608000000000000000000000000"
             },
         ];
@@ -1393,7 +1467,7 @@ mod tests {
         }
     }
 
-    mod test_real_testnet_transactions {
+    mod test_real_testnet_transparent_transactions {
         use super::*;
         type N = Testnet;
 
@@ -1434,6 +1508,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f89012dc108fdaca845cb51aa9807c90fcf25d73070bbf927b3e2ee841a784274a672000000006b483045022100a6255438be743890d53bf5a0818f58370361a0ff82f88dca30fba0aec1b2859b022055950c72f1111babcf01f58087300eb80e3acfff169d05338d8e2c7a0dd0b1fe012102386cb1f3211d689bcf9fd763381a4d7a9a0d719667c979ac485d6d2ec69a17e0ffffffff0200e40b54020000001976a9148af7ebff7dad3862258a44992915615bfd9e6d4388ac605d0a54020000001976a914d6fdb988e0ca149cb74eda244d8fc52481d6452088ac00000000ff64cd1d0000000000000000000000"
@@ -1477,6 +1554,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f8901bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7010000006b4830450221009b69008f53a9970c2f5c771b76462773baf18a2937cbc70af4dad9d7987fd13e022038a3d14301c657172759885a5e2e65d5c10b3208e6120cb819d66f56fae3c09401210332d388288132f696b4a75b2d2f40ccbd9a463d32e3c6c335f671df33f1a05973ffffffff03eb9cadc6000000001976a914418574564a7c48387a6557c491d14da904a4306c88aceb9cadc6000000001976a91475caaa31ae391da8121fe8d9577c30710bafc7f988acea9cadc6000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac0000000036cc08000000000000000000000000"
@@ -1527,6 +1607,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
+                    OUTPUT_FILLER
+                ],
+                sapling_outputs: [
                     OUTPUT_FILLER
                 ],
                 expected_signed_transaction: "0400008085202f8902fc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22000000006b483045022100ea49efe4132ce18d039cb2abe99ea52163611c25a35a8640a4bb15a88c93b60402202f7d4334bccd8f961d1becfd08bccdc1c0669533810cbbbfa5837f99ba94a7fe0121024aed9637c78499154afc06af10b2344233b3c968f1e7b1cfd9905fc38e440c12fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22010000006a47304402203576c518c1f628469efcd182fa7d1d578cccdf7b51a41e44d119ca0c010747cc022069d9f390735567efff5e8f70afec6595060a79693540d6174b21681b21b4df70012102e49919f81e1fc11a65283e71dcce22dc65271f4ab6ef96f9e9b3d20fd62d1e87ffffffff02a0c55463000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac00f2052a010000001976a9140aab8113729e010d852820561dbee87459ad8dc888ac0000000058cc08000000000000000000000000"
@@ -1596,6 +1679,9 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER
                 ],
+                sapling_outputs: [
+                    OUTPUT_FILLER
+                ],
                 expected_signed_transaction: "0400008085202f8904bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7000000006a47304402203f44fdfa0abb604a0b123fc95b4b0ad97bf535c9b2f9c2e37440a5627eabc6b902206c533152ba2efd78c16136f108847d8ea60e571f4dd7cbb47a5df582011cb3920121037517903ed1fafb50ab557970fc2d1948eaf88ad807308cc1fd50a63ca5f2d4d9fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22020000006b48304502210089fe440a2b97bd12ad09c21cf4b3c811cddd17917fb5f4b84ec3fafa3c8ce26b022029e1bc2385d291eef1591775a73a77c5891afcfcf020a58c4fa35fb7d2995d280121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719000000006b483045022100d3c08145d11226c24acba293943f649b6acced719eaba5eee168705faa060046022077a220546a4654ee8bf14217da8c5dae9c64160b424be83557b24b79fb7b22400121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719010000006b483045022100a2649c5a237ac25db15ada343ea331865b9544a5ac32752c7800d3296085665602206c1722f0a3b0533f047e06ec2931fbe9dc9f6c01f4f1391fa02421369f8e4952012103b485498fb0843a5a058f251d7094fe8d2878faba8c17e7b3bbf854adb855a377ffffffff01e02610a8040000001976a9143c314002f07cf5ff5c84da1d9b456671b915bf8588ac0000000058cc08000000000000000000000000"
             },
         ];
@@ -1623,7 +1709,7 @@ mod tests {
         }
     }
 
-    mod test_invalid_transactions {
+    mod test_invalid_transparent_transactions {
         use super::*;
         type N = Mainnet;
 
