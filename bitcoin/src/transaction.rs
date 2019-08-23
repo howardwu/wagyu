@@ -539,7 +539,7 @@ mod tests {
     }
 
     const INPUT_FILLER: Input = Input {
-        private_key: "L5QDKPT7t5S4biznTohoGqRmeHSzQrZzqHq9rfMJijuUtsvZksbj",
+        private_key: "",
         address_format: Format::P2PKH,
         transaction_id: "",
         index: 0,
@@ -1294,25 +1294,30 @@ mod tests {
         #[test]
         fn test_invalid_inputs() {
             for input in INVALID_INPUTS.iter() {
-                let private_key = BitcoinPrivateKey::<N>::from_str(input.private_key).unwrap();
-                let address = private_key.to_address(&input.address_format).unwrap();
-
                 let transaction_id = hex::decode(input.transaction_id).unwrap();
                 let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
                 let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
                 let sequence = input.sequence.map(|seq| seq.to_vec());
 
-                let invalid_input = BitcoinTransactionInput::new(
-                    address,
-                    transaction_id,
-                    input.index,
-                    input.utxo_amount,
-                    redeem_script,
-                    script_pub_key,
-                    sequence,
-                    input.sig_hash_code,
-                );
-                assert!(invalid_input.is_err());
+                let private_key = BitcoinPrivateKey::<N>::from_str(input.private_key);
+                match private_key {
+                    Ok(private_key) => {
+                        let address = private_key.to_address(&input.address_format).unwrap();
+                        let invalid_input = BitcoinTransactionInput::<N>::new(
+                            address,
+                            transaction_id,
+                            input.index,
+                            input.utxo_amount,
+                            redeem_script,
+                            script_pub_key,
+                            sequence,
+                            input.sig_hash_code,
+                        );
+                        assert!(invalid_input.is_err());
+                    },
+                    _ => assert!(private_key.is_err()),
+                }
+
             }
         }
 
