@@ -14,6 +14,12 @@ pub trait Transaction: Clone + Debug + Send + Sync + 'static {
 
 #[derive(Debug, Fail)]
 pub enum TransactionError {
+    #[fail(display = "{}", _0)]
+    AddressError(AddressError),
+
+    #[fail(display = "invalid binding signature for the transaction")]
+    InvalidBindingSig(),
+
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -22,6 +28,9 @@ pub enum TransactionError {
 
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
+
+    #[fail(display = "invalid ouptut description for address: {}", _0)]
+    InvalidOutputDescription(String),
 
     #[fail(display = "invalid script pub key for format: {}", _0)]
     InvalidScriptPubKey(String),
@@ -32,8 +41,8 @@ pub enum TransactionError {
     #[fail(display = "invalid chain id {:?}", _0)]
     InvalidChainId(u8),
 
-    #[fail(display = "{}", _0)]
-    AddressError(AddressError),
+    #[fail(display = "Null Error {:?}", _0)]
+    NullError(()),
 }
 
 impl From<&'static str> for TransactionError {
@@ -57,6 +66,12 @@ impl From<base58::FromBase58Error> for TransactionError {
 impl From<bech32::Error> for TransactionError {
     fn from(error: bech32::Error) -> Self {
         TransactionError::Crate("bech32", format!("{:?}", error))
+    }
+}
+
+impl From<()> for TransactionError {
+    fn from(error: ()) -> Self {
+        TransactionError::NullError(error)
     }
 }
 
