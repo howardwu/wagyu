@@ -18,11 +18,11 @@ use ff::{Field, PrimeField};
 use pairing::bls12_381::Bls12;
 use zcash_primitives::{
     jubjub::{edwards, fs::Fs},
-    JUBJUB,
     keys::OutgoingViewingKey,
     note_encryption::{Memo, SaplingNoteEncryption},
     primitives::{Diversifier, Note, PaymentAddress},
     transaction::components::Amount,
+    JUBJUB,
 };
 use zcash_proofs::sapling::{SaplingProvingContext, SaplingVerificationContext};
 
@@ -157,7 +157,7 @@ pub struct SaplingOutput {
     /// outgoing view key
     pub ovk: SaplingOutgoingViewingKey,
     /// Sapling output address
-    pub to:  PaymentAddress<Bls12>,
+    pub to: PaymentAddress<Bls12>,
     /// Sapling output note
     pub note: Note<Bls12>,
     /// Optional memo
@@ -207,12 +207,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         shielded_outputs: Vec<SaplingOutput>,
         join_splits: Vec<JoinSplit>,
     ) -> Result<Self, TransactionError> {
-
         let mut value_balance: i64 = 0;
 
-//        for spend in shielded_spends {
-//            value_balance += spend.note.value as i64;
-//        }
+        //        for spend in shielded_spends {
+        //            value_balance += spend.note.value as i64;
+        //        }
 
         for output in &shielded_outputs {
             value_balance -= output.note.value as i64;
@@ -229,7 +228,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             shielded_spends,
             shielded_outputs,
             join_splits,
-            binding_sig: None
+            binding_sig: None,
         })
     }
 
@@ -262,7 +261,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
         match &self.shielded_outputs.len() {
             0 => serialized_transaction.push(0u8),
-           _ => {
+            _ => {
                 serialized_transaction.extend(variable_length_integer(self.shielded_outputs.len() as u64)?);
 
                 for output in &self.shielded_outputs {
@@ -271,7 +270,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         None => {}
                     }
                 }
-            },
+            }
         };
 
         match &self.join_splits.len() {
@@ -281,7 +280,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
         match &self.binding_sig {
             Some(binding_sig) => serialized_transaction.extend(binding_sig),
-            None => {},
+            None => {}
         };
 
         Ok(serialized_transaction)
@@ -343,28 +342,28 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         match &self.shielded_spends.len() {
-            0 => {},
+            0 => {}
             _ => unimplemented!(),
         };
 
         match &self.shielded_outputs.len() {
-            0 => {},
+            0 => {}
             _ => {
                 for output in &mut self.shielded_outputs {
                     output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
                 }
-            },
+            }
         };
 
         Ok(())
     }
 
     /// Add the binding signature
-    pub fn generate_binding_sig(&mut self,
+    pub fn generate_binding_sig(
+        &mut self,
         proving_ctx: &mut SaplingProvingContext,
         verifying_ctx: &mut SaplingVerificationContext,
-    ) -> Result<(), TransactionError>{
-
+    ) -> Result<(), TransactionError> {
         let mut sighash = [0u8; 32];
         sighash.copy_from_slice(self.generate_sighash(None, SigHashCode::SIGHASH_ALL)?.as_bytes());
 
@@ -417,10 +416,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                     }
                 }
 
-                blake2_256_hash("ZcashSOutputHash", output_descriptions, None).as_bytes().to_vec()
+                blake2_256_hash("ZcashSOutputHash", output_descriptions, None)
+                    .as_bytes()
+                    .to_vec()
             }
         };
-
 
         let mut transaction_hash_preimage: Vec<u8> = Vec::new();
         transaction_hash_preimage.extend(&self.header.to_le_bytes());
@@ -437,7 +437,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
         match input_index {
             Some(index) => transaction_hash_preimage.extend(&self.inputs[index].serialize(false, true)?),
-            None => {},
+            None => {}
         }
 
         let transaction_hash = blake2_256_hash("ZcashSigHash", transaction_hash_preimage, Some("sapling"));
@@ -503,7 +503,7 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
                 let script_pub_key = &self.out_point.script_pub_key.clone();
                 serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                 serialized_input.extend(script_pub_key);
-            },
+            }
             (false, _) => {
                 serialized_input.extend(variable_length_integer(self.script.len() as u64)?);
                 serialized_input.extend(&self.script);
@@ -540,17 +540,23 @@ impl<N: ZcashNetwork> ZcashTransactionOutput<N> {
 }
 
 impl SaplingOutput {
-    pub fn new<N: ZcashNetwork>(ovk: SaplingOutgoingViewingKey, address: &str, value: u64) -> Result<Self, TransactionError> {
+    pub fn new<N: ZcashNetwork>(
+        ovk: SaplingOutgoingViewingKey,
+        address: &str,
+        value: u64,
+    ) -> Result<Self, TransactionError> {
         let diversifier = ZcashAddress::<N>::get_diversifier(&address)?;
         let pk_d = ZcashAddress::<N>::get_pk_d(&address)?;
 
-        let pk_d = edwards::Point::<Bls12, _>::read(&pk_d[..], &JUBJUB)?
-            .as_prime_order(&JUBJUB);
+        let pk_d = edwards::Point::<Bls12, _>::read(&pk_d[..], &JUBJUB)?.as_prime_order(&JUBJUB);
 
         match pk_d {
             None => return Err(TransactionError::Message("invalid pk_d".into())),
             Some(pk_d) => {
-                let to = PaymentAddress { pk_d: pk_d.clone(), diversifier: Diversifier(diversifier) };
+                let to = PaymentAddress {
+                    pk_d: pk_d.clone(),
+                    diversifier: Diversifier(diversifier),
+                };
                 let g_d = match to.g_d(&JUBJUB) {
                     Some(g_d) => g_d,
                     None => return Err(TransactionError::Message("invalid address".into())),
@@ -563,31 +569,29 @@ impl SaplingOutput {
                     r: Fs::random(&mut StdRng::from_entropy()),
                 };
 
-                Ok(
-                    Self {
-                        address: address.to_string(),
-                        ovk,
-                        to,
-                        note,
-                        memo: Memo::default(),
-                        output_description: None,
-                    }
-                )
+                Ok(Self {
+                    address: address.to_string(),
+                    ovk,
+                    to,
+                    note,
+                    memo: Memo::default(),
+                    output_description: None,
+                })
             }
         }
     }
 
     /// Create Sapling Output Description
-    pub fn create_sapling_output_description(&mut self,
+    pub fn create_sapling_output_description(
+        &mut self,
         proving_ctx: &mut SaplingProvingContext,
         verifying_ctx: &mut SaplingVerificationContext,
         output_params: &Parameters<Bls12>,
-        output_vk: &PreparedVerifyingKey<Bls12>
+        output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-
         let mut rng = &mut StdRng::from_entropy();
         let ovk = OutgoingViewingKey(self.ovk.0);
-        let enc = SaplingNoteEncryption::new(ovk, self.note.clone(), self.to.clone(), self.memo.clone(), &mut rng );
+        let enc = SaplingNoteEncryption::new(ovk, self.note.clone(), self.to.clone(), self.memo.clone(), &mut rng);
 
         let (proof, value_commitment) = proving_ctx.output_proof(
             enc.esk().clone(),
@@ -595,7 +599,7 @@ impl SaplingOutput {
             self.note.r,
             self.note.value,
             &output_params,
-            &JUBJUB
+            &JUBJUB,
         );
 
         // Generate the ciphertexts
@@ -606,12 +610,13 @@ impl SaplingOutput {
 
         // Write the points as bytes
 
-        let mut cmu = [0u8;32];
+        let mut cmu = [0u8; 32];
         cmu.copy_from_slice(
-            &cm.into_repr().0
+            &cm.into_repr()
+                .0
                 .iter()
                 .flat_map(|num| num.to_le_bytes().to_vec())
-                .collect::<Vec<u8>>()
+                .collect::<Vec<u8>>(),
         );
 
         let mut cv = [0u8; 32]; // Value commitment
@@ -622,8 +627,15 @@ impl SaplingOutput {
         proof.write(&mut zk_proof[..])?;
 
         // Verify the output description
-        match verifying_ctx.check_output(value_commitment, cm, enc.epk().clone().into(), proof, output_vk, &JUBJUB) {
-            true => {},
+        match verifying_ctx.check_output(
+            value_commitment,
+            cm,
+            enc.epk().clone().into(),
+            proof,
+            output_vk,
+            &JUBJUB,
+        ) {
+            true => {}
             false => return Err(TransactionError::InvalidOutputDescription(self.address.clone())),
         };
 
@@ -665,7 +677,11 @@ impl fmt::Display for OutputDescription {
         let out_ciphertext = format!("out_ciphertext: {} \n", hex::encode(&self.out_ciphertext));
         let zk_proof = format!("zk_proof: {} \n", hex::encode(&self.zk_proof));
 
-        write!(f, "{} {} {} {} {} {}", cv, cmu, ephemeral_key, enc_ciphertext, out_ciphertext, zk_proof)
+        write!(
+            f,
+            "{} {} {} {} {} {}",
+            cv, cmu, ephemeral_key, enc_ciphertext, out_ciphertext, zk_proof
+        )
     }
 }
 
@@ -749,12 +765,12 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Mainnet, Testnet};
     use crate::librustzcash::zip32::prf_expand;
+    use crate::{Mainnet, Testnet};
+    use bellman::groth16::PreparedVerifyingKey;
     use rand::Rng;
     use std::path::Path;
     use zcash_proofs::load_parameters;
-    use bellman::groth16::PreparedVerifyingKey;
 
     pub struct Transaction {
         pub header: u32,
@@ -813,7 +829,6 @@ mod tests {
         output_params: &Parameters<Bls12>,
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) {
-
         let mut input_vec: Vec<ZcashTransactionInput<N>> = Vec::new();
         for input in &inputs {
             let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
@@ -833,7 +848,8 @@ mod tests {
                 script_pub_key,
                 sequence,
                 input.sig_hash_code,
-            ).unwrap();
+            )
+            .unwrap();
 
             input_vec.push(transaction_input);
         }
@@ -855,11 +871,9 @@ mod tests {
                 ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
 
                 SaplingOutgoingViewingKey(ovk)
-            },
+            }
             // Get the ovk from the sapling extended spend key
-            Some( spend_key ) => {
-                spend_key.ovk
-            },
+            Some(spend_key) => spend_key.ovk,
         };
 
         let mut sapling_outputs_vec = Vec::new();
@@ -878,14 +892,16 @@ mod tests {
             vec![],
             sapling_outputs_vec,
             vec![],
-        ).unwrap();
-
+        )
+        .unwrap();
 
         let mut proving_ctx = SaplingProvingContext::new();
         let mut verifying_ctx = SaplingVerificationContext::new();
 
         // Generate the sapling output and do verification checks
-        transaction.build_sapling_descriptions(&mut proving_ctx, &mut verifying_ctx, output_params, output_vk).unwrap();
+        transaction
+            .build_sapling_descriptions(&mut proving_ctx, &mut verifying_ctx, output_params, output_vk)
+            .unwrap();
 
         for (index, input) in inputs.iter().enumerate() {
             transaction
@@ -894,7 +910,9 @@ mod tests {
         }
 
         // Create binding sig and do final verification check
-        transaction.generate_binding_sig(&mut proving_ctx, &mut verifying_ctx).unwrap();
+        transaction
+            .generate_binding_sig(&mut proving_ctx, &mut verifying_ctx)
+            .unwrap();
 
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
         println!("signed transaction: {}", signed_transaction);
@@ -930,7 +948,8 @@ mod tests {
                 script_pub_key,
                 sequence,
                 input.sig_hash_code,
-            ).unwrap();
+            )
+            .unwrap();
 
             input_vec.push(transaction_input);
         }
@@ -950,7 +969,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-        ).unwrap();
+        )
+        .unwrap();
 
         for (index, input) in inputs.iter().enumerate() {
             transaction
@@ -967,7 +987,8 @@ mod tests {
         type N = Testnet;
 
         const TRANSACTIONS: [Transaction; 3] = [
-            Transaction { // 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
+            Transaction {
+                // 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
                 header: 2147483652,
                 version_group_id: 0x892F2085,
                 lock_time: 0,
@@ -982,11 +1003,11 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1000010000),
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
-                    INPUT_FILLER
+                    INPUT_FILLER,
                 ],
                 outputs: [
                     OUTPUT_FILLER,
@@ -996,20 +1017,22 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
-                    OUTPUT_FILLER
+                    OUTPUT_FILLER,
                 ],
                 sapling_outputs: [
                     Output {
-                        address: "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
-                        amount: 1000000000
+                        address:
+                            "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
+                        amount: 1000000000,
                     },
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                 ],
-                expected_signed_transaction: ""
+                expected_signed_transaction: "",
             },
-            Transaction { // a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
+            Transaction {
+                // a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
                 header: 2147483652,
                 version_group_id: 0x892F2085,
                 lock_time: 0,
@@ -1024,7 +1047,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1000010000),
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
                     },
                     Input {
                         private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
@@ -1035,10 +1058,10 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1000010000),
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
                     },
                     INPUT_FILLER,
-                    INPUT_FILLER
+                    INPUT_FILLER,
                 ],
                 outputs: [
                     OUTPUT_FILLER,
@@ -1048,23 +1071,26 @@ mod tests {
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
-                    OUTPUT_FILLER
+                    OUTPUT_FILLER,
                 ],
                 sapling_outputs: [
                     Output {
-                        address: "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
-                        amount: 1000000000
+                        address:
+                            "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
+                        amount: 1000000000,
                     },
                     Output {
-                        address: "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
-                        amount: 1000000000
+                        address:
+                            "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
+                        amount: 1000000000,
                     },
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                 ],
-                expected_signed_transaction: ""
+                expected_signed_transaction: "",
             },
-            Transaction { // f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
+            Transaction {
+                // f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
                 header: 2147483652,
                 version_group_id: 0x892F2085,
                 lock_time: 0,
@@ -1079,41 +1105,41 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1000010000),
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
-                    INPUT_FILLER
+                    INPUT_FILLER,
                 ],
                 outputs: [
                     Output {
                         address: "tmGZKXeeSu2sVS72Lg1KAuKKUxg2S4iGXZ7",
-                        amount: 500000000
+                        amount: 500000000,
                     },
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER
-                ],
-                sapling_outputs: [
-                    Output {
-                        address: "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
-                        amount: 500000000
-                    },
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                     OUTPUT_FILLER,
                 ],
-                expected_signed_transaction: ""
+                sapling_outputs: [
+                    Output {
+                        address:
+                            "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
+                        amount: 500000000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
             },
         ];
 
         #[test]
         fn test_sapling_output_transactions() {
-
             let spend_path = Path::new("src/librustzcash/params/sapling-spend.params");
             let output_path = Path::new("src/librustzcash/params/sapling-output.params");
 
@@ -2014,10 +2040,9 @@ mod tests {
                             input.sig_hash_code,
                         );
                         assert!(invalid_input.is_err());
-                    },
+                    }
                     _ => assert!(private_key.is_err()),
                 }
-
             }
         }
 

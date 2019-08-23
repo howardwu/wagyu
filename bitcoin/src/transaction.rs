@@ -1314,10 +1314,9 @@ mod tests {
                             input.sig_hash_code,
                         );
                         assert!(invalid_input.is_err());
-                    },
+                    }
                     _ => assert!(private_key.is_err()),
                 }
-
             }
         }
 
