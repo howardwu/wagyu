@@ -1,7 +1,6 @@
 use crate::address::{Address, AddressError};
 use crate::private_key::PrivateKey;
 use crate::public_key::{PublicKey, PublicKeyError};
-use crate::one_time_key::{OneTimeKeyError};
 
 use std::{fmt::Debug, hash::Hash};
 
@@ -43,9 +42,6 @@ pub enum TransactionError {
     MoneroTransactionError,
 
     #[fail(display = "{}", _0)]
-    OneTimeKeyError(OneTimeKeyError),
-
-    #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
 }
 
@@ -82,12 +78,6 @@ impl From<bech32::Error> for TransactionError {
 impl From<hex::FromHexError> for TransactionError {
     fn from(error: hex::FromHexError) -> Self {
         TransactionError::Crate("hex", format!("{:?}", error))
-    }
-}
-
-impl From<OneTimeKeyError> for TransactionError {
-    fn from(error: OneTimeKeyError) -> Self {
-        TransactionError::OneTimeKeyError(error)
     }
 }
 

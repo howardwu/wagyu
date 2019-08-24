@@ -21,6 +21,7 @@ build = "build.rs"
 wagyu-model = { path = "../model", version = "0.6.0" }
 
 base58-monero = { version = "0.1.1" }
+libc = { version = "0.2" }
 crc = { version = "1.8.1" }
 curve25519-dalek = { version = "1.2.1" }
 hex = { version = "0.3.2" }
@@ -28,6 +29,9 @@ rand = { version = "0.7" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 tiny-keccak = { version = "1.4" }
+
+[build-dependencies]
+cmake = { version = "0.1" }
 
 [badges]
 travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }

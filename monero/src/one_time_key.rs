@@ -23,7 +23,8 @@ pub struct OneTimeKey<N: MoneroNetwork> {
 impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns one time key given recipient public keys, randomness, and output index
     pub fn new(public: &MoneroPublicKey<N>, rand: &[u8; 32], index: u64) -> Result<OneTimeKey<N>, OneTimeKeyError> {
-        //P = H_s(rA || n)G + B
+        //key = hash(ra || n)G + b
+        //one_time_key = hash((random * public_view_key) || index) * generator + public_spend_key
         const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
 
         let public_spend_key: [u8; 32] = match public.to_public_spend_key() {
@@ -35,7 +36,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
             None => return Err(OneTimeKeyError::PublicKeyError(PublicKeyError::NoViewingKey)),
         };
 
-        let B = &match CompressedEdwardsY::from_slice(&public_spend_key).decompress() {
+        let public_spend_point = &match CompressedEdwardsY::from_slice(&public_spend_key).decompress() {
             Some(point) => point,
             None => return Err(OneTimeKeyError::EdwardsPointError(public_spend_key)),
         };
@@ -45,52 +46,52 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
             &public_view_key,
             &rand,
             &mut concat
-        );
+        )?;
 
-        let H_s = &MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
-        let P: EdwardsPoint = H_s * G + B;
+        let hash = &MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
+        let key: EdwardsPoint = hash * G + public_spend_point;
 
         let tx = &Scalar::from_bits(*rand) * G;
 
         Ok(Self {
-            destination_key: P.compress().to_bytes(),
+            destination_key: key.compress().to_bytes(),
             transaction_public_key: tx.compress().to_bytes(),
             _network: PhantomData,
         })
     }
 
     /// Returns the one time private key given recipient private keys
-    pub fn to_private(&self, private: &MoneroPrivateKey<N>, index: u64) -> [u8; 32] {
+    pub fn to_private(&self, private: &MoneroPrivateKey<N>, index: u64) -> Result<[u8; 32], OneTimeKeyError> {
         //x = H_s(aR || n) + b
         let mut concat = Vec::<u8>::new();
-        let b = Scalar::from_bits(private.to_private_spend_key());
+        let private_spend_scalar = Scalar::from_bits(private.to_private_spend_key());
 
         MoneroTransaction::<N>::generate_key_derivation(
             &self.to_transaction_public_key(),
             &private.to_private_view_key(),
-            &mut concat);
+            &mut concat)?;
 
-        let H_s = MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
-        let x: Scalar = H_s + b;
+        let hash = MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
+        let x: Scalar = hash + private_spend_scalar;
 
-        x.to_bytes()
+        Ok(x.to_bytes())
     }
 
     /// Returns one time public key given recipient private keys for verification
-    pub fn to_public(&self, private: &MoneroPrivateKey<N>, index: u64) -> [u8; 32] {
+    pub fn to_public(&self, private: &MoneroPrivateKey<N>, index: u64) -> Result<[u8; 32], OneTimeKeyError> {
         //P = (H_s(aR || n) + b) * G
         const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
-        let one_time_private_key = self.to_private(private, index);
-        let P = &Scalar::from_bits(one_time_private_key) * G;
+        let one_time_private_key = self.to_private(private, index)?;
+        let one_time_public_key = &Scalar::from_bits(one_time_private_key) * G;
 
-        P.compress().to_bytes()
+        Ok(one_time_public_key.compress().to_bytes())
     }
 
     /// Verifies that the one time public key can be generated from recipient private keys
-    pub fn verify(&self, private: &MoneroPrivateKey<N>, index: u64) -> bool {
-        let expected = self.to_public(private, index);
+    pub fn verify(&self, private: &MoneroPrivateKey<N>, index: u64) -> Result<bool, OneTimeKeyError> {
+        let expected = self.to_public(private, index)?;
 
-        self.to_destination_key() == expected
+        Ok(self.to_destination_key() == expected)
     }
 
     pub fn to_destination_key(&self) -> [u8; 32] {
@@ -152,20 +153,20 @@ mod tests {
         );
         println!(
             "receiver private key   {:?}",
-            hex::encode(one_time_key.to_private(receiver_private_key, output_index))
+            hex::encode(one_time_key.to_private(receiver_private_key, output_index).unwrap())
         );
         println!(
             "receiver public key    {:?}",
-            hex::encode(one_time_key.to_public(receiver_private_key, output_index))
+            hex::encode(one_time_key.to_public(receiver_private_key, output_index).unwrap())
         );
 
-        assert!(one_time_key.verify(receiver_private_key, output_index));
+        assert!(one_time_key.verify(receiver_private_key, output_index).unwrap());
     }
 
     #[test]
     fn new() {
         KEYPAIRS.iter().for_each(
-            |(_, (private_spend_key, _), (public_spend_key, public_view_key), address, random_str, output_index)| {
+            |(_, (private_spend_key, _), (public_spend_key, public_view_key), _, random_str, output_index)| {
                 let public_key = MoneroPublicKey::<N>::from(public_spend_key, public_view_key, FORMAT).unwrap();
                 let private_key = MoneroPrivateKey::<N>::from_private_spend_key(private_spend_key, FORMAT).unwrap();
 

@@ -1,7 +1,7 @@
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use wagyu_model::{Address, AddressError, PrivateKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use serde::Serialize;
