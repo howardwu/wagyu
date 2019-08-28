@@ -1,11 +1,12 @@
 use crate::address::{Address, AddressError};
-use crate::private_key::PrivateKey;
+use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
+use crate::extended_private_key::ExtendedPrivateKeyError;
 
 use std::fmt::Debug;
 
 /// The interface for a generic transactions.
-pub trait Transaction: Clone + Debug + Send + Sync + 'static {
+pub trait Transaction: Clone + Send + Sync + 'static {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;
@@ -24,7 +25,13 @@ pub enum TransactionError {
     Crate(&'static str, String),
 
     #[fail(display = "{}", _0)]
+    ExtendedPrivateKeyError(ExtendedPrivateKeyError),
+
+    #[fail(display = "{}", _0)]
     Message(String),
+
+    #[fail(display = "invalid output address: {}", _0)]
+    InvalidOutputAddress(String),
 
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
@@ -43,11 +50,20 @@ pub enum TransactionError {
 
     #[fail(display = "Null Error {:?}", _0)]
     NullError(()),
+
+    #[fail(display = "{}", _0)]
+    PrivateKeyError(PrivateKeyError),
 }
 
 impl From<&'static str> for TransactionError {
     fn from(msg: &'static str) -> Self {
         TransactionError::Message(msg.into())
+    }
+}
+
+impl From<()> for TransactionError {
+    fn from(error: ()) -> Self {
+        TransactionError::NullError(error)
     }
 }
 
@@ -69,15 +85,21 @@ impl From<bech32::Error> for TransactionError {
     }
 }
 
-impl From<()> for TransactionError {
-    fn from(error: ()) -> Self {
-        TransactionError::NullError(error)
+impl From<ExtendedPrivateKeyError> for TransactionError {
+    fn from(error: ExtendedPrivateKeyError) -> Self {
+        TransactionError::ExtendedPrivateKeyError(error)
     }
 }
 
 impl From<hex::FromHexError> for TransactionError {
     fn from(error: hex::FromHexError) -> Self {
         TransactionError::Crate("hex", format!("{:?}", error))
+    }
+}
+
+impl From<PrivateKeyError> for TransactionError {
+    fn from(error: PrivateKeyError) -> Self {
+        TransactionError::PrivateKeyError(error)
     }
 }
 
