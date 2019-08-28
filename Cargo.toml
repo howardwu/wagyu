@@ -40,7 +40,7 @@ arrayvec = { version = "0.4.7" }
 base58 = { version = "0.1" }
 clap = { version = "~2.33.0" }
 colored = { version = "1.8" }
-digest = { version = "0.7.5" }
+digest = { version = "0.8.1" }
 either = { version = "1.5.0" }
 failure = { version = "0.1.5" }
 hex = { version = "0.3.2" }
