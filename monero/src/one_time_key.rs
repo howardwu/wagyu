@@ -1,12 +1,13 @@
+#![allow(non_snake_case)]
 use crate::address::Format;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use crate::transaction::MoneroTransaction;
 use wagyu_model::{one_time_key::OneTimeKeyError, PublicKeyError};
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
+use tiny_keccak::keccak256;
 use std::marker::PhantomData;
 
 /// Represents a one time key
@@ -42,13 +43,13 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         };
         let mut concat = Vec::<u8>::new();
 
-        MoneroTransaction::<N>::generate_key_derivation(
+        Self::generate_key_derivation(
             &public_view_key,
             &rand,
             &mut concat
         )?;
 
-        let hash = &MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
+        let hash = &Self::derivation_to_scalar(&mut concat, index);
         let key: EdwardsPoint = hash * G + public_spend_point;
 
         let tx = &Scalar::from_bits(*rand) * G;
@@ -66,12 +67,12 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let mut concat = Vec::<u8>::new();
         let private_spend_scalar = Scalar::from_bits(private.to_private_spend_key());
 
-        MoneroTransaction::<N>::generate_key_derivation(
+        Self::generate_key_derivation(
             &self.to_transaction_public_key(),
             &private.to_private_view_key(),
             &mut concat)?;
 
-        let hash = MoneroTransaction::<N>::derivation_to_scalar(&mut concat, index);
+        let hash = Self::derivation_to_scalar(&mut concat, index);
         let x: Scalar = hash + private_spend_scalar;
 
         Ok(x.to_bytes())
@@ -92,6 +93,62 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let expected = self.to_public(private, index)?;
 
         Ok(self.to_destination_key() == expected)
+    }
+
+    /// Encodes the index to conform to Monero consensus
+    fn encode_varint(index: u64) -> Vec<u8> {
+        // used here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L195
+        // impl here: https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/common/varint.h#L69
+        let mut res: Vec<u8> = vec![];
+        let mut n = index;
+        loop {
+            let bits = (n & 0b0111_1111) as u8;
+            n = n >> 7;
+            res.push(bits);
+            if n == 0u64 {
+                break;
+            }
+        }
+        let mut encoded_bytes = vec![];
+        match res.split_last() {
+            Some((last, arr)) => {
+                let _a: Vec<_> = arr
+                    .iter()
+                    .map(|bits| encoded_bytes.push(*bits | 0b1000_0000))
+                    .collect();
+                encoded_bytes.push(*last);
+            }
+            None => encoded_bytes.push(0x00),
+        }
+
+        encoded_bytes
+    }
+
+    /// Returns scalar base multiplication of public and secret key then multiplies result by cofactor
+    fn generate_key_derivation(public: &[u8; 32], secret_key: &[u8; 32], dest: &mut Vec<u8>) -> Result<(), OneTimeKeyError> {
+        // r * A
+        let r = Scalar::from_bits(*secret_key);
+        let A = &match CompressedEdwardsY::from_slice(public).decompress() {
+            Some(point) => point,
+            None => return Err(OneTimeKeyError::EdwardsPointError(*public)),
+        };
+
+        let mut rA: EdwardsPoint = r * A;
+        rA = rA.mul_by_cofactor(); //https://github.com/monero-project/monero/blob/50d48d611867ffcd41037e2ab4fec2526c08a7f5/src/crypto/crypto.cpp#L182
+
+        dest.clear();
+        dest.extend(rA.compress().to_bytes().to_vec());
+
+        Ok(())
+    }
+
+    /// Returns keccak256 hash of key derivation extended by output index as a scalar
+    fn derivation_to_scalar(derivation: &Vec<u8>, output_index: u64) -> Scalar {
+        // H_s(derivation || output_index)
+        let mut derivation = derivation.clone();
+        derivation.extend(&Self::encode_varint(output_index));
+
+        Scalar::from_bytes_mod_order(keccak256(&derivation))
     }
 
     pub fn to_destination_key(&self) -> [u8; 32] {

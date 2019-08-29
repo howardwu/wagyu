@@ -20,9 +20,6 @@ pub enum TransactionError {
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
-    #[fail(display = "could not generate Edwards point from slice {:?}", _0)]
-    EdwardsPointError([u8; 32]),
-
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
 
@@ -32,14 +29,8 @@ pub enum TransactionError {
     #[fail(display = "invalid chain id {:?}", _0)]
     InvalidChainId(u8),
 
-    #[fail(display = "could not generate keys for key image")]
-    KeyImageError,
-
     #[fail(display = "{}", _0)]
     Message(String),
-
-    #[fail(display = "monero transaction error")]
-    MoneroTransactionError,
 
     #[fail(display = "{}", _0)]
     PublicKeyError(PublicKeyError),
@@ -93,9 +84,21 @@ impl From<secp256k1::Error> for TransactionError {
     }
 }
 
+impl From<serde_json::error::Error> for TransactionError {
+    fn from(error: serde_json::error::Error) -> Self {
+        TransactionError::Crate("serde_json", format!("{:?}", error))
+    }
+}
+
 impl From<std::io::Error> for TransactionError {
     fn from(error: std::io::Error) -> Self {
         TransactionError::Crate("std::io", format!("{:?}", error))
+    }
+}
+
+impl From<std::num::ParseIntError> for TransactionError {
+    fn from(error: std::num::ParseIntError) -> Self {
+        TransactionError::Crate("std::num", format!("{:?}", error))
     }
 }
 
