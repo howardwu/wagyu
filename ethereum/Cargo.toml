@@ -1,6 +1,6 @@
 [package]
 name = "wagyu-ethereum"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "Collin Chin",
     "Raymond Chu",
