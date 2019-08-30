@@ -1,25 +1,23 @@
 use crate::address::{BitcoinAddress, Format};
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
-use wagu_model::{Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
-use std::{fmt, fmt::Display};
-use std::marker::PhantomData;
-use std::str::FromStr;
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinPublicKey<N: BitcoinNetwork> {
     /// The ECDSA public key
-    pub public_key: secp256k1::PublicKey,
+    public_key: secp256k1::PublicKey,
     /// If true, the public key is serialized in compressed form
-    pub compressed: bool,
+    compressed: bool,
     /// PhantomData
     _network: PhantomData<N>,
 }
 
-impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
+impl<N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
     type Address = BitcoinAddress<N>;
     type Format = Format;
     type PrivateKey = BitcoinPrivateKey<N>;
@@ -28,31 +26,52 @@ impl <N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         let secp = secp256k1::Secp256k1::new();
         Self {
-            public_key: secp256k1::PublicKey::from_secret_key(&secp, &private_key.secret_key),
-            compressed: private_key.compressed,
-            _network: PhantomData
+            public_key: secp256k1::PublicKey::from_secret_key(&secp, &private_key.to_secp256k1_secret_key()),
+            compressed: private_key.is_compressed(),
+            _network: PhantomData,
         }
     }
 
     /// Returns the address of the corresponding private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        BitcoinAddress::<N>::from_public_key(self, format)
+        Self::Address::from_public_key(self, format)
     }
 }
 
-impl <N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
+impl<N: BitcoinNetwork> BitcoinPublicKey<N> {
+    /// Returns a public key given a secp256k1 public key.
+    pub fn from_secp256k1_public_key(public_key: secp256k1::PublicKey, compressed: bool) -> Self {
+        Self {
+            public_key,
+            compressed,
+            _network: PhantomData,
+        }
+    }
+
+    /// Returns the secp256k1 public key of the public key.
+    pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
+        self.public_key.clone()
+    }
+
+    /// Returns `true` if the public key is in compressed form.
+    pub fn is_compressed(&self) -> bool {
+        self.compressed
+    }
+}
+
+impl<N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         Ok(Self {
             public_key: secp256k1::PublicKey::from_str(public_key)?,
             compressed: public_key.len() == 66,
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 }
 
-impl <N: BitcoinNetwork> Display for BitcoinPublicKey<N> {
+impl<N: BitcoinNetwork> Display for BitcoinPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.compressed {
             for s in &self.public_key.serialize()[..] {
@@ -74,7 +93,7 @@ mod tests {
 
     fn test_from_private_key<N: BitcoinNetwork>(
         expected_public_key: &BitcoinPublicKey<N>,
-        private_key: &BitcoinPrivateKey<N>
+        private_key: &BitcoinPrivateKey<N>,
     ) {
         let public_key = BitcoinPublicKey::from_private_key(private_key);
         assert_eq!(*expected_public_key, public_key);
@@ -83,7 +102,7 @@ mod tests {
     fn test_to_address<N: BitcoinNetwork>(
         expected_address: &BitcoinAddress<N>,
         expected_format: &Format,
-        public_key: &BitcoinPublicKey<N>
+        public_key: &BitcoinPublicKey<N>,
     ) {
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
@@ -100,7 +119,7 @@ mod tests {
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_compressed, public_key.compressed);
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*expected_format, address.format);
+        assert_eq!(*expected_format, address.format());
     }
 
     fn test_to_str<N: BitcoinNetwork>(expected_public_key: &str, public_key: &BitcoinPublicKey<N>) {
@@ -115,28 +134,28 @@ mod tests {
             (
                 "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H",
                 "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5",
-                "1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U"
+                "1uNM6oivjCJU2RcsNbfooVwcPjDRhjW7U",
             ),
             (
                 "L4uNhZS86VLiKKGZZGNxwP7s67EfYfQ7S9bNnVfVbU9GBVVo2xoD",
                 "03a385ac59a31841764d55e7c8a243482a89073785524f0c45335afcf425d567b1",
-                "16sz5SMFeRfwaqY6wKzkiufwPmF1J7RhAx"
+                "16sz5SMFeRfwaqY6wKzkiufwPmF1J7RhAx",
             ),
             (
                 "KyH2BrThuUnzSXxDrDxQbpK277HxZfwPxVaCs5cwbzDEVNno2nts",
                 "028fa046ccfbb4ff134a5e0e8969d8085c6e2a1a52d793d351d4ddf02cd43d64b2",
-                "17QAwDwsLpehmCqSQXdHZb8vpsYVDnX7ic"
+                "17QAwDwsLpehmCqSQXdHZb8vpsYVDnX7ic",
             ),
             (
                 "KxEqpgCMencSHwiCG6xix9teUrB7JQNy2c7LKU56fZKZtP46nEca",
                 "02f7fb7e7d5dc97a5e1cd36b1ea3218234649f98f32cf08f45f8cd742860f676bf",
-                "1ESGcxbb96gQmJuEQsSapdk1jH6JaEnbU9"
+                "1ESGcxbb96gQmJuEQsSapdk1jH6JaEnbU9",
             ),
             (
                 "L2gCQPMpS5PqGvcBFMtYRT5S5jAo6WaNL1aPLvY2JkykkKSkqtm5",
                 "02aad3c8ee3dc6753a5284c97124f0047b2af0b91ba256b6262e07fcc2630f6b7f",
-                "1MRCogND3SKqa4xRZNpSC6iQxtwCpvmzfE"
-            )
+                "1MRCogND3SKqa4xRZNpSC6iQxtwCpvmzfE",
+            ),
         ];
 
         #[test]
@@ -160,11 +179,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    true,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, true, &Format::P2PKH);
             });
         }
 
@@ -230,11 +245,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    false,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, false, &Format::P2PKH);
             });
         }
 
@@ -255,28 +266,28 @@ mod tests {
             (
                 "cNB6GpygWSZNRG5hotKjdAaNfgrzx984QYb2uj9rHpaCDkyy2aAz",
                 "02bc25a326a8fa59edd1a2adff51956ea3c61f404cff6e926225b3fe3b303561ac",
-                "mkerhifaLqJgAgrAjLomUStznPgVewNkka"
+                "mkerhifaLqJgAgrAjLomUStznPgVewNkka",
             ),
             (
                 "cW4GQXEykwWJHVfRH8u25MzpzaU5XQDekdpdQbj9f9V7PLm25m4n",
                 "02e21263a700b22c16088dc45fb10d38cc8c4ebb4cdcb612e6551d972b60aa2446",
-                "n3NUsMjN3D6EWZ5nKZLvHnVwaAxfybQDq9"
+                "n3NUsMjN3D6EWZ5nKZLvHnVwaAxfybQDq9",
             ),
             (
                 "cSA6Mo1PYYK2uaDH22KoreQZdkSLobcrxZwnLcotDiYocCSjCVXy",
                 "0355210590fbe6dcb663c6166cd5cb169169e0d4bac76ce78d4ac29ddf683b2541",
-                "mzt1DhTJMzXarvJukPUxnfA1syVhDuZapf"
+                "mzt1DhTJMzXarvJukPUxnfA1syVhDuZapf",
             ),
             (
                 "cUVDoLpgXFYZGmjoyMusNEZJ174wk8ggjyH2Uo7L5nB1w5werAjX",
                 "0259b863ba239379d6ebee4074b6f9c9f7f23a581ff529aa8d1431d94cb2f3cd99",
-                "mxe1oRLS21dEqt6H77GPGUx59Zj4ucUBbc"
+                "mxe1oRLS21dEqt6H77GPGUx59Zj4ucUBbc",
             ),
             (
                 "cRhBWs3Bg9oXERSEY8GLaZjN7eb1FmkCnRdmwjCG2pVXVPUqXNiT",
                 "02826afccd44e32a9542f72a3a7753b99dbaf4a800bb70b6155510b1ce7a4bf607",
-                "mpvYGW4UNjYRaQ1adpE8ThYNXCVkWjhAPb"
-            )
+                "mpvYGW4UNjYRaQ1adpE8ThYNXCVkWjhAPb",
+            ),
         ];
 
         #[test]
@@ -300,11 +311,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    true,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, true, &Format::P2PKH);
             });
         }
 
@@ -370,11 +377,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    false,
-                    &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, false, &Format::P2PKH);
             });
         }
 
@@ -395,28 +398,28 @@ mod tests {
             (
                 "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJN",
                 "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab4",
-                "3QKTruktKRSmY3QfhoijwT1BU1npSGMQPG"
+                "3QKTruktKRSmY3QfhoijwT1BU1npSGMQPG",
             ),
             (
                 "L4EYurAwjsXiQrZ9XWdWdf5LDVAGAwGW58LtgZhGtR1cXUjS8oWD",
                 "024a185e896e5cf4cb0b441a18b5eac1a682e1848731449a5bb4c4a55c6d0fac3f",
-                "3JU5wvE4YrpZ5CgwpALBJB1C4YJjuZjXhj"
+                "3JU5wvE4YrpZ5CgwpALBJB1C4YJjuZjXhj",
             ),
             (
                 "KyMSREGeHw2fnaRhTn1Cq9HYot9QR9AyUX6z8RbRF5Zr98qdmTjJ",
                 "0337893947d9738d6d026bd5fa86d3c563ebc5840916d0ea50b143a83db7ef9de7",
-                "3NzBJJPE3gaq5T9bmLJR4iHhmSHTgJdus4"
+                "3NzBJJPE3gaq5T9bmLJR4iHhmSHTgJdus4",
             ),
             (
                 "L5DtYc8LkDBQWWUAsWcgQZZqpVfUYCLyHZveGXKGT2hCS4pnnmqp",
                 "03eb86647457f2dfda66e7574d26cc4a6ecca472bc2ff331f333eb21614a0c58ee",
-                "3JUHwBJu1Figs4FesZPCgfBQKJC4GHjwPa"
+                "3JUHwBJu1Figs4FesZPCgfBQKJC4GHjwPa",
             ),
             (
                 "L4GoufTyWZoy1WDzRDacywokD28C7amVH9Jyfsyr8XZpR8Pog7gK",
                 "025195d4c21c7001103649f0bfb37f61a0da1e345e5847b005dbd10f0b7b7f9e6f",
-                "3L6rBuHhf3MzY1qEXMxeyY18bo8H8uKb4D"
-            )
+                "3L6rBuHhf3MzY1qEXMxeyY18bo8H8uKb4D",
+            ),
         ];
 
         #[test]
@@ -440,11 +443,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    true,
-                    &Format::P2SH_P2WPKH);
+                test_from_str::<N>(expected_public_key, expected_address, true, &Format::P2SH_P2WPKH);
             });
         }
 
@@ -465,28 +464,28 @@ mod tests {
             (
                 "cPYtDeoeHg3wXp7hzcZ8Bu51HtN74yNdSDtdRuXamKCyzvU2oQM2",
                 "025718c5ebfbbb3566bf4757ca57822377eca9be9ace4d038052156dfe73f4c439",
-                "2Mt46mJZ8i7x2eiN77MekrD4UJg6GFt9mUh"
+                "2Mt46mJZ8i7x2eiN77MekrD4UJg6GFt9mUh",
             ),
             (
                 "cMyPKTkYyhZS9cvrxkJZKFLEtqML6suBuDyZfFKXqGeHvnEPaD3x",
                 "0236cd9b36cc3e08bf457ff6663b66d049ad942253d52bd5d939ea654d872bd5f3",
-                "2MvRwrFLhxfwP96t6z6Th28No4Va19fogj3"
+                "2MvRwrFLhxfwP96t6z6Th28No4Va19fogj3",
             ),
             (
                 "cTWWzheif86K9fouCo5gg1G4pEdGbLRrnHbY3uRr6AmhjKwNUrGh",
                 "021779b92c6a29c0bb554af8a059d51e08c900ca652fac13c1dab62da34016b722",
-                "2N1STUKnC6atTS2JttzdbP1891sCrD5i6xu"
+                "2N1STUKnC6atTS2JttzdbP1891sCrD5i6xu",
             ),
             (
                 "cV2L63nMM3WZwrU9EKFFP218XAQBhsDmEQ9uTw3vhMAz25Gna9nF",
                 "032a1af62e21831cc0951daf4f2e8f457bc59a4dc716e86f066b4de40020c9c8f1",
-                "2N8mGnLgSL8GUyDELStD4YVGawdai52ax9q"
+                "2N8mGnLgSL8GUyDELStD4YVGawdai52ax9q",
             ),
             (
                 "cTB6EeZgiGCziMQycbUCbn25AkipGACtY1Lyd1rAhGnTPEwHSHQT",
                 "027ebe9c4c3d976c490d34aad11d66558b052e6359925f8b33e51428dfdf59ad79",
-                "2N2JVpNUWsnV4MZMF11ewG2BVjhHoVNkv6K"
-            )
+                "2N2JVpNUWsnV4MZMF11ewG2BVjhHoVNkv6K",
+            ),
         ];
 
         #[test]
@@ -510,11 +509,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(
-                    expected_public_key,
-                    expected_address,
-                    true,
-                    &Format::P2SH_P2WPKH);
+                test_from_str::<N>(expected_public_key, expected_address, true, &Format::P2SH_P2WPKH);
             });
         }
 
@@ -529,7 +524,6 @@ mod tests {
 
     #[test]
     fn test_p2pkh_invalid() {
-
         type N = Mainnet;
 
         // Invalid public key length
@@ -543,17 +537,16 @@ mod tests {
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db";
         assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
-        let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44";
+        let public_key =
+            "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44";
         assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5039ed714bf521e96e3f3609b74da898e44d0fb64ba68c62c57852470ffc28e3db5";
         assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
-
     }
 
     #[test]
     fn test_p2sh_p2wpkh_invalid() {
-
         type N = Mainnet;
 
         // Invalid public key length
@@ -567,11 +560,11 @@ mod tests {
         let public_key = "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab";
         assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
-        let public_key = "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab402468791fee1444df3a6e786e2f9da79198";
+        let public_key =
+            "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab402468791fee1444df3a6e786e2f9da79198";
         assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "02468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab402468791fee1444df3a6e786e2f9da79198f8902387e1fa5a2c051950c4df51ab4";
         assert!(BitcoinPublicKey::<N>::from_str(public_key).is_err());
-
     }
 }

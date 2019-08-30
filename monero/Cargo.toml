@@ -1,5 +1,5 @@
 [package]
-name = "monero"
+name = "wagyu-monero"
 version = "0.6.0"
 authors = [
     "Collin Chin",
@@ -8,25 +8,25 @@ authors = [
     "Howard Wu"
 ]
 description = "A library for generating Monero wallets"
-homepage = "https://github.com/ArgusHQ/wagu"
-repository = "https://github.com/ArgusHQ/wagu"
-categories = ["command-line-utilities"]
-keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+homepage = "https://github.com/ArgusHQ/wagyu"
+repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.0/monero"
+categories = ["command-line-utilities", "cryptocurrency"]
+keywords = ["blockchain", "crypto", "cryptocurrency", "monero", "wallet"]
 readme = "README.md"
 license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-wagu-model = { path = "../model" }
+wagyu-model = { path = "../model", version = "0.6.0" }
 
 base58-monero = { version = "0.1.1" }
-curve25519-dalek = "1.2.1"
-hex = "0.3.2"
-rand = "0.7"
-secp256k1 = "0.11.1"
+crc = { version = "1.8.1" }
+curve25519-dalek = { version = "1.2.3" }
+hex = { version = "0.3.2" }
+rand = { version = "0.7" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tiny-keccak = "1.4"
+serde_json = { version = "1.0" }
+tiny-keccak = { version = "1.4" }
 
 [badges]
-travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }

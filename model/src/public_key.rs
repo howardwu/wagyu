@@ -3,21 +3,11 @@ use crate::private_key::PrivateKey;
 
 use std::{
     fmt::{Debug, Display},
-    str::FromStr
+    str::FromStr,
 };
 
 /// The interface for a generic public key.
-pub trait PublicKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;
@@ -31,7 +21,6 @@ pub trait PublicKey:
 
 #[derive(Debug, Fail)]
 pub enum PublicKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -40,6 +29,21 @@ pub enum PublicKeyError {
 
     #[fail(display = "invalid character length: {}", _0)]
     InvalidCharacterLength(usize),
+
+    #[fail(display = "invalid public key prefix: {:?}", _0)]
+    InvalidPrefix(String),
+}
+
+impl From<base58::FromBase58Error> for PublicKeyError {
+    fn from(error: base58::FromBase58Error) -> Self {
+        PublicKeyError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for PublicKeyError {
+    fn from(error: bech32::Error) -> Self {
+        PublicKeyError::Crate("bech32", format!("{:?}", error))
+    }
 }
 
 impl From<hex::FromHexError> for PublicKeyError {

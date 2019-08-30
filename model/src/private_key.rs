@@ -1,26 +1,20 @@
 use crate::address::{Address, AddressError};
 use crate::public_key::PublicKey;
 
-use std::{fmt::{Debug, Display}, str::FromStr};
+use rand::Rng;
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 /// The interface for a generic private key.
-pub trait PrivateKey:
-    Clone
-    + Debug
-    + Display
-    + FromStr
-    + Send
-    + Sync
-    + 'static
-    + Eq
-    + Sized
-{
+pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
     type Format;
     type PublicKey: PublicKey;
 
     /// Returns a randomly-generated private key.
-    fn new() -> Result<Self, PrivateKeyError>;
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError>;
 
     /// Returns the public key of the corresponding private key.
     fn to_public_key(&self) -> Self::PublicKey;
@@ -31,7 +25,6 @@ pub trait PrivateKey:
 
 #[derive(Debug, Fail)]
 pub enum PrivateKeyError {
-
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -66,6 +59,12 @@ impl From<&'static str> for PrivateKeyError {
 impl From<base58::FromBase58Error> for PrivateKeyError {
     fn from(error: base58::FromBase58Error) -> Self {
         PrivateKeyError::Crate("base58", format!("{:?}", error))
+    }
+}
+
+impl From<bech32::Error> for PrivateKeyError {
+    fn from(error: bech32::Error) -> Self {
+        PrivateKeyError::Crate("bech32", format!("{:?}", error))
     }
 }
 

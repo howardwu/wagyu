@@ -1,5 +1,5 @@
 [package]
-name = "wagu"
+name = "wagyu"
 version = "0.6.0"
 authors = [
     "Collin Chin",
@@ -8,44 +8,49 @@ authors = [
     "Howard Wu"
 ]
 description = "A command-line tool to generate cryptocurrency wallets"
-homepage = "https://github.com/ArgusHQ/wagu"
-repository = "https://github.com/ArgusHQ/wagu"
-categories = ["command-line-utilities"]
-keywords = ["cryptocurrency", "blockchain", "bitcoin", "wallet", "ethereum"]
+homepage = "https://github.com/ArgusHQ/wagyu"
+repository = "https://github.com/ArgusHQ/wagyu"
+categories = ["command-line-utilities", "cryptocurrency"]
+keywords = ["blockchain", "command-line", "crypto", "cryptocurrency", "wallet"]
 readme = "README.md"
 license = "MIT/Apache-2.0"
 edition = "2018"
 
 [lib]
-path = "wagu/lib.rs"
+path = "wagyu/lib.rs"
 
 [[bin]]
-name = "wagu"
-path = "wagu/cli.rs"
+name = "wagyu"
+path = "wagyu/main.rs"
 
 [workspace]
 members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
 
 [badges]
-travis-ci = { repository = "ArgusHQ/wagu", branch = "master" }
+travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
 
 [dependencies]
-bitcoin = { path = "./bitcoin" }
-ethereum = { path = "./ethereum" }
-wagu-model = { path = "./model" }
-monero = { path = "./monero" }
-zcash = { path = "./zcash" }
+wagyu-bitcoin = { path = "./bitcoin", version = "0.6.0" }
+wagyu-ethereum = { path = "./ethereum", version = "0.6.0" }
+wagyu-model = { path = "./model", version = "0.6.0" }
+wagyu-monero = { path = "./monero", version = "0.6.0" }
+wagyu-zcash = { path = "./zcash", version = "0.6.0" }
 
-arrayvec = "0.4.7"
-base58 = "0.1"
-clap = "~2.27.0"
-digest = "0.7.5"
-either = "1.5.0"
-lazy_static = "1.1.0"
-safemem = "0.3.0"
+arrayvec = { version = "0.4.7" }
+base58 = { version = "0.1" }
+clap = { version = "~2.33.0" }
+colored = { version = "1.8" }
+digest = { version = "0.8.1" }
+either = { version = "1.5.0" }
+failure = { version = "0.1.5" }
+hex = { version = "0.3.2" }
+lazy_static = { version = "1.1.0" }
+rand = { version = "0.7" }
+rand_core = { version = "0.5.1" }
+safemem = { version = "0.3.2" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tiny-keccak = "1.4"
+serde_json = { version = "1.0" }
+tiny-keccak = { version = "1.4" }
 
 [profile.release]
 opt-level = 3

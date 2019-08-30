@@ -1,9 +1,9 @@
 .idea/
 /target
 **/*.rs.bk
-Cargo.lock
 .DS_Store
 **/*.rs.fmt
 *.rs.fmt
 **/*.toml.fmt
 **/Cargo.toml.fmt
+*.iml
