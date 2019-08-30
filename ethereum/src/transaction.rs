@@ -6,7 +6,7 @@ use rlp::RlpStream;
 use secp256k1::Secp256k1;
 use std::str::FromStr;
 use tiny_keccak::keccak256;
-use wagu_model::AddressError;
+use wagyu_model::AddressError;
 
 /// Represents a raw Ethereum transaction
 pub struct EthereumTransaction {
@@ -50,7 +50,7 @@ impl EthereumTransaction {
                 nonce: Self::str_to_u256(nonce),
                 gas_price: Self::str_to_u256(gas_price),
                 gas: Self::str_to_u256(gas),
-                to: hex::decode(&EthereumAddress::from_str(to)?.address[2..]).unwrap(),
+                to: hex::decode(&EthereumAddress::from_str(to)?.to_string()[2..]).unwrap(),
                 value: Self::str_to_u256(value),
                 data: data.as_bytes().to_vec()
             }
@@ -63,7 +63,7 @@ impl EthereumTransaction {
             return Err("invalid chain_id");
         }
 
-        let ethereum_private_key = EthereumPrivateKey::from(private_key);
+        let ethereum_private_key = EthereumPrivateKey::from_str(private_key);
         if ethereum_private_key.is_err() {
             return Err("invalid private key");
         }
@@ -115,7 +115,7 @@ impl EthereumTransaction {
     fn ecdsa_sign(hash: &[u8], private_key: EthereumPrivateKey, chain_id: &u8) -> EthereumTransactionSignature {
         let message = secp256k1::Message::from_slice(hash).unwrap();
         let sign = Secp256k1::signing_only();
-        let (v, signature) = sign.sign_recoverable(&message, &private_key.0).serialize_compact(&sign);
+        let (v, signature) = sign.sign_recoverable(&message, &private_key.to_secp256k1_secret_key()).serialize_compact();
 
         EthereumTransactionSignature {
             v: Self::chain_replay_protection(v.to_i32() as u8, chain_id),
