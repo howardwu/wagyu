@@ -17,5 +17,4 @@ fn main() {
 
     // link mymonero-core-cpp library
     println!("cargo:rustc-link-lib=mymonero-core-cpp");
-//    println!("cargo:rustc-link-lib=boost_thread");
 }

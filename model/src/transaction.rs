@@ -96,6 +96,12 @@ impl From<std::io::Error> for TransactionError {
     }
 }
 
+impl From<std::str::ParseBoolError> for TransactionError {
+    fn from(error: std::str::ParseBoolError) -> Self {
+        TransactionError::Crate("std::str", format!("{:?}", error))
+    }
+}
+
 impl From<std::num::ParseIntError> for TransactionError {
     fn from(error: std::num::ParseIntError) -> Self {
         TransactionError::Crate("std::num", format!("{:?}", error))
