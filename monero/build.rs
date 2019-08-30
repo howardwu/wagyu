@@ -7,7 +7,7 @@ fn main() {
 
     // link boost libraries (tested on OSX only!)
     println!("cargo:rustc-link-lib=boost_system");
-    println!("cargo:rustc-link-lib=boost_thread");
+    println!("cargo:rustc-link-lib=boost_thread-mt");
 
     // build mymonero-core-cpp
     let mymonero_path = Config::new("mymonero-core-cpp").build();
