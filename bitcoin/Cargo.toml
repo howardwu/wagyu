@@ -21,7 +21,7 @@ wagyu-model = { path = "../model", version = "0.6.0" }
 
 base58 = { version = "0.1" }
 bech32 = { version = "0.6.0" }
-bitvec = { version = "0.14.0" }
+bitvec = { version = "0.15.1" }
 digest = { version = "0.8.1" }
 failure = { version = "0.1.5" }
 hex = { version = "0.3.2" }
