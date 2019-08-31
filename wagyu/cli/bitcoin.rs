@@ -1,5 +1,5 @@
 use crate::bitcoin::{
-    address::Format as BitcoinFormat, wordlist::*, BitcoinAddress, BitcoinDerivationPath, BitcoinExtendedPrivateKey,
+    format::BitcoinFormat, wordlist::*, BitcoinAddress, BitcoinDerivationPath, BitcoinExtendedPrivateKey,
     BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork, BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist,
     Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
 };

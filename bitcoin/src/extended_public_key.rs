@@ -1,6 +1,7 @@
-use crate::address::{BitcoinAddress, Format};
+use crate::address::BitcoinAddress;
 use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
@@ -20,7 +21,7 @@ type HmacSha512 = Hmac<Sha512>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
     /// The address format
-    format: Format,
+    format: BitcoinFormat,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -39,7 +40,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type Address = BitcoinAddress<N>;
     type DerivationPath = BitcoinDerivationPath;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -125,7 +126,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
 
         // Check that the version bytes correspond with the correct network.
         let _ = N::from_extended_public_key_version_bytes(&data[0..4])?;
-        let format = Format::from_extended_public_key_version_bytes(&data[0..4])?;
+        let format = BitcoinFormat::from_extended_public_key_version_bytes(&data[0..4])?;
 
         let mut version = [0u8; 4];
         version.copy_from_slice(&data[0..4]);
