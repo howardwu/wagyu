@@ -1,5 +1,5 @@
 use super::*;
-use crate::address::Format;
+use crate::format::MoneroFormat;
 use wagyu_model::{AddressError, Network, NetworkError};
 
 use serde::Serialize;
@@ -15,11 +15,11 @@ impl MoneroNetwork for Stagenet {
 
     /// Returns the address prefix of the given network.
     /// https://github.com/monero-project/monero/blob/3ad4ecd4ff52f011ee94e0e80754b965b82f072b/src/cryptonote_config.h#L182&L184
-    fn to_address_prefix(format: &Format) -> u8 {
+    fn to_address_prefix(format: &MoneroFormat) -> u8 {
         match format {
-            Format::Standard => 24,
-            Format::Integrated(_) => 25,
-            Format::Subaddress(_, _) => 36,
+            MoneroFormat::Standard => 24,
+            MoneroFormat::Integrated(_) => 25,
+            MoneroFormat::Subaddress(_, _) => 36,
         }
     }
 
