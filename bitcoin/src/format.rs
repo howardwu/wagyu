@@ -1,5 +1,5 @@
 use crate::network::BitcoinNetwork;
-use wagyu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError};
+use wagyu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, Format};
 
 use serde::Serialize;
 use std::fmt;
@@ -15,6 +15,8 @@ pub enum BitcoinFormat {
     /// Bech32, e.g. bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx
     Bech32,
 }
+
+impl Format for BitcoinFormat {}
 
 impl BitcoinFormat {
     /// Returns the address prefix of the given network.
