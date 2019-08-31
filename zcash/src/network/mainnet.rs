@@ -1,5 +1,5 @@
 use super::*;
-use crate::address::Format;
+use crate::format::ZcashFormat;
 use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
@@ -14,12 +14,12 @@ impl ZcashNetwork for Mainnet {
     const NAME: &'static str = "mainnet";
 
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &Format) -> Vec<u8> {
+    fn to_address_prefix(format: &ZcashFormat) -> Vec<u8> {
         match format {
-            Format::P2PKH => vec![0x1C, 0xB8],
-            Format::P2SH => vec![0x1C, 0xBD],
-            Format::Sprout => vec![0x16, 0x9A],
-            Format::Sapling(_) => "zs".as_bytes().to_vec(),
+            ZcashFormat::P2PKH => vec![0x1C, 0xB8],
+            ZcashFormat::P2SH => vec![0x1C, 0xBD],
+            ZcashFormat::Sprout => vec![0x16, 0x9A],
+            ZcashFormat::Sapling(_) => "zs".as_bytes().to_vec(),
         }
     }
 

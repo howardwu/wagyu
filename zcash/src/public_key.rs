@@ -1,4 +1,5 @@
-use crate::address::{Format, ZcashAddress};
+use crate::address::ZcashAddress;
+use crate::format::ZcashFormat;
 use crate::librustzcash::algebra::curve::bls12_381::Bls12;
 use crate::librustzcash::sapling_crypto::{
     jubjub::{edwards, FixedGenerators, JubjubBls12, JubjubEngine, JubjubParams, Unknown},
@@ -186,7 +187,7 @@ pub enum ZcashPublicKey<N: ZcashNetwork> {
 
 impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
     type Address = ZcashAddress<N>;
-    type Format = Format;
+    type Format = ZcashFormat;
     type PrivateKey = ZcashPrivateKey<N>;
 
     /// Returns the public key corresponding to the given private key.
@@ -319,14 +320,14 @@ mod tests {
 
     fn test_to_address<N: ZcashNetwork>(
         expected_address: &ZcashAddress<N>,
-        expected_format: &Format,
+        expected_format: &ZcashFormat,
         public_key: &ZcashPublicKey<N>,
     ) {
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str<N: ZcashNetwork>(expected_public_key: &str, expected_address: &str, expected_format: &Format) {
+    fn test_from_str<N: ZcashNetwork>(expected_public_key: &str, expected_address: &str, expected_format: &ZcashFormat) {
         let public_key = ZcashPublicKey::<N>::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
@@ -385,14 +386,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::<N>::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::P2PKH, &public_key);
+                test_to_address(&expected_address, &ZcashFormat::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &ZcashFormat::P2PKH);
             });
         }
 
@@ -452,14 +453,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::<N>::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::P2PKH, &public_key);
+                test_to_address(&expected_address, &ZcashFormat::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &ZcashFormat::P2PKH);
             });
         }
 
@@ -519,14 +520,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::<N>::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::P2PKH, &public_key);
+                test_to_address(&expected_address, &ZcashFormat::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &ZcashFormat::P2PKH);
             });
         }
 
@@ -586,14 +587,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::<N>::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
-                test_to_address(&expected_address, &Format::P2PKH, &public_key);
+                test_to_address(&expected_address, &ZcashFormat::P2PKH, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, &Format::P2PKH);
+                test_from_str::<N>(expected_public_key, expected_address, &ZcashFormat::P2PKH);
             });
         }
 
@@ -653,14 +654,14 @@ mod tests {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let expected_address = ZcashAddress::from_str(address).unwrap();
                 let public_key = ZcashPublicKey::<N>::from_str(public_key).unwrap();
-                test_to_address(&expected_address, &Format::Sprout, &public_key);
+                test_to_address(&expected_address, &ZcashFormat::Sprout, &public_key);
             })
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, &Format::Sprout);
+                test_from_str::<N>(expected_public_key, expected_address, &ZcashFormat::Sprout);
             });
         }
 
@@ -722,7 +723,7 @@ mod tests {
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
                 test_to_address(
                     &expected_address,
-                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())),
+                    &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())),
                     &public_key,
                 );
             });
@@ -734,7 +735,7 @@ mod tests {
                 test_from_str::<N>(
                     expected_public_key,
                     expected_address,
-                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
+                    &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
                 );
             });
         }
@@ -797,7 +798,7 @@ mod tests {
                 let public_key = ZcashPublicKey::<N>::from_str(&public_key).unwrap();
                 test_to_address(
                     &expected_address,
-                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())),
+                    &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(address).unwrap())),
                     &public_key,
                 );
             });
@@ -809,7 +810,7 @@ mod tests {
                 test_from_str::<N>(
                     expected_public_key,
                     expected_address,
-                    &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
+                    &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
                 );
             });
         }

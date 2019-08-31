@@ -1,6 +1,7 @@
-use crate::address::{Format, ZcashAddress};
+use crate::address::ZcashAddress;
 use crate::derivation_path::ZcashDerivationPath;
 use crate::extended_public_key::ZcashExtendedPublicKey;
+use crate::format::ZcashFormat;
 use crate::librustzcash::zip32::ExtendedSpendingKey;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, ZcashPrivateKey};
@@ -25,7 +26,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     type Address = ZcashAddress<N>;
     type DerivationPath = ZcashDerivationPath;
     type ExtendedPublicKey = ZcashExtendedPublicKey<N>;
-    type Format = Format;
+    type Format = ZcashFormat;
     type PrivateKey = ZcashPrivateKey<N>;
     type PublicKey = ZcashPublicKey<N>;
 
@@ -153,14 +154,14 @@ mod tests {
     fn test_new<N: ZcashNetwork>(expected_extended_private_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
     fn test_to_extended_public_key<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
         let extended_public_key = extended_private_key.to_extended_public_key();
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
@@ -168,8 +169,8 @@ mod tests {
     fn test_to_address<N: ZcashNetwork>(expected_address: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
-        let format = &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
+        let format = &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
         let address = extended_private_key.to_address(&format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
@@ -182,7 +183,7 @@ mod tests {
     fn test_to_string<N: ZcashNetwork>(expected_extended_private_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &Format::Sapling(None), &path).unwrap();
+        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
