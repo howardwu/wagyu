@@ -14,7 +14,7 @@ use base58::{FromBase58, ToBase58};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, fmt::Display, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -33,8 +33,6 @@ pub struct BitcoinExtendedPrivateKey<N: BitcoinNetwork> {
     pub(super) chain_code: [u8; 32],
     /// The Bitcoin private key
     private_key: BitcoinPrivateKey<N>,
-    /// PhantomData
-    _network: PhantomData<N>,
 }
 
 impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
@@ -67,7 +65,6 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
             child_index: ChildIndex::Normal(0),
             chain_code,
             private_key,
-            _network: PhantomData,
         })
     }
 
@@ -118,7 +115,6 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 child_index: *index,
                 chain_code,
                 private_key,
-                _network: PhantomData,
             }
         }
 
@@ -186,7 +182,6 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPrivateKey<N> {
             child_index,
             chain_code,
             private_key,
-            _network: PhantomData,
         })
     }
 }

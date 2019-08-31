@@ -18,8 +18,6 @@ use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 pub struct ZcashExtendedPrivateKey<N: ZcashNetwork> {
     /// The extended spending key
     extended_spending_key: ExtendedSpendingKey<N>,
-    /// PhantomData
-    _network: PhantomData<N>,
 }
 
 impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
@@ -37,10 +35,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
 
     /// Returns a new Zcash extended private key.
     fn new_master(seed: &[u8], _: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
-        Ok(Self {
-            extended_spending_key: ExtendedSpendingKey::master(seed),
-            _network: PhantomData,
-        })
+        Ok(Self { extended_spending_key: ExtendedSpendingKey::master(seed) })
     }
 
     /// Returns the extended private key of the given derivation path.
@@ -51,7 +46,6 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
                 extended_spending_key: extended_private_key
                     .extended_spending_key
                     .derive_child(ChildIndex::from(index.to_index())),
-                _network: PhantomData,
             };
         }
         Ok(extended_private_key)
@@ -101,10 +95,7 @@ impl<N: ZcashNetwork> FromStr for ZcashExtendedPrivateKey<N> {
 
         let data: Vec<u8> = FromBase32::from_base32(bech32.data())?;
         match ExtendedSpendingKey::read(data.as_slice()) {
-            Ok(extended_spending_key) => Ok(Self {
-                extended_spending_key,
-                _network: PhantomData,
-            }),
+            Ok(extended_spending_key) => Ok(Self { extended_spending_key }),
             Err(error) => Err(ExtendedPrivateKeyError::Message(error.to_string())),
         }
     }
