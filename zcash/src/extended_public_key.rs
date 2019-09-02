@@ -5,7 +5,9 @@ use crate::format::ZcashFormat;
 use crate::librustzcash::zip32::ExtendedFullViewingKey;
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
-use wagyu_model::{Address, AddressError, ChildIndex, DerivationPath, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
+use wagyu_model::{
+    Address, AddressError, ChildIndex, DerivationPath, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError,
+};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::{cmp::Ordering, fmt, fmt::Display, str::FromStr};

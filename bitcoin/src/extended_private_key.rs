@@ -7,7 +7,8 @@ use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
-    AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey,
+    AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey,
+    PrivateKey,
 };
 
 use base58::{FromBase58, ToBase58};

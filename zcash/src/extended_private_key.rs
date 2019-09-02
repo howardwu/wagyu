@@ -7,7 +7,8 @@ use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{
-    Address, AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey,
+    Address, AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey,
+    PublicKey,
 };
 
 use bech32::{Bech32, FromBase32, ToBase32};

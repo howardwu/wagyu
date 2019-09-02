@@ -67,7 +67,7 @@ impl fmt::Display for EthereumDerivationPath {
                 }
                 Ok(())
             }
-            Err(_) => Err(fmt::Error)
+            Err(_) => Err(fmt::Error),
         }
     }
 }
@@ -89,7 +89,11 @@ mod tests {
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0/1"),
-            Ok(vec![ChildIndex::from_normal(0).unwrap(), ChildIndex::from_normal(1).unwrap()].try_into().unwrap())
+            Ok(
+                vec![ChildIndex::from_normal(0).unwrap(), ChildIndex::from_normal(1).unwrap()]
+                    .try_into()
+                    .unwrap()
+            )
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0/1/2"),
@@ -98,7 +102,8 @@ mod tests {
                 ChildIndex::from_normal(1).unwrap(),
                 ChildIndex::from_normal(2).unwrap()
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0/1/2/3"),
@@ -108,7 +113,8 @@ mod tests {
                 ChildIndex::from_normal(2).unwrap(),
                 ChildIndex::from_normal(3).unwrap()
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
 
         assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].try_into().unwrap()));
@@ -122,7 +128,8 @@ mod tests {
                 ChildIndex::from_hardened(0).unwrap(),
                 ChildIndex::from_normal(1).unwrap()
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1/2'"),
@@ -131,7 +138,8 @@ mod tests {
                 ChildIndex::from_normal(1).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1/2'/3"),
@@ -141,7 +149,8 @@ mod tests {
                 ChildIndex::from_hardened(2).unwrap(),
                 ChildIndex::from_normal(3).unwrap(),
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1/2'/3/4'"),
@@ -152,7 +161,8 @@ mod tests {
                 ChildIndex::from_normal(3).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
 
         assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].try_into().unwrap()));
@@ -166,7 +176,8 @@ mod tests {
                 ChildIndex::from_hardened(0).unwrap(),
                 ChildIndex::from_hardened(1).unwrap()
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1h/2'"),
@@ -175,7 +186,8 @@ mod tests {
                 ChildIndex::from_hardened(1).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0h/1'/2h/3'"),
@@ -185,7 +197,8 @@ mod tests {
                 ChildIndex::from_hardened(2).unwrap(),
                 ChildIndex::from_hardened(3).unwrap(),
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1h/2'/3h/4'"),
@@ -196,7 +209,8 @@ mod tests {
                 ChildIndex::from_hardened(3).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-                .try_into().unwrap())
+            .try_into()
+            .unwrap())
         );
     }
 
