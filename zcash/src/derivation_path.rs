@@ -1,28 +1,66 @@
+use crate::network::ZcashNetwork;
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::{convert::TryFrom, fmt, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Zcash derivation path
-///
-/// m_Sapling / purpose' / coin_type' / account' / address_index
-/// https://github.com/zcash/zips/blob/master/zip-0032.rst
-///
 #[derive(Clone, PartialEq, Eq)]
-pub struct ZcashDerivationPath(Vec<ChildIndex>);
+pub enum ZcashDerivationPath<N: ZcashNetwork> {
+    /// Sapling ZIP32 - m/32'/{133', 1'}/{account}'
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-key-path
+    /// https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+    ZIP32Sapling(ChildIndex),
+    /// Sapling ZIP32 with Independent Spend Authorities - m/32'/{133', 1'}/{account}'/{index}
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-key-path
+    /// https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+    ZIP32SaplingIndependent([ChildIndex; 2]),
+    /// An unsupported derivation path that will error and
+    /// is incompatible with Zcash structs in this library.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-key-path
+    Unsupported(Vec<ChildIndex>, PhantomData<N>),
+}
 
-impl DerivationPath for ZcashDerivationPath {
+impl<N: ZcashNetwork> DerivationPath for ZcashDerivationPath<N> {
     /// Returns a child index vector given the derivation path.
-    fn to_vec(&self) -> Vec<ChildIndex> {
-        self.0.clone()
+    fn to_vec(&self) -> Result<Vec<ChildIndex>, DerivationPathError> {
+        match self {
+            ZcashDerivationPath::ZIP32Sapling(index) => match index.is_hardened() {
+                true => Ok(vec![N::HD_PURPOSE, N::HD_COIN_TYPE, *index]),
+                false => Err(DerivationPathError::ExpectedZIP32Path)
+            },
+            ZcashDerivationPath::ZIP32SaplingIndependent(path) => match path[0].is_hardened() && path[1].is_normal() {
+                true => Ok(vec![N::HD_PURPOSE, N::HD_COIN_TYPE, path[0], path[1]]),
+                false => Err(DerivationPathError::ExpectedZIP32Path)
+            },
+            ZcashDerivationPath::Unsupported(_, _) => {
+                Err(DerivationPathError::ExpectedZIP32Path)
+            }
+        }
     }
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Self {
-        Self(path.clone())
+    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
+        if path.len() == 3
+            && path[0] == N::HD_PURPOSE
+            && path[1] == N::HD_COIN_TYPE
+            && path[2].is_hardened() {
+            // Path length 3 - Sapling ZIP32
+            Ok(ZcashDerivationPath::ZIP32Sapling(path[2]))
+        } else if path.len() == 4
+            && path[0] == N::HD_PURPOSE
+            && path[1] == N::HD_COIN_TYPE
+            && path[2].is_hardened()
+            && path[3].is_normal() {
+            // Path length 4 - Sapling ZIP32 with Independent Spend Authorities
+            Ok(ZcashDerivationPath::ZIP32SaplingIndependent([path[2], path[3]]))
+        } else {
+            // Path length i - Unsupported derivation path
+            Err(DerivationPathError::ExpectedZIP32Path)
+        }
     }
 }
 
-impl FromStr for ZcashDerivationPath {
+impl<N: ZcashNetwork> FromStr for ZcashDerivationPath<N> {
     type Err = DerivationPathError;
 
     fn from_str(path: &str) -> Result<Self, Self::Err> {
@@ -33,248 +71,284 @@ impl FromStr for ZcashDerivationPath {
         }
 
         let path: Result<Vec<ChildIndex>, Self::Err> = parts.map(str::parse).collect();
-        Self::try_from(path?)
+        Self::from_vec(&path?)
     }
 }
 
-impl TryFrom<Vec<ChildIndex>> for ZcashDerivationPath {
+impl<N: ZcashNetwork> TryFrom<Vec<ChildIndex>> for ZcashDerivationPath<N> {
     type Error = DerivationPathError;
 
     fn try_from(path: Vec<ChildIndex>) -> Result<Self, Self::Error> {
-        // The purpose' / coin_type' / account' must all be hardened
-        // https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-key-path
-        let primary = match path.len() > 3 {
-            true => &path[0..3],
-            false => &path,
-        };
-
-        if !primary
-            .iter()
-            .filter(|&&index| index.is_normal())
-            .collect::<Vec<_>>()
-            .is_empty()
-        {
-            return Err(DerivationPathError::ExpectedHardenedPath);
-        }
-        Ok(Self(path))
+        Self::from_vec(&path)
     }
 }
 
-impl<'a> TryFrom<&'a [ChildIndex]> for ZcashDerivationPath {
+impl<'a, N: ZcashNetwork> TryFrom<&'a [ChildIndex]> for ZcashDerivationPath<N> {
     type Error = DerivationPathError;
 
     fn try_from(path: &'a [ChildIndex]) -> Result<Self, Self::Error> {
-        Self::try_from(path.to_vec())
+        Self::from_vec(&path.to_vec())
     }
 }
 
-impl<'a> ::std::iter::IntoIterator for &'a ZcashDerivationPath {
-    type Item = ChildIndex;
-    type IntoIter = ::std::vec::IntoIter<ChildIndex>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.to_vec().into_iter()
-    }
-}
-
-impl fmt::Debug for ZcashDerivationPath {
+impl<N: ZcashNetwork> fmt::Debug for ZcashDerivationPath<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self, f)
     }
 }
 
-impl fmt::Display for ZcashDerivationPath {
+impl<N: ZcashNetwork> fmt::Display for ZcashDerivationPath<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("m")?;
-        for index in self.to_vec().iter() {
-            f.write_str("/")?;
-            fmt::Display::fmt(index, f)?;
+        match self.to_vec() {
+            Ok(path) => {
+                f.write_str("m")?;
+                for index in path.iter() {
+                    f.write_str("/")?;
+                    fmt::Display::fmt(index, f)?;
+                }
+                Ok(())
+            }
+            Err(_) => Err(fmt::Error)
         }
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use wagyu_model::derivation_path::{ChildIndex, DerivationPathError};
+    use crate::network::*;
 
     use std::convert::TryInto;
-    use std::str::FromStr;
 
     #[test]
     fn valid_path() {
-        assert_eq!(ZcashDerivationPath::from_str("m"), Ok(vec![].try_into().unwrap()));
+        use super::*;
+
+        type N = Mainnet;
+
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'"),
-            Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
-        );
-        assert_eq!(
-            ZcashDerivationPath::from_str("m/0h/1'"),
+            ZcashDerivationPath::<N>::from_str("m/32'/133h/0'"),
             Ok(vec![
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(0).unwrap(),
-                ChildIndex::from_hardened(1).unwrap()
             ]
             .try_into()
             .unwrap())
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1h/2'"),
+            ZcashDerivationPath::<N>::from_str("m/32'/133h/1'"),
             Ok(vec![
-                ChildIndex::from_hardened(0).unwrap(),
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(1).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
             ]
-            .try_into()
-            .unwrap())
+                .try_into()
+                .unwrap())
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0h/1'/2h/3'"),
+            ZcashDerivationPath::<N>::from_str("m/32'/133h/2'"),
             Ok(vec![
-                ChildIndex::from_hardened(0).unwrap(),
-                ChildIndex::from_hardened(1).unwrap(),
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
+            ]
+                .try_into()
+                .unwrap())
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/32'/133h/3'"),
+            Ok(vec![
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(3).unwrap(),
             ]
-            .try_into()
-            .unwrap())
+                .try_into()
+                .unwrap())
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1h/2'/3h/4'"),
+            ZcashDerivationPath::<N>::from_str("m/32'/133h/4'"),
             Ok(vec![
-                ChildIndex::from_hardened(0).unwrap(),
-                ChildIndex::from_hardened(1).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_hardened(3).unwrap(),
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-            .try_into()
-            .unwrap())
+                .try_into()
+                .unwrap())
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0h/1'/2h/3'/4"),
+            ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/0"),
             Ok(vec![
-                ChildIndex::from_hardened(0).unwrap(),
-                ChildIndex::from_hardened(1).unwrap(),
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_hardened(3).unwrap(),
-                ChildIndex::from_normal(4).unwrap(),
+                ChildIndex::from_normal(0).unwrap(),
             ]
             .try_into()
             .unwrap())
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1'/2'/3'/4/5"),
+            ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/1"),
             Ok(vec![
-                ChildIndex::from_hardened(0).unwrap(),
-                ChildIndex::from_hardened(1).unwrap(),
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_hardened(3).unwrap(),
-                ChildIndex::from_normal(4).unwrap(),
-                ChildIndex::from_normal(5).unwrap(),
+                ChildIndex::from_normal(1).unwrap(),
             ]
-            .try_into()
-            .unwrap())
+                .try_into()
+                .unwrap())
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/2"),
+            Ok(vec![
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
+                ChildIndex::from_hardened(2).unwrap(),
+                ChildIndex::from_normal(2).unwrap(),
+            ]
+                .try_into()
+                .unwrap())
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/3"),
+            Ok(vec![
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
+                ChildIndex::from_hardened(2).unwrap(),
+                ChildIndex::from_normal(3).unwrap(),
+            ]
+                .try_into()
+                .unwrap())
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/4"),
+            Ok(vec![
+                ChildIndex::from_hardened(32).unwrap(),
+                ChildIndex::from_hardened(133).unwrap(),
+                ChildIndex::from_hardened(2).unwrap(),
+                ChildIndex::from_normal(4).unwrap(),
+            ]
+                .try_into()
+                .unwrap())
         );
     }
 
     #[test]
     fn invalid_path() {
+        use super::*;
+
+        type N = Mainnet;
+
         assert_eq!(
-            ZcashDerivationPath::from_str("n"),
+            ZcashDerivationPath::<N>::from_str("n"),
             Err(DerivationPathError::InvalidDerivationPath("n".into()))
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("n/0"),
+            ZcashDerivationPath::<N>::from_str("n/0"),
             Err(DerivationPathError::InvalidDerivationPath("n/0".into()))
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("n/0/0"),
+            ZcashDerivationPath::<N>::from_str("n/0/0"),
             Err(DerivationPathError::InvalidDerivationPath("n/0/0".into()))
         );
 
         assert_eq!(
-            ZcashDerivationPath::from_str("1"),
+            ZcashDerivationPath::<N>::from_str("1"),
             Err(DerivationPathError::InvalidDerivationPath("1".into()))
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("1/0"),
+            ZcashDerivationPath::<N>::from_str("1/0"),
             Err(DerivationPathError::InvalidDerivationPath("1/0".into()))
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("1/0/0"),
+            ZcashDerivationPath::<N>::from_str("1/0/0"),
             Err(DerivationPathError::InvalidDerivationPath("1/0/0".into()))
         );
 
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0x"),
+            ZcashDerivationPath::<N>::from_str("m/0x"),
             Err(DerivationPathError::InvalidChildNumberFormat)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0x0"),
+            ZcashDerivationPath::<N>::from_str("m/0x0"),
             Err(DerivationPathError::InvalidChildNumberFormat)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0x00"),
+            ZcashDerivationPath::<N>::from_str("m/0x00"),
             Err(DerivationPathError::InvalidChildNumberFormat)
         );
 
         assert_eq!(
-            ZcashDerivationPath::from_str("0/m"),
+            ZcashDerivationPath::<N>::from_str("0/m"),
             Err(DerivationPathError::InvalidDerivationPath("0/m".into()))
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m//0"),
+            ZcashDerivationPath::<N>::from_str("m//0"),
             Err(DerivationPathError::InvalidChildNumberFormat)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/2147483648"),
+            ZcashDerivationPath::<N>::from_str("m/2147483648"),
             Err(DerivationPathError::InvalidChildNumber(2147483648))
         );
 
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0/1"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0'"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0/1'"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0'/0'"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0/1/2"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0/0"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1/2"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0/1"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0/1'/2"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0'/1"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0/1/2'"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0/1'"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1'/2"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0/1/2"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0'/1/2'"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0'/1/2"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
         assert_eq!(
-            ZcashDerivationPath::from_str("m/0/1'/2'"),
-            Err(DerivationPathError::ExpectedHardenedPath)
+            ZcashDerivationPath::<N>::from_str("m/0/1'/2"),
+            Err(DerivationPathError::ExpectedZIP32Path)
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/0/1/2'"),
+            Err(DerivationPathError::ExpectedZIP32Path)
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/0'/1'/2"),
+            Err(DerivationPathError::ExpectedZIP32Path)
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/0'/1/2'"),
+            Err(DerivationPathError::ExpectedZIP32Path)
+        );
+        assert_eq!(
+            ZcashDerivationPath::<N>::from_str("m/0/1'/2'"),
+            Err(DerivationPathError::ExpectedZIP32Path)
         );
     }
 }

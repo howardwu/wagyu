@@ -5,7 +5,7 @@ use crate::format::ZcashFormat;
 use crate::librustzcash::zip32::ExtendedFullViewingKey;
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
-use wagyu_model::{Address, AddressError, ChildIndex, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
+use wagyu_model::{Address, AddressError, ChildIndex, DerivationPath, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError};
 
 use bech32::{Bech32, FromBase32, ToBase32};
 use std::{cmp::Ordering, fmt, fmt::Display, str::FromStr};
@@ -19,7 +19,7 @@ pub struct ZcashExtendedPublicKey<N: ZcashNetwork> {
 
 impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     type Address = ZcashAddress<N>;
-    type DerivationPath = ZcashDerivationPath;
+    type DerivationPath = ZcashDerivationPath<N>;
     type ExtendedPrivateKey = ZcashExtendedPrivateKey<N>;
     type Format = ZcashFormat;
     type PublicKey = ZcashPublicKey<N>;
@@ -34,7 +34,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
     /// Returns the extended public key of the given derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPublicKeyError> {
         let mut extended_public_key = self.clone();
-        for index in path.into_iter() {
+        for index in path.to_vec()?.into_iter() {
             match index {
                 ChildIndex::Hardened(_) => return Err(DerivationPathError::ExpectedNormalPath.into()),
                 ChildIndex::Normal(number) => {

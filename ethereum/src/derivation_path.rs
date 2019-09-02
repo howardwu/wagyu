@@ -1,5 +1,6 @@
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
+use std::convert::TryFrom;
 use std::{fmt, str::FromStr};
 
 /// Represents a Ethereum derivation path
@@ -8,13 +9,13 @@ pub struct EthereumDerivationPath(Vec<ChildIndex>);
 
 impl DerivationPath for EthereumDerivationPath {
     /// Returns a child index vector given the derivation path.
-    fn to_vec(&self) -> Vec<ChildIndex> {
-        self.0.clone()
+    fn to_vec(&self) -> Result<Vec<ChildIndex>, DerivationPathError> {
+        Ok(self.0.clone())
     }
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Self {
-        Self(path.clone())
+    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
+        Ok(Self(path.clone()))
     }
 }
 
@@ -33,30 +34,19 @@ impl FromStr for EthereumDerivationPath {
     }
 }
 
-impl From<Vec<ChildIndex>> for EthereumDerivationPath {
-    fn from(path: Vec<ChildIndex>) -> Self {
+impl TryFrom<Vec<ChildIndex>> for EthereumDerivationPath {
+    type Error = DerivationPathError;
+
+    fn try_from(path: Vec<ChildIndex>) -> Result<Self, Self::Error> {
         Self::from_vec(&path)
     }
 }
 
-impl Into<Vec<ChildIndex>> for EthereumDerivationPath {
-    fn into(self) -> Vec<ChildIndex> {
-        self.to_vec()
-    }
-}
+impl<'a> TryFrom<&'a [ChildIndex]> for EthereumDerivationPath {
+    type Error = DerivationPathError;
 
-impl<'a> From<&'a [ChildIndex]> for EthereumDerivationPath {
-    fn from(path: &'a [ChildIndex]) -> Self {
-        Self::from_vec(&path.to_vec())
-    }
-}
-
-impl<'a> ::std::iter::IntoIterator for &'a EthereumDerivationPath {
-    type Item = ChildIndex;
-    type IntoIter = ::std::vec::IntoIter<ChildIndex>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.to_vec().into_iter()
+    fn try_from(path: &'a [ChildIndex]) -> Result<Self, Self::Error> {
+        Self::try_from(path.to_vec())
     }
 }
 
@@ -68,12 +58,17 @@ impl fmt::Debug for EthereumDerivationPath {
 
 impl fmt::Display for EthereumDerivationPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("m")?;
-        for index in self.to_vec().iter() {
-            f.write_str("/")?;
-            fmt::Display::fmt(index, f)?;
+        match self.to_vec() {
+            Ok(path) => {
+                f.write_str("m")?;
+                for index in path.iter() {
+                    f.write_str("/")?;
+                    fmt::Display::fmt(index, f)?;
+                }
+                Ok(())
+            }
+            Err(_) => Err(fmt::Error)
         }
-        Ok(())
     }
 }
 
@@ -82,18 +77,19 @@ mod tests {
     use super::*;
     use wagyu_model::derivation_path::{ChildIndex, DerivationPathError};
 
+    use std::convert::TryInto;
     use std::str::FromStr;
 
     #[test]
     fn valid_path() {
-        assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].into()));
+        assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].try_into().unwrap()));
         assert_eq!(
             EthereumDerivationPath::from_str("m/0"),
-            Ok(vec![ChildIndex::from_normal(0).unwrap()].into())
+            Ok(vec![ChildIndex::from_normal(0).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0/1"),
-            Ok(vec![ChildIndex::from_normal(0).unwrap(), ChildIndex::from_normal(1).unwrap()].into())
+            Ok(vec![ChildIndex::from_normal(0).unwrap(), ChildIndex::from_normal(1).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0/1/2"),
@@ -102,7 +98,7 @@ mod tests {
                 ChildIndex::from_normal(1).unwrap(),
                 ChildIndex::from_normal(2).unwrap()
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0/1/2/3"),
@@ -112,13 +108,13 @@ mod tests {
                 ChildIndex::from_normal(2).unwrap(),
                 ChildIndex::from_normal(3).unwrap()
             ]
-            .into())
+                .try_into().unwrap())
         );
 
-        assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].into()));
+        assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].try_into().unwrap()));
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'"),
-            Ok(vec![ChildIndex::from_hardened(0).unwrap()].into())
+            Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1"),
@@ -126,7 +122,7 @@ mod tests {
                 ChildIndex::from_hardened(0).unwrap(),
                 ChildIndex::from_normal(1).unwrap()
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1/2'"),
@@ -135,7 +131,7 @@ mod tests {
                 ChildIndex::from_normal(1).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1/2'/3"),
@@ -145,7 +141,7 @@ mod tests {
                 ChildIndex::from_hardened(2).unwrap(),
                 ChildIndex::from_normal(3).unwrap(),
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1/2'/3/4'"),
@@ -156,13 +152,13 @@ mod tests {
                 ChildIndex::from_normal(3).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-            .into())
+                .try_into().unwrap())
         );
 
-        assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].into()));
+        assert_eq!(EthereumDerivationPath::from_str("m"), Ok(vec![].try_into().unwrap()));
         assert_eq!(
             EthereumDerivationPath::from_str("m/0h"),
-            Ok(vec![ChildIndex::from_hardened(0).unwrap()].into())
+            Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0h/1'"),
@@ -170,7 +166,7 @@ mod tests {
                 ChildIndex::from_hardened(0).unwrap(),
                 ChildIndex::from_hardened(1).unwrap()
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1h/2'"),
@@ -179,7 +175,7 @@ mod tests {
                 ChildIndex::from_hardened(1).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0h/1'/2h/3'"),
@@ -189,7 +185,7 @@ mod tests {
                 ChildIndex::from_hardened(2).unwrap(),
                 ChildIndex::from_hardened(3).unwrap(),
             ]
-            .into())
+                .try_into().unwrap())
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m/0'/1h/2'/3h/4'"),
@@ -200,7 +196,7 @@ mod tests {
                 ChildIndex::from_hardened(3).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-            .into())
+                .try_into().unwrap())
         );
     }
 
@@ -208,28 +204,28 @@ mod tests {
     fn invalid_path() {
         assert_eq!(
             EthereumDerivationPath::from_str("n"),
-            Err(DerivationPathError::InvalidDerivationPath("n".into()))
+            Err(DerivationPathError::InvalidDerivationPath("n".try_into().unwrap()))
         );
         assert_eq!(
             EthereumDerivationPath::from_str("n/0"),
-            Err(DerivationPathError::InvalidDerivationPath("n/0".into()))
+            Err(DerivationPathError::InvalidDerivationPath("n/0".try_into().unwrap()))
         );
         assert_eq!(
             EthereumDerivationPath::from_str("n/0/0"),
-            Err(DerivationPathError::InvalidDerivationPath("n/0/0".into()))
+            Err(DerivationPathError::InvalidDerivationPath("n/0/0".try_into().unwrap()))
         );
 
         assert_eq!(
             EthereumDerivationPath::from_str("1"),
-            Err(DerivationPathError::InvalidDerivationPath("1".into()))
+            Err(DerivationPathError::InvalidDerivationPath("1".try_into().unwrap()))
         );
         assert_eq!(
             EthereumDerivationPath::from_str("1/0"),
-            Err(DerivationPathError::InvalidDerivationPath("1/0".into()))
+            Err(DerivationPathError::InvalidDerivationPath("1/0".try_into().unwrap()))
         );
         assert_eq!(
             EthereumDerivationPath::from_str("1/0/0"),
-            Err(DerivationPathError::InvalidDerivationPath("1/0/0".into()))
+            Err(DerivationPathError::InvalidDerivationPath("1/0/0".try_into().unwrap()))
         );
 
         assert_eq!(
@@ -247,7 +243,7 @@ mod tests {
 
         assert_eq!(
             EthereumDerivationPath::from_str("0/m"),
-            Err(DerivationPathError::InvalidDerivationPath("0/m".into()))
+            Err(DerivationPathError::InvalidDerivationPath("0/m".try_into().unwrap()))
         );
         assert_eq!(
             EthereumDerivationPath::from_str("m//0"),

@@ -1,5 +1,5 @@
 use crate::format::ZcashFormat;
-use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{AddressError, ChildIndex, Network, NetworkError, PrivateKeyError};
 
 pub mod mainnet;
 pub use self::mainnet::*;
@@ -9,6 +9,9 @@ pub use self::testnet::*;
 
 /// The interface for a Zcash network.
 pub trait ZcashNetwork: Network {
+    const HD_PURPOSE: ChildIndex = ChildIndex::Hardened(32);
+    const HD_COIN_TYPE: ChildIndex;
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &ZcashFormat) -> Vec<u8>;
 

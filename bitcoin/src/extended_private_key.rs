@@ -7,7 +7,7 @@ use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
-    AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey,
+    AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PrivateKey,
 };
 
 use base58::{FromBase58, ToBase58};
@@ -76,7 +76,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
 
         let mut extended_private_key = self.clone();
 
-        for index in path.into_iter() {
+        for index in path.to_vec()?.into_iter() {
             let public_key = &PublicKey::from_secret_key(
                 &Secp256k1::new(),
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
@@ -215,6 +215,7 @@ mod tests {
     use crate::network::*;
 
     use hex;
+    use std::convert::TryInto;
     use std::string::String;
 
     fn test_new<N: BitcoinNetwork>(
@@ -248,7 +249,7 @@ mod tests {
         expected_extended_private_key2: &str,
         expected_child_index2: u32,
     ) {
-        let path = vec![ChildIndex::from(expected_child_index2)].into();
+        let path = vec![ChildIndex::from(expected_child_index2)].try_into().unwrap();
 
         let extended_private_key1 = BitcoinExtendedPrivateKey::<N>::from_str(expected_extended_private_key1).unwrap();
         let extended_private_key2 = extended_private_key1.derive(&path).unwrap();

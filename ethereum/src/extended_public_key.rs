@@ -5,7 +5,7 @@ use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
-    AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
+    AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
 };
 
 use base58::{FromBase58, ToBase58};
@@ -58,7 +58,7 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
 
         let mut extended_public_key = self.clone();
 
-        for index in path.into_iter() {
+        for index in path.to_vec()?.into_iter() {
             let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
@@ -177,6 +177,7 @@ mod tests {
     use wagyu_model::extended_private_key::ExtendedPrivateKey;
 
     use hex;
+    use std::convert::TryInto;
 
     fn test_from_extended_private_key(
         expected_extended_public_key: &str,
@@ -207,7 +208,7 @@ mod tests {
         expected_extended_public_key2: &str,
         expected_child_index2: u32,
     ) {
-        let path = vec![ChildIndex::from(expected_child_index2)].into();
+        let path = vec![ChildIndex::from(expected_child_index2)].try_into().unwrap();
 
         let extended_private_key1 = EthereumExtendedPrivateKey::from_str(expected_extended_private_key1).unwrap();
         let extended_private_key2 = extended_private_key1.derive(&path).unwrap();

@@ -7,7 +7,7 @@ use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 use wagyu_model::{
-    Address, AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey,
+    Address, AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey, PublicKey,
 };
 
 use bech32::{Bech32, FromBase32, ToBase32};
@@ -22,7 +22,7 @@ pub struct ZcashExtendedPrivateKey<N: ZcashNetwork> {
 
 impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     type Address = ZcashAddress<N>;
-    type DerivationPath = ZcashDerivationPath;
+    type DerivationPath = ZcashDerivationPath<N>;
     type ExtendedPublicKey = ZcashExtendedPublicKey<N>;
     type Format = ZcashFormat;
     type PrivateKey = ZcashPrivateKey<N>;
@@ -43,7 +43,7 @@ impl<N: ZcashNetwork> ExtendedPrivateKey for ZcashExtendedPrivateKey<N> {
     /// Returns the extended private key of the given derivation path.
     fn derive(&self, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
         let mut extended_private_key = self.clone();
-        for index in path.into_iter() {
+        for index in path.to_vec()?.into_iter() {
             extended_private_key = Self {
                 extended_spending_key: extended_private_key
                     .extended_spending_key

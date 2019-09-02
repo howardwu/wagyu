@@ -1,6 +1,6 @@
 use super::*;
 use crate::format::ZcashFormat;
-use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{AddressError, ChildIndex, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
 use std::{fmt, str::FromStr};
@@ -13,6 +13,8 @@ impl Network for Mainnet {
 }
 
 impl ZcashNetwork for Mainnet {
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(133);
+
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &ZcashFormat) -> Vec<u8> {
         match format {

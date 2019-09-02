@@ -7,16 +7,25 @@ use std::{
 /// The interface for a generic derivation path.
 pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     /// Returns a child index vector given the derivation path.
-    fn to_vec(&self) -> Vec<ChildIndex>;
+    fn to_vec(&self) -> Result<Vec<ChildIndex>, DerivationPathError>;
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Self;
+    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError>;
 }
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum DerivationPathError {
+    #[fail(display = "expected BIP32 path")]
+    ExpectedBIP32Path,
+
     #[fail(display = "expected BIP44 path")]
     ExpectedBIP44Path,
+
+    #[fail(display = "expected BIP49 path")]
+    ExpectedBIP49Path,
+
+    #[fail(display = "expected ZIP32 path")]
+    ExpectedZIP32Path,
 
     #[fail(display = "expected hardened path")]
     ExpectedHardenedPath,

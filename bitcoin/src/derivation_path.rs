@@ -1,35 +1,43 @@
 use crate::network::BitcoinNetwork;
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::{fmt, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin derivation path
 #[derive(Clone, PartialEq, Eq)]
 pub enum BitcoinDerivationPath<N: BitcoinNetwork> {
     /// BIP32 - Pay-to-Pubkey Hash
+    /// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     BIP32(Vec<ChildIndex>, PhantomData<N>),
     /// BIP44 - m/44'/{0', 1'}/{account}'/{change}/{index} - Pay-to-Pubkey Hash
+    /// https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
     BIP44([ChildIndex; 3]),
     /// BIP49 - m/49'/{0', 1'}/{account}'/{change}/{index} - SegWit Pay-to-Witness-Public-Key Hash
+    /// https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki
     BIP49([ChildIndex; 3]),
 }
 
 impl<N: BitcoinNetwork> DerivationPath for BitcoinDerivationPath<N> {
     /// Returns a child index vector given the derivation path.
-    fn to_vec(&self) -> Vec<ChildIndex> {
+    fn to_vec(&self) -> Result<Vec<ChildIndex>, DerivationPathError> {
         match self {
-            BitcoinDerivationPath::BIP32(path, _) => path.clone(),
-            BitcoinDerivationPath::BIP44(path) => {
-                vec![ChildIndex::Hardened(44), N::HD_COIN_TYPE, path[0], path[1], path[2]]
+            BitcoinDerivationPath::BIP32(path, _) => match path.len() < 256 {
+                true => Ok(path.clone()),
+                false => Err(DerivationPathError::ExpectedBIP32Path)
+            },
+            BitcoinDerivationPath::BIP44(path) => match path[0].is_hardened() && path[1].is_normal() && path[2].is_normal() {
+                true => Ok(vec![ChildIndex::Hardened(44), N::HD_COIN_TYPE, path[0], path[1], path[2]]),
+                false => Err(DerivationPathError::ExpectedBIP44Path)
             }
-            BitcoinDerivationPath::BIP49(path) => {
-                vec![ChildIndex::Hardened(49), N::HD_COIN_TYPE, path[0], path[1], path[2]]
+            BitcoinDerivationPath::BIP49(path) => match path[0].is_hardened() && path[1].is_normal() && path[2].is_normal() {
+                true => Ok(vec![ChildIndex::Hardened(49), N::HD_COIN_TYPE, path[0], path[1], path[2]]),
+                false => Err(DerivationPathError::ExpectedBIP49Path)
             }
         }
     }
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Self {
+    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
         if path.len() == 5 {
             // Path length 5 - BIP44
             if path[0] == ChildIndex::Hardened(44)
@@ -38,7 +46,7 @@ impl<N: BitcoinNetwork> DerivationPath for BitcoinDerivationPath<N> {
                 && path[3].is_normal()
                 && path[4].is_normal()
             {
-                return BitcoinDerivationPath::BIP44([path[2], path[3], path[4]]);
+                return Ok(BitcoinDerivationPath::BIP44([path[2], path[3], path[4]]));
             }
             // Path length 5 - BIP49
             if path[0] == ChildIndex::Hardened(49)
@@ -47,14 +55,14 @@ impl<N: BitcoinNetwork> DerivationPath for BitcoinDerivationPath<N> {
                 && path[3].is_normal()
                 && path[4].is_normal()
             {
-                return BitcoinDerivationPath::BIP49([path[2], path[3], path[4]]);
+                return Ok(BitcoinDerivationPath::BIP49([path[2], path[3], path[4]]));
             }
             // Path length 5 - BIP32 (non-BIP44 & non-BIP49 compliant)
-            return BitcoinDerivationPath::BIP32(path.to_vec(), PhantomData);
+            return Ok(BitcoinDerivationPath::BIP32(path.to_vec(), PhantomData));
         } else {
             // Path length 0 - BIP32 root key
             // Path length i - BIP32
-            BitcoinDerivationPath::BIP32(path.to_vec(), PhantomData)
+            Ok(BitcoinDerivationPath::BIP32(path.to_vec(), PhantomData))
         }
     }
 }
@@ -70,34 +78,23 @@ impl<N: BitcoinNetwork> FromStr for BitcoinDerivationPath<N> {
         }
 
         let path: Result<Vec<ChildIndex>, Self::Err> = parts.map(str::parse).collect();
-        Ok(Self::from_vec(&path?))
+        Self::from_vec(&path?)
     }
 }
 
-impl<N: BitcoinNetwork> From<Vec<ChildIndex>> for BitcoinDerivationPath<N> {
-    fn from(path: Vec<ChildIndex>) -> Self {
+impl<N: BitcoinNetwork> TryFrom<Vec<ChildIndex>> for BitcoinDerivationPath<N> {
+    type Error = DerivationPathError;
+
+    fn try_from(path: Vec<ChildIndex>) -> Result<Self, Self::Error> {
         Self::from_vec(&path)
     }
 }
 
-impl<N: BitcoinNetwork> Into<Vec<ChildIndex>> for BitcoinDerivationPath<N> {
-    fn into(self) -> Vec<ChildIndex> {
-        self.to_vec()
-    }
-}
+impl<'a, N: BitcoinNetwork> TryFrom<&'a [ChildIndex]> for BitcoinDerivationPath<N> {
+    type Error = DerivationPathError;
 
-impl<'a, N: BitcoinNetwork> From<&'a [ChildIndex]> for BitcoinDerivationPath<N> {
-    fn from(path: &'a [ChildIndex]) -> Self {
-        Self::from_vec(&path.to_vec())
-    }
-}
-
-impl<'a, N: BitcoinNetwork> ::std::iter::IntoIterator for &'a BitcoinDerivationPath<N> {
-    type Item = ChildIndex;
-    type IntoIter = ::std::vec::IntoIter<ChildIndex>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.to_vec().into_iter()
+    fn try_from(path: &'a [ChildIndex]) -> Result<Self, Self::Error> {
+        Self::try_from(path.to_vec())
     }
 }
 
@@ -109,24 +106,25 @@ impl<N: BitcoinNetwork> fmt::Debug for BitcoinDerivationPath<N> {
 
 impl<N: BitcoinNetwork> fmt::Display for BitcoinDerivationPath<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("m")?;
-
-        for index in self.to_vec().iter() {
-            f.write_str("/")?;
-            fmt::Display::fmt(index, f)?;
+        match self.to_vec() {
+            Ok(path) => {
+                f.write_str("m")?;
+                for index in path.iter() {
+                    f.write_str("/")?;
+                    fmt::Display::fmt(index, f)?;
+                }
+                Ok(())
+            }
+            Err(_) => Err(fmt::Error)
         }
-
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::network::*;
-    use wagyu_model::derivation_path::{ChildIndex, DerivationPathError};
 
-    use std::str::FromStr;
+    use std::convert::TryInto;
 
     #[test]
     fn bip32() {
@@ -386,14 +384,14 @@ mod tests {
 
         type N = Mainnet;
 
-        assert_eq!(BitcoinDerivationPath::<N>::from_str("m"), Ok(vec![].into()));
+        assert_eq!(BitcoinDerivationPath::<N>::from_str("m"), Ok(vec![].try_into().unwrap()));
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0"),
-            Ok(vec![ChildIndex::from_normal(0).unwrap()].into())
+            Ok(vec![ChildIndex::from_normal(0).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0/1"),
-            Ok(vec![ChildIndex::from_normal(0).unwrap(), ChildIndex::from_normal(1).unwrap()].into())
+            Ok(vec![ChildIndex::from_normal(0).unwrap(), ChildIndex::from_normal(1).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0/1/2"),
@@ -402,7 +400,7 @@ mod tests {
                 ChildIndex::from_normal(1).unwrap(),
                 ChildIndex::from_normal(2).unwrap()
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0/1/2/3"),
@@ -412,13 +410,13 @@ mod tests {
                 ChildIndex::from_normal(2).unwrap(),
                 ChildIndex::from_normal(3).unwrap()
             ]
-            .into())
+            .try_into().unwrap())
         );
 
-        assert_eq!(BitcoinDerivationPath::<N>::from_str("m"), Ok(vec![].into()));
+        assert_eq!(BitcoinDerivationPath::<N>::from_str("m"), Ok(vec![].try_into().unwrap()));
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'"),
-            Ok(vec![ChildIndex::from_hardened(0).unwrap()].into())
+            Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1"),
@@ -426,7 +424,7 @@ mod tests {
                 ChildIndex::from_hardened(0).unwrap(),
                 ChildIndex::from_normal(1).unwrap()
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1/2'"),
@@ -435,7 +433,7 @@ mod tests {
                 ChildIndex::from_normal(1).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1/2'/3"),
@@ -445,7 +443,7 @@ mod tests {
                 ChildIndex::from_hardened(2).unwrap(),
                 ChildIndex::from_normal(3).unwrap(),
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1/2'/3/4'"),
@@ -456,13 +454,13 @@ mod tests {
                 ChildIndex::from_normal(3).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-            .into())
+            .try_into().unwrap())
         );
 
-        assert_eq!(BitcoinDerivationPath::<N>::from_str("m"), Ok(vec![].into()));
+        assert_eq!(BitcoinDerivationPath::<N>::from_str("m"), Ok(vec![].try_into().unwrap()));
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0h"),
-            Ok(vec![ChildIndex::from_hardened(0).unwrap()].into())
+            Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0h/1'"),
@@ -470,7 +468,7 @@ mod tests {
                 ChildIndex::from_hardened(0).unwrap(),
                 ChildIndex::from_hardened(1).unwrap()
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1h/2'"),
@@ -479,7 +477,7 @@ mod tests {
                 ChildIndex::from_hardened(1).unwrap(),
                 ChildIndex::from_hardened(2).unwrap(),
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0h/1'/2h/3'"),
@@ -489,7 +487,7 @@ mod tests {
                 ChildIndex::from_hardened(2).unwrap(),
                 ChildIndex::from_hardened(3).unwrap(),
             ]
-            .into())
+            .try_into().unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1h/2'/3h/4'"),
@@ -500,7 +498,7 @@ mod tests {
                 ChildIndex::from_hardened(3).unwrap(),
                 ChildIndex::from_hardened(4).unwrap(),
             ]
-            .into())
+            .try_into().unwrap())
         );
     }
 
