@@ -31,12 +31,12 @@ impl BitcoinNetwork for Testnet {
     }
 
     /// Returns the wif prefix of the given network.
-    fn to_wif_prefix() -> u8 {
+    fn to_private_key_prefix() -> u8 {
         0xEF
     }
 
     /// Returns the network of the given wif prefix.
-    fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
+    fn from_private_key_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0xEF => Ok(Self),
             _ => Err(PrivateKeyError::InvalidPrefix(vec![prefix])),

@@ -87,7 +87,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPrivateKey<N> {
         }
 
         // Check that the wif prefix corresponds to the correct network.
-        let _ = N::from_wif_prefix(data[0])?;
+        let _ = N::from_private_key_prefix(data[0])?;
 
         Ok(Self {
             secret_key: secp256k1::SecretKey::from_slice(&data[1..33])?,
@@ -100,7 +100,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPrivateKey<N> {
 impl<N: BitcoinNetwork> Display for BitcoinPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut wif = [0u8; 38];
-        wif[0] = N::to_wif_prefix();
+        wif[0] = N::to_private_key_prefix();
         wif[1..33].copy_from_slice(&self.secret_key[..]);
 
         let output = if self.compressed {

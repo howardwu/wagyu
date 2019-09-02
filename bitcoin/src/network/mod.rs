@@ -18,10 +18,10 @@ pub trait BitcoinNetwork: Network {
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError>;
 
     /// Returns the wif prefix of the given network.
-    fn to_wif_prefix() -> u8;
+    fn to_private_key_prefix() -> u8;
 
     /// Returns the network of the given wif prefix.
-    fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError>;
+    fn from_private_key_prefix(prefix: u8) -> Result<Self, PrivateKeyError>;
 
     /// Returns the extended private key version bytes of the given network.
     fn to_extended_private_key_version_bytes(format: &BitcoinFormat) -> Result<Vec<u8>, ExtendedPrivateKeyError>;
