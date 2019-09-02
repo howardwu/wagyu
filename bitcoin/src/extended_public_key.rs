@@ -88,8 +88,8 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
             extended_public_key = Self {
-                format: self.format.clone(),
-                depth: self.depth + 1,
+                format: extended_public_key.format.clone(),
+                depth: extended_public_key.depth + 1,
                 parent_fingerprint,
                 child_index: *index,
                 chain_code,
