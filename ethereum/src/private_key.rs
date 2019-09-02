@@ -1,10 +1,11 @@
 use crate::address::EthereumAddress;
+use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use rand::Rng;
 use secp256k1;
-use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -12,7 +13,7 @@ pub struct EthereumPrivateKey(secp256k1::SecretKey);
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
-    type Format = PhantomData<u8>;
+    type Format = EthereumFormat;
     type PublicKey = EthereumPublicKey;
 
     /// Returns a randomly-generated Ethereum private key.
@@ -27,8 +28,8 @@ impl PrivateKey for EthereumPrivateKey {
     }
 
     /// Returns the address of the corresponding Ethereum private key.
-    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
-        EthereumAddress::from_private_key(self, &PhantomData)
+    fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
+        EthereumAddress::from_private_key(self, _format)
     }
 }
 
@@ -75,7 +76,7 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &EthereumAddress, private_key: &EthereumPrivateKey) {
-        let address = private_key.to_address(&PhantomData).unwrap();
+        let address = private_key.to_address(&EthereumFormat::Standard).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -91,7 +92,7 @@ mod tests {
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(
             expected_address,
-            private_key.to_address(&PhantomData).unwrap().to_string()
+            private_key.to_address(&EthereumFormat::Standard).unwrap().to_string()
         );
     }
 
@@ -106,7 +107,7 @@ mod tests {
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(
             expected_address,
-            private_key.to_address(&PhantomData).unwrap().to_string()
+            private_key.to_address(&EthereumFormat::Standard).unwrap().to_string()
         );
     }
 

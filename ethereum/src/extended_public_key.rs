@@ -1,6 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
+use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
@@ -12,7 +13,7 @@ use hex;
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -35,7 +36,7 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     type Address = EthereumAddress;
     type DerivationPath = EthereumDerivationPath;
     type ExtendedPrivateKey = EthereumExtendedPrivateKey;
-    type Format = PhantomData<u8>;
+    type Format = EthereumFormat;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -101,8 +102,8 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
     }
 
     /// Returns the address of the corresponding extended public key.
-    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.public_key.to_address(&PhantomData)
+    fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
+        self.public_key.to_address(_format)
     }
 }
 

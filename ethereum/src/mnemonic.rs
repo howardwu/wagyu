@@ -1,6 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
 use crate::extended_public_key::EthereumExtendedPublicKey;
+use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use crate::wordlist::EthereumWordlist;
@@ -36,7 +37,7 @@ impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
         Ok(Self::ExtendedPrivateKey::new_master(
             self.to_seed(password)?.as_slice(),
-            &PhantomData,
+            &EthereumFormat::Standard,
         )?)
     }
 
@@ -48,7 +49,7 @@ impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
 
 impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     type Address = EthereumAddress;
-    type Format = PhantomData<u8>;
+    type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 

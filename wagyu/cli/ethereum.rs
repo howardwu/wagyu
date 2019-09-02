@@ -1,7 +1,7 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::ethereum::{
     wordlist::*, EthereumAddress, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumExtendedPublicKey,
-    EthereumMnemonic, EthereumPrivateKey, EthereumPublicKey,
+    EthereumFormat, EthereumMnemonic, EthereumPrivateKey, EthereumPublicKey,
 };
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
 
@@ -10,7 +10,7 @@ use colored::*;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use serde::Serialize;
-use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents a generic wallet to output
 #[derive(Serialize, Debug, Default)]
@@ -36,7 +36,7 @@ impl EthereumWallet {
     pub fn new<R: Rng>(rng: &mut R) -> Result<Self, CLIError> {
         let private_key = EthereumPrivateKey::new(rng)?;
         let public_key = private_key.to_public_key();
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
@@ -58,7 +58,7 @@ impl EthereumWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             path: Some(path.to_string()),
             password: password.map(String::from),
@@ -83,7 +83,7 @@ impl EthereumWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             path: Some(path.to_string()),
             password: password.map(String::from),
@@ -105,7 +105,7 @@ impl EthereumWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             path: path.clone(),
             extended_private_key: Some(extended_private_key.to_string()),
@@ -124,7 +124,7 @@ impl EthereumWallet {
             extended_public_key = extended_public_key.derive(&derivation_path)?;
         }
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             path: path.clone(),
             extended_public_key: Some(extended_public_key.to_string()),
@@ -137,7 +137,7 @@ impl EthereumWallet {
     pub fn from_private_key(private_key: &str) -> Result<Self, CLIError> {
         let private_key = EthereumPrivateKey::from_str(private_key)?;
         let public_key = private_key.to_public_key();
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
@@ -148,7 +148,7 @@ impl EthereumWallet {
 
     pub fn from_public_key(public_key: &str) -> Result<Self, CLIError> {
         let public_key = EthereumPublicKey::from_str(public_key)?;
-        let address = public_key.to_address(&PhantomData)?;
+        let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             public_key: Some(public_key.to_string()),
             address: address.to_string(),

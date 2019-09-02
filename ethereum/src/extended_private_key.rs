@@ -1,6 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::derivation_path::EthereumDerivationPath;
 use crate::extended_public_key::EthereumExtendedPublicKey;
+use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{
@@ -12,7 +13,7 @@ use base58::{FromBase58, ToBase58};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, fmt::Display, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -35,7 +36,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     type Address = EthereumAddress;
     type DerivationPath = EthereumDerivationPath;
     type ExtendedPublicKey = EthereumExtendedPublicKey;
-    type Format = PhantomData<u8>;
+    type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
@@ -131,8 +132,8 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
     }
 
     /// Returns the address of the corresponding extended private key.
-    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.private_key.to_address(&PhantomData)
+    fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
+        self.private_key.to_address(_format)
     }
 }
 
@@ -217,7 +218,7 @@ mod tests {
         path: &EthereumDerivationPath,
     ) {
         let extended_private_key =
-            EthereumExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &PhantomData, path).unwrap();
+            EthereumExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &EthereumFormat::Standard, path).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
         assert_eq!(
             expected_parent_fingerprint,
@@ -267,7 +268,7 @@ mod tests {
 
     fn test_to_extended_public_key(expected_extended_public_key: &str, seed: &str, path: &EthereumDerivationPath) {
         let extended_private_key =
-            EthereumExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &PhantomData, path).unwrap();
+            EthereumExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &EthereumFormat::Standard, path).unwrap();
         let extended_public_key = extended_private_key.to_extended_public_key();
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
