@@ -10,7 +10,17 @@ use std::{convert::TryFrom, fmt, str::FromStr};
 #[derive(Clone, PartialEq, Eq)]
 pub struct ZcashDerivationPath(Vec<ChildIndex>);
 
-impl DerivationPath for ZcashDerivationPath {}
+impl DerivationPath for ZcashDerivationPath {
+    /// Returns a child index vector given the derivation path.
+    fn to_vec(&self) -> Vec<ChildIndex> {
+        self.0.clone()
+    }
+
+    /// Returns a derivation path given the child index vector.
+    fn from_vec(path: &Vec<ChildIndex>) -> Self {
+        Self(path.clone())
+    }
+}
 
 impl FromStr for ZcashDerivationPath {
     type Err = DerivationPathError;
@@ -59,11 +69,11 @@ impl<'a> TryFrom<&'a [ChildIndex]> for ZcashDerivationPath {
 }
 
 impl<'a> ::std::iter::IntoIterator for &'a ZcashDerivationPath {
-    type Item = &'a ChildIndex;
-    type IntoIter = ::std::slice::Iter<'a, ChildIndex>;
+    type Item = ChildIndex;
+    type IntoIter = ::std::vec::IntoIter<ChildIndex>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.to_vec().into_iter()
     }
 }
 
@@ -76,7 +86,7 @@ impl fmt::Debug for ZcashDerivationPath {
 impl fmt::Display for ZcashDerivationPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("m")?;
-        for index in self.0.iter() {
+        for index in self.to_vec().iter() {
             f.write_str("/")?;
             fmt::Display::fmt(index, f)?;
         }

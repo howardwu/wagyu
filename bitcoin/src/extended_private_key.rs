@@ -37,7 +37,7 @@ pub struct BitcoinExtendedPrivateKey<N: BitcoinNetwork> {
 
 impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
     type Address = BitcoinAddress<N>;
-    type DerivationPath = BitcoinDerivationPath;
+    type DerivationPath = BitcoinDerivationPath<N>;
     type ExtendedPublicKey = BitcoinExtendedPublicKey<N>;
     type Format = BitcoinFormat;
     type PrivateKey = BitcoinPrivateKey<N>;
@@ -95,7 +95,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(*index).to_be_bytes());
+            mac.input(&u32::from(index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
@@ -112,7 +112,7 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
                 format: extended_private_key.format.clone(),
                 depth: extended_private_key.depth + 1,
                 parent_fingerprint,
-                child_index: *index,
+                child_index: index,
                 chain_code,
                 private_key,
             }
@@ -225,7 +225,7 @@ mod tests {
         expected_secret_key: &str,
         seed: &str,
         format: &BitcoinFormat,
-        path: &BitcoinDerivationPath,
+        path: &BitcoinDerivationPath<N>,
     ) {
         let extended_private_key =
             BitcoinExtendedPrivateKey::<N>::new(&hex::decode(seed).unwrap(), format, path).unwrap();
@@ -280,7 +280,7 @@ mod tests {
         expected_extended_public_key: &str,
         seed: &str,
         format: &BitcoinFormat,
-        path: &BitcoinDerivationPath,
+        path: &BitcoinDerivationPath<N>,
     ) {
         let extended_private_key =
             BitcoinExtendedPrivateKey::<N>::new(&hex::decode(seed).unwrap(), format, path).unwrap();

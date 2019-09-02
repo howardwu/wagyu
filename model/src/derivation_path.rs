@@ -5,7 +5,13 @@ use std::{
 };
 
 /// The interface for a generic derivation path.
-pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {}
+pub trait DerivationPath: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
+    /// Returns a child index vector given the derivation path.
+    fn to_vec(&self) -> Vec<ChildIndex>;
+
+    /// Returns a derivation path given the child index vector.
+    fn from_vec(path: &Vec<ChildIndex>) -> Self;
+}
 
 #[derive(Debug, Fail, PartialEq, Eq)]
 pub enum DerivationPathError {

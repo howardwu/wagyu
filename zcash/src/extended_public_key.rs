@@ -41,7 +41,7 @@ impl<N: ZcashNetwork> ExtendedPublicKey for ZcashExtendedPublicKey<N> {
                     extended_public_key = Self {
                         extended_full_viewing_key: match extended_public_key
                             .extended_full_viewing_key
-                            .derive_child(ChildIndex::Normal(*number))
+                            .derive_child(ChildIndex::Normal(number))
                         {
                             Ok(extended_full_viewing_key) => extended_full_viewing_key,
                             _ => return Err(DerivationPathError::InvalidDerivationPath(path.to_string()).into()),

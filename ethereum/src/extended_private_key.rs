@@ -91,7 +91,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(*index).to_be_bytes());
+            mac.input(&u32::from(index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
@@ -107,7 +107,7 @@ impl ExtendedPrivateKey for EthereumExtendedPrivateKey {
             extended_private_key = Self {
                 depth: extended_private_key.depth + 1,
                 parent_fingerprint,
-                child_index: *index,
+                child_index: index,
                 chain_code,
                 private_key,
             }

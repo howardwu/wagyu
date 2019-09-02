@@ -6,7 +6,17 @@ use std::{fmt, str::FromStr};
 #[derive(Clone, PartialEq, Eq)]
 pub struct EthereumDerivationPath(Vec<ChildIndex>);
 
-impl DerivationPath for EthereumDerivationPath {}
+impl DerivationPath for EthereumDerivationPath {
+    /// Returns a child index vector given the derivation path.
+    fn to_vec(&self) -> Vec<ChildIndex> {
+        self.0.clone()
+    }
+
+    /// Returns a derivation path given the child index vector.
+    fn from_vec(path: &Vec<ChildIndex>) -> Self {
+        Self(path.clone())
+    }
+}
 
 impl FromStr for EthereumDerivationPath {
     type Err = DerivationPathError;
@@ -25,28 +35,28 @@ impl FromStr for EthereumDerivationPath {
 
 impl From<Vec<ChildIndex>> for EthereumDerivationPath {
     fn from(path: Vec<ChildIndex>) -> Self {
-        Self(path)
+        Self::from_vec(&path)
     }
 }
 
 impl Into<Vec<ChildIndex>> for EthereumDerivationPath {
     fn into(self) -> Vec<ChildIndex> {
-        self.0
+        self.to_vec()
     }
 }
 
 impl<'a> From<&'a [ChildIndex]> for EthereumDerivationPath {
     fn from(path: &'a [ChildIndex]) -> Self {
-        Self(path.to_vec())
+        Self::from_vec(&path.to_vec())
     }
 }
 
 impl<'a> ::std::iter::IntoIterator for &'a EthereumDerivationPath {
-    type Item = &'a ChildIndex;
-    type IntoIter = ::std::slice::Iter<'a, ChildIndex>;
+    type Item = ChildIndex;
+    type IntoIter = ::std::vec::IntoIter<ChildIndex>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.to_vec().into_iter()
     }
 }
 
@@ -59,7 +69,7 @@ impl fmt::Debug for EthereumDerivationPath {
 impl fmt::Display for EthereumDerivationPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("m")?;
-        for index in self.0.iter() {
+        for index in self.to_vec().iter() {
             f.write_str("/")?;
             fmt::Display::fmt(index, f)?;
         }

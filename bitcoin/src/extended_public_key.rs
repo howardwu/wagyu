@@ -36,7 +36,7 @@ pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
 
 impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type Address = BitcoinAddress<N>;
-    type DerivationPath = BitcoinDerivationPath;
+    type DerivationPath = BitcoinDerivationPath<N>;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
     type Format = BitcoinFormat;
     type PublicKey = BitcoinPublicKey<N>;
@@ -70,11 +70,11 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
                 ChildIndex::Normal(_) => mac.input(public_key_serialized),
                 // Return failure
                 ChildIndex::Hardened(_) => {
-                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)))
+                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(index)))
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(*index).to_be_bytes());
+            mac.input(&u32::from(index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut chain_code = [0u8; 32];
@@ -91,7 +91,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
                 format: extended_public_key.format.clone(),
                 depth: extended_public_key.depth + 1,
                 parent_fingerprint,
-                child_index: *index,
+                child_index: index,
                 chain_code,
                 public_key,
             };

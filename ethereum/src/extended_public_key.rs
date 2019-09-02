@@ -67,11 +67,11 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
                 ChildIndex::Normal(_) => mac.input(public_key_serialized),
                 // Return failure
                 ChildIndex::Hardened(_) => {
-                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)))
+                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(index)))
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(*index).to_be_bytes());
+            mac.input(&u32::from(index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut chain_code = [0u8; 32];
@@ -85,9 +85,9 @@ impl ExtendedPublicKey for EthereumExtendedPublicKey {
             parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
             extended_public_key = Self {
-                depth: self.depth + 1,
+                depth: extended_public_key.depth + 1,
                 parent_fingerprint,
-                child_index: *index,
+                child_index: index,
                 chain_code,
                 public_key,
             };

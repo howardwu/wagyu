@@ -8,10 +8,12 @@ use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Testnet;
 
-impl Network for Testnet {}
+impl Network for Testnet {
+    const NAME: &'static str = "testnet";
+}
 
 impl BitcoinNetwork for Testnet {
-    const NAME: &'static str = "testnet";
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(1);
 
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {

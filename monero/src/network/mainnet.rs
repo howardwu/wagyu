@@ -8,11 +8,11 @@ use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Mainnet;
 
-impl Network for Mainnet {}
+impl Network for Mainnet {
+    const NAME: &'static str = "mainnet";
+}
 
 impl MoneroNetwork for Mainnet {
-    const NAME: &'static str = "mainnet";
-
     /// Returns the address prefix of the given network.
     /// https://github.com/monero-project/monero/blob/3ad4ecd4ff52f011ee94e0e80754b965b82f072b/src/cryptonote_config.h#L153&L155
     fn to_address_prefix(format: &MoneroFormat) -> u8 {

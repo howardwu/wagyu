@@ -220,6 +220,7 @@ mod tests {
         use super::*;
 
         type N = Mainnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "L2o7RUmise9WoxNzmnVZeK83Mmt5Nn1NBpeftbthG5nsLWCzSKVg",
@@ -280,6 +281,7 @@ mod tests {
         use super::*;
 
         type N = Mainnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "5K9VY2kaJ264Pj4ygobGLk7JJMgZ2i6wQ9FFKEBxoFtKeAXPHYm",
@@ -373,6 +375,7 @@ mod tests {
         use super::*;
 
         type N = Testnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "cSCkpm1oSHTUtX5CHdQ4FzTv9qxLQWKx2SXMg22hbGSTNVcsUcCX",
@@ -433,6 +436,7 @@ mod tests {
         use super::*;
 
         type N = Testnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "934pVYUzZ7Sm4ZSP7MtXaQXAcMhZHpFHFBvzfW3epFgk5cWeYih",
@@ -493,6 +497,7 @@ mod tests {
         use super::*;
 
         type N = Mainnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "L3YPi4msjWdkqiH3ojfg3nwDmNYBrDScAtcugYBJSgsc3HTcqqjP",
@@ -586,6 +591,7 @@ mod tests {
         use super::*;
 
         type N = Testnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "cSoLwgnCNXck57BGxdGRV4SQ42EUExV6ykdMK1RKwcEaB9MDZWki",
@@ -647,6 +653,7 @@ mod tests {
         use crate::public_key::BitcoinPublicKey;
 
         type N = Mainnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "KyQ2StwnZ644hRLXdMrRUBGKT9WJcVVhnuzz2u528VHeAr5kFimR",
@@ -724,6 +731,7 @@ mod tests {
         use super::*;
 
         type N = Testnet;
+
         const KEYPAIRS: [(&str, &str); 5] = [
             (
                 "cVQmTtLoCjDJAXVj778xyww1ZbpJQt7Vq9sDt8Mdmw97Rg7TaNes",

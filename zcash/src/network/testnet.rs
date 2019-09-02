@@ -7,11 +7,11 @@ use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Testnet;
 
-impl Network for Testnet {}
+impl Network for Testnet {
+    const NAME: &'static str = "testnet";
+}
 
 impl ZcashNetwork for Testnet {
-    const NAME: &'static str = "testnet";
-
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &ZcashFormat) -> Vec<u8> {
         match format {
