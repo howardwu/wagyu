@@ -9,11 +9,11 @@ use crate::public_key::MoneroPublicKey;
 use libc::c_char;
 use serde::{Deserialize, Serialize};
 use serde::export::PhantomData;
-use serde_json::{json};
+use serde_json;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
-use wagyu_model::{ TransactionError, Transaction };
+use wagyu_model::{TransactionError, Transaction};
 
 
 /// Represents a Monero transaction
@@ -23,7 +23,7 @@ pub struct MoneroTransaction<N: MoneroNetwork> {
     serialized_signed_tx: String,
     tx_hash: String,
     tx_key: String,
-    _network: PhantomData<N>
+    _network: PhantomData<N>,
 }
 
 impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
@@ -77,7 +77,87 @@ pub struct TransactionParameters {
     using_outs: Vec<UnspentOutput>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct PrepareTransactionArguments {
+    is_sweeping: String,
+    fee_mask: String,
+    fee_per_b: String,
+    fork_version: String,
+    sending_amount: String,
+    priority: String,
+    unspent_outs: Vec<UnspentOutput>,
+
+    #[serde(skip_serializing_if = "String::is_empty")]
+    payment_id_string: String,
+
+    #[serde(skip_serializing_if = "String::is_empty")]
+    passedIn_attemptAt_fee: String,
+}
+
+impl Default for PrepareTransactionArguments {
+    fn default() -> Self {
+        Self {
+            is_sweeping: String::new(),
+            fee_mask: String::new(),
+            fee_per_b: String::new(),
+            fork_version: String::new(),
+            sending_amount: String::new(),
+            priority: String::new(),
+            unspent_outs: Vec::<UnspentOutput>::new(),
+            payment_id_string: String::new(),
+            passedIn_attemptAt_fee: String::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct CreateTransactionArguments {
+    change_amount: String,
+    fee_amount: String,
+    fee_mask: String,
+    fee_per_b: String,
+    final_total_wo_fee: String,
+    fork_version: String,
+    from_address_string: String,
+    mix_outs: Vec<MixAmountAndOuts>,
+    nettype_string: String,
+    priority: String,
+    sec_spendKey_string: String,
+    sec_viewKey_string: String,
+    to_address_string: String,
+    unlock_time: String,
+    using_outs: Vec<UnspentOutput>,
+
+    #[serde(skip_serializing_if = "String::is_empty")]
+    payment_id_string: String,
+}
+
+impl Default for CreateTransactionArguments {
+    fn default() -> Self {
+        Self {
+            change_amount: String::new(),
+            fee_amount: String::new(),
+            fee_mask: String::new(),
+            fee_per_b: String::new(),
+            final_total_wo_fee: String::new(),
+            fork_version: String::new(),
+            from_address_string: String::new(),
+            mix_outs: Vec::<MixAmountAndOuts>::new(),
+            nettype_string: String::new(),
+            priority: String::new(),
+            sec_spendKey_string: String::new(),
+            sec_viewKey_string: String::new(),
+            to_address_string: String::new(),
+            unlock_time: String::new(),
+            using_outs: Vec::<UnspentOutput>::new(),
+            payment_id_string: String::new(),
+        }
+    }
+}
+
 impl<N: MoneroNetwork> MoneroTransaction<N> {
+
+
 
     // Call into mymonero-core-cpp library json interface functions to send transaction
     // https://github.com/mymonero/mymonero-core-cpp/blob/master/src/serial_bridge_index.cpp
@@ -88,36 +168,29 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         fee_per_b: u64,
         fork_version: u8,
         sending_amount: u64,
-        passed_in_attempt_at_fee: Option<String>,
-        payment_id_string: Option<String>,
+        passed_in_attempt_at_fee: String,
+        payment_id_string: String,
         priority: u32,
         unspent_outs: Vec<UnspentOutput>,
     ) -> Result<TransactionParameters, TransactionError> {
 
-//        let passed_in_attempt_at_fee_unwrapped = match passed_in_attempt_at_fee {
-//            Some(fee) => fee,
-//            None => "".into(),
-//        };
-//
-//        let payment_id_string_unwrapped = match payment_id_string {
-//            Some(payment_id) => payment_id,
-//            None => "".into(),
-//        };
-
-        let args_value = json!({
-            "is_sweeping": is_sweeping.to_string(),
-            "fee_mask": fee_mask.to_string(),
-            "fee_per_b": fee_per_b.to_string(),
-            "fork_version": fork_version.to_string(),
-            "sending_amount": sending_amount.to_string(),
-//            "passedIn_attemptAt_fee": passed_in_attempt_at_fee_unwrapped,
-//            "payment_id_string": payment_id_string_unwrapped,
-            "priority": priority.to_string(),
-            "unspent_outs": unspent_outs,
-        });
+        let args_value = PrepareTransactionArguments {
+            is_sweeping: is_sweeping.to_string(),
+            fee_mask: fee_mask.to_string(),
+            fee_per_b: fee_per_b.to_string(),
+            fork_version: fork_version.to_string(),
+            sending_amount: sending_amount.to_string(),
+            priority: priority.to_string(),
+            unspent_outs,
+            passedIn_attemptAt_fee: passed_in_attempt_at_fee.to_string(),
+            payment_id_string: payment_id_string.to_string(),
+        };
 //        println!("sending step 1: {}", args_value.to_string());
 
-        let response = call_extern_function(&args_value.to_string(), extern_send_step1);
+        let response = call_extern_function(
+            &serde_json::to_string(&args_value)?,
+            extern_send_step1
+        );
 
 //        println!("received step 1: {}", response);
 
@@ -159,7 +232,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             final_total_wo_fee: result.final_total_wo_fee.parse::<u64>()?,
             mixin: result.mixin.parse::<u32>()?,
             using_fee: result.using_fee.parse::<u64>()?,
-            using_outs
+            using_outs,
         })
     }
 
@@ -173,7 +246,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         from_address_string: String,
         mix_outs: Vec<MixAmountAndOuts>,
         nettype_string: String,
-        payment_id_string: Option<String>,
+        payment_id_string: String,
         priority: u32,
         sec_spend_key_string: String,
         sec_view_key_string: String,
@@ -182,33 +255,30 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         using_outs: Vec<UnspentOutput>,
     ) -> Result<Self, TransactionError> {
 
-//        let payment_id_string = match payment_id_string {
-//            Some(payment_id) => payment_id,
-//            None => "".into(),
-//        };
-
-        let args_value = json!({
-            "change_amount": change_amount.to_string(),
-            "fee_amount": fee_amount.to_string(),
-            "fee_mask": fee_mask.to_string(),
-            "fee_per_b": fee_per_b.to_string(),
-            "final_total_wo_fee": final_total_wo_fee.to_string(),
-            "fork_version": fork_version.to_string(),
-            "from_address_string": from_address_string,
-            "mix_outs": mix_outs,
-            "nettype_string": nettype_string,
-//            "payment_id_string": payment_id_string,
-            "priority": priority.to_string(),
-            "sec_spendKey_string": sec_spend_key_string,
-            "sec_viewKey_string": sec_view_key_string,
-            "to_address_string": to_address_string,
-            "unlock_time": unlock_time.to_string(),
-            "using_outs": using_outs
-        });
+        let args_value = CreateTransactionArguments {
+            change_amount: change_amount.to_string(),
+            fee_amount: fee_amount.to_string(),
+            fee_mask: fee_mask.to_string(),
+            fee_per_b: fee_per_b.to_string(),
+            fork_version: fork_version.to_string(),
+            final_total_wo_fee: final_total_wo_fee.to_string(),
+            from_address_string,
+            mix_outs,
+            nettype_string,
+            payment_id_string: payment_id_string.to_string(),
+            priority: priority.to_string(),
+            sec_spendKey_string: sec_spend_key_string.to_string(),
+            sec_viewKey_string: sec_view_key_string.to_string(),
+            to_address_string,
+            unlock_time: unlock_time.to_string(),
+            using_outs,
+        };
 
 //        println!("sending step 2: {}", args_value.to_string());
 
-        let response = call_extern_function(&args_value.to_string(), extern_send_step2);
+        let response = call_extern_function(
+            &serde_json::to_string(&args_value)?,
+            extern_send_step2);
 
 //        println!("received step 2: {}", response);
 
@@ -235,7 +305,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
 /// Make an unsafe external call to a C function
 pub fn call_extern_function(
     arg_str: &str,
-    function: unsafe extern "C" fn(*const c_char) -> *const c_char
+    function: unsafe extern "C" fn(*const c_char) -> *const c_char,
 ) -> String {
     // 1. create C string (ends with the zero byte and can't contain one inside)
     let str_arr: CString = CString::new(arg_str).unwrap();
@@ -245,7 +315,7 @@ pub fn call_extern_function(
 
     // 3. make unsafe conversion from pointer to c character array into pointer to rust CStr (i8) type
     // this method is unsafe because from_ptr returns a CStr with an arbitrary lifetime parameter
-    let c_str: &CStr = unsafe { CStr::from_ptr(c_buf )};
+    let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
 
     // 4. convert to rust string slice
     let str_slice: &str = c_str.to_str().unwrap();
@@ -278,13 +348,13 @@ mod tests {
         let fee_mask = 10000u64;
         let fee_per_b = 24658u64;
         let fork_version = 10u8;
-        let passed_in_attempt_at_fee: Option<String> = None;
-        let payment_id_string: Option<String> = Some("d2f602b240fbe624".into());
+        let passed_in_attempt_at_fee = "".into();
+        let payment_id_string = "d2f602b240fbe624".into();
         let sending_amount = 200000000u64;
         let priority = 1u32;
         let unspent_outs: Vec<UnspentOutput> = serde_json::from_str(unspent_outs_string).unwrap();
 
-        let step1_result = MoneroTransaction::<N>::prepare_transaction(
+        let transaction_parameters = MoneroTransaction::<N>::prepare_transaction(
             is_sweeping,
             fee_mask,
             fee_per_b,
@@ -296,25 +366,25 @@ mod tests {
             unspent_outs,
         ).unwrap();
 
-        let change_amount = step1_result.change_amount;
-        let fee_amount = step1_result.using_fee;
+        let change_amount = transaction_parameters.change_amount;
+        let fee_amount = transaction_parameters.using_fee;
         let fee_mask = 10000u64;
-        let fee_per_b = 24658u64;
-        let final_total_wo_fee = step1_result.final_total_wo_fee;
+        let fee_per_b = 8;
+        let final_total_wo_fee = transaction_parameters.final_total_wo_fee;
         let fork_version = 10u8;
         let from_address_string = "43zxvpcj5Xv9SEkNXbMCG7LPQStHMpFCQCmkmR4u5nzjWwq5Xkv5VmGgYEsHXg4ja2FGRD5wMWbBVMijDTqmmVqm93wHGkg".into();
         let mix_outs: Vec<MixAmountAndOuts> = serde_json::from_str(mix_outs_string).unwrap();
         let nettype_string = "MAINNET".into();
-        let payment_id_string: Option<String> = None; //Some("d2f602b240fbe624".into());
+        let payment_id_string = "d2f602b240fbe624".into();
         let priority = 1u32;
         let sec_spend_key_string = "4e6d43cd03812b803c6f3206689f5fcc910005fc7e91d50d79b0776dbefcd803".into();
         let sec_view_key_string = "7bea1907940afdd480eff7c4bcadb478a0fbb626df9e3ed74ae801e18f53e104".into();
         let to_address_string = "4APbcAKxZ2KPVPMnqa5cPtJK25tr7maE7LrJe67vzumiCtWwjDBvYnHZr18wFexJpih71Mxsjv8b7EpQftpB9NjPPXmZxHN".into();
         let unlock_time = 0u64;
-        let using_outs: Vec<UnspentOutput> = step1_result.using_outs;
+        let using_outs: Vec<UnspentOutput> = transaction_parameters.using_outs;
 
 
-        let step2_result = MoneroTransaction::<N>::create_transaction(
+        let transaction_result = MoneroTransaction::<N>::create_transaction(
             change_amount,
             fee_amount,
             fee_mask,
@@ -334,13 +404,13 @@ mod tests {
         ).unwrap();
 
         println!();
-        println!("tx_must be reconstructed {:?}", step2_result.tx_must_be_reconstructed);
+        println!("tx_must be reconstructed {:?}", transaction_result.tx_must_be_reconstructed);
         println!();
-        println!("serialized tx {:?}", step2_result.serialized_signed_tx);
+        println!("serialized tx {:?}", transaction_result.serialized_signed_tx);
         println!();
-        println!("tx hash {:?}", step2_result.tx_hash);
+        println!("tx hash {:?}", transaction_result.tx_hash);
         println!();
-        println!("tx key {:?}", step2_result.tx_key);
+        println!("tx key {:?}", transaction_result.tx_key);
         println!();
     }
 }
