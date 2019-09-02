@@ -57,7 +57,7 @@ impl SproutViewingKey {
 
         SproutViewingKey { key_a, key_b }
     }
-  
+
     /// Returns output of pseudorandom function
     fn prf(result: &mut [u8; 32], payload: &[u8; 32], t: u8) {
         let mut buf = [0u8; 64];
@@ -327,7 +327,11 @@ mod tests {
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str<N: ZcashNetwork>(expected_public_key: &str, expected_address: &str, expected_format: &ZcashFormat) {
+    fn test_from_str<N: ZcashNetwork>(
+        expected_public_key: &str,
+        expected_address: &str,
+        expected_format: &ZcashFormat,
+    ) {
         let public_key = ZcashPublicKey::<N>::from_str(expected_public_key).unwrap();
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());

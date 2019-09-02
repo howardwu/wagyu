@@ -6,7 +6,7 @@ use std::fmt;
 /// Represents the format of a Ethereum address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EthereumFormat {
-    Standard
+    Standard,
 }
 
 impl Format for EthereumFormat {}

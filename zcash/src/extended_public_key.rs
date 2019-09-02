@@ -133,7 +133,8 @@ mod tests {
     fn test_from_extended_private_key<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
+        let extended_private_key =
+            ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
@@ -141,7 +142,8 @@ mod tests {
     fn test_to_address<N: ZcashNetwork>(expected_address: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
+        let extended_private_key =
+            ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         let format = &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap()));
         let address = extended_public_key.to_address(&format).unwrap();
@@ -156,7 +158,8 @@ mod tests {
     fn test_to_string<N: ZcashNetwork>(expected_extended_public_key: &str, seed: &str, path: &str) {
         let seed = hex::decode(seed).unwrap();
         let path = ZcashDerivationPath::from_str(path).unwrap();
-        let extended_private_key = ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
+        let extended_private_key =
+            ZcashExtendedPrivateKey::<N>::new(&seed, &ZcashFormat::Sapling(None), &path).unwrap();
         let extended_public_key = ZcashExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }

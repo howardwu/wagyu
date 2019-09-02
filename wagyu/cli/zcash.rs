@@ -1,9 +1,8 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
 use crate::zcash::{
-    format::ZcashFormat, Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress,
-    ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
-    ZcashPublicKey,
+    format::ZcashFormat, Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashDerivationPath,
+    ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey, ZcashPublicKey,
 };
 
 use clap::ArgMatches;

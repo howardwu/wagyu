@@ -303,7 +303,13 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(seed, (private_spend_key, private_view_key), _, address)| {
-                    test_from_seed::<N>(private_spend_key, private_view_key, address, &MoneroFormat::Standard, seed);
+                    test_from_seed::<N>(
+                        private_spend_key,
+                        private_view_key,
+                        address,
+                        &MoneroFormat::Standard,
+                        seed,
+                    );
                 });
         }
 
@@ -312,7 +318,12 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(_, (private_spend_key, private_view_key), _, address)| {
-                    test_from_private_spend_key::<N>(private_view_key, address, &MoneroFormat::Standard, private_spend_key);
+                    test_from_private_spend_key::<N>(
+                        private_view_key,
+                        address,
+                        &MoneroFormat::Standard,
+                        private_spend_key,
+                    );
                 });
         }
 

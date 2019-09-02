@@ -174,7 +174,6 @@ mod tests {
 
     #[test]
     fn test_checksum_address_invalid() {
-
         // Mismatched keypair
 
         let private_key = "f89f23eaeac18252fedf81bb8318d3c111d48c19b0680dcf6e0a8d5136caf287";

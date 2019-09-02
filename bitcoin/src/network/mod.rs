@@ -1,5 +1,7 @@
 use crate::format::BitcoinFormat;
-use wagyu_model::{AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError};
+use wagyu_model::{
+    AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError,
+};
 
 pub mod mainnet;
 pub use self::mainnet::*;

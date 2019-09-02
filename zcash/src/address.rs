@@ -274,7 +274,11 @@ mod tests {
         assert_eq!(expected_address, address.to_string());
     }
 
-    fn test_from_public_key<N: ZcashNetwork>(expected_address: &str, public_key: &ZcashPublicKey<N>, format: &ZcashFormat) {
+    fn test_from_public_key<N: ZcashNetwork>(
+        expected_address: &str,
+        public_key: &ZcashPublicKey<N>,
+        format: &ZcashFormat,
+    ) {
         let address = ZcashAddress::<N>::from_public_key(public_key, format).unwrap();
         assert_eq!(expected_address, address.to_string());
     }

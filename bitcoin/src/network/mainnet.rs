@@ -49,7 +49,7 @@ impl BitcoinNetwork for Mainnet {
     /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
     fn to_extended_private_key_version_bytes(format: &BitcoinFormat) -> Result<Vec<u8>, ExtendedPrivateKeyError> {
         match format {
-            BitcoinFormat::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]),       // xprv
+            BitcoinFormat::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]), // xprv
             BitcoinFormat::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // yprv
             _ => Err(ExtendedPrivateKeyError::UnsupportedFormat(format.to_string())),
         }
@@ -68,7 +68,7 @@ impl BitcoinNetwork for Mainnet {
     /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
     fn to_extended_public_key_version_bytes(format: &BitcoinFormat) -> Result<Vec<u8>, ExtendedPublicKeyError> {
         match format {
-            BitcoinFormat::P2PKH => Ok(vec![0x04, 0x88, 0xB2, 0x1E]),       // xpub
+            BitcoinFormat::P2PKH => Ok(vec![0x04, 0x88, 0xB2, 0x1E]), // xpub
             BitcoinFormat::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x7C, 0xB2]), // ypub
             _ => Err(ExtendedPublicKeyError::UnsupportedFormat(format.to_string())),
         }
