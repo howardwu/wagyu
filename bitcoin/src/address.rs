@@ -69,11 +69,9 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
     pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let redeem = Self::create_redeem_script(public_key);
-
         let mut address = [0u8; 25];
         address[0] = N::to_address_prefix(&BitcoinFormat::P2SH_P2WPKH)[0];
-        address[1..21].copy_from_slice(&hash160(&redeem));
+        address[1..21].copy_from_slice(&hash160(&Self::create_redeem_script(public_key)));
 
         let sum = &checksum(&address[0..21])[0..4];
         address[21..25].copy_from_slice(sum);
@@ -87,7 +85,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     /// Returns a Bech32 address from a given Bitcoin public key.
     pub fn bech32(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let redeem_script = BitcoinAddress::create_redeem_script(public_key);
+        let redeem_script = Self::create_redeem_script(public_key);
         let version = u5::try_from_u8(redeem_script[0])?;
 
         let mut data = vec![version];
