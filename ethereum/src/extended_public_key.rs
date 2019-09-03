@@ -32,7 +32,7 @@ pub struct EthereumExtendedPublicKey<N: EthereumNetwork> {
     /// The Ethereum public key
     public_key: EthereumPublicKey,
     /// PhantomData
-    _network: PhantomData<N>
+    _network: PhantomData<N>,
 }
 
 impl<N: EthereumNetwork> ExtendedPublicKey for EthereumExtendedPublicKey<N> {

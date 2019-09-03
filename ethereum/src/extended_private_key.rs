@@ -33,7 +33,7 @@ pub struct EthereumExtendedPrivateKey<N> {
     /// The Ethereum private key
     private_key: EthereumPrivateKey,
     /// PhantomData
-    _network: PhantomData<N>
+    _network: PhantomData<N>,
 }
 
 impl<N: EthereumNetwork> ExtendedPrivateKey for EthereumExtendedPrivateKey<N> {
@@ -275,7 +275,11 @@ mod tests {
         );
     }
 
-    fn test_to_extended_public_key<N: EthereumNetwork>(expected_extended_public_key: &str, seed: &str, path: &EthereumDerivationPath<N>) {
+    fn test_to_extended_public_key<N: EthereumNetwork>(
+        expected_extended_public_key: &str,
+        seed: &str,
+        path: &EthereumDerivationPath<N>,
+    ) {
         let extended_private_key =
             EthereumExtendedPrivateKey::<N>::new(&hex::decode(seed).unwrap(), &EthereumFormat::Standard, path).unwrap();
         let extended_public_key = extended_private_key.to_extended_public_key();
@@ -576,7 +580,6 @@ mod tests {
         /// Test case from ethereumjs-wallet https://github.com/ethereumjs/ethereumjs-wallet/blob/master/src/test/hdkey.js
         #[test]
         fn test_derivation_path() {
-
             type N = Mainnet;
 
             let path = "m/44'/0'/0/1";

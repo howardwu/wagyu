@@ -1,6 +1,8 @@
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
-use wagyu_model::{AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, NetworkError, PrivateKeyError};
+use wagyu_model::{
+    AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, NetworkError, PrivateKeyError,
+};
 
 use serde::Serialize;
 use std::{fmt, str::FromStr};

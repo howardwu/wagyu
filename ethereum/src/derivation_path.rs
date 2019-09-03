@@ -45,8 +45,7 @@ impl<N: EthereumNetwork> DerivationPath for EthereumDerivationPath<N> {
             | EthereumDerivationPath::Jaxx(index)
             | EthereumDerivationPath::MetaMask(index)
             | EthereumDerivationPath::MyEtherWallet(index)
-            | EthereumDerivationPath::Trezor(index)
-            => match index.is_normal() {
+            | EthereumDerivationPath::Trezor(index) => match index.is_normal() {
                 true => Ok(vec![
                     N::HD_PURPOSE,
                     N::HD_COIN_TYPE,
@@ -54,39 +53,33 @@ impl<N: EthereumNetwork> DerivationPath for EthereumDerivationPath<N> {
                     ChildIndex::Normal(0),
                     *index,
                 ]),
-                false => Err(DerivationPathError::ExpectedBIP44Path)
+                false => Err(DerivationPathError::ExpectedBIP44Path),
             },
 
-            EthereumDerivationPath::KeepKey(index)
-            | EthereumDerivationPath::LedgerLive(index)
-            => match index.is_hardened() {
-                true => Ok(vec![
-                    N::HD_PURPOSE,
-                    N::HD_COIN_TYPE,
-                    *index,
-                    ChildIndex::Normal(0),
-                    ChildIndex::Normal(0),
-                ]),
-                false => Err(DerivationPathError::ExpectedBIP44Path)
-            },
+            EthereumDerivationPath::KeepKey(index) | EthereumDerivationPath::LedgerLive(index) => {
+                match index.is_hardened() {
+                    true => Ok(vec![
+                        N::HD_PURPOSE,
+                        N::HD_COIN_TYPE,
+                        *index,
+                        ChildIndex::Normal(0),
+                        ChildIndex::Normal(0),
+                    ]),
+                    false => Err(DerivationPathError::ExpectedBIP44Path),
+                }
+            }
 
             EthereumDerivationPath::Electrum(index)
             | EthereumDerivationPath::ImToken(index)
-            | EthereumDerivationPath::LedgerLegacy(index)
-            => match index.is_normal() {
-                true => Ok(vec![
-                    N::HD_PURPOSE,
-                    N::HD_COIN_TYPE,
-                    ChildIndex::Hardened(0),
-                    *index,
-                ]),
-                false => Err(DerivationPathError::ExpectedValidEthereumDerivationPath)
+            | EthereumDerivationPath::LedgerLegacy(index) => match index.is_normal() {
+                true => Ok(vec![N::HD_PURPOSE, N::HD_COIN_TYPE, ChildIndex::Hardened(0), *index]),
+                false => Err(DerivationPathError::ExpectedValidEthereumDerivationPath),
             },
 
             EthereumDerivationPath::Custom(path, _) => match path.len() < 256 {
                 true => Ok(path.clone()),
-                false => Err(DerivationPathError::ExpectedValidEthereumDerivationPath)
-            }
+                false => Err(DerivationPathError::ExpectedValidEthereumDerivationPath),
+            },
         }
     }
 
@@ -193,10 +186,12 @@ mod tests {
 
     #[test]
     fn valid_path() {
-
         type N = Mainnet;
 
-        assert_eq!(EthereumDerivationPath::<N>::from_str("m"), Ok(vec![].try_into().unwrap()));
+        assert_eq!(
+            EthereumDerivationPath::<N>::from_str("m"),
+            Ok(vec![].try_into().unwrap())
+        );
         assert_eq!(
             EthereumDerivationPath::<N>::from_str("m/0"),
             Ok(vec![ChildIndex::from_normal(0).unwrap()].try_into().unwrap())
@@ -231,7 +226,10 @@ mod tests {
             .unwrap())
         );
 
-        assert_eq!(EthereumDerivationPath::<N>::from_str("m"), Ok(vec![].try_into().unwrap()));
+        assert_eq!(
+            EthereumDerivationPath::<N>::from_str("m"),
+            Ok(vec![].try_into().unwrap())
+        );
         assert_eq!(
             EthereumDerivationPath::<N>::from_str("m/0'"),
             Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
@@ -279,7 +277,10 @@ mod tests {
             .unwrap())
         );
 
-        assert_eq!(EthereumDerivationPath::<N>::from_str("m"), Ok(vec![].try_into().unwrap()));
+        assert_eq!(
+            EthereumDerivationPath::<N>::from_str("m"),
+            Ok(vec![].try_into().unwrap())
+        );
         assert_eq!(
             EthereumDerivationPath::<N>::from_str("m/0h"),
             Ok(vec![ChildIndex::from_hardened(0).unwrap()].try_into().unwrap())
@@ -330,7 +331,6 @@ mod tests {
 
     #[test]
     fn invalid_path() {
-
         type N = Mainnet;
 
         assert_eq!(

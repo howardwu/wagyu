@@ -96,7 +96,10 @@ impl EthereumWallet {
         })
     }
 
-    pub fn from_extended_private_key<N: EthereumNetwork>(extended_private_key: &str, path: &Option<String>) -> Result<Self, CLIError> {
+    pub fn from_extended_private_key<N: EthereumNetwork>(
+        extended_private_key: &str,
+        path: &Option<String>,
+    ) -> Result<Self, CLIError> {
         let mut extended_private_key = EthereumExtendedPrivateKey::<N>::from_str(extended_private_key)?;
         if let Some(derivation_path) = path {
             let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
@@ -117,7 +120,10 @@ impl EthereumWallet {
         })
     }
 
-    pub fn from_extended_public_key<N: EthereumNetwork>(extended_public_key: &str, path: &Option<String>) -> Result<Self, CLIError> {
+    pub fn from_extended_public_key<N: EthereumNetwork>(
+        extended_public_key: &str,
+        path: &Option<String>,
+    ) -> Result<Self, CLIError> {
         let mut extended_public_key = EthereumExtendedPublicKey::<N>::from_str(extended_public_key)?;
         if let Some(derivation_path) = path {
             let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;

@@ -240,7 +240,11 @@ mod tests {
         assert_eq!(&expected_entropy[..], &result[..]);
     }
 
-    fn test_to_seed<N: EthereumNetwork, W: EthereumWordlist>(expected_seed: &str, password: Option<&str>, mnemonic: EthereumMnemonic<N, W>) {
+    fn test_to_seed<N: EthereumNetwork, W: EthereumWordlist>(
+        expected_seed: &str,
+        password: Option<&str>,
+        mnemonic: EthereumMnemonic<N, W>,
+    ) {
         assert_eq!(expected_seed, &hex::encode(mnemonic.to_seed(password).unwrap()))
     }
 
