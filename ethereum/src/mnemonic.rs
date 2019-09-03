@@ -2,6 +2,7 @@ use crate::address::EthereumAddress;
 use crate::extended_private_key::EthereumExtendedPrivateKey;
 use crate::extended_public_key::EthereumExtendedPublicKey;
 use crate::format::EthereumFormat;
+use crate::network::EthereumNetwork;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use crate::wordlist::EthereumWordlist;
@@ -20,18 +21,20 @@ const PBKDF2_BYTES: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Represents an Ethereum mnemonic
-pub struct EthereumMnemonic<W: EthereumWordlist> {
+pub struct EthereumMnemonic<N: EthereumNetwork, W: EthereumWordlist> {
     /// Initial entropy in multiples of 32 bits
     entropy: Vec<u8>,
     /// The mnemonic phrase
     phrase: String,
     /// PhantomData
+    _network: PhantomData<N>,
+    /// PhantomData
     _wordlist: PhantomData<W>,
 }
 
-impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
-    type ExtendedPrivateKey = EthereumExtendedPrivateKey;
-    type ExtendedPublicKey = EthereumExtendedPublicKey;
+impl<N: EthereumNetwork, W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<N, W> {
+    type ExtendedPrivateKey = EthereumExtendedPrivateKey<N>;
+    type ExtendedPublicKey = EthereumExtendedPublicKey<N>;
 
     /// Returns the extended private key of the corresponding mnemonic.
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
@@ -47,7 +50,7 @@ impl<W: EthereumWordlist> MnemonicExtended for EthereumMnemonic<W> {
     }
 }
 
-impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
+impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W> {
     type Address = EthereumAddress;
     type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
@@ -58,6 +61,7 @@ impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
         Ok(Self {
             entropy: Self::to_entropy(phrase)?,
             phrase: phrase.to_owned(),
+            _network: PhantomData,
             _wordlist: PhantomData,
         })
     }
@@ -78,7 +82,7 @@ impl<W: EthereumWordlist> Mnemonic for EthereumMnemonic<W> {
     }
 }
 
-impl<W: EthereumWordlist> EthereumMnemonic<W> {
+impl<N: EthereumNetwork, W: EthereumWordlist> EthereumMnemonic<N, W> {
     /// Returns a new mnemonic phrase given the word count.
     pub fn new<R: Rng>(word_count: u8, rng: &mut R) -> Result<Self, MnemonicError> {
         let length: usize = match word_count {
@@ -139,6 +143,7 @@ impl<W: EthereumWordlist> EthereumMnemonic<W> {
         Ok(Self {
             entropy: entropy.clone(),
             phrase: phrase.join(" "),
+            _network: PhantomData,
             _wordlist: PhantomData,
         })
     }
@@ -187,7 +192,7 @@ impl<W: EthereumWordlist> EthereumMnemonic<W> {
     }
 }
 
-impl<W: EthereumWordlist> FromStr for EthereumMnemonic<W> {
+impl<N: EthereumNetwork, W: EthereumWordlist> FromStr for EthereumMnemonic<N, W> {
     type Err = MnemonicError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -195,7 +200,7 @@ impl<W: EthereumWordlist> FromStr for EthereumMnemonic<W> {
     }
 }
 
-impl<W: EthereumWordlist> fmt::Display for EthereumMnemonic<W> {
+impl<N: EthereumNetwork, W: EthereumWordlist> fmt::Display for EthereumMnemonic<N, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.phrase)
     }
@@ -204,45 +209,47 @@ impl<W: EthereumWordlist> fmt::Display for EthereumMnemonic<W> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::network::*;
     use crate::wordlist::*;
+
     use hex;
 
-    fn test_new<W: EthereumWordlist>(word_count: u8) {
+    fn test_new<N: EthereumNetwork, W: EthereumWordlist>(word_count: u8) {
         let rng = &mut rand::thread_rng();
-        let result = EthereumMnemonic::<W>::new(word_count, rng).unwrap();
-        test_from_entropy::<W>(&result.entropy, &result.phrase);
+        let result = EthereumMnemonic::<N, W>::new(word_count, rng).unwrap();
+        test_from_entropy::<N, W>(&result.entropy, &result.phrase);
     }
 
-    fn test_from_entropy<W: EthereumWordlist>(entropy: &Vec<u8>, expected_phrase: &str) {
-        let result = EthereumMnemonic::<W>::from_entropy(entropy).unwrap();
+    fn test_from_entropy<N: EthereumNetwork, W: EthereumWordlist>(entropy: &Vec<u8>, expected_phrase: &str) {
+        let result = EthereumMnemonic::<N, W>::from_entropy(entropy).unwrap();
         assert_eq!(expected_phrase, result.phrase);
     }
 
-    fn test_from_phrase<W: EthereumWordlist>(expected_entropy: &Vec<u8>, phrase: &str) {
-        let result = EthereumMnemonic::<W>::from_phrase(phrase).unwrap();
+    fn test_from_phrase<N: EthereumNetwork, W: EthereumWordlist>(expected_entropy: &Vec<u8>, phrase: &str) {
+        let result = EthereumMnemonic::<N, W>::from_phrase(phrase).unwrap();
         assert_eq!(&expected_entropy[..], &result.entropy[..]);
         assert_eq!(phrase, result.phrase);
     }
 
-    fn test_verify_phrase<W: EthereumWordlist>(phrase: &str) {
-        assert!(EthereumMnemonic::<W>::verify_phrase(phrase));
+    fn test_verify_phrase<N: EthereumNetwork, W: EthereumWordlist>(phrase: &str) {
+        assert!(EthereumMnemonic::<N, W>::verify_phrase(phrase));
     }
 
-    fn test_to_entropy<W: EthereumWordlist>(expected_entropy: &Vec<u8>, phrase: &str) {
-        let result = EthereumMnemonic::<W>::to_entropy(phrase).unwrap();
+    fn test_to_entropy<N: EthereumNetwork, W: EthereumWordlist>(expected_entropy: &Vec<u8>, phrase: &str) {
+        let result = EthereumMnemonic::<N, W>::to_entropy(phrase).unwrap();
         assert_eq!(&expected_entropy[..], &result[..]);
     }
 
-    fn test_to_seed<W: EthereumWordlist>(expected_seed: &str, password: Option<&str>, mnemonic: EthereumMnemonic<W>) {
+    fn test_to_seed<N: EthereumNetwork, W: EthereumWordlist>(expected_seed: &str, password: Option<&str>, mnemonic: EthereumMnemonic<N, W>) {
         assert_eq!(expected_seed, &hex::encode(mnemonic.to_seed(password).unwrap()))
     }
 
-    fn test_to_extended_private_key<W: EthereumWordlist>(
+    fn test_to_extended_private_key<N: EthereumNetwork, W: EthereumWordlist>(
         expected_extended_private_key: &str,
         password: Option<&str>,
         phrase: &str,
     ) {
-        let mnemonic = EthereumMnemonic::<W>::from_phrase(phrase).unwrap();
+        let mnemonic = EthereumMnemonic::<N, W>::from_phrase(phrase).unwrap();
         let extended_private_key = mnemonic.to_extended_private_key(password).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
@@ -251,6 +258,7 @@ mod tests {
     mod english {
         use super::*;
 
+        type N = Mainnet;
         type W = English;
 
         const PASSWORD: &str = "TREZOR";
@@ -420,7 +428,7 @@ mod tests {
         fn new() {
             let word_counts: [u8; 5] = [12, 15, 18, 21, 24];
             word_counts.iter().for_each(|word_count| {
-                test_new::<W>(*word_count);
+                test_new::<N, W>(*word_count);
             })
         }
 
@@ -428,7 +436,7 @@ mod tests {
         fn from_entropy() {
             KEYPAIRS.iter().for_each(|(entropy_str, phrase, _, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                test_from_entropy::<W>(&entropy, phrase);
+                test_from_entropy::<N, W>(&entropy, phrase);
             });
         }
 
@@ -436,14 +444,14 @@ mod tests {
         fn from_phrase() {
             KEYPAIRS.iter().for_each(|(entropy_str, phrase, _, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                test_from_phrase::<W>(&entropy, phrase);
+                test_from_phrase::<N, W>(&entropy, phrase);
             })
         }
 
         #[test]
         fn verify_phrase() {
             KEYPAIRS.iter().for_each(|(_, phrase, _, _)| {
-                test_verify_phrase::<W>(phrase);
+                test_verify_phrase::<N, W>(phrase);
             });
         }
 
@@ -451,7 +459,7 @@ mod tests {
         fn to_entropy() {
             KEYPAIRS.iter().for_each(|(entropy_str, phrase, _, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                test_to_entropy::<W>(&entropy, phrase);
+                test_to_entropy::<N, W>(&entropy, phrase);
             })
         }
 
@@ -459,8 +467,8 @@ mod tests {
         fn to_seed() {
             KEYPAIRS.iter().for_each(|(entropy_str, _, expected_seed, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                let result = EthereumMnemonic::<W>::from_entropy(&entropy).unwrap();
-                test_to_seed::<W>(expected_seed, Some(PASSWORD), result);
+                let result = EthereumMnemonic::<N, W>::from_entropy(&entropy).unwrap();
+                test_to_seed::<N, W>(expected_seed, Some(PASSWORD), result);
             });
         }
 
@@ -468,8 +476,8 @@ mod tests {
         fn to_seed_no_password() {
             let (entropy_str, _, _, _) = KEYPAIRS[0];
             let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-            let result = EthereumMnemonic::<W>::from_entropy(&entropy).unwrap();
-            test_to_seed::<W>(NO_PASSWORD_STR, None, result);
+            let result = EthereumMnemonic::<N, W>::from_entropy(&entropy).unwrap();
+            test_to_seed::<N, W>(NO_PASSWORD_STR, None, result);
         }
 
         #[test]
@@ -477,7 +485,7 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(_, phrase, _, expected_extended_private_key)| {
-                    test_to_extended_private_key::<W>(expected_extended_private_key, Some(PASSWORD), phrase);
+                    test_to_extended_private_key::<N, W>(expected_extended_private_key, Some(PASSWORD), phrase);
                 });
         }
     }
@@ -485,6 +493,7 @@ mod tests {
     mod test_invalid {
         use super::*;
 
+        type N = Mainnet;
         type W = English;
 
         const INVALID_WORD_COUNT: u8 = 11;
@@ -500,26 +509,26 @@ mod tests {
         #[should_panic(expected = "InvalidWordCount(11)")]
         fn new_invalid_word_count() {
             let rng = &mut rand::thread_rng();
-            let _result = EthereumMnemonic::<W>::new(INVALID_WORD_COUNT, rng).unwrap();
+            let _result = EthereumMnemonic::<N, W>::new(INVALID_WORD_COUNT, rng).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidEntropyLength(18)")]
         fn from_entropy_invalid_entropy() {
             let invalid_entropy: Vec<u8> = Vec::from(hex::decode(INVALID_ENTROPY_STR).unwrap());
-            let _result = EthereumMnemonic::<W>::from_entropy(&invalid_entropy).unwrap();
+            let _result = EthereumMnemonic::<N, W>::from_entropy(&invalid_entropy).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidWordCount(13)")]
         fn to_entropy_invalid_length() {
-            let _result = EthereumMnemonic::<W>::to_entropy(INVALID_PHRASE_LENGTH).unwrap();
+            let _result = EthereumMnemonic::<N, W>::to_entropy(INVALID_PHRASE_LENGTH).unwrap();
         }
 
         #[test]
         #[should_panic(expected = "InvalidWord(\"abandoz\")")]
         fn to_entropy_invalid_word() {
-            let _result = EthereumMnemonic::<W>::to_entropy(INVALID_PHRASE_WORD).unwrap();
+            let _result = EthereumMnemonic::<N, W>::to_entropy(INVALID_PHRASE_WORD).unwrap();
         }
 
         #[test]
@@ -527,12 +536,12 @@ mod tests {
             expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon\")"
         )]
         fn to_entropy_invalid_checksum() {
-            let _result = EthereumMnemonic::<W>::to_entropy(INVALID_PHRASE_CHECKSUM).unwrap();
+            let _result = EthereumMnemonic::<N, W>::to_entropy(INVALID_PHRASE_CHECKSUM).unwrap();
         }
 
         #[test]
         fn verify_invalid_phrase() {
-            assert!(!EthereumMnemonic::<W>::verify_phrase(INVALID_PHRASE_LENGTH));
+            assert!(!EthereumMnemonic::<N, W>::verify_phrase(INVALID_PHRASE_LENGTH));
         }
     }
 }

@@ -22,6 +22,9 @@ pub use self::format::*;
 pub mod mnemonic;
 pub use self::mnemonic::*;
 
+pub mod network;
+pub use self::network::*;
+
 pub mod private_key;
 pub use self::private_key::*;
 
