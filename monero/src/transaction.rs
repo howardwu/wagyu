@@ -23,6 +23,7 @@ pub struct MoneroTransaction<N: MoneroNetwork> {
     serialized_signed_tx: String,
     tx_hash: String,
     tx_key: String,
+    tx_pub_key: String,
     _network: PhantomData<N>,
 }
 
@@ -157,8 +158,6 @@ impl Default for CreateTransactionArguments {
 
 impl<N: MoneroNetwork> MoneroTransaction<N> {
 
-
-
     // Call into mymonero-core-cpp library json interface functions to send transaction
     // https://github.com/mymonero/mymonero-core-cpp/blob/master/src/serial_bridge_index.cpp
 
@@ -192,7 +191,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             extern_send_step1
         );
 
-//        println!("received step 1: {}", response);
+        println!("received step 1: {}", response);
 
         #[derive(Serialize, Deserialize)]
         struct Step1ResultString {
@@ -288,6 +287,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             serialized_signed_tx: String,
             tx_hash: String,
             tx_key: String,
+            tx_pub_key: String,
         }
 
         let result: Step2Result = serde_json::from_str(&response)?;
@@ -297,6 +297,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             serialized_signed_tx: result.serialized_signed_tx.into(),
             tx_hash: result.tx_hash.into(),
             tx_key: result.tx_key.into(),
+            tx_pub_key: result.tx_pub_key.into(),
             _network: PhantomData,
         })
     }
@@ -369,7 +370,7 @@ mod tests {
         let change_amount = transaction_parameters.change_amount;
         let fee_amount = transaction_parameters.using_fee;
         let fee_mask = 10000u64;
-        let fee_per_b = 8;
+        let fee_per_b = 24658u64;
         let final_total_wo_fee = transaction_parameters.final_total_wo_fee;
         let fork_version = 10u8;
         let from_address_string = "43zxvpcj5Xv9SEkNXbMCG7LPQStHMpFCQCmkmR4u5nzjWwq5Xkv5VmGgYEsHXg4ja2FGRD5wMWbBVMijDTqmmVqm93wHGkg".into();
@@ -411,6 +412,8 @@ mod tests {
         println!("tx hash {:?}", transaction_result.tx_hash);
         println!();
         println!("tx key {:?}", transaction_result.tx_key);
+        println!();
+        println!("tx pub key {:?}", transaction_result.tx_pub_key);
         println!();
     }
 }
