@@ -124,9 +124,9 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32'/133h/0'"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(0).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(0).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -134,9 +134,9 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32'/133h/1'"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(1).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(1).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -144,9 +144,9 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32'/133h/2'"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(2).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -154,9 +154,9 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32'/133h/3'"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(3).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(3).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -164,9 +164,9 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32'/133h/4'"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(4).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(4).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -174,10 +174,10 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/0"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_normal(0).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(2).unwrap(),
+                ChildIndex::normal(0).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -185,10 +185,10 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/1"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_normal(1).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(2).unwrap(),
+                ChildIndex::normal(1).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -196,10 +196,10 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/2"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_normal(2).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(2).unwrap(),
+                ChildIndex::normal(2).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -207,10 +207,10 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/3"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_normal(3).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(2).unwrap(),
+                ChildIndex::normal(3).unwrap(),
             ]
             .try_into()
             .unwrap())
@@ -218,10 +218,10 @@ mod tests {
         assert_eq!(
             ZcashDerivationPath::<N>::from_str("m/32h/133'/2h/4"),
             Ok(vec![
-                ChildIndex::from_hardened(32).unwrap(),
-                ChildIndex::from_hardened(133).unwrap(),
-                ChildIndex::from_hardened(2).unwrap(),
-                ChildIndex::from_normal(4).unwrap(),
+                ChildIndex::hardened(32).unwrap(),
+                ChildIndex::hardened(133).unwrap(),
+                ChildIndex::hardened(2).unwrap(),
+                ChildIndex::normal(4).unwrap(),
             ]
             .try_into()
             .unwrap())
