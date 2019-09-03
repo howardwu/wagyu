@@ -123,7 +123,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bitvec"
-version = "0.14.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -1207,7 +1207,7 @@ version = "0.6.0"
 dependencies = [
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bech32 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitvec 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitvec 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "digest 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1228,7 +1228,7 @@ name = "wagyu-ethereum"
 version = "0.6.0"
 dependencies = [
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bitvec 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitvec 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hmac 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "pbkdf2 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1354,7 +1354,7 @@ dependencies = [
 "checksum base58-monero 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "87c25c7705c81e36f14c293e67846819b1fa3ca7c5e9888ebf149c2bd59d06aa"
 "checksum bech32 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "58946044516aa9dc922182e0d6e9d124a31aafe6b421614654eb27cf90cec09c"
 "checksum bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3d155346769a6855b86399e9bc3814ab343cd3d62c7e985113d46a0ec3c281fd"
-"checksum bitvec 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9633b74910e1870f50f5af189b08487195cdb83c0e27a71d6f64d5e09dd0538b"
+"checksum bitvec 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)" = "461d7d0e952343f575470daeb04d38aad19675b4f170e122c6b5dd618612c8a8"
 "checksum blake2b_simd 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "bf775a81bb2d464e20ff170ac20316c7b08a43d11dbc72f0f82e8e8d3d6d0499"
 "checksum blake2s_simd 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9753e94cdd99139f89745e552a2a86e21b247e2007cd1dcb2506dc540b6dd603"
 "checksum block-buffer 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a076c298b9ecdb530ed9d967e74a6027d6a7478924520acddcddc24c1c8ab3ab"
