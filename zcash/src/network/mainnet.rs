@@ -71,11 +71,13 @@ impl ZcashNetwork for Mainnet {
     }
 
     /// Returns the extended private key prefix of the given network.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-spending-keys
     fn to_extended_private_key_prefix() -> String {
         "secret-extended-key-main".into()
     }
 
     /// Returns the network of the given extended private key prefix.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-spending-keys
     fn from_extended_private_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
         match prefix {
             "secret-extended-key-main" => Ok(Self),
@@ -84,14 +86,16 @@ impl ZcashNetwork for Mainnet {
     }
 
     /// Returns the extended public key prefix of the given network.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-full-viewing-keys
     fn to_extended_public_key_prefix() -> String {
-        "zviews".into()
+        "zxviews".into()
     }
 
     /// Returns the network of the given extended public key prefix.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-full-viewing-keys
     fn from_extended_public_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
         match prefix {
-            "zviews" => Ok(Self),
+            "zxviews" => Ok(Self),
             _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into())),
         }
     }
