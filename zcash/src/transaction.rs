@@ -355,7 +355,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                 for spend in &self.shielded_spends {
                     match &spend.spend_description {
                         Some(description) => serialized_transaction.extend(description.serialize(false)?),
-                        None => {}
+                        None => {},
                     }
                 }
             }
@@ -369,7 +369,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                 for output in &self.shielded_outputs {
                     match &output.output_description {
                         Some(description) => serialized_transaction.extend(description.serialize()?),
-                        None => {}
+                        None => {},
                     }
                 }
             }
@@ -382,13 +382,13 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
         match &self.binding_sig {
             Some(binding_sig) => serialized_transaction.extend(binding_sig),
-            None => {}
+            None => {},
         };
 
         Ok(serialized_transaction)
     }
 
-    /// Signs the raw transaction, updates the transaction, and returns the signature
+    /// Signs the raw transaction, updates the transaction, and returns the signature - P2SH unimplemented
     pub fn sign_raw_transaction(
         &mut self,
         private_key: <Self as Transaction>::PrivateKey,
@@ -446,7 +446,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         match &self.shielded_spends.len() {
-            0 => {}
+            0 => {},
             _ => {
                 for spend in &mut self.shielded_spends {
                     spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
@@ -455,7 +455,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         match &self.shielded_outputs.len() {
-            0 => {}
+            0 => {},
             _ => {
                 for output in &mut self.shielded_outputs {
                     output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
