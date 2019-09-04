@@ -24,8 +24,7 @@ pub struct OneTimeKey<N: MoneroNetwork> {
 impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns one time key given recipient public keys, randomness, and output index
     pub fn new(public: &MoneroPublicKey<N>, rand: &[u8; 32], index: u64) -> Result<OneTimeKey<N>, OneTimeKeyError> {
-        //key = hash(ra || n)G + b
-        //one_time_key = hash((random * public_view_key) || index) * generator + public_spend_key
+        //destination_key = hash((random * public_view_key) || index) * generator + public_spend_key
         const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
 
         let public_spend_key: [u8; 32] = match public.to_public_spend_key() {
@@ -63,9 +62,8 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
 
     /// Returns the one time private key given recipient private keys
     pub fn to_private(&self, private: &MoneroPrivateKey<N>, index: u64) -> Result<[u8; 32], OneTimeKeyError> {
-        //x = H_s(aR || n) + b
+        //one_time_private_key = hash((private_view_key * transaction_public_key) || index) + private_spend_key
         let mut concat = Vec::<u8>::new();
-        let private_spend_scalar = Scalar::from_bits(private.to_private_spend_key());
 
         Self::generate_key_derivation(
             &self.to_transaction_public_key(),
@@ -73,19 +71,20 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
             &mut concat)?;
 
         let hash = Self::derivation_to_scalar(&mut concat, index);
+        let private_spend_scalar = Scalar::from_bits(private.to_private_spend_key());
         let x: Scalar = hash + private_spend_scalar;
 
         Ok(x.to_bytes())
     }
 
-    /// Returns one time public key given recipient private keys for verification
+    /// Returns one time public destination key given recipient private keys for verification
     pub fn to_public(&self, private: &MoneroPrivateKey<N>, index: u64) -> Result<[u8; 32], OneTimeKeyError> {
-        //P = (H_s(aR || n) + b) * G
+        //destination_key = one_time_private_key * G
         const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
         let one_time_private_key = self.to_private(private, index)?;
-        let one_time_public_key = &Scalar::from_bits(one_time_private_key) * G;
+        let destination_key = &Scalar::from_bits(one_time_private_key) * G;
 
-        Ok(one_time_public_key.compress().to_bytes())
+        Ok(destination_key.compress().to_bytes())
     }
 
     /// Verifies that the one time public key can be generated from recipient private keys

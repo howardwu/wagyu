@@ -15,7 +15,6 @@ use std::ffi::CString;
 use std::str;
 use wagyu_model::{TransactionError, Transaction};
 
-
 /// Represents a Monero transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct MoneroTransaction<N: MoneroNetwork> {
@@ -44,8 +43,6 @@ extern "C" {
     fn extern_send_step2(arg_arr: *const c_char) -> *const c_char;
 }
 
-
-// Structs mirrored from https://github.com/mymonero/mymonero-core-cpp
 #[derive(Serialize, Deserialize)]
 pub struct UnspentOutput {
     amount: u64,
@@ -79,7 +76,7 @@ pub struct TransactionParameters {
 }
 
 #[derive(Serialize, Deserialize)]
-struct PrepareTransactionArguments {
+struct PrepareTransaction {
     is_sweeping: String,
     fee_mask: String,
     fee_per_b: String,
@@ -95,7 +92,7 @@ struct PrepareTransactionArguments {
     passedIn_attemptAt_fee: String,
 }
 
-impl Default for PrepareTransactionArguments {
+impl Default for PrepareTransaction {
     fn default() -> Self {
         Self {
             is_sweeping: String::new(),
@@ -112,7 +109,7 @@ impl Default for PrepareTransactionArguments {
 }
 
 #[derive(Serialize, Deserialize)]
-struct CreateTransactionArguments {
+struct CreateTransaction {
     change_amount: String,
     fee_amount: String,
     fee_mask: String,
@@ -133,7 +130,7 @@ struct CreateTransactionArguments {
     payment_id_string: String,
 }
 
-impl Default for CreateTransactionArguments {
+impl Default for CreateTransaction {
     fn default() -> Self {
         Self {
             change_amount: String::new(),
@@ -159,8 +156,9 @@ impl Default for CreateTransactionArguments {
 impl<N: MoneroNetwork> MoneroTransaction<N> {
 
     // Call into mymonero-core-cpp library json interface functions to send transaction
-    // https://github.com/mymonero/mymonero-core-cpp/blob/master/src/serial_bridge_index.cpp
 
+    /// Returns Monero transaction fee parameters and decoy outputs
+    /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L445
     pub fn prepare_transaction(
         is_sweeping: bool,
         fee_mask: u64,
@@ -173,7 +171,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         unspent_outs: Vec<UnspentOutput>,
     ) -> Result<TransactionParameters, TransactionError> {
 
-        let args_value = PrepareTransactionArguments {
+        let args_value = PrepareTransaction {
             is_sweeping: is_sweeping.to_string(),
             fee_mask: fee_mask.to_string(),
             fee_per_b: fee_per_b.to_string(),
@@ -235,6 +233,8 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         })
     }
 
+    /// Returns Monero transaction
+    /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L529
     pub fn create_transaction(
         change_amount: u64,
         fee_amount: u64,
@@ -254,7 +254,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         using_outs: Vec<UnspentOutput>,
     ) -> Result<Self, TransactionError> {
 
-        let args_value = CreateTransactionArguments {
+        let args_value = CreateTransaction {
             change_amount: change_amount.to_string(),
             fee_amount: fee_amount.to_string(),
             fee_mask: fee_mask.to_string(),
@@ -304,6 +304,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
 }
 
 /// Make an unsafe external call to a C function
+/// the C function should take a character array argument and return a character array
 pub fn call_extern_function(
     arg_str: &str,
     function: unsafe extern "C" fn(*const c_char) -> *const c_char,
