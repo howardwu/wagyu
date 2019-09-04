@@ -210,7 +210,10 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             tx_pub_key: String,
         }
 
-        let result: Step1ResultString = serde_json::from_str(&response)?;
+        let result: Step1ResultString = match serde_json::from_str(&response) {
+            Ok(res) => res,
+            Err(_) => return Err(TransactionError::Message(response)),
+        };
 
         let mut using_outs = Vec::<UnspentOutput>::new();
         for unspent_output_string in result.using_outs {
@@ -290,7 +293,10 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             tx_pub_key: String,
         }
 
-        let result: Step2Result = serde_json::from_str(&response)?;
+        let result: Step2Result = match serde_json::from_str(&response) {
+            Ok(res) => res,
+            Err(_) => return Err(TransactionError::Message(response)),
+        };
 
         Ok(Self {
             tx_must_be_reconstructed: result.tx_must_be_reconstructed.parse::<bool>()?,
