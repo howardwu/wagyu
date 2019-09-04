@@ -103,8 +103,6 @@ pub struct ZcashTransaction<N: ZcashNetwork> {
     pub join_splits: Vec<JoinSplit>,
     /// Binding Signature
     pub binding_sig: Option<Vec<u8>>,
-    /// Commitment Tree
-    pub commitment_tree: CommitmentTree<Node>,
     /// Anchor
     pub anchor: Option<Fr>,
 }
@@ -121,8 +119,6 @@ pub struct ZcashTransactionInput<N: ZcashNetwork> {
     pub sequence: Vec<u8>,
     /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
     pub sig_hash_code: SigHashCode,
-    /// Witnesses used in segwit transactions
-    pub witnesses: Vec<Vec<u8>>,
 }
 
 /// Represents a Zcash transaction output
@@ -252,7 +248,6 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             shielded_outputs: vec![],
             join_splits: vec![],
             binding_sig: None,
-            commitment_tree: CommitmentTree::new(),
             anchor: None,
         })
     }
@@ -297,21 +292,20 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         extended_secret_key: &str,
         cmu: &[u8; 32],
         epk: &[u8; 32],
-        enc_ciphertext: &str
+        enc_ciphertext: &str,
+        witness: &IncrementalWitness<Node>
     ) -> Result<(), TransactionError>{
         let sapling_spend = SaplingSpend::<N>::new(
-            &mut self.commitment_tree,
             extended_secret_key,
             cmu,
             epk,
-            enc_ciphertext
+            enc_ciphertext,
+            witness.clone()
         )?;
 
         // Verify all anchors are the same
         match &self.anchor {
-            None => {
-                self.anchor = Some(sapling_spend.witness.root().into());
-            }
+            None => self.anchor = Some(sapling_spend.witness.root().into()),
             Some(anchor) => {
                 let root: Fr = sapling_spend.witness.root().into();
                 if anchor != &root {
@@ -527,7 +521,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {}
+                        true => {},
                         false => return Err(TransactionError::Message("invalid spend description".into())),
                     };
 
@@ -682,7 +676,6 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
             script: Vec::new(),
             sequence,
             sig_hash_code,
-            witnesses: Vec::new(),
         })
     }
 
@@ -736,11 +729,11 @@ impl<N: ZcashNetwork> ZcashTransactionOutput<N> {
 
 impl<N: ZcashNetwork> SaplingSpend<N> {
     pub fn new(
-        commitment_tree: &mut CommitmentTree<Node>,
         extended_key: &str,
         cmu: &[u8; 32],
         epk: &[u8; 32],
         enc_ciphertext: &str,
+        witness: IncrementalWitness<Node>,
     ) -> Result<Self, TransactionError> {
         let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(extended_key)?;
 //        let ivk = extended_spend_key.to_extended_public_key().to_extended_full_viewing_key().fvk.vk.ivk(); // Incompatible implementations of Fs
@@ -762,10 +755,6 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
 
         let alpha = Fs::random(&mut StdRng::from_entropy());
 
-        commitment_tree.append(Node::new(note.cm(&JUBJUB).into_repr())).unwrap();
-
-        let witness = IncrementalWitness::from_tree(&commitment_tree);
-
         Ok(
             SaplingSpend {
                 extended_spend_key,
@@ -785,7 +774,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         spend_params: &Parameters<Bls12>,
         spend_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        // Incompatible implementation types for proof generation key
+        // Incompatible implementation types for proof generation key - requires byte conversion
         let spending_key = self.extended_spend_key.to_extended_spending_key().expsk.to_bytes();
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..]).unwrap().proof_generation_key(&JUBJUB);
         let witness = self.witness.path().unwrap();
@@ -797,18 +786,6 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
             witness.position,
             &JUBJUB
         );
-
-//        let view_key = &proof_generation_key.into_viewing_key(&JUBJUB);
-//        for i in 0..1000 {
-//            let nf_test = &self.note.nf(
-//                view_key,
-//                i,
-//                &JUBJUB
-//            );
-//
-//            let nf_str = hex::encode(&nf_test);
-//            println!("nf #{:?} is: {:?}", i, nf_str);
-//        };
 
         let (proof, value_commitment, public_key) = proving_ctx.spend_proof(
             proof_generation_key,
@@ -868,23 +845,6 @@ impl SpendDescription {
         Ok(serialized_output)
     }
 }
-
-//impl fmt::Display for SpendDescription {
-//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//        let cv = format!("cv: {} \n", hex::encode(&self.cv));
-//        let cmu = format!("cmu: {} \n", hex::encode(&self.cmu));
-//        let ephemeral_key = format!("ephemeral_key: {} \n", hex::encode(&self.ephemeral_key));
-//        let enc_ciphertext = format!("enc_ciphertext: {} \n", hex::encode(&self.enc_ciphertext));
-//        let out_ciphertext = format!("out_ciphertext: {} \n", hex::encode(&self.out_ciphertext));
-//        let zk_proof = format!("zk_proof: {} \n", hex::encode(&self.zk_proof));
-//
-//        write!(
-//            f,
-//            "{} {} {} {} {} {}",
-//            cv, cmu, ephemeral_key, enc_ciphertext, out_ciphertext, zk_proof
-//        )
-//    }
-//}
 
 impl<N: ZcashNetwork> SaplingOutput<N> {
     pub fn new(
@@ -1234,6 +1194,8 @@ mod tests {
         }
 
         // Build Sapling Spends
+
+        let mut test_tree = CommitmentTree::<Node>::new();
         let mut sapling_spend_key: Option<SaplingSpendingKey<N>> = None;
         for input in sapling_inputs {
             let mut cmu = [0u8; 32];
@@ -1244,13 +1206,30 @@ mod tests {
             epk.copy_from_slice(&hex::decode(input.epk).unwrap());
             epk.reverse();
 
-            transaction.add_sapling_spend(input.extended_secret_key, &cmu, &epk, input.enc_ciphertext).unwrap();
+
+            // Generate note witness for testing purposes only.
+            // Real transactions require a stateful client to fetch witnesses/anchors from sapling tree state.
+
+            let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_secret_key).unwrap();
+            let full_viewing_key = extended_spend_key.to_extended_public_key().to_extended_full_viewing_key().fvk.to_bytes();
+            let ivk = FullViewingKey::<Bls12>::read(&full_viewing_key[..], &JUBJUB).unwrap().vk.ivk();
+            let mut f = FrRepr::default();
+            f.read_le(&cmu[..]).unwrap();
+            let cmu_fr = Fr::from_repr(f).unwrap();
+
+            let enc_ciphertext = hex::decode(input.enc_ciphertext).unwrap();
+            let epk_point = edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB).unwrap().as_prime_order(&JUBJUB).unwrap();
+            let (note, _, _) = try_sapling_note_decryption(&ivk.into(), &epk_point, &cmu_fr, &enc_ciphertext).unwrap();
+
+            test_tree.append(Node::new(note.cm(&JUBJUB).into_repr())).unwrap();
+            let witness = IncrementalWitness::from_tree(&test_tree);
+
+            transaction.add_sapling_spend(input.extended_secret_key, &cmu, &epk, input.enc_ciphertext, &witness).unwrap();
 
             let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_secret_key).unwrap();
             sapling_spend_key = Some(extended_spend_key.to_extended_spending_key().expsk);
         }
 
-//        let sapling_spend_key: Option<SaplingSpendingKey<N>> = Some(SaplingSpendingKey::<N>::from_);
         let ovk = match &sapling_spend_key {
             // Generate a common ovk from HD seed
             // (optionally pass in a seed for wallet management purposes)
@@ -1291,7 +1270,7 @@ mod tests {
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
         println!("signed transaction: {}", signed_transaction);
 
-        // Note: All output descriptions and signatures are verified upon creation.
+        // Note: All output/spend descriptions and proofs are verified upon creation.
     }
 
     fn test_transaction<N: ZcashNetwork>(
@@ -1357,218 +1336,51 @@ mod tests {
         use super::*;
         type N = Testnet;
 
-        const TRANSACTIONS: [Transaction; 1] = [
-//            Transaction {
-//                // 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    Input {
-//                        private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
-//                        address_format: Format::P2PKH,
-//                        transaction_id: "cdb426cbd9dfe1c27df683a891977d0a5be6cc87e3b618917bb124caba7a78f2",
-//                        index: 0,
-//                        redeem_script: None,
-//                        script_pub_key: None,
-//                        utxo_amount: Some(1000010000),
-//                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
-//                        sig_hash_code: SigHashCode::SIGHASH_ALL,
-//                    },
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    Output {
-//                        address:
-//                            "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
-//                        amount: 1000000000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-//            Transaction {
-//                // a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    Input {
-//                        private_key: "cUnh9NAShCGCur8PjxQnRz96n93Hs6tNAo6fmH41ig1vKzrXtWdC",
-//                        address_format: Format::P2PKH,
-//                        transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
-//                        index: 0,
-//                        redeem_script: None,
-//                        script_pub_key: None,
-//                        utxo_amount: Some(1000010000),
-//                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
-//                        sig_hash_code: SigHashCode::SIGHASH_ALL,
-//                    },
-//                    Input {
-//                        private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
-//                        address_format: Format::P2PKH,
-//                        transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
-//                        index: 1,
-//                        redeem_script: None,
-//                        script_pub_key: None,
-//                        utxo_amount: Some(1000010000),
-//                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
-//                        sig_hash_code: SigHashCode::SIGHASH_ALL,
-//                    },
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    Output {
-//                        address:
-//                            "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
-//                        amount: 1000000000,
-//                    },
-//                    Output {
-//                        address:
-//                            "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
-//                        amount: 1000000000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-//            Transaction {
-//                // f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    Input {
-//                        private_key: "cMwUGSqBqKSavhstEH6Jsuf7cpqFf15ywuEaoUBmBuesdZxng41H",
-//                        address_format: Format::P2PKH,
-//                        transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
-//                        index: 2,
-//                        redeem_script: None,
-//                        script_pub_key: None,
-//                        utxo_amount: Some(1000010000),
-//                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
-//                        sig_hash_code: SigHashCode::SIGHASH_ALL,
-//                    },
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    Output {
-//                        address: "tmGZKXeeSu2sVS72Lg1KAuKKUxg2S4iGXZ7",
-//                        amount: 500000000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    Output {
-//                        address:
-//                            "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
-//                        amount: 500000000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-//            Transaction { //
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    Output {
-//                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
-//                        amount: 999990000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SaplingInput {
-//                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
-//                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
-//                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
-//                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
-//                    },
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-            Transaction { //
+        const SAPLING_SPEND_TRANSACTIONS: [Transaction; 3] = [
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    Output {
+                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
+                        amount: 999990000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SaplingInput {
+                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
+                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
+                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
+                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
+                    },
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
+            Transaction {
                 header: 2147483652,
                 version_group_id: 0x892F2085,
                 lock_time: 0,
@@ -1611,7 +1423,261 @@ mod tests {
                 ],
                 expected_signed_transaction: "",
             },
+            Transaction { //
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    Output {
+                        address: "tmEDWXTm25SuuRgLGsD8j5CDsBxVBrZTEQ8",
+                        amount: 499990000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SaplingInput {
+                        extended_secret_key: "secret-extended-key-test1qn7ydpt6qqqqqqr6xek4td34wfcgd229v5fhnzmntdcl5n4cltwg25pp0prydaktd7nam7grwchkhz8606zdscjc2ghjfmldqdjf2hcsa6y7e7jkugrspyfwdq34eweejzqpg003x5a8j5lvmxt63mlpy362wjssvmwp0eq2mfp5gp02mv5wvy25fh532jjggc7fwrnqgl97s6tg0ugmqzlrx0sufand5puvu9mxe9hawgv64k9x3pg7xz7lu9u38snjcwayus6s3hcemqac2",
+                        cmu: "16ff8ed12ad3419672c9d344340bcb19aed41a3fb1c6d002bd713e683d804c43",
+                        epk: "e7f2b7a37ef84f64a328abfbda51bac2542265008f2a851d8a594a033dafbf61",
+                        enc_ciphertext: "14ed755988716e1e72abb02b0ddb926af406343a449b132d74554b01c6f9b9af1cf8d41ea3dfd83058608000aebbe55331820fd7514b05bdd9de80d9894d1381689c5cb6f4bc5a79e950e2ffdd8ac8db85e755c4fa12fd95c2610791d69848c91d5c5b93d60af6bc8c0f1aad6a841163bb9589059fbd7826d09dbc19a7cc99745f03812607fa16c3e88ace4cd0aad74a7f2f79b82f3112929a67d76d64b12a11ba0d2c0e4ee7c9e5946677bb089c6728bcf2476196415e321810be9bc4b1a8e3b289bfa28b22ebbd6981852e1fcaf939b7ae54a2ca2601a01f47a1d369ea066e8f2cff34e4a97534c15accf9d2c61953592f74dca60a3805f7ee7ae905ccb8375ee0741e3fe53f0444b0292d4ee5f57c432a984b57222acac9762cb6f9aefc34279e51599d95ed3f6b3a6f92fbb579d3c97c5cdbab092f8e819b37e4463ccd02c11db2e19ce842a24985315f7e06f088e46d2fb56a528462e04a087666cf1ade0beaadd08fb99806123cd8fed8b643609fcd26844215e536fe809780a6aafddcb28c4c3a2c84d9273232984342bb71fb55f1abbf2406958fd6a65eba4ab738f34e83940f35b2f2588beae1967c175a098551d616ed75db04f9a17f5bb111977aeaa110faae908aa6a4af98b5efb9d947937a75fb4997690d84e314447f4ed09e3b91a04d967c324ab421b6e5a5bf6ed7a5bf3b9ce7f1d919681a8359b7843537a233bd69a430758d1d0af4bc4dfddd85c913179fc525c85f4ffdcd5d41a948148ed7e94f220535d465336a5708e780bf15b2ec14d559f4f4bf569977379e988e385e4ec7",
+                    },
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
         ];
+
+        const SAPLING_OUTPUT_TRANSACTIONS: [Transaction; 3] = [
+            Transaction { // 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    Input {
+                        private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
+                        address_format: Format::P2PKH,
+                        transaction_id: "cdb426cbd9dfe1c27df683a891977d0a5be6cc87e3b618917bb124caba7a78f2",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(1000010000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    Output {
+                        address:
+                            "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
+                        amount: 1000000000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
+            Transaction { // a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    Input {
+                        private_key: "cUnh9NAShCGCur8PjxQnRz96n93Hs6tNAo6fmH41ig1vKzrXtWdC",
+                        address_format: Format::P2PKH,
+                        transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(1000010000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
+                    },
+                    Input {
+                        private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
+                        address_format: Format::P2PKH,
+                        transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
+                        index: 1,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(1000010000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    Output {
+                        address:
+                            "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
+                        amount: 1000000000,
+                    },
+                    Output {
+                        address:
+                            "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
+                        amount: 1000000000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
+            Transaction { // f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    Input {
+                        private_key: "cMwUGSqBqKSavhstEH6Jsuf7cpqFf15ywuEaoUBmBuesdZxng41H",
+                        address_format: Format::P2PKH,
+                        transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
+                        index: 2,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: Some(1000010000),
+                        sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                        sig_hash_code: SigHashCode::SIGHASH_ALL,
+                    },
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    Output {
+                        address: "tmGZKXeeSu2sVS72Lg1KAuKKUxg2S4iGXZ7",
+                        amount: 500000000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    Output {
+                        address:
+                            "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
+                        amount: 500000000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
+        ];
+
+        #[test]
+        fn test_sapling_spend_transactions() {
+            let spend_path = Path::new("src/librustzcash/params/sapling-spend.params");
+            let output_path = Path::new("src/librustzcash/params/sapling-output.params");
+
+            let (spend_params, spend_vk, output_params, output_vk, _sprout_vk) = load_parameters(
+                spend_path,
+                "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
+                output_path,
+                "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
+                None,
+                None,
+            );
+
+            SAPLING_SPEND_TRANSACTIONS.iter().for_each(|transaction| {
+                let mut pruned_inputs = transaction.inputs.to_vec();
+                pruned_inputs.retain(|input| input.transaction_id != "");
+
+                let mut pruned_outputs = transaction.outputs.to_vec();
+                pruned_outputs.retain(|output| output.address != "");
+
+                let mut pruned_sapling_inputs = transaction.sapling_inputs.to_vec();
+                pruned_sapling_inputs.retain(|sapling_input| sapling_input.extended_secret_key != "");
+
+                let mut pruned_sapling_outputs = transaction.sapling_outputs.to_vec();
+                pruned_sapling_outputs.retain(|sapling_output| sapling_output.address != "");
+
+                test_sapling_transaction::<N>(
+                    transaction.header,
+                    transaction.version_group_id,
+                    transaction.lock_time,
+                    transaction.expiry_height,
+                    pruned_inputs,
+                    pruned_outputs,
+                    pruned_sapling_inputs,
+                    pruned_sapling_outputs,
+                    &spend_params,
+                    &spend_vk,
+                    &output_params,
+                    &output_vk,
+                );
+            });
+        }
 
         #[test]
         fn test_sapling_output_transactions() {
@@ -1627,7 +1693,7 @@ mod tests {
                 None,
             );
 
-            TRANSACTIONS.iter().for_each(|transaction| {
+            SAPLING_OUTPUT_TRANSACTIONS.iter().for_each(|transaction| {
                 let mut pruned_inputs = transaction.inputs.to_vec();
                 pruned_inputs.retain(|input| input.transaction_id != "");
 
@@ -2648,3 +2714,4 @@ mod tests {
         }
     }
 }
+
