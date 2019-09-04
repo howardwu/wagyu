@@ -21,14 +21,23 @@ pub enum TransactionError {
     #[fail(display = "invalid binding signature for the transaction")]
     InvalidBindingSig(),
 
+    #[fail(display = "witnesses have a conflicting anchor")]
+    ConflictingWitnessAnchors(),
+
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
     #[fail(display = "{}", _0)]
     ExtendedPrivateKeyError(ExtendedPrivateKeyError),
 
+    #[fail(display = "Failed note decryption for enc_cyphertext: {}", _0)]
+    FailedNoteDecryption(String),
+
     #[fail(display = "{}", _0)]
     Message(String),
+
+    #[fail(display = "missing spend description")]
+    MissingSpendDescription(),
 
     #[fail(display = "invalid output address: {}", _0)]
     InvalidOutputAddress(String),
@@ -41,6 +50,9 @@ pub enum TransactionError {
 
     #[fail(display = "invalid script pub key for format: {}", _0)]
     InvalidScriptPubKey(String),
+
+    #[fail(display = "invalid spend description for address")]
+    InvalidSpendDescription(),
 
     #[fail(display = "invalid transaction id {:?}", _0)]
     InvalidTransactionId(usize),

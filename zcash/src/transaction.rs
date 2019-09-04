@@ -302,7 +302,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             Some(anchor) => {
                 let root: Fr = sapling_spend.witness.root().into();
                 if anchor != &root {
-                    return Err(TransactionError::Message("Anchor is different".into()));
+                    return Err(TransactionError::ConflictingWitnessAnchors());
                 }
             }
         };
@@ -520,15 +520,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {}
-                        false => return Err(TransactionError::Message("invalid spend description".into())),
+                        true => {},
+                        false => return Err(TransactionError::InvalidSpendDescription()),
                     };
                 }
-                None => {
-                    return Err(TransactionError::Message(
-                        "can't generate a spend_auth sig on empty spend description".into(),
-                    ))
-                }
+                None => return Err(TransactionError::MissingSpendDescription()),
             }
         }
 
@@ -754,14 +750,14 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         f.read_le(&cmu[..]).unwrap();
         let cmu = Fr::from_repr(f).unwrap();
 
-        let enc_ciphertext = hex::decode(enc_ciphertext)?;
+        let enc_ciphertext_vec = hex::decode(enc_ciphertext)?;
 
         let epk = edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB)?
             .as_prime_order(&JUBJUB)
             .unwrap();
-        let (note, payment_address, _memo) = match try_sapling_note_decryption(&ivk.into(), &epk, &cmu, &enc_ciphertext)
+        let (note, payment_address, _memo) = match try_sapling_note_decryption(&ivk.into(), &epk, &cmu, &enc_ciphertext_vec)
         {
-            None => return Err(TransactionError::Message("Failed note decryption".into())),
+            None => return Err(TransactionError::FailedNoteDecryption(enc_ciphertext.into())),
             Some((note, payment_address, memo)) => (note, payment_address, memo),
         };
 
