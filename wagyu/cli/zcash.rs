@@ -446,10 +446,10 @@ impl ZcashOptions {
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
-            "zip32" => Some(format!("m/44'/133'/{}'/{}", self.account, self.index)),
+            "zip32" => Some(format!("m/32'/133'/{}'/{}", self.account, self.index)),
             "custom" => self.path.clone(),
             _ => match default {
-                true => Some(format!("m/44'/133'/{}'/{}", self.account, self.index)),
+                true => Some(format!("m/32'/133'/{}'/{}", self.account, self.index)),
                 false => None,
             },
         }
