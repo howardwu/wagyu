@@ -3,8 +3,6 @@ use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::extended_private_key::ExtendedPrivateKeyError;
 
-use std::fmt::Debug;
-
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {
     type Address: Address;
