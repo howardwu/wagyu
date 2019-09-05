@@ -1352,179 +1352,136 @@ mod tests {
         use super::*;
         type N = Testnet;
 
-        const SAPLING_SPEND_TRANSACTIONS: [Transaction; 1] = [
-//            Transaction {
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    Output {
-//                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
-//                        amount: 999990000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SaplingInput {
-//                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
-//                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
-//                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
-//                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
-//                    },
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-//            Transaction {
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    Output {
-//                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
-//                        amount: 999990000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SaplingInput {
-//                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
-//                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
-//                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
-//                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
-//                    },
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-//            Transaction {
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    Output {
-//                        address: "tmKXdkNCRxZ8Ha6voL4MVByBRkCPez5ak6Z",
-//                        amount: 499960000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SaplingInput {
-//                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
-//                        cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
-//                        epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
-//                        enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
-//                    },
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
-//            Transaction { //
-//                header: 2147483652,
-//                version_group_id: 0x892F2085,
-//                lock_time: 0,
-//                expiry_height: 499999999,
-//                inputs: [
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                    INPUT_FILLER,
-//                ],
-//                outputs: [
-//                    Output {
-//                        address: "tmEDWXTm25SuuRgLGsD8j5CDsBxVBrZTEQ8",
-//                        amount: 499990000,
-//                    },
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                sapling_inputs: [
-//                    SaplingInput {
-//                        extended_secret_key: "secret-extended-key-test1qn7ydpt6qqqqqqr6xek4td34wfcgd229v5fhnzmntdcl5n4cltwg25pp0prydaktd7nam7grwchkhz8606zdscjc2ghjfmldqdjf2hcsa6y7e7jkugrspyfwdq34eweejzqpg003x5a8j5lvmxt63mlpy362wjssvmwp0eq2mfp5gp02mv5wvy25fh532jjggc7fwrnqgl97s6tg0ugmqzlrx0sufand5puvu9mxe9hawgv64k9x3pg7xz7lu9u38snjcwayus6s3hcemqac2",
-//                        cmu: "16ff8ed12ad3419672c9d344340bcb19aed41a3fb1c6d002bd713e683d804c43",
-//                        epk: "e7f2b7a37ef84f64a328abfbda51bac2542265008f2a851d8a594a033dafbf61",
-//                        enc_ciphertext: "14ed755988716e1e72abb02b0ddb926af406343a449b132d74554b01c6f9b9af1cf8d41ea3dfd83058608000aebbe55331820fd7514b05bdd9de80d9894d1381689c5cb6f4bc5a79e950e2ffdd8ac8db85e755c4fa12fd95c2610791d69848c91d5c5b93d60af6bc8c0f1aad6a841163bb9589059fbd7826d09dbc19a7cc99745f03812607fa16c3e88ace4cd0aad74a7f2f79b82f3112929a67d76d64b12a11ba0d2c0e4ee7c9e5946677bb089c6728bcf2476196415e321810be9bc4b1a8e3b289bfa28b22ebbd6981852e1fcaf939b7ae54a2ca2601a01f47a1d369ea066e8f2cff34e4a97534c15accf9d2c61953592f74dca60a3805f7ee7ae905ccb8375ee0741e3fe53f0444b0292d4ee5f57c432a984b57222acac9762cb6f9aefc34279e51599d95ed3f6b3a6f92fbb579d3c97c5cdbab092f8e819b37e4463ccd02c11db2e19ce842a24985315f7e06f088e46d2fb56a528462e04a087666cf1ade0beaadd08fb99806123cd8fed8b643609fcd26844215e536fe809780a6aafddcb28c4c3a2c84d9273232984342bb71fb55f1abbf2406958fd6a65eba4ab738f34e83940f35b2f2588beae1967c175a098551d616ed75db04f9a17f5bb111977aeaa110faae908aa6a4af98b5efb9d947937a75fb4997690d84e314447f4ed09e3b91a04d967c324ab421b6e5a5bf6ed7a5bf3b9ce7f1d919681a8359b7843537a233bd69a430758d1d0af4bc4dfddd85c913179fc525c85f4ffdcd5d41a948148ed7e94f220535d465336a5708e780bf15b2ec14d559f4f4bf569977379e988e385e4ec7",
-//                    },
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                    SAPLING_INPUT_FILLER,
-//                ],
-//                sapling_outputs: [
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                    OUTPUT_FILLER,
-//                ],
-//                expected_signed_transaction: "",
-//            },
+        const SAPLING_SPEND_TRANSACTIONS: [Transaction; 4] = [
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    Output {
+                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
+                        amount: 999990000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SaplingInput {
+                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
+                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
+                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
+                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
+                    },
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    Output {
+                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
+                        amount: 999990000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SaplingInput {
+                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
+                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
+                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
+                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
+                    },
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
+            Transaction {
+                header: 2147483652,
+                version_group_id: 0x892F2085,
+                lock_time: 0,
+                expiry_height: 499999999,
+                inputs: [
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                    INPUT_FILLER,
+                ],
+                outputs: [
+                    Output {
+                        address: "tmKXdkNCRxZ8Ha6voL4MVByBRkCPez5ak6Z",
+                        amount: 499960000,
+                    },
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                sapling_inputs: [
+                    SaplingInput {
+                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                        cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                        epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
+                        enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
+                    },
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                    SAPLING_INPUT_FILLER,
+                ],
+                sapling_outputs: [
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                    OUTPUT_FILLER,
+                ],
+                expected_signed_transaction: "",
+            },
             Transaction { //
                 header: 2147483652,
                 version_group_id: 0x892F2085,
@@ -1782,7 +1739,6 @@ mod tests {
                     &output_vk,
                 );
             });
-            assert_eq!(0,1);
         }
 
         #[test]
