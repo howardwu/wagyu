@@ -1352,50 +1352,7 @@ mod tests {
         use super::*;
         type N = Testnet;
 
-        const SAPLING_SPEND_TRANSACTIONS: [Transaction; 4] = [
-            Transaction {
-                header: 2147483652,
-                version_group_id: 0x892F2085,
-                lock_time: 0,
-                expiry_height: 499999999,
-                inputs: [
-                    INPUT_FILLER,
-                    INPUT_FILLER,
-                    INPUT_FILLER,
-                    INPUT_FILLER,
-                ],
-                outputs: [
-                    Output {
-                        address: "tmUk9fiGo6ALzwnnVZnpD1emWXo2RWYzYsn",
-                        amount: 999990000,
-                    },
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                ],
-                sapling_inputs: [
-                    SaplingInput {
-                        extended_secret_key: "secret-extended-key-test1qwq6zxvfqgqqpqqm8yw3eeld42uv6u9pkjgafkan9cdv7ngxwpnhaagm49puhzxx5382s85cffn582vshxcql0lau00ntg7q37vc9n6srkgmffzlgd6s30ms84zaef4a52nwelkxc35j8gaexve573mpc0gmfvjyftf9y5spxwzs86fyd5qu8z50mnpnhr7azaejswefcq58edrlgvtzadpz2cs8m4tqu7r9aqksx07d2mgt02pzhgcyk6xstgt6mqdgacxv70n2n3sh3kspp",
-                        cmu: "47baf8569a8079396535bfdd8a2f2d44e3e5e557407b54a1e8bb367720d2f6c3",
-                        epk: "6f28f7f687c4ca513ce0e2ddafe9f15667d32805b4a289fa77ecaaa9185177e7",
-                        enc_ciphertext: "b5ffa4f45f27bfc4083cec4f0f1c82060d8189e1e40ab1ff264b52ca0ae1452d7bac8acaa82a39ae0813a00b2fe021ffe8b08be8f76880b73301486c79b7ca1d821a3f467a8b04c0aa37cef1bedc15f1b791d35a66a24179bf7d8d47f46e7d134923ac536d367f74fc5f9f190dbee1e04d6f84afbfa6283bc11f5ee686a328026c86727a6959fb227d7693d2c491c753f4889aa4c5f1bd72d1697f4f312d6a42f15c258c6f1ee52f2b61ad053c7345178011e9b7d25f4eaf6e77d9c862b1bab7f0e331f554b39f36d037e285e830b1899cc3e887ab4616ac5c68fabcce2f97dbc809833f57b0cef11279d28889e1648c9eff4749f0cb9bd0bfcf9a56c6f614871e33535a4a1cc051fbb44b0897f7598a022b942fdf42fe881c861d33148da5a3686bba0cbc29d61498ff61a89c6af7dfdfff11150c146cdd8e5fe854d92c6aec45b4e779e302926e56cfb02003ebfaafe2e2ea49be0ae3ad557d7636410f9e2101ac3375ae23b1222d78ebe8cf8b9ac3a814fc023ca2469fce2bd7ca14a35e3219b6ca0436961294f4a0abcd6413c2e720b92108beadc71af1e501b9bab3c6c35572797bf09532c86ef7bbd0aacfaf8f3bc38329032dd1b406f5d175f9d24c30ce8aa4a55383850acce821959167791b9db003c39c71d114bc7a8747af2acba2cd32e90a0d62e1b1dd70159c4085fbf550b5333d354e51943c6c61dd5917ba83b24aa3e44a9fc66ce075197d53ebb8afb35951bbf51785e3ea10bd1311f413306198c4b8e2fe22d51e68bd1e06c1ec35def2c96de288f59a83ebb31bb0dd52c81f266830",
-                    },
-                    SAPLING_INPUT_FILLER,
-                    SAPLING_INPUT_FILLER,
-                    SAPLING_INPUT_FILLER,
-                ],
-                sapling_outputs: [
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                    OUTPUT_FILLER,
-                ],
-                expected_signed_transaction: "",
-            },
+        const SAPLING_SPEND_TRANSACTIONS: [Transaction; 3] = [
             Transaction {
                 header: 2147483652,
                 version_group_id: 0x892F2085,
@@ -1739,6 +1696,7 @@ mod tests {
                     &output_vk,
                 );
             });
+            assert_eq!(0,1);
         }
 
         #[test]
