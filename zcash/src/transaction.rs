@@ -1696,7 +1696,6 @@ mod tests {
                     &output_vk,
                 );
             });
-            assert_eq!(0,1);
         }
 
         #[test]
