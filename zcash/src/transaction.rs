@@ -769,7 +769,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
 
         Ok(SaplingSpend {
             extended_spend_key,
-            diversifier: payment_address.diversifier.0,
+            diversifier: payment_address.diversifier().0,
             note,
             alpha,
             anchor,
@@ -871,10 +871,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         match pk_d {
             None => return Err(TransactionError::InvalidOutputAddress(address.to_string())),
             Some(pk_d) => {
-                let to = PaymentAddress {
-                    pk_d: pk_d.clone(),
-                    diversifier: Diversifier(diversifier),
-                };
+                let to = PaymentAddress::from_parts(Diversifier(diversifier), pk_d.clone()).unwrap();
                 let g_d = match to.g_d(&JUBJUB) {
                     Some(g_d) => g_d,
                     None => return Err(TransactionError::InvalidOutputAddress(address.to_string())),
