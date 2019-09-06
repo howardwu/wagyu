@@ -1,7 +1,7 @@
 use crate::address::{Address, AddressError};
+use crate::extended_private_key::ExtendedPrivateKeyError;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
-use crate::extended_private_key::ExtendedPrivateKeyError;
 
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {

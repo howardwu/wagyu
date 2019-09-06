@@ -297,7 +297,6 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         input_anchor: Fr,
         witness: CommitmentTreeWitness<Node>,
     ) -> Result<(), TransactionError> {
-
         // Verify all anchors are the same
         match &self.anchor {
             None => self.anchor = Some(input_anchor),
@@ -308,7 +307,8 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             }
         };
 
-        let sapling_spend = SaplingSpend::<N>::new(extended_secret_key, cmu, epk, enc_ciphertext, input_anchor, witness)?;
+        let sapling_spend =
+            SaplingSpend::<N>::new(extended_secret_key, cmu, epk, enc_ciphertext, input_anchor, witness)?;
 
         self.value_balance += sapling_spend.note.value as i64;
         self.shielded_spends.push(sapling_spend);
@@ -358,7 +358,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                 for spend in &self.shielded_spends {
                     match &spend.spend_description {
                         Some(description) => serialized_transaction.extend(description.serialize(false)?),
-                        None => {},
+                        None => {}
                     }
                 }
             }
@@ -372,7 +372,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                 for output in &self.shielded_outputs {
                     match &output.output_description {
                         Some(description) => serialized_transaction.extend(description.serialize()?),
-                        None => {},
+                        None => {}
                     }
                 }
             }
@@ -385,7 +385,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
         match &self.binding_sig {
             Some(binding_sig) => serialized_transaction.extend(binding_sig),
-            None => {},
+            None => {}
         };
 
         Ok(serialized_transaction)
@@ -449,7 +449,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         match &self.shielded_spends.len() {
-            0 => {},
+            0 => {}
             _ => {
                 for spend in &mut self.shielded_spends {
                     spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
@@ -458,7 +458,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         match &self.shielded_outputs.len() {
-            0 => {},
+            0 => {}
             _ => {
                 for output in &mut self.shielded_outputs {
                     output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
@@ -523,7 +523,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {},
+                        true => {}
                         false => return Err(TransactionError::InvalidSpendDescription()),
                     };
                 }
@@ -759,11 +759,11 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         let epk = edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB)?
             .as_prime_order(&JUBJUB)
             .unwrap();
-        let (note, payment_address, _memo) = match try_sapling_note_decryption(&ivk.into(), &epk, &cmu, &enc_ciphertext_vec)
-        {
-            None => return Err(TransactionError::FailedNoteDecryption(enc_ciphertext.into())),
-            Some((note, payment_address, memo)) => (note, payment_address, memo),
-        };
+        let (note, payment_address, _memo) =
+            match try_sapling_note_decryption(&ivk.into(), &epk, &cmu, &enc_ciphertext_vec) {
+                None => return Err(TransactionError::FailedNoteDecryption(enc_ciphertext.into())),
+                Some((note, payment_address, memo)) => (note, payment_address, memo),
+            };
 
         let alpha = Fs::random(&mut StdRng::from_entropy());
 
@@ -790,9 +790,9 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])
             .unwrap()
             .proof_generation_key(&JUBJUB);
-//        let witness = self.witness.path().unwrap();
+        //        let witness = self.witness.path().unwrap();
 
-//        let anchor_fr: Fr = self.anchor;
+        //        let anchor_fr: Fr = self.anchor;
 
         let nf = &self.note.nf(
             &proof_generation_key.to_viewing_key(&JUBJUB),
@@ -1025,7 +1025,7 @@ pub fn generate_script_pub_key<N: ZcashNetwork>(address: &str) -> Result<Vec<u8>
             script.extend(pub_key_hash);
             script.push(OPCodes::OP_EQUALVERIFY as u8);
             script.push(OPCodes::OP_CHECKSIG as u8);
-        },
+        }
         _ => unreachable!(),
     }
 
@@ -1075,13 +1075,13 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
 mod tests {
     use super::*;
     use crate::librustzcash::zip32::prf_expand;
-    use crate::{Mainnet, Testnet};
     use crate::private_key::SaplingSpendingKey;
+    use crate::{Mainnet, Testnet};
 
     use bellman::groth16::PreparedVerifyingKey;
     use rand::Rng;
     use std::path::Path;
-    use zcash_primitives::merkle_tree::{IncrementalWitness, CommitmentTree};
+    use zcash_primitives::merkle_tree::{CommitmentTree, IncrementalWitness};
     use zcash_proofs::load_parameters;
 
     pub struct Transaction {
@@ -1221,7 +1221,7 @@ mod tests {
                     let anchor = Fr::from_repr(f).unwrap();
 
                     (witness, anchor)
-                },
+                }
                 None => {
                     // Generate note witness for testing purposes only.
                     // Real transactions require a stateful client to fetch witnesses/anchors from sapling tree state.
@@ -1244,7 +1244,8 @@ mod tests {
                         .unwrap()
                         .as_prime_order(&JUBJUB)
                         .unwrap();
-                    let (note, _, _) = try_sapling_note_decryption(&ivk.into(), &epk_point, &cmu_fr, &enc_ciphertext).unwrap();
+                    let (note, _, _) =
+                        try_sapling_note_decryption(&ivk.into(), &epk_point, &cmu_fr, &enc_ciphertext).unwrap();
                     test_tree.append(Node::new(note.cm(&JUBJUB).into_repr())).unwrap();
 
                     let incremental_witness = IncrementalWitness::<Node>::from_tree(&test_tree);
@@ -1256,7 +1257,14 @@ mod tests {
             // Add Sapling Spend
 
             transaction
-                .add_sapling_spend(input.extended_secret_key, &cmu, &epk, input.enc_ciphertext, anchor, witness)
+                .add_sapling_spend(
+                    input.extended_secret_key,
+                    &cmu,
+                    &epk,
+                    input.enc_ciphertext,
+                    anchor,
+                    witness,
+                )
                 .unwrap();
 
             let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_secret_key).unwrap();
