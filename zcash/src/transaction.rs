@@ -282,9 +282,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     }
 
     /// Add a transparent output to the transaction
-    pub fn add_transparent_output(&mut self, address: &str, amount: u64) {
-        let output = ZcashTransactionOutput::<N>::new(address, amount).unwrap();
+    pub fn add_transparent_output(&mut self, address: &str, amount: u64) -> Result<(), TransactionError> {
+        let output = ZcashTransactionOutput::<N>::new(address, amount)?;
         self.outputs.push(output);
+
+        Ok(())
     }
 
     /// Add a sapling shielded spend to the transaction
@@ -383,9 +385,8 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             _ => unimplemented!(),
         };
 
-        match &self.binding_sig {
-            Some(binding_sig) => serialized_transaction.extend(binding_sig),
-            None => {}
+        if let Some(binding_sig) = &self.binding_sig {
+            serialized_transaction.extend(binding_sig);
         };
 
         Ok(serialized_transaction)
@@ -449,7 +450,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         match &self.shielded_spends.len() {
-            0 => {}
+            0 => {},
             _ => {
                 for spend in &mut self.shielded_spends {
                     spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
@@ -458,7 +459,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         match &self.shielded_outputs.len() {
-            0 => {}
+            0 => {},
             _ => {
                 for output in &mut self.shielded_outputs {
                     output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
@@ -485,7 +486,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             match &mut spend.spend_description {
                 Some(spend_description) => {
                     let spending_key = spend.extended_spend_key.to_extended_spending_key().expsk.to_bytes();
-                    let ask = ExpandedSpendingKey::<Bls12>::read(&spending_key[..]).unwrap().ask;
+                    let ask = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.ask;
 
                     let sig = spend_sig(
                         jubjubPrivateKey(ask),
@@ -498,7 +499,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                     let mut spend_auth_sig = [0u8; 64];
                     sig.write(&mut spend_auth_sig[..]).unwrap();
 
-                    let check_sig = jubjubSignature::read(&spend_auth_sig[..]).unwrap();
+                    let check_sig = jubjubSignature::read(&spend_auth_sig[..])?;
 
                     spend_description.spend_auth_sig = Some(spend_auth_sig.to_vec());
 
@@ -625,10 +626,10 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         transaction_hash_preimage.extend(&self.expiry_height.to_le_bytes());
         transaction_hash_preimage.extend(&self.value_balance.to_le_bytes());
         transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
-        match input_index {
-            Some(index) => transaction_hash_preimage.extend(&self.inputs[index].serialize(false, true)?),
-            None => {}
-        }
+
+        if let Some(index) = input_index {
+            transaction_hash_preimage.extend(&self.inputs[index].serialize(false, true)?);
+        };
 
         let transaction_hash = blake2_256_hash("ZcashSigHash", transaction_hash_preimage, Some("sapling"));
 
@@ -745,8 +746,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
             .to_extended_full_viewing_key()
             .fvk
             .to_bytes();
-        let ivk = FullViewingKey::<Bls12>::read(&full_viewing_key[..], &JUBJUB)
-            .unwrap()
+        let ivk = FullViewingKey::<Bls12>::read(&full_viewing_key[..], &JUBJUB)?
             .vk
             .ivk();
 
@@ -787,12 +787,8 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
     ) -> Result<(), TransactionError> {
         // Incompatible implementation types for proof generation key - requires byte conversion
         let spending_key = self.extended_spend_key.to_extended_spending_key().expsk.to_bytes();
-        let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])
-            .unwrap()
+        let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?
             .proof_generation_key(&JUBJUB);
-        //        let witness = self.witness.path().unwrap();
-
-        //        let anchor_fr: Fr = self.anchor;
 
         let nf = &self.note.nf(
             &proof_generation_key.to_viewing_key(&JUBJUB),
@@ -812,8 +808,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
                 spend_params,
                 spend_vk,
                 &JUBJUB,
-            )
-            .unwrap();
+            )?;
 
         let mut cv = [0u8; 32];
         let mut anchor = [0u8; 32];
@@ -822,9 +817,9 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         let mut zk_proof = [0u8; GROTH_PROOF_SIZE];
 
         value_commitment.write(&mut cv[..])?;
-        self.anchor.into_repr().write_le(&mut anchor[..]).unwrap();
+        self.anchor.into_repr().write_le(&mut anchor[..])?;
         nullifier.copy_from_slice(nf);
-        public_key.write(&mut rk[..]).unwrap();
+        public_key.write(&mut rk[..])?;
         proof.write(&mut zk_proof[..])?;
 
         let spend_description = SpendDescription {
@@ -871,7 +866,12 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         match pk_d {
             None => return Err(TransactionError::InvalidOutputAddress(address.to_string())),
             Some(pk_d) => {
-                let to = PaymentAddress::from_parts(Diversifier(diversifier), pk_d.clone()).unwrap();
+
+                let to = match PaymentAddress::from_parts(Diversifier(diversifier), pk_d.clone()) {
+                    Some(to) => to,
+                    None => return Err(TransactionError::InvalidOutputAddress(address.to_string())),
+                };
+
                 let g_d = match to.g_d(&JUBJUB) {
                     Some(g_d) => g_d,
                     None => return Err(TransactionError::InvalidOutputAddress(address.to_string())),
@@ -1192,7 +1192,7 @@ mod tests {
         // Add transparent outputs
 
         for output in outputs {
-            transaction.add_transparent_output(output.address, output.amount);
+            transaction.add_transparent_output(output.address, output.amount).unwrap();
         }
 
         // Build Sapling Spends
@@ -1364,7 +1364,7 @@ mod tests {
         // Add transparent outputs
 
         for output in outputs {
-            transaction.add_transparent_output(output.address, output.amount);
+            transaction.add_transparent_output(output.address, output.amount).unwrap();
         }
 
         // Sign the raw transaction
