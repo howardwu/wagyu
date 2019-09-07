@@ -1,5 +1,5 @@
 use super::*;
-use crate::address::Format;
+use crate::format::MoneroFormat;
 use wagyu_model::{AddressError, Network, NetworkError};
 
 use serde::Serialize;
@@ -8,18 +8,18 @@ use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Mainnet;
 
-impl Network for Mainnet {}
+impl Network for Mainnet {
+    const NAME: &'static str = "mainnet";
+}
 
 impl MoneroNetwork for Mainnet {
-    const NAME: &'static str = "mainnet";
-
     /// Returns the address prefix of the given network.
     /// https://github.com/monero-project/monero/blob/3ad4ecd4ff52f011ee94e0e80754b965b82f072b/src/cryptonote_config.h#L153&L155
-    fn to_address_prefix(format: &Format) -> u8 {
+    fn to_address_prefix(format: &MoneroFormat) -> u8 {
         match format {
-            Format::Standard => 18,
-            Format::Integrated(_) => 19,
-            Format::Subaddress(_, _) => 42,
+            MoneroFormat::Standard => 18,
+            MoneroFormat::Integrated(_) => 19,
+            MoneroFormat::Subaddress(_, _) => 42,
         }
     }
 

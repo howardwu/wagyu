@@ -1,4 +1,5 @@
 use crate::address::{Address, AddressError};
+use crate::format::Format;
 use crate::private_key::PrivateKey;
 
 use std::{
@@ -9,7 +10,7 @@ use std::{
 /// The interface for a generic public key.
 pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
-    type Format;
+    type Format: Format;
     type PrivateKey: PrivateKey;
 
     /// Returns the address corresponding to the given public key.

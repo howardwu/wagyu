@@ -1,4 +1,5 @@
 use crate::address::{Address, AddressError};
+use crate::format::Format;
 use crate::public_key::PublicKey;
 
 use rand::Rng;
@@ -10,7 +11,7 @@ use std::{
 /// The interface for a generic private key.
 pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
-    type Format;
+    type Format: Format;
     type PublicKey: PublicKey;
 
     /// Returns a randomly-generated private key.

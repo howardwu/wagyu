@@ -1,6 +1,7 @@
 use crate::address::{Address, AddressError};
 use crate::extended_private_key::{ExtendedPrivateKey, ExtendedPrivateKeyError};
 use crate::extended_public_key::ExtendedPublicKey;
+use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::wordlist::WordlistError;
@@ -13,7 +14,7 @@ use std::{
 /// The interface for a generic mnemonic.
 pub trait Mnemonic: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
     type Address: Address;
-    type Format;
+    type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 
