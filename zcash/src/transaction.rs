@@ -358,10 +358,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                 serialized_transaction.extend(variable_length_integer(self.shielded_spends.len() as u64)?);
 
                 for spend in &self.shielded_spends {
-                    match &spend.spend_description {
-                        Some(description) => serialized_transaction.extend(description.serialize(false)?),
-                        None => {}
-                    }
+                    if let Some(description) = &spend.spend_description {
+                        serialized_transaction.extend(description.serialize(false)?);
+                    };
                 }
             }
         };
@@ -372,10 +371,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                 serialized_transaction.extend(variable_length_integer(self.shielded_outputs.len() as u64)?);
 
                 for output in &self.shielded_outputs {
-                    match &output.output_description {
-                        Some(description) => serialized_transaction.extend(description.serialize()?),
-                        None => {}
-                    }
+                    if let Some(description) = &output.output_description {
+                        serialized_transaction.extend(description.serialize()?);
+                    };
                 }
             }
         };
@@ -450,7 +448,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         match &self.shielded_spends.len() {
-            0 => {}
+            0 => {},
             _ => {
                 for spend in &mut self.shielded_spends {
                     spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
@@ -459,7 +457,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         match &self.shielded_outputs.len() {
-            0 => {}
+            0 => {},
             _ => {
                 for output in &mut self.shielded_outputs {
                     output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
@@ -524,7 +522,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {}
+                        true => {},
                         false => return Err(TransactionError::InvalidSpendDescription()),
                     };
                 }
@@ -584,10 +582,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             _ => {
                 let mut spend_descriptions: Vec<u8> = Vec::new();
                 for spend in &self.shielded_spends {
-                    match &spend.spend_description {
-                        Some(description) => spend_descriptions.extend(description.serialize(true)?),
-                        None => {}
-                    }
+                    if let Some(description) = &spend.spend_description {
+                        spend_descriptions.extend(description.serialize(true)?);
+                    };
                 }
 
                 blake2_256_hash("ZcashSSpendsHash", spend_descriptions, None)
@@ -601,10 +598,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             _ => {
                 let mut output_descriptions: Vec<u8> = Vec::new();
                 for output in &self.shielded_outputs {
-                    match &output.output_description {
-                        Some(description) => output_descriptions.extend(description.serialize()?),
-                        None => {}
-                    }
+                    if let Some(description) = &output.output_description {
+                        output_descriptions.extend(description.serialize()?);
+                    };
                 }
 
                 blake2_256_hash("ZcashSOutputHash", output_descriptions, None)
@@ -843,9 +839,8 @@ impl SpendDescription {
         serialized_output.extend(&self.rk);
         serialized_output.extend(&self.zk_proof);
 
-        match (&self.spend_auth_sig, sighash) {
-            (Some(spend_auth_sig), false) => serialized_output.extend(spend_auth_sig),
-            (_, _) => {}
+        if let (Some(spend_auth_sig), false) = (&self.spend_auth_sig, sighash) {
+            serialized_output.extend(spend_auth_sig);
         };
 
         Ok(serialized_output)
@@ -951,7 +946,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
             output_vk,
             &JUBJUB,
         ) {
-            true => {}
+            true => {},
             false => return Err(TransactionError::InvalidOutputDescription(self.address.to_string())),
         };
 
