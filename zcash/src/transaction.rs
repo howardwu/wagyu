@@ -1544,7 +1544,7 @@ mod tests {
             use super::*;
             type N = Testnet;
 
-            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 3] = [
+            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT: [TransactionData; 2] = [
                 TransactionData { // txid: 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
                     header: 2147483652,
                     version_group_id: 0x892F2085,
@@ -1638,6 +1638,9 @@ mod tests {
                     ],
                     expected_signed_transaction: "",
                 },
+            ];
+
+            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS: [TransactionData; 1] = [
                 TransactionData { // txid: a333b3523cab6def651813ea76e885b964c0c0c0ba20ea2ea98664e85ea4b9b5
                     header: 2147483652,
                     version_group_id: 0x892F2085,
@@ -1693,8 +1696,13 @@ mod tests {
             ];
 
             #[test]
-            fn test_real_sapling_spend_transactions() {
-                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS.to_vec());
+            fn test_real_sapling_spend_transactions_single_input() {
+                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT.to_vec());
+            }
+
+            #[test]
+            fn test_real_sapling_spend_transactions_multiple_input() {
+                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS.to_vec());
             }
         }
 
