@@ -285,7 +285,6 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     pub fn add_transparent_output(&mut self, address: &str, amount: u64) -> Result<(), TransactionError> {
         let output = ZcashTransactionOutput::<N>::new(address, amount)?;
         self.outputs.push(output);
-
         Ok(())
     }
 
@@ -735,7 +734,6 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         witness: CommitmentTreeWitness<Node>,
     ) -> Result<Self, TransactionError> {
         let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(extended_key)?;
-        //        let ivk = extended_spend_key.to_extended_public_key().to_extended_full_viewing_key().fvk.vk.ivk(); // Incompatible implementations of Fs
 
         let full_viewing_key = extended_spend_key
             .to_extended_public_key()
@@ -746,8 +744,9 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
 
         let mut f = FrRepr::default();
         f.read_le(&cmu[..])?;
-        let cmu = Fr::from_repr(f)?;
 
+        let alpha = Fs::random(&mut StdRng::from_entropy());
+        let cmu = Fr::from_repr(f)?;
         let enc_ciphertext_vec = hex::decode(enc_ciphertext)?;
 
         let epk = match edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB)?.as_prime_order(&JUBJUB) {
@@ -760,8 +759,6 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
                 None => return Err(TransactionError::FailedNoteDecryption(enc_ciphertext.into())),
                 Some((note, payment_address, memo)) => (note, payment_address, memo),
             };
-
-        let alpha = Fs::random(&mut StdRng::from_entropy());
 
         Ok(SaplingSpend {
             extended_spend_key,
@@ -781,7 +778,6 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         spend_params: &Parameters<Bls12>,
         spend_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        // Incompatible implementation types for proof generation key - requires byte conversion
         let spending_key = self.extended_spend_key.to_extended_spending_key().expsk.to_bytes();
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.proof_generation_key(&JUBJUB);
 
@@ -897,7 +893,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         let ovk = OutgoingViewingKey(self.ovk.0);
-        let enc = SaplingNoteEncryption::new(
+        let note_encryption = SaplingNoteEncryption::new(
             ovk,
             self.note.clone(),
             self.to.clone(),
@@ -906,7 +902,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         );
 
         let (proof, value_commitment) = proving_ctx.output_proof(
-            enc.esk().clone(),
+            note_encryption.esk().clone(),
             self.to.clone(),
             self.note.r,
             self.note.value,
@@ -917,8 +913,8 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         // Generate the ciphertexts
 
         let cm = self.note.cm(&JUBJUB);
-        let enc_ciphertext = enc.encrypt_note_plaintext();
-        let out_ciphertext = enc.encrypt_outgoing_plaintext(&value_commitment, &cm);
+        let enc_ciphertext = note_encryption.encrypt_note_plaintext();
+        let out_ciphertext = note_encryption.encrypt_outgoing_plaintext(&value_commitment, &cm);
 
         // Write the points as bytes
 
@@ -936,14 +932,14 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         let mut zk_proof = [0u8; GROTH_PROOF_SIZE];
 
         value_commitment.write(&mut cv[..])?;
-        enc.epk().write(&mut ephemeral_key[..])?;
+        note_encryption.epk().write(&mut ephemeral_key[..])?;
         proof.write(&mut zk_proof[..])?;
 
         // Verify the output description
         match verifying_ctx.check_output(
             value_commitment,
             cm,
-            enc.epk().clone().into(),
+            note_encryption.epk().clone().into(),
             proof,
             output_vk,
             &JUBJUB,
@@ -1048,12 +1044,13 @@ pub fn validate_address_format(
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     match size {
-        // u8::max_value()
+        // bounded by u8::max_value()
         0..=252 => Ok(vec![size as u8]),
-        // u16::max_value()
+        // bounded by u16::max_value()
         253..=65535 => Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat()),
-        // u32::max_value()
+        // bounded by u32::max_value()
         65536..=4294967295 => Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat()),
+        // bounded by u64::max_value()
         _ => Ok([vec![0xff], size.to_le_bytes().to_vec()].concat()),
     }
 }
@@ -1547,8 +1544,8 @@ mod tests {
             use super::*;
             type N = Testnet;
 
-            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 1] = [
-                TransactionData { // 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
+            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 3] = [
+                TransactionData { // txid: 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -1593,6 +1590,106 @@ mod tests {
                     ],
                     expected_signed_transaction: "",
                 },
+                TransactionData { // txid: 1733902a65cf474339693642f2afed279d2f60f78cff1528d5e2a79179cede8a
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                            cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                            epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
+                            enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
+                            anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address: "ztestsapling1ml8v92nfl07t7tsncwf9x0upqgncljpcrs3c53esgjupkagfffk98ngwhdqcw5pc8v4r2wmx0lk",
+                            amount: 249980000,
+                        },
+                        Output {
+                            address: "ztestsapling1nnx9cu3u0jy2zwwru2u4mpffkdtkw5r2er399xwlpj5d340znfufdl0l8ec2ag94zgur54hlmn8",
+                            amount: 249980000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+                TransactionData { // txid: a333b3523cab6def651813ea76e885b964c0c0c0ba20ea2ea98664e85ea4b9b5
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfquqqpqprdealqmnm5u8udxapgt5twpvwcnaam2u8ycff2c094ucu9fcf86vhtnvjj8d4g2g499qnnrqqt4q9untr4pf44n9k57hnzjdptggqs7hy3emfgrflahl72jfx2uvkzvmeukxhh2kye8pcnzm55pdvpusf79ujph6c0pupn9ty090xsx8r57jqv3aqk2x7kfgzmmlh26d5npuyaz45gjusx9h5w2d3nflk0na6vnk08dvv5p7rz75yw966u83pg7gw8r82v",
+                            cmu: "6dc0792cd8cf8fb71229ec522862539b7e9f3f53acbb2cedcc1b21ea1bcfac91",
+                            epk: "669a7bcdc0d9906a1c4101008b2557896d85a496e63359b350e9773c640d18e6",
+                            enc_ciphertext: "c41762618b4e50a94d1f6c19d3d9a62fdc2add170702fd8004b17cad3c0fd2855d8f86db5c740e91d4b831e945f4d510eaa11cc6d80cb0c5f7c7e5391cf9d940f06054b7e24255c02e81d63ceaaa37c4c8236e9ebe546819316806bdc1ce60fb1862274811bd8248d5b0d4cbf6027bb5765b4e3d3558e8dd6b42790e53000f229a5cdb031d9ded5fec16231a208be48b149db04606e3fcec0164d8c4ea6dcd9c56140e3ae1bfa6a649db730f80119928901fbb6a1b018831650fbebb2fc8169e46a07dffdb09f070da9db4b41f929bf6949f70465087337421af2242ae7fe12f295dc1017cffaed9aa03e094971489230e90a3feb86235f89508cd4ef16637d443d72f88f9894de9b4fa6597127d7ab6526572b1283a357ffdd586b0944b42cbb579c8aeb50f0c371995fcb89d83069d533967d0563e9de74a600d3cf774a182d16727f66a9c62db38debc70f7327e7e1d6d4e3edadd8d1cae7e2af52fb72c499d91d416b970b3dc8b233a3e915937f5fd2bf1f782a5045ab825a13594543bd50cf6c99dd49a42c7aabf5e4b5178067dd8f5bc10e7d8ca400f045cba9cb5ed39cd3f3d389c7cb06de3de636fcae6954be389194aee12b4852031c1a2a56f91b0348850291c3581463186e1d1c36e2752ef0f8c87455397e1d6f6b5c8294eda53a7fabe495bcbfe921c9f973187ac91217366f53361912a2f2e9c987c04ed8aaff9b0d1948f60f24429233b66b2fa7e212a88af0093a586e199cc7b24cdf38f290f659ccbfcf509101f2755a32b995333648287adba3efbf44662d0566fe1d5235b5e3c69",
+                            anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2012d58b0466abebf7c2e0ab9f84c06044e8126c4b177d423ce179d4d8468dc505fa1a010000000000"),
+                        },
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfpqqqpq90l4tj7ruxk3t6sj7g0r43hksurrgrcdny0mfwj9gjt3ez2euwmrvxqn26mr9g9flkhd54dake6njrshrscstpvqjvuy4cphcan6rspragf93krxptsmqdmgz5h7zlzcddf9r4zjctk43e5m7jtwer9csdcud24uhwua9zunwjp47fjs6s5qdzzhdylnr2g7n95sk0klurqfqgdnza0vqk756qmg89lu2pu39nap29u846gs23g5x2jqjhzpggtvskqf7rc",
+                            cmu: "05c58d46d8d479e13c427d174b6c12e84460c0849fabe0c2f7ebab66048bd512",
+                            epk: "d2a85b034e12f6659974cfa03d3062d60bee3d1ff581d499f13e217a181cf6e0",
+                            enc_ciphertext: "611fce5e0c1b4541815537c69cb2567129c490547919e082d04d1e1b68d16ca876570d4d98a0fd5938583bc4d8a759919933bf6cc3e147b4afabbeaefa1b6cd1d5b9c3c4b2fbfd2ab227a4f0e5f4bc3265f9aeb41f497236991f255873c452f36dfd6edc4e352abc38888a6050c73f5655c514043a1c9bdebb06ffc471dd66a5280a54c63c0e64e32737360278caf5ddd25d7235b6aa332131c7d3ddbee1982170d42021e3fdc8ecb9863cc3a6064dcb491dd45df56b4879b3f0040a5f47a44675b38642ae582706c0d10a4f5b2e0783f2403f9b062aa5cad9b1bcaca361c113779bca01ac31561b3308de6238938e0691073d2c36e16f5093c24be66adf6619d2dabac11ee4a81928b27ad3031356076350887cd857f99e520e2dd7f41886c75478e840d5fa8701f4680b1506f3d22be2959c8f98948a13ff8188fc11d36cd85713fc5131b4445984a49c1579a004a9bcebf0f439bf42cc6ef43c1b08c12e40ac182234f8e8b614e16ed14a8d8dadcbe68b43688409dcac8b1cce8a766494a2e62c633671bd618a0fc03cbc647074fef9c508a00a6cd3b3b4144f63aa9006990f294bef762c5d98dbb201bba57703b8fcd2ac624afdda783635842cbafb722d8805ef0495d5c5ce2e5aa72a2e81dad612fae8870833bb04bd0cf8abb82e972430cce59c632bfab023ef2e099dd108c940a6362475b8f0dddf60479351131c7f8ddb63b0d8297e236e0d32d13467e9e52d29f0fb104cdea64255f178f155a1ef5bcb1935b760dd3791372ca4fe95c3d121a3af922e27bc781bd5a8b99991b45343168fef",
+                            anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2091accf1bea211bcced2cbbac533f9f7e9b53622852ec2912b78fcfd82c79c06dfb1a010000000000"),
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address: "ztestsapling1vtt4em42w9qgt65x8hj55ua7m8dcxyvfm23a5zkw957v2xtk57jj0x06dnkamgp3tlz5g5053t5",
+                            amount: 499950000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
             ];
 
             #[test]
@@ -1607,7 +1704,7 @@ mod tests {
 
             const REAL_TESTNET_SAPLING_OUTPUT_TRANSACTIONS: [TransactionData; 3] = [
                 TransactionData {
-                    // 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
+                    // txid: 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -1657,7 +1754,7 @@ mod tests {
                     expected_signed_transaction: "",
                 },
                 TransactionData {
-                    // a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
+                    // txid: a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -1721,7 +1818,7 @@ mod tests {
                     expected_signed_transaction: "",
                 },
                 TransactionData {
-                    // f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
+                    // txid: f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -2024,7 +2121,7 @@ mod tests {
             type N = Testnet;
 
             const REAL_TESTNET_TRANSACTIONS: [TransactionData; 5] = [
-                TransactionData { // d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf
+                TransactionData { // txid: d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -2075,7 +2172,7 @@ mod tests {
                     ],
                     expected_signed_transaction: "0400008085202f89012dc108fdaca845cb51aa9807c90fcf25d73070bbf927b3e2ee841a784274a672000000006b483045022100a6255438be743890d53bf5a0818f58370361a0ff82f88dca30fba0aec1b2859b022055950c72f1111babcf01f58087300eb80e3acfff169d05338d8e2c7a0dd0b1fe012102386cb1f3211d689bcf9fd763381a4d7a9a0d719667c979ac485d6d2ec69a17e0ffffffff0200e40b54020000001976a9148af7ebff7dad3862258a44992915615bfd9e6d4388ac605d0a54020000001976a914d6fdb988e0ca149cb74eda244d8fc52481d6452088ac00000000ff64cd1d0000000000000000000000"
                 },
-                TransactionData { // 22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc
+                TransactionData { // txid: 22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -2129,7 +2226,7 @@ mod tests {
                     ],
                     expected_signed_transaction: "0400008085202f8901bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7010000006b4830450221009b69008f53a9970c2f5c771b76462773baf18a2937cbc70af4dad9d7987fd13e022038a3d14301c657172759885a5e2e65d5c10b3208e6120cb819d66f56fae3c09401210332d388288132f696b4a75b2d2f40ccbd9a463d32e3c6c335f671df33f1a05973ffffffff03eb9cadc6000000001976a914418574564a7c48387a6557c491d14da904a4306c88aceb9cadc6000000001976a91475caaa31ae391da8121fe8d9577c30710bafc7f988acea9cadc6000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac0000000036cc08000000000000000000000000"
                 },
-                TransactionData { //19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a
+                TransactionData { // txid: 19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -2190,7 +2287,7 @@ mod tests {
                     ],
                     expected_signed_transaction: "0400008085202f8902fc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22000000006b483045022100ea49efe4132ce18d039cb2abe99ea52163611c25a35a8640a4bb15a88c93b60402202f7d4334bccd8f961d1becfd08bccdc1c0669533810cbbbfa5837f99ba94a7fe0121024aed9637c78499154afc06af10b2344233b3c968f1e7b1cfd9905fc38e440c12fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22010000006a47304402203576c518c1f628469efcd182fa7d1d578cccdf7b51a41e44d119ca0c010747cc022069d9f390735567efff5e8f70afec6595060a79693540d6174b21681b21b4df70012102e49919f81e1fc11a65283e71dcce22dc65271f4ab6ef96f9e9b3d20fd62d1e87ffffffff02a0c55463000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac00f2052a010000001976a9140aab8113729e010d852820561dbee87459ad8dc888ac0000000058cc08000000000000000000000000"
                 },
-                TransactionData { //fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c
+                TransactionData { // txid: fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
@@ -2268,7 +2365,7 @@ mod tests {
                     ],
                     expected_signed_transaction: "0400008085202f8904bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7000000006a47304402203f44fdfa0abb604a0b123fc95b4b0ad97bf535c9b2f9c2e37440a5627eabc6b902206c533152ba2efd78c16136f108847d8ea60e571f4dd7cbb47a5df582011cb3920121037517903ed1fafb50ab557970fc2d1948eaf88ad807308cc1fd50a63ca5f2d4d9fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22020000006b48304502210089fe440a2b97bd12ad09c21cf4b3c811cddd17917fb5f4b84ec3fafa3c8ce26b022029e1bc2385d291eef1591775a73a77c5891afcfcf020a58c4fa35fb7d2995d280121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719000000006b483045022100d3c08145d11226c24acba293943f649b6acced719eaba5eee168705faa060046022077a220546a4654ee8bf14217da8c5dae9c64160b424be83557b24b79fb7b22400121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719010000006b483045022100a2649c5a237ac25db15ada343ea331865b9544a5ac32752c7800d3296085665602206c1722f0a3b0533f047e06ec2931fbe9dc9f6c01f4f1391fa02421369f8e4952012103b485498fb0843a5a058f251d7094fe8d2878faba8c17e7b3bbf854adb855a377ffffffff01e02610a8040000001976a9143c314002f07cf5ff5c84da1d9b456671b915bf8588ac0000000058cc08000000000000000000000000"
                 },
-                TransactionData { // 35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea
+                TransactionData { // txid: 35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea
                     header: 2147483652,
                     version_group_id: 0x892F2085,
                     lock_time: 0,
