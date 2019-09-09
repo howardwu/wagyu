@@ -22,7 +22,8 @@ base58-monero = { version = "0.1.1" }
 bech32 = { version = "0.6" }
 byteorder = { version = "1" }
 crypto-mac = { version = "0.7.0" }
-ethereum-types = "0.6.0"
+ethereum-types = { version = "0.6.0" }
+ff = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
 failure = { version = "0.1.5" }
 hex = { version = "0.3.2" }
 rand = { version = "0.7" }

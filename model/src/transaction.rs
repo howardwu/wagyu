@@ -101,6 +101,12 @@ impl From<ExtendedPrivateKeyError> for TransactionError {
     }
 }
 
+impl From<ff::PrimeFieldDecodingError> for TransactionError {
+    fn from(error: ff::PrimeFieldDecodingError) -> Self {
+        TransactionError::Crate("ff", format!("{:?}", error))
+    }
+}
+
 impl From<hex::FromHexError> for TransactionError {
     fn from(error: hex::FromHexError) -> Self {
         TransactionError::Crate("hex", format!("{:?}", error))

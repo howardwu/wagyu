@@ -448,7 +448,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
         match &self.shielded_spends.len() {
-            0 => {},
+            0 => {}
             _ => {
                 for spend in &mut self.shielded_spends {
                     spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
@@ -457,7 +457,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         match &self.shielded_outputs.len() {
-            0 => {},
+            0 => {}
             _ => {
                 for output in &mut self.shielded_outputs {
                     output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
@@ -495,7 +495,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                     );
 
                     let mut spend_auth_sig = [0u8; 64];
-                    sig.write(&mut spend_auth_sig[..]).unwrap();
+                    sig.write(&mut spend_auth_sig[..])?;
 
                     let check_sig = jubjubSignature::read(&spend_auth_sig[..])?;
 
@@ -504,8 +504,8 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                     let public_key = jubjubPublicKey::<Bls12>::read(&spend_description.rk[..], &JUBJUB)?;
 
                     let mut f = FrRepr::default();
-                    f.read_le(&spend_description.anchor[..]).unwrap();
-                    let anchor_fr = Fr::from_repr(f).unwrap();
+                    f.read_le(&spend_description.anchor[..])?;
+                    let anchor_fr = Fr::from_repr(f)?;
 
                     let value_commitment = edwards::Point::<Bls12, _>::read(&spend_description.cv[..], &JUBJUB)?;
                     let proof = Proof::<Bls12>::read(&spend_description.zk_proof[..])?;
@@ -522,7 +522,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {},
+                        true => {}
                         false => return Err(TransactionError::InvalidSpendDescription()),
                     };
                 }
@@ -745,14 +745,16 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         let ivk = FullViewingKey::<Bls12>::read(&full_viewing_key[..], &JUBJUB)?.vk.ivk();
 
         let mut f = FrRepr::default();
-        f.read_le(&cmu[..]).unwrap();
-        let cmu = Fr::from_repr(f).unwrap();
+        f.read_le(&cmu[..])?;
+        let cmu = Fr::from_repr(f)?;
 
         let enc_ciphertext_vec = hex::decode(enc_ciphertext)?;
 
-        let epk = edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB)?
-            .as_prime_order(&JUBJUB)
-            .unwrap();
+        let epk = match edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB)?.as_prime_order(&JUBJUB) {
+            Some(epk) => epk,
+            None => return Err(TransactionError::Message("invalid epk".into())),
+        };
+
         let (note, payment_address, _memo) =
             match try_sapling_note_decryption(&ivk.into(), &epk, &cmu, &enc_ciphertext_vec) {
                 None => return Err(TransactionError::FailedNoteDecryption(enc_ciphertext.into())),
@@ -946,7 +948,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
             output_vk,
             &JUBJUB,
         ) {
-            true => {},
+            true => {}
             false => return Err(TransactionError::InvalidOutputDescription(self.address.to_string())),
         };
 
