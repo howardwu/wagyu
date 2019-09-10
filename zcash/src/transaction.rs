@@ -751,7 +751,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
 
         let epk = match edwards::Point::<Bls12, _>::read(&epk[..], &JUBJUB)?.as_prime_order(&JUBJUB) {
             Some(epk) => epk,
-            None => return Err(TransactionError::Message("invalid epk".into())),
+            None => return Err(TransactionError::InvalidEphemeralKey(hex::encode(epk))),
         };
 
         let (note, payment_address, _memo) =
@@ -1432,459 +1432,6 @@ mod tests {
                 &output_vk,
             );
         });
-    }
-
-    mod test_sapling_transactions {
-        use super::*;
-
-        mod test_testnet_sapling_spend_transactions {
-            use super::*;
-            type N = Testnet;
-
-            const TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 2] = [
-                TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        Output {
-                            address: "tmKXdkNCRxZ8Ha6voL4MVByBRkCPez5ak6Z",
-                            amount: 499960000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
-                            cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
-                            epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
-                            enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
-                            anchor: None,
-                            witness: None,
-                        },
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-                TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        Output {
-                            address: "tmEDWXTm25SuuRgLGsD8j5CDsBxVBrZTEQ8",
-                            amount: 499990000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qn7ydpt6qqqqqqr6xek4td34wfcgd229v5fhnzmntdcl5n4cltwg25pp0prydaktd7nam7grwchkhz8606zdscjc2ghjfmldqdjf2hcsa6y7e7jkugrspyfwdq34eweejzqpg003x5a8j5lvmxt63mlpy362wjssvmwp0eq2mfp5gp02mv5wvy25fh532jjggc7fwrnqgl97s6tg0ugmqzlrx0sufand5puvu9mxe9hawgv64k9x3pg7xz7lu9u38snjcwayus6s3hcemqac2",
-                            cmu: "16ff8ed12ad3419672c9d344340bcb19aed41a3fb1c6d002bd713e683d804c43",
-                            epk: "e7f2b7a37ef84f64a328abfbda51bac2542265008f2a851d8a594a033dafbf61",
-                            enc_ciphertext: "14ed755988716e1e72abb02b0ddb926af406343a449b132d74554b01c6f9b9af1cf8d41ea3dfd83058608000aebbe55331820fd7514b05bdd9de80d9894d1381689c5cb6f4bc5a79e950e2ffdd8ac8db85e755c4fa12fd95c2610791d69848c91d5c5b93d60af6bc8c0f1aad6a841163bb9589059fbd7826d09dbc19a7cc99745f03812607fa16c3e88ace4cd0aad74a7f2f79b82f3112929a67d76d64b12a11ba0d2c0e4ee7c9e5946677bb089c6728bcf2476196415e321810be9bc4b1a8e3b289bfa28b22ebbd6981852e1fcaf939b7ae54a2ca2601a01f47a1d369ea066e8f2cff34e4a97534c15accf9d2c61953592f74dca60a3805f7ee7ae905ccb8375ee0741e3fe53f0444b0292d4ee5f57c432a984b57222acac9762cb6f9aefc34279e51599d95ed3f6b3a6f92fbb579d3c97c5cdbab092f8e819b37e4463ccd02c11db2e19ce842a24985315f7e06f088e46d2fb56a528462e04a087666cf1ade0beaadd08fb99806123cd8fed8b643609fcd26844215e536fe809780a6aafddcb28c4c3a2c84d9273232984342bb71fb55f1abbf2406958fd6a65eba4ab738f34e83940f35b2f2588beae1967c175a098551d616ed75db04f9a17f5bb111977aeaa110faae908aa6a4af98b5efb9d947937a75fb4997690d84e314447f4ed09e3b91a04d967c324ab421b6e5a5bf6ed7a5bf3b9ce7f1d919681a8359b7843537a233bd69a430758d1d0af4bc4dfddd85c913179fc525c85f4ffdcd5d41a948148ed7e94f220535d465336a5708e780bf15b2ec14d559f4f4bf569977379e988e385e4ec7",
-                            anchor: None,
-                            witness: None,
-                        },
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-            ];
-
-            #[test]
-            fn test_sapling_spend_transactions() {
-                test_sapling_transactions::<N>(TESTNET_SAPLING_SPEND_TRANSACTIONS.to_vec());
-            }
-        }
-
-        mod test_real_testnet_sapling_spend_transactions {
-            use super::*;
-            type N = Testnet;
-
-            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT: [TransactionData; 2] = [
-                TransactionData { // txid: 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        Output {
-                            address: "tmEn21pZv4FTPfXinSNfdtQyDVhnkRz9T7q",
-                            amount: 999980000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
-                            cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
-                            epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
-                            enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
-                            anchor: Some("a4c8ea36def54b535c93a3d3d61daa5fbd04968b79ae3a518d2f1a097fcfe52d"),
-                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
-                        },
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-                TransactionData { // txid: 1733902a65cf474339693642f2afed279d2f60f78cff1528d5e2a79179cede8a
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
-                            cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
-                            epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
-                            enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
-                            anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
-                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
-                        },
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        Output {
-                            address: "ztestsapling1ml8v92nfl07t7tsncwf9x0upqgncljpcrs3c53esgjupkagfffk98ngwhdqcw5pc8v4r2wmx0lk",
-                            amount: 249980000,
-                        },
-                        Output {
-                            address: "ztestsapling1nnx9cu3u0jy2zwwru2u4mpffkdtkw5r2er399xwlpj5d340znfufdl0l8ec2ag94zgur54hlmn8",
-                            amount: 249980000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-            ];
-
-            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS: [TransactionData; 1] = [
-                TransactionData { // txid: a333b3523cab6def651813ea76e885b964c0c0c0ba20ea2ea98664e85ea4b9b5
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfquqqpqprdealqmnm5u8udxapgt5twpvwcnaam2u8ycff2c094ucu9fcf86vhtnvjj8d4g2g499qnnrqqt4q9untr4pf44n9k57hnzjdptggqs7hy3emfgrflahl72jfx2uvkzvmeukxhh2kye8pcnzm55pdvpusf79ujph6c0pupn9ty090xsx8r57jqv3aqk2x7kfgzmmlh26d5npuyaz45gjusx9h5w2d3nflk0na6vnk08dvv5p7rz75yw966u83pg7gw8r82v",
-                            cmu: "6dc0792cd8cf8fb71229ec522862539b7e9f3f53acbb2cedcc1b21ea1bcfac91",
-                            epk: "669a7bcdc0d9906a1c4101008b2557896d85a496e63359b350e9773c640d18e6",
-                            enc_ciphertext: "c41762618b4e50a94d1f6c19d3d9a62fdc2add170702fd8004b17cad3c0fd2855d8f86db5c740e91d4b831e945f4d510eaa11cc6d80cb0c5f7c7e5391cf9d940f06054b7e24255c02e81d63ceaaa37c4c8236e9ebe546819316806bdc1ce60fb1862274811bd8248d5b0d4cbf6027bb5765b4e3d3558e8dd6b42790e53000f229a5cdb031d9ded5fec16231a208be48b149db04606e3fcec0164d8c4ea6dcd9c56140e3ae1bfa6a649db730f80119928901fbb6a1b018831650fbebb2fc8169e46a07dffdb09f070da9db4b41f929bf6949f70465087337421af2242ae7fe12f295dc1017cffaed9aa03e094971489230e90a3feb86235f89508cd4ef16637d443d72f88f9894de9b4fa6597127d7ab6526572b1283a357ffdd586b0944b42cbb579c8aeb50f0c371995fcb89d83069d533967d0563e9de74a600d3cf774a182d16727f66a9c62db38debc70f7327e7e1d6d4e3edadd8d1cae7e2af52fb72c499d91d416b970b3dc8b233a3e915937f5fd2bf1f782a5045ab825a13594543bd50cf6c99dd49a42c7aabf5e4b5178067dd8f5bc10e7d8ca400f045cba9cb5ed39cd3f3d389c7cb06de3de636fcae6954be389194aee12b4852031c1a2a56f91b0348850291c3581463186e1d1c36e2752ef0f8c87455397e1d6f6b5c8294eda53a7fabe495bcbfe921c9f973187ac91217366f53361912a2f2e9c987c04ed8aaff9b0d1948f60f24429233b66b2fa7e212a88af0093a586e199cc7b24cdf38f290f659ccbfcf509101f2755a32b995333648287adba3efbf44662d0566fe1d5235b5e3c69",
-                            anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
-                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2012d58b0466abebf7c2e0ab9f84c06044e8126c4b177d423ce179d4d8468dc505fa1a010000000000"),
-                        },
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfpqqqpq90l4tj7ruxk3t6sj7g0r43hksurrgrcdny0mfwj9gjt3ez2euwmrvxqn26mr9g9flkhd54dake6njrshrscstpvqjvuy4cphcan6rspragf93krxptsmqdmgz5h7zlzcddf9r4zjctk43e5m7jtwer9csdcud24uhwua9zunwjp47fjs6s5qdzzhdylnr2g7n95sk0klurqfqgdnza0vqk756qmg89lu2pu39nap29u846gs23g5x2jqjhzpggtvskqf7rc",
-                            cmu: "05c58d46d8d479e13c427d174b6c12e84460c0849fabe0c2f7ebab66048bd512",
-                            epk: "d2a85b034e12f6659974cfa03d3062d60bee3d1ff581d499f13e217a181cf6e0",
-                            enc_ciphertext: "611fce5e0c1b4541815537c69cb2567129c490547919e082d04d1e1b68d16ca876570d4d98a0fd5938583bc4d8a759919933bf6cc3e147b4afabbeaefa1b6cd1d5b9c3c4b2fbfd2ab227a4f0e5f4bc3265f9aeb41f497236991f255873c452f36dfd6edc4e352abc38888a6050c73f5655c514043a1c9bdebb06ffc471dd66a5280a54c63c0e64e32737360278caf5ddd25d7235b6aa332131c7d3ddbee1982170d42021e3fdc8ecb9863cc3a6064dcb491dd45df56b4879b3f0040a5f47a44675b38642ae582706c0d10a4f5b2e0783f2403f9b062aa5cad9b1bcaca361c113779bca01ac31561b3308de6238938e0691073d2c36e16f5093c24be66adf6619d2dabac11ee4a81928b27ad3031356076350887cd857f99e520e2dd7f41886c75478e840d5fa8701f4680b1506f3d22be2959c8f98948a13ff8188fc11d36cd85713fc5131b4445984a49c1579a004a9bcebf0f439bf42cc6ef43c1b08c12e40ac182234f8e8b614e16ed14a8d8dadcbe68b43688409dcac8b1cce8a766494a2e62c633671bd618a0fc03cbc647074fef9c508a00a6cd3b3b4144f63aa9006990f294bef762c5d98dbb201bba57703b8fcd2ac624afdda783635842cbafb722d8805ef0495d5c5ce2e5aa72a2e81dad612fae8870833bb04bd0cf8abb82e972430cce59c632bfab023ef2e099dd108c940a6362475b8f0dddf60479351131c7f8ddb63b0d8297e236e0d32d13467e9e52d29f0fb104cdea64255f178f155a1ef5bcb1935b760dd3791372ca4fe95c3d121a3af922e27bc781bd5a8b99991b45343168fef",
-                            anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
-                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2091accf1bea211bcced2cbbac533f9f7e9b53622852ec2912b78fcfd82c79c06dfb1a010000000000"),
-                        },
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        Output {
-                            address: "ztestsapling1vtt4em42w9qgt65x8hj55ua7m8dcxyvfm23a5zkw957v2xtk57jj0x06dnkamgp3tlz5g5053t5",
-                            amount: 499950000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-            ];
-
-            #[test]
-            fn test_real_sapling_spend_transactions_single_input() {
-                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT.to_vec());
-            }
-
-            #[test]
-            fn test_real_sapling_spend_transactions_multiple_input() {
-                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS.to_vec());
-            }
-        }
-
-        mod test_real_testnet_sapling_output_transactions {
-            use super::*;
-            type N = Testnet;
-
-            const REAL_TESTNET_SAPLING_OUTPUT_TRANSACTIONS: [TransactionData; 3] = [
-                TransactionData {
-                    // txid: 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        Input {
-                            private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
-                            address_format: Format::P2PKH,
-                            transaction_id: "cdb426cbd9dfe1c27df683a891977d0a5be6cc87e3b618917bb124caba7a78f2",
-                            index: 0,
-                            redeem_script: None,
-                            script_pub_key: None,
-                            utxo_amount: Some(1000010000),
-                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SigHashCode::SIGHASH_ALL,
-                        },
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        Output {
-                            address:
-                            "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
-                            amount: 1000000000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-                TransactionData {
-                    // txid: a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        Input {
-                            private_key: "cUnh9NAShCGCur8PjxQnRz96n93Hs6tNAo6fmH41ig1vKzrXtWdC",
-                            address_format: Format::P2PKH,
-                            transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
-                            index: 0,
-                            redeem_script: None,
-                            script_pub_key: None,
-                            utxo_amount: Some(1000010000),
-                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SigHashCode::SIGHASH_ALL,
-                        },
-                        Input {
-                            private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
-                            address_format: Format::P2PKH,
-                            transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
-                            index: 1,
-                            redeem_script: None,
-                            script_pub_key: None,
-                            utxo_amount: Some(1000010000),
-                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SigHashCode::SIGHASH_ALL,
-                        },
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        Output {
-                            address:
-                            "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
-                            amount: 1000000000,
-                        },
-                        Output {
-                            address:
-                            "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
-                            amount: 1000000000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-                TransactionData {
-                    // txid: f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        Input {
-                            private_key: "cMwUGSqBqKSavhstEH6Jsuf7cpqFf15ywuEaoUBmBuesdZxng41H",
-                            address_format: Format::P2PKH,
-                            transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
-                            index: 2,
-                            redeem_script: None,
-                            script_pub_key: None,
-                            utxo_amount: Some(1000010000),
-                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SigHashCode::SIGHASH_ALL,
-                        },
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        Output {
-                            address: "tmGZKXeeSu2sVS72Lg1KAuKKUxg2S4iGXZ7",
-                            amount: 500000000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        Output {
-                            address:
-                            "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
-                            amount: 500000000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
-            ];
-
-            #[test]
-            fn test_sapling_output_transactions() {
-                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_OUTPUT_TRANSACTIONS.to_vec());
-            }
-        }
     }
 
     mod test_transparent_transactions {
@@ -2698,6 +2245,459 @@ mod tests {
         }
     }
 
+    mod test_sapling_transactions {
+        use super::*;
+
+        mod test_testnet_sapling_spend_transactions {
+            use super::*;
+            type N = Testnet;
+
+            const TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 2] = [
+                TransactionData {
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        Output {
+                            address: "tmKXdkNCRxZ8Ha6voL4MVByBRkCPez5ak6Z",
+                            amount: 499960000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                            cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                            epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
+                            enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
+                            anchor: None,
+                            witness: None,
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+                TransactionData {
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        Output {
+                            address: "tmEDWXTm25SuuRgLGsD8j5CDsBxVBrZTEQ8",
+                            amount: 499990000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qn7ydpt6qqqqqqr6xek4td34wfcgd229v5fhnzmntdcl5n4cltwg25pp0prydaktd7nam7grwchkhz8606zdscjc2ghjfmldqdjf2hcsa6y7e7jkugrspyfwdq34eweejzqpg003x5a8j5lvmxt63mlpy362wjssvmwp0eq2mfp5gp02mv5wvy25fh532jjggc7fwrnqgl97s6tg0ugmqzlrx0sufand5puvu9mxe9hawgv64k9x3pg7xz7lu9u38snjcwayus6s3hcemqac2",
+                            cmu: "16ff8ed12ad3419672c9d344340bcb19aed41a3fb1c6d002bd713e683d804c43",
+                            epk: "e7f2b7a37ef84f64a328abfbda51bac2542265008f2a851d8a594a033dafbf61",
+                            enc_ciphertext: "14ed755988716e1e72abb02b0ddb926af406343a449b132d74554b01c6f9b9af1cf8d41ea3dfd83058608000aebbe55331820fd7514b05bdd9de80d9894d1381689c5cb6f4bc5a79e950e2ffdd8ac8db85e755c4fa12fd95c2610791d69848c91d5c5b93d60af6bc8c0f1aad6a841163bb9589059fbd7826d09dbc19a7cc99745f03812607fa16c3e88ace4cd0aad74a7f2f79b82f3112929a67d76d64b12a11ba0d2c0e4ee7c9e5946677bb089c6728bcf2476196415e321810be9bc4b1a8e3b289bfa28b22ebbd6981852e1fcaf939b7ae54a2ca2601a01f47a1d369ea066e8f2cff34e4a97534c15accf9d2c61953592f74dca60a3805f7ee7ae905ccb8375ee0741e3fe53f0444b0292d4ee5f57c432a984b57222acac9762cb6f9aefc34279e51599d95ed3f6b3a6f92fbb579d3c97c5cdbab092f8e819b37e4463ccd02c11db2e19ce842a24985315f7e06f088e46d2fb56a528462e04a087666cf1ade0beaadd08fb99806123cd8fed8b643609fcd26844215e536fe809780a6aafddcb28c4c3a2c84d9273232984342bb71fb55f1abbf2406958fd6a65eba4ab738f34e83940f35b2f2588beae1967c175a098551d616ed75db04f9a17f5bb111977aeaa110faae908aa6a4af98b5efb9d947937a75fb4997690d84e314447f4ed09e3b91a04d967c324ab421b6e5a5bf6ed7a5bf3b9ce7f1d919681a8359b7843537a233bd69a430758d1d0af4bc4dfddd85c913179fc525c85f4ffdcd5d41a948148ed7e94f220535d465336a5708e780bf15b2ec14d559f4f4bf569977379e988e385e4ec7",
+                            anchor: None,
+                            witness: None,
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+            ];
+
+            #[test]
+            fn test_sapling_spend_transactions() {
+                test_sapling_transactions::<N>(TESTNET_SAPLING_SPEND_TRANSACTIONS.to_vec());
+            }
+        }
+
+        mod test_real_testnet_sapling_spend_transactions {
+            use super::*;
+            type N = Testnet;
+
+            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT: [TransactionData; 2] = [
+                TransactionData { // txid: 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        Output {
+                            address: "tmEn21pZv4FTPfXinSNfdtQyDVhnkRz9T7q",
+                            amount: 999980000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                            cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
+                            epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
+                            enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
+                            anchor: Some("a4c8ea36def54b535c93a3d3d61daa5fbd04968b79ae3a518d2f1a097fcfe52d"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+                TransactionData { // txid: 1733902a65cf474339693642f2afed279d2f60f78cff1528d5e2a79179cede8a
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                            cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                            epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
+                            enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
+                            anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address: "ztestsapling1ml8v92nfl07t7tsncwf9x0upqgncljpcrs3c53esgjupkagfffk98ngwhdqcw5pc8v4r2wmx0lk",
+                            amount: 249980000,
+                        },
+                        Output {
+                            address: "ztestsapling1nnx9cu3u0jy2zwwru2u4mpffkdtkw5r2er399xwlpj5d340znfufdl0l8ec2ag94zgur54hlmn8",
+                            amount: 249980000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+            ];
+
+            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS: [TransactionData; 1] = [
+                TransactionData { // txid: a333b3523cab6def651813ea76e885b964c0c0c0ba20ea2ea98664e85ea4b9b5
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfquqqpqprdealqmnm5u8udxapgt5twpvwcnaam2u8ycff2c094ucu9fcf86vhtnvjj8d4g2g499qnnrqqt4q9untr4pf44n9k57hnzjdptggqs7hy3emfgrflahl72jfx2uvkzvmeukxhh2kye8pcnzm55pdvpusf79ujph6c0pupn9ty090xsx8r57jqv3aqk2x7kfgzmmlh26d5npuyaz45gjusx9h5w2d3nflk0na6vnk08dvv5p7rz75yw966u83pg7gw8r82v",
+                            cmu: "6dc0792cd8cf8fb71229ec522862539b7e9f3f53acbb2cedcc1b21ea1bcfac91",
+                            epk: "669a7bcdc0d9906a1c4101008b2557896d85a496e63359b350e9773c640d18e6",
+                            enc_ciphertext: "c41762618b4e50a94d1f6c19d3d9a62fdc2add170702fd8004b17cad3c0fd2855d8f86db5c740e91d4b831e945f4d510eaa11cc6d80cb0c5f7c7e5391cf9d940f06054b7e24255c02e81d63ceaaa37c4c8236e9ebe546819316806bdc1ce60fb1862274811bd8248d5b0d4cbf6027bb5765b4e3d3558e8dd6b42790e53000f229a5cdb031d9ded5fec16231a208be48b149db04606e3fcec0164d8c4ea6dcd9c56140e3ae1bfa6a649db730f80119928901fbb6a1b018831650fbebb2fc8169e46a07dffdb09f070da9db4b41f929bf6949f70465087337421af2242ae7fe12f295dc1017cffaed9aa03e094971489230e90a3feb86235f89508cd4ef16637d443d72f88f9894de9b4fa6597127d7ab6526572b1283a357ffdd586b0944b42cbb579c8aeb50f0c371995fcb89d83069d533967d0563e9de74a600d3cf774a182d16727f66a9c62db38debc70f7327e7e1d6d4e3edadd8d1cae7e2af52fb72c499d91d416b970b3dc8b233a3e915937f5fd2bf1f782a5045ab825a13594543bd50cf6c99dd49a42c7aabf5e4b5178067dd8f5bc10e7d8ca400f045cba9cb5ed39cd3f3d389c7cb06de3de636fcae6954be389194aee12b4852031c1a2a56f91b0348850291c3581463186e1d1c36e2752ef0f8c87455397e1d6f6b5c8294eda53a7fabe495bcbfe921c9f973187ac91217366f53361912a2f2e9c987c04ed8aaff9b0d1948f60f24429233b66b2fa7e212a88af0093a586e199cc7b24cdf38f290f659ccbfcf509101f2755a32b995333648287adba3efbf44662d0566fe1d5235b5e3c69",
+                            anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2012d58b0466abebf7c2e0ab9f84c06044e8126c4b177d423ce179d4d8468dc505fa1a010000000000"),
+                        },
+                        SaplingInput {
+                            extended_secret_key: "secret-extended-key-test1qwq6zxvfpqqqpq90l4tj7ruxk3t6sj7g0r43hksurrgrcdny0mfwj9gjt3ez2euwmrvxqn26mr9g9flkhd54dake6njrshrscstpvqjvuy4cphcan6rspragf93krxptsmqdmgz5h7zlzcddf9r4zjctk43e5m7jtwer9csdcud24uhwua9zunwjp47fjs6s5qdzzhdylnr2g7n95sk0klurqfqgdnza0vqk756qmg89lu2pu39nap29u846gs23g5x2jqjhzpggtvskqf7rc",
+                            cmu: "05c58d46d8d479e13c427d174b6c12e84460c0849fabe0c2f7ebab66048bd512",
+                            epk: "d2a85b034e12f6659974cfa03d3062d60bee3d1ff581d499f13e217a181cf6e0",
+                            enc_ciphertext: "611fce5e0c1b4541815537c69cb2567129c490547919e082d04d1e1b68d16ca876570d4d98a0fd5938583bc4d8a759919933bf6cc3e147b4afabbeaefa1b6cd1d5b9c3c4b2fbfd2ab227a4f0e5f4bc3265f9aeb41f497236991f255873c452f36dfd6edc4e352abc38888a6050c73f5655c514043a1c9bdebb06ffc471dd66a5280a54c63c0e64e32737360278caf5ddd25d7235b6aa332131c7d3ddbee1982170d42021e3fdc8ecb9863cc3a6064dcb491dd45df56b4879b3f0040a5f47a44675b38642ae582706c0d10a4f5b2e0783f2403f9b062aa5cad9b1bcaca361c113779bca01ac31561b3308de6238938e0691073d2c36e16f5093c24be66adf6619d2dabac11ee4a81928b27ad3031356076350887cd857f99e520e2dd7f41886c75478e840d5fa8701f4680b1506f3d22be2959c8f98948a13ff8188fc11d36cd85713fc5131b4445984a49c1579a004a9bcebf0f439bf42cc6ef43c1b08c12e40ac182234f8e8b614e16ed14a8d8dadcbe68b43688409dcac8b1cce8a766494a2e62c633671bd618a0fc03cbc647074fef9c508a00a6cd3b3b4144f63aa9006990f294bef762c5d98dbb201bba57703b8fcd2ac624afdda783635842cbafb722d8805ef0495d5c5ce2e5aa72a2e81dad612fae8870833bb04bd0cf8abb82e972430cce59c632bfab023ef2e099dd108c940a6362475b8f0dddf60479351131c7f8ddb63b0d8297e236e0d32d13467e9e52d29f0fb104cdea64255f178f155a1ef5bcb1935b760dd3791372ca4fe95c3d121a3af922e27bc781bd5a8b99991b45343168fef",
+                            anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
+                            witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2091accf1bea211bcced2cbbac533f9f7e9b53622852ec2912b78fcfd82c79c06dfb1a010000000000"),
+                        },
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address: "ztestsapling1vtt4em42w9qgt65x8hj55ua7m8dcxyvfm23a5zkw957v2xtk57jj0x06dnkamgp3tlz5g5053t5",
+                            amount: 499950000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+            ];
+
+            #[test]
+            fn test_real_sapling_spend_transactions_single_input() {
+                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT.to_vec());
+            }
+
+            #[test]
+            fn test_real_sapling_spend_transactions_multiple_input() {
+                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS.to_vec());
+            }
+        }
+
+        mod test_real_testnet_sapling_output_transactions {
+            use super::*;
+            type N = Testnet;
+
+            const REAL_TESTNET_SAPLING_OUTPUT_TRANSACTIONS: [TransactionData; 3] = [
+                TransactionData {
+                    // txid: 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        Input {
+                            private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
+                            address_format: Format::P2PKH,
+                            transaction_id: "cdb426cbd9dfe1c27df683a891977d0a5be6cc87e3b618917bb124caba7a78f2",
+                            index: 0,
+                            redeem_script: None,
+                            script_pub_key: None,
+                            utxo_amount: Some(1000010000),
+                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                            sig_hash_code: SigHashCode::SIGHASH_ALL,
+                        },
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address:
+                            "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
+                            amount: 1000000000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+                TransactionData {
+                    // txid: a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        Input {
+                            private_key: "cUnh9NAShCGCur8PjxQnRz96n93Hs6tNAo6fmH41ig1vKzrXtWdC",
+                            address_format: Format::P2PKH,
+                            transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
+                            index: 0,
+                            redeem_script: None,
+                            script_pub_key: None,
+                            utxo_amount: Some(1000010000),
+                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                            sig_hash_code: SigHashCode::SIGHASH_ALL,
+                        },
+                        Input {
+                            private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
+                            address_format: Format::P2PKH,
+                            transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
+                            index: 1,
+                            redeem_script: None,
+                            script_pub_key: None,
+                            utxo_amount: Some(1000010000),
+                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                            sig_hash_code: SigHashCode::SIGHASH_ALL,
+                        },
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address:
+                            "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
+                            amount: 1000000000,
+                        },
+                        Output {
+                            address:
+                            "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
+                            amount: 1000000000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+                TransactionData {
+                    // txid: f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
+                    header: 2147483652,
+                    version_group_id: 0x892F2085,
+                    lock_time: 0,
+                    expiry_height: 499999999,
+                    inputs: [
+                        Input {
+                            private_key: "cMwUGSqBqKSavhstEH6Jsuf7cpqFf15ywuEaoUBmBuesdZxng41H",
+                            address_format: Format::P2PKH,
+                            transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
+                            index: 2,
+                            redeem_script: None,
+                            script_pub_key: None,
+                            utxo_amount: Some(1000010000),
+                            sequence: Some([0xff, 0xff, 0xff, 0xff]),
+                            sig_hash_code: SigHashCode::SIGHASH_ALL,
+                        },
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                        INPUT_FILLER,
+                    ],
+                    outputs: [
+                        Output {
+                            address: "tmGZKXeeSu2sVS72Lg1KAuKKUxg2S4iGXZ7",
+                            amount: 500000000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    sapling_inputs: [
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                        SAPLING_INPUT_FILLER,
+                    ],
+                    sapling_outputs: [
+                        Output {
+                            address:
+                            "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
+                            amount: 500000000,
+                        },
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                        OUTPUT_FILLER,
+                    ],
+                    expected_signed_transaction: "",
+                },
+            ];
+
+            #[test]
+            fn test_sapling_output_transactions() {
+                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_OUTPUT_TRANSACTIONS.to_vec());
+            }
+        }
+    }
+
     mod test_invalid_transparent_transactions {
         use super::*;
         type N = Mainnet;
@@ -2794,6 +2794,289 @@ mod tests {
                 let invalid_output = ZcashTransactionOutput::<N>::new(output.address, output.amount);
                 assert!(invalid_output.is_err());
             }
+        }
+    }
+
+    mod test_invalid_sapling_transactions {
+        use super::*;
+        type N = Testnet;
+
+        const INVALID_SAPLING_INPUTS: [SaplingInput; 3] = [
+            SaplingInput {
+                extended_secret_key: "secret-extended-key-000",
+                cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
+                enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
+                anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
+                witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
+            },
+            SaplingInput {
+                extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                epk: "0000000000000000000000000000000000000000000000000000000000000000",
+                enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
+                anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
+                witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
+            },
+            SaplingInput {
+                extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
+                epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
+                enc_ciphertext: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
+                witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
+            },
+        ];
+
+        const INVALID_SAPLING_OUTPUTS: [Output; 5] = [
+            Output {
+                address: "ztestsapling1qqqqqqqqqqqqqqqqqqqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq97w6q7",
+                amount: 10000000,
+            },
+            Output {
+                address: "INVALID ADDRESS",
+                amount: 1234512345,
+            },
+            Output {
+                address: "ztestsapling1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqfhgwqu",
+                amount: 100000,
+            },
+            Output {
+                address: "ztestsapling1a",
+                amount: 1,
+            },
+            OUTPUT_FILLER,
+        ];
+
+        #[test]
+        fn test_invalid_inputs() {
+            for input in INVALID_SAPLING_INPUTS.iter() {
+                let mut cmu = [0u8; 32];
+                cmu.copy_from_slice(&hex::decode(input.cmu).unwrap());
+                cmu.reverse();
+
+                let mut epk = [0u8; 32];
+                epk.copy_from_slice(&hex::decode(input.epk).unwrap());
+                epk.reverse();
+
+                let (witness, anchor) = match input.witness {
+                    Some(witness_str) => {
+                        let witness_vec = hex::decode(&witness_str).unwrap();
+                        let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+
+                        let mut f = FrRepr::default();
+                        f.read_le(&hex::decode(input.anchor.unwrap()).unwrap()[..]).unwrap();
+                        let anchor = Fr::from_repr(f).unwrap();
+
+                        (witness, anchor)
+                    }
+                    // Test with set witness/anchors instead of randomly generated
+                    None => unreachable!(),
+                };
+
+                let sapling_spend = SaplingSpend::<N>::new(
+                    input.extended_secret_key,
+                    &cmu,
+                    &epk,
+                    input.enc_ciphertext,
+                    anchor,
+                    witness,
+                );
+
+                assert!(sapling_spend.is_err());
+            }
+        }
+
+        #[test]
+        fn test_invalid_outputs() {
+            let rng = &mut StdRng::from_entropy();
+            let seed: [u8; 32] = rng.gen();
+            let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
+            let mut ovk = [0u8; 32];
+            ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
+
+            let ovk = SaplingOutgoingViewingKey(ovk);
+
+            for output in INVALID_SAPLING_OUTPUTS.iter() {
+                let invalid_output = SaplingOutput::<N>::new(ovk, output.address, output.amount);
+                assert!(invalid_output.is_err());
+            }
+        }
+
+        #[test]
+        fn test_invalid_sapling_transactions_conflicting_anchor() {
+            let header = 2147483652;
+            let version_group_id = 0x892F2085;
+            let lock_time = 0;
+            let expiry_height = 499999999;
+
+            let sapling_inputs = [
+                SaplingInput {
+                    extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                    cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
+                    epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
+                    enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
+                    anchor: Some("a4c8ea36def54b535c93a3d3d61daa5fbd04968b79ae3a518d2f1a097fcfe52d"),
+                    witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
+                },
+                SaplingInput {
+                    extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                    cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
+                    epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
+                    enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
+                    anchor: Some("b14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06"),
+                    witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
+                },
+                SaplingInput {
+                    extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                    cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
+                    epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
+                    enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
+                    anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
+                    witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
+                },
+            ];
+
+            // Build raw transaction
+
+            let mut transaction =
+                ZcashTransaction::<N>::build_raw_transaction(header, version_group_id, lock_time, expiry_height)
+                    .unwrap();
+
+            // Build Sapling Spends
+
+            for (index, input) in sapling_inputs.iter().enumerate() {
+                let mut cmu = [0u8; 32];
+                cmu.copy_from_slice(&hex::decode(input.cmu).unwrap());
+                cmu.reverse();
+
+                let mut epk = [0u8; 32];
+                epk.copy_from_slice(&hex::decode(input.epk).unwrap());
+                epk.reverse();
+
+                let (witness, anchor) = match input.witness {
+                    Some(witness_str) => {
+                        let witness_vec = hex::decode(&witness_str).unwrap();
+                        let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+
+                        let mut f = FrRepr::default();
+                        f.read_le(&hex::decode(input.anchor.unwrap()).unwrap()[..]).unwrap();
+                        let anchor = Fr::from_repr(f).unwrap();
+
+                        (witness, anchor)
+                    }
+                    _ => unreachable!(),
+                };
+
+                // Add Sapling Spend
+
+                let status = transaction.add_sapling_spend(
+                    input.extended_secret_key,
+                    &cmu,
+                    &epk,
+                    input.enc_ciphertext,
+                    anchor,
+                    witness,
+                );
+
+                match index {
+                    0 => status.unwrap(),
+                    _ => assert!(status.is_err()),
+                };
+            }
+        }
+
+        #[test]
+        fn test_invalid_sapling_transactions_incorrect_build_order() {
+            let spend_path = Path::new("src/librustzcash/params/sapling-spend.params");
+            let output_path = Path::new("src/librustzcash/params/sapling-output.params");
+
+            let (_, mut spend_vk, _, _, _) = load_parameters(
+                spend_path,
+                "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
+                output_path,
+                "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
+                None,
+                None,
+            );
+
+            let header = 2147483652;
+            let version_group_id = 0x892F2085;
+            let lock_time = 0;
+            let expiry_height = 499999999;
+
+            let sapling_input = SaplingInput {
+                extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
+                epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
+                enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
+                anchor: Some("a4c8ea36def54b535c93a3d3d61daa5fbd04968b79ae3a518d2f1a097fcfe52d"),
+                witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
+            };
+
+            let output = Output {
+                address: "tmMVUvhGDFmCAUsXdeGLhftcPJzB8LQ7VrV",
+                amount: 40000000,
+            };
+
+            let mut transaction =
+                ZcashTransaction::<N>::build_raw_transaction(header, version_group_id, lock_time, expiry_height)
+                    .unwrap();
+
+            transaction
+                .add_transparent_output(output.address, output.amount)
+                .unwrap();
+
+            // Build Sapling Spends
+
+            let mut cmu = [0u8; 32];
+            cmu.copy_from_slice(&hex::decode(sapling_input.cmu).unwrap());
+            cmu.reverse();
+
+            let mut epk = [0u8; 32];
+            epk.copy_from_slice(&hex::decode(sapling_input.epk).unwrap());
+            epk.reverse();
+
+            let (witness, anchor) = match sapling_input.witness {
+                Some(witness_str) => {
+                    let witness_vec = hex::decode(&witness_str).unwrap();
+                    let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+
+                    let mut f = FrRepr::default();
+                    f.read_le(&hex::decode(sapling_input.anchor.unwrap()).unwrap()[..])
+                        .unwrap();
+                    let anchor = Fr::from_repr(f).unwrap();
+
+                    (witness, anchor)
+                }
+                _ => unreachable!(),
+            };
+
+            // Add Sapling Spend
+
+            transaction
+                .add_sapling_spend(
+                    sapling_input.extended_secret_key,
+                    &cmu,
+                    &epk,
+                    sapling_input.enc_ciphertext,
+                    anchor,
+                    witness,
+                )
+                .unwrap();
+
+            let mut verifying_ctx = SaplingVerificationContext::new();
+            let mut sighash = [0u8; 32];
+            sighash.copy_from_slice(
+                transaction
+                    .generate_sighash(None, SigHashCode::SIGHASH_ALL)
+                    .unwrap()
+                    .as_bytes(),
+            );
+
+            assert!(transaction
+                .generate_spend_auth_signatures(&mut verifying_ctx, &mut spend_vk, &sighash)
+                .is_err())
         }
     }
 

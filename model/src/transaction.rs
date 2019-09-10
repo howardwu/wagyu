@@ -37,11 +37,14 @@ pub enum TransactionError {
     #[fail(display = "missing spend description")]
     MissingSpendDescription(),
 
-    #[fail(display = "invalid output address: {}", _0)]
-    InvalidOutputAddress(String),
+    #[fail(display = "invalid ephemeral key {}", _0)]
+    InvalidEphemeralKey(String),
 
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
+
+    #[fail(display = "invalid output address: {}", _0)]
+    InvalidOutputAddress(String),
 
     #[fail(display = "invalid ouptut description for address: {}", _0)]
     InvalidOutputDescription(String),
