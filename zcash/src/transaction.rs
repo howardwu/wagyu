@@ -233,11 +233,12 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
 impl<N: ZcashNetwork> ZcashTransaction<N> {
     /// Returns a raw unsigned zcash transaction
     pub fn build_raw_transaction(
-        header: u32,
-        version_group_id: u32,
+        version: &str,
         lock_time: u32,
         expiry_height: u32,
     ) -> Result<Self, TransactionError> {
+        let (header, version_group_id) = fetch_header_and_version_group_id(version);
+
         Ok(Self {
             header,
             version_group_id,
@@ -496,20 +497,21 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                     let mut spend_auth_sig = [0u8; 64];
                     sig.write(&mut spend_auth_sig[..])?;
 
-                    let check_sig = jubjubSignature::read(&spend_auth_sig[..])?;
-
                     spend_description.spend_auth_sig = Some(spend_auth_sig.to_vec());
-
-                    let public_key = jubjubPublicKey::<Bls12>::read(&spend_description.rk[..], &JUBJUB)?;
 
                     let mut f = FrRepr::default();
                     f.read_le(&spend_description.anchor[..])?;
                     let anchor_fr = Fr::from_repr(f)?;
 
+                    let public_key = jubjubPublicKey::<Bls12>::read(&spend_description.rk[..], &JUBJUB)?;
                     let value_commitment = edwards::Point::<Bls12, _>::read(&spend_description.cv[..], &JUBJUB)?;
                     let proof = Proof::<Bls12>::read(&spend_description.zk_proof[..])?;
+                    let check_sig = jubjubSignature::read(&spend_auth_sig[..])?;
+
 
                     // Verify the spend description
+                    // Consider removing spend checks because zcash nodes also do this check when broadcasting transactions
+
                     match verifying_ctx.check_spend(
                         value_commitment,
                         anchor_fr,
@@ -521,7 +523,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {}
+                        true => {},
                         false => return Err(TransactionError::InvalidSpendDescription()),
                     };
                 }
@@ -936,6 +938,8 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         proof.write(&mut zk_proof[..])?;
 
         // Verify the output description
+        // Consider removing spend checks because zcash nodes also do this check when broadcasting transactions
+
         match verifying_ctx.check_output(
             value_commitment,
             cm,
@@ -977,9 +981,18 @@ impl OutputDescription {
     }
 }
 
-/// Return the Blake256 hash given a personalization and optional zcash version name
-fn blake2_256_hash(personalization: &str, message: Vec<u8>, version_name: Option<&str>) -> Hash {
-    let personalization = match version_name {
+/// Return the transaction header given a version
+fn fetch_header_and_version_group_id(version: &str) -> (u32, u32) {
+    match version {
+        "sapling" => (2147483652, 0x892F2085),
+        // zcash currently only supports sapling transactions
+        _ => unimplemented!(),
+    }
+}
+
+/// Return the Blake256 hash given a personalization and optional zcash version
+fn blake2_256_hash(personalization: &str, message: Vec<u8>, version: Option<&str>) -> Hash {
+    let personalization = match version {
         Some("sapling") => [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat(),
         Some("overwinter") => [personalization.as_bytes(), &(0x5ba81b19 as u32).to_le_bytes()].concat(),
         Some(_) => [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat(),
@@ -1070,8 +1083,7 @@ mod tests {
 
     #[derive(Clone)]
     pub struct TransactionData {
-        pub header: u32,
-        pub version_group_id: u32,
+        pub version: &'static str,
         pub lock_time: u32,
         pub expiry_height: u32,
         pub inputs: [Input; 4],
@@ -1134,8 +1146,7 @@ mod tests {
     const OUTPUT_FILLER: Output = Output { address: "", amount: 0 };
 
     fn test_sapling_transaction<N: ZcashNetwork>(
-        header: u32,
-        version_group_id: u32,
+        version: &str,
         lock_time: u32,
         expiry_height: u32,
         inputs: Vec<Input>,
@@ -1150,7 +1161,7 @@ mod tests {
         // Build raw transaction
 
         let mut transaction =
-            ZcashTransaction::<N>::build_raw_transaction(header, version_group_id, lock_time, expiry_height).unwrap();
+            ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
         // Add transparent inputs
 
@@ -1293,7 +1304,7 @@ mod tests {
                 .unwrap();
         }
 
-        // Generate the sapling output and do verification checks
+        // Generate the sapling spends/outputs and do verification checks
 
         transaction
             .build_sapling_transaction(
@@ -1309,12 +1320,13 @@ mod tests {
         let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
         println!("signed transaction: {}", signed_transaction);
 
-        // Note: All output/spend descriptions and proofs are verified upon creation.
+        // Note:
+        // No check for expected raw transaction because sapling transactions have randomness
+        // All output/spend descriptions and proofs are verified upon creation.
     }
 
     fn test_transaction<N: ZcashNetwork>(
-        header: u32,
-        version_group_id: u32,
+        version: &str,
         lock_time: u32,
         expiry_height: u32,
         inputs: Vec<Input>,
@@ -1324,7 +1336,7 @@ mod tests {
         // Build raw transaction
 
         let mut transaction =
-            ZcashTransaction::<N>::build_raw_transaction(header, version_group_id, lock_time, expiry_height).unwrap();
+            ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
         // Add transparent inputs
 
@@ -1380,8 +1392,7 @@ mod tests {
             pruned_outputs.retain(|output| output.address != "");
 
             test_transaction::<N>(
-                transaction.header,
-                transaction.version_group_id,
+                transaction.version,
                 transaction.lock_time,
                 transaction.expiry_height,
                 pruned_inputs,
@@ -1418,8 +1429,7 @@ mod tests {
             pruned_sapling_outputs.retain(|sapling_output| sapling_output.address != "");
 
             test_sapling_transaction::<N>(
-                transaction.header,
-                transaction.version_group_id,
+                transaction.version,
                 transaction.lock_time,
                 transaction.expiry_height,
                 pruned_inputs,
@@ -1444,8 +1454,7 @@ mod tests {
             /// Keys and addresses were generated randomly and test transactions were built using the zcash-cli
             const TESTNET_TRANSACTIONS: [TransactionData; 4] = [
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 307241,
                     expiry_height: 307272,
                     inputs: [
@@ -1495,8 +1504,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f8901a8c685478265f4c14dada651969c45a65e1aeb8cd6791f2f5bb6a1d9952104d9010000006b483045022100ef50a15eece0f43a0efd13a2c45aecf85e8e999858721150a70e75b106d80ea702202b3ff79fdcd2ff101dcacd74a7f6e3adb1250955f7a80962b259d1e17742f2f70121037e8e3a964e0f59c52633e25f9cec2fc8bb9af5b23eace85f6264f68b47db5cb6feffffff02005a6202000000001976a9148132712c3ff19f3a151234616777420a6d7ef22688ac8b959800000000001976a9145453e4698f02a38abdaa521cd1ff2dee6fac187188ac29b0040048b004000000000000000000000000"
                 },
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 450000,
                     expiry_height: 579945,
                     inputs: [
@@ -1549,8 +1557,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f89013121b82a43576452d0136cd3a78852f4cd0f46bdb265a349b62d4d790ff103ce0c0000006a47304402201e563ac13e9ae03b0c0f19313dfc5ef32d633adc46d0e2ecad6185b46961e37902207d33d054cfaf1f25149298bb12f5f9dd063034415ec4ee0bad71437f846b04e00121029862bf5d37725419b03e9e3db90f60060de42d187c5ed28bdb41ed435742bd51feffffff0300e9a435000000001976a914c847ac8eafe8ecfac934a41c37b2720ab266b8b688ac80f0fa02000000001976a91416837e1ef0b93ef72d9a2cc235e4d342b476d1d788ace069f902000000001976a9142d6f726f415eaf3e8b609bb0cdc451d4777c800d88acd0dd060069d908000000000000000000000000"
                 },
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 285895,
                     inputs: [
@@ -1597,8 +1604,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f89013194cd7a9f2a354b158ea891792b7c60ff2184852d2769a348870e54342ec21e000000006a47304402203b1f53d5f4c56e5120cd9574328f68c7403772db8eb26b75566a1499a8da1c5002205b22f8870c467d206494448f364b3f2f632e747563dbcc74ddcf27bb3c8033020121030cb32083e4b93572483ac4a3a39df5de63047973eb424b3f202bf0438e80b7bcffffffff01c09ee605000000001976a91471000dc3823178a6a14b0d41547f1a4163bb6fd488ac00000000c75c04000000000000000000000000"
                 },
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 500000,
                     expiry_height: 575098,
                     inputs: [
@@ -1677,8 +1683,7 @@ mod tests {
 
             const REAL_TESTNET_TRANSACTIONS: [TransactionData; 5] = [
                 TransactionData { // txid: d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -1728,8 +1733,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f89012dc108fdaca845cb51aa9807c90fcf25d73070bbf927b3e2ee841a784274a672000000006b483045022100a6255438be743890d53bf5a0818f58370361a0ff82f88dca30fba0aec1b2859b022055950c72f1111babcf01f58087300eb80e3acfff169d05338d8e2c7a0dd0b1fe012102386cb1f3211d689bcf9fd763381a4d7a9a0d719667c979ac485d6d2ec69a17e0ffffffff0200e40b54020000001976a9148af7ebff7dad3862258a44992915615bfd9e6d4388ac605d0a54020000001976a914d6fdb988e0ca149cb74eda244d8fc52481d6452088ac00000000ff64cd1d0000000000000000000000"
                 },
                 TransactionData { // txid: 22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 576566,
                     inputs: [
@@ -1782,8 +1786,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f8901bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7010000006b4830450221009b69008f53a9970c2f5c771b76462773baf18a2937cbc70af4dad9d7987fd13e022038a3d14301c657172759885a5e2e65d5c10b3208e6120cb819d66f56fae3c09401210332d388288132f696b4a75b2d2f40ccbd9a463d32e3c6c335f671df33f1a05973ffffffff03eb9cadc6000000001976a914418574564a7c48387a6557c491d14da904a4306c88aceb9cadc6000000001976a91475caaa31ae391da8121fe8d9577c30710bafc7f988acea9cadc6000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac0000000036cc08000000000000000000000000"
                 },
                 TransactionData { // txid: 19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 576600,
                     inputs: [
@@ -1843,8 +1846,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f8902fc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22000000006b483045022100ea49efe4132ce18d039cb2abe99ea52163611c25a35a8640a4bb15a88c93b60402202f7d4334bccd8f961d1becfd08bccdc1c0669533810cbbbfa5837f99ba94a7fe0121024aed9637c78499154afc06af10b2344233b3c968f1e7b1cfd9905fc38e440c12fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22010000006a47304402203576c518c1f628469efcd182fa7d1d578cccdf7b51a41e44d119ca0c010747cc022069d9f390735567efff5e8f70afec6595060a79693540d6174b21681b21b4df70012102e49919f81e1fc11a65283e71dcce22dc65271f4ab6ef96f9e9b3d20fd62d1e87ffffffff02a0c55463000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac00f2052a010000001976a9140aab8113729e010d852820561dbee87459ad8dc888ac0000000058cc08000000000000000000000000"
                 },
                 TransactionData { // txid: fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 576600,
                     inputs: [
@@ -1921,8 +1923,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f8904bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7000000006a47304402203f44fdfa0abb604a0b123fc95b4b0ad97bf535c9b2f9c2e37440a5627eabc6b902206c533152ba2efd78c16136f108847d8ea60e571f4dd7cbb47a5df582011cb3920121037517903ed1fafb50ab557970fc2d1948eaf88ad807308cc1fd50a63ca5f2d4d9fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22020000006b48304502210089fe440a2b97bd12ad09c21cf4b3c811cddd17917fb5f4b84ec3fafa3c8ce26b022029e1bc2385d291eef1591775a73a77c5891afcfcf020a58c4fa35fb7d2995d280121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719000000006b483045022100d3c08145d11226c24acba293943f649b6acced719eaba5eee168705faa060046022077a220546a4654ee8bf14217da8c5dae9c64160b424be83557b24b79fb7b22400121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719010000006b483045022100a2649c5a237ac25db15ada343ea331865b9544a5ac32752c7800d3296085665602206c1722f0a3b0533f047e06ec2931fbe9dc9f6c01f4f1391fa02421369f8e4952012103b485498fb0843a5a058f251d7094fe8d2878faba8c17e7b3bbf854adb855a377ffffffff01e02610a8040000001976a9143c314002f07cf5ff5c84da1d9b456671b915bf8588ac0000000058cc08000000000000000000000000"
                 },
                 TransactionData { // txid: 35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -1995,8 +1996,7 @@ mod tests {
             /// Keys and addresses were generated randomly and test transactions were built using the zcash-cli
             const MAINNET_TRANSACTIONS: [TransactionData; 4] = [
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 0,
                     inputs: [
@@ -2043,8 +2043,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f89015510a014f306f99a3e5e48460425777f210e0bd2c02301ec93f1baffe1b29710000000006a47304402207c2e6d5ec25a8ab67229f23a581ee8898eb087c2aa6c8db8acf21c3b96bab5fb02202ff7689945891a20961de1b4e18b40995fe7f07cb6dd1c97607c65259adeb1bd012102a7b8361f36eee68b96cbc72bab73295494161b8e670a29c99819e2b793939d25ffffffff0100e1f505000000001976a91459fec7e62fcf3e580656bc1bc6c220dad37709ab88ac00000000000000000000000000000000000000"
                 },
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 456789,
                     expiry_height: 600000,
                     inputs: [
@@ -2100,8 +2099,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f8901394fc83a499e120c92269690c39e7507b34905ccd33d4e53f8c713835bd934f2000000006a473044022053637ac8ece0fd2c5cd2fa2c6abb6fec36317a7e60be6c5215ff83ab903409a502206cdcb354b7bca6a4aed08fc6409a6e0000ba263c47f6bb22ab74ad2fe270250501210325c97e86e09f91a9894b856c9b9ca6d7ea90754d66acc95fb57b46117492d3bdfeffffff0480f0fa02000000001976a914c4fafe5725a6ec3d2218458c00da884cd9a0507c88ac80f0fa02000000001976a9142a80f5573b12de286ecbe0f8d46acb9c2334375588ac80f0fa02000000001976a914167b3376103f458ea847ec6f5e763b0de2808f3e88ac80f0fa02000000001976a914473ce0a50b7a876fcba71973b49770b79cfb10b188ac55f80600c02709000000000000000000000000"
                 },
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 456789,
                     expiry_height: 0,
                     inputs: [
@@ -2168,8 +2166,7 @@ mod tests {
                     expected_signed_transaction: "0400008085202f890350b2ed017b6c60080d9f9a2c6a2b8039be56cd17839474bc31a4d69d9195b5ff010000006b483045022100adcab54a2e437df28eebf4c19f33061467d951a035f12125d3ba16dc3a7ed21c02204a13ba64160a5a11fb22ada860202995df5f51f05eb882fc197109fba298b96e012103f632eeb38fa2fcc7af1881f1b6c1f4fe6155ee6267d92657d9a95fdbb15c010effffffff74941a58fce3c9eed67cfc23e90743314283774f1901c5093c3db04f23516346020000006b483045022100a14d25f96742b6a06f201db6811ed1bbbeab80be29ea45ad8e54ce583337056502200e04272216609ca7cf38729156c860e59a1e88632697456fb0639efebc6509bd0121026fba2e786f9351532a8f93de404d0c44b54e01a7f10bf1a61f734bc4249b58f9ffffffff5d3090f7a591c1426b209d43dc546070fcddceba5b2c81c164aa95ed121ad72e030000006a473044022005e9df51bedd7f95d567ef472040fb295f7dc7d742e1a894d48f67f5239fd860022076d170cb5be8435628c738f0beecbeb85fc6fb1f8f74d5dd18db0fdc584df6650121020621d94a64caf7183bef70f89cfca4cd3d30a76ce0335f7f10eb787e266bb2cdffffffff0100ca9a3b000000001976a9149d92a791abc62a9ca93ced9086c2129d31757ee088ac55f80600000000000000000000000000000000"
                 },
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 584789,
                     expiry_height: 710482,
                     inputs: [
@@ -2252,10 +2249,9 @@ mod tests {
             use super::*;
             type N = Testnet;
 
-            const TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 2] = [
+            const TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 1] = [
                 TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2298,51 +2294,6 @@ mod tests {
                     ],
                     expected_signed_transaction: "",
                 },
-                TransactionData {
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
-                    lock_time: 0,
-                    expiry_height: 499999999,
-                    inputs: [
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                        INPUT_FILLER,
-                    ],
-                    outputs: [
-                        Output {
-                            address: "tmEDWXTm25SuuRgLGsD8j5CDsBxVBrZTEQ8",
-                            amount: 499990000,
-                        },
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    sapling_inputs: [
-                        SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qn7ydpt6qqqqqqr6xek4td34wfcgd229v5fhnzmntdcl5n4cltwg25pp0prydaktd7nam7grwchkhz8606zdscjc2ghjfmldqdjf2hcsa6y7e7jkugrspyfwdq34eweejzqpg003x5a8j5lvmxt63mlpy362wjssvmwp0eq2mfp5gp02mv5wvy25fh532jjggc7fwrnqgl97s6tg0ugmqzlrx0sufand5puvu9mxe9hawgv64k9x3pg7xz7lu9u38snjcwayus6s3hcemqac2",
-                            cmu: "16ff8ed12ad3419672c9d344340bcb19aed41a3fb1c6d002bd713e683d804c43",
-                            epk: "e7f2b7a37ef84f64a328abfbda51bac2542265008f2a851d8a594a033dafbf61",
-                            enc_ciphertext: "14ed755988716e1e72abb02b0ddb926af406343a449b132d74554b01c6f9b9af1cf8d41ea3dfd83058608000aebbe55331820fd7514b05bdd9de80d9894d1381689c5cb6f4bc5a79e950e2ffdd8ac8db85e755c4fa12fd95c2610791d69848c91d5c5b93d60af6bc8c0f1aad6a841163bb9589059fbd7826d09dbc19a7cc99745f03812607fa16c3e88ace4cd0aad74a7f2f79b82f3112929a67d76d64b12a11ba0d2c0e4ee7c9e5946677bb089c6728bcf2476196415e321810be9bc4b1a8e3b289bfa28b22ebbd6981852e1fcaf939b7ae54a2ca2601a01f47a1d369ea066e8f2cff34e4a97534c15accf9d2c61953592f74dca60a3805f7ee7ae905ccb8375ee0741e3fe53f0444b0292d4ee5f57c432a984b57222acac9762cb6f9aefc34279e51599d95ed3f6b3a6f92fbb579d3c97c5cdbab092f8e819b37e4463ccd02c11db2e19ce842a24985315f7e06f088e46d2fb56a528462e04a087666cf1ade0beaadd08fb99806123cd8fed8b643609fcd26844215e536fe809780a6aafddcb28c4c3a2c84d9273232984342bb71fb55f1abbf2406958fd6a65eba4ab738f34e83940f35b2f2588beae1967c175a098551d616ed75db04f9a17f5bb111977aeaa110faae908aa6a4af98b5efb9d947937a75fb4997690d84e314447f4ed09e3b91a04d967c324ab421b6e5a5bf6ed7a5bf3b9ce7f1d919681a8359b7843537a233bd69a430758d1d0af4bc4dfddd85c913179fc525c85f4ffdcd5d41a948148ed7e94f220535d465336a5708e780bf15b2ec14d559f4f4bf569977379e988e385e4ec7",
-                            anchor: None,
-                            witness: None,
-                        },
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                        SAPLING_INPUT_FILLER,
-                    ],
-                    sapling_outputs: [
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                        OUTPUT_FILLER,
-                    ],
-                    expected_signed_transaction: "",
-                },
             ];
 
             #[test]
@@ -2357,8 +2308,7 @@ mod tests {
 
             const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT: [TransactionData; 2] = [
                 TransactionData { // txid: 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2402,8 +2352,7 @@ mod tests {
                     expected_signed_transaction: "",
                 },
                 TransactionData { // txid: 1733902a65cf474339693642f2afed279d2f60f78cff1528d5e2a79179cede8a
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2453,8 +2402,7 @@ mod tests {
 
             const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS: [TransactionData; 1] = [
                 TransactionData { // txid: a333b3523cab6def651813ea76e885b964c0c0c0ba20ea2ea98664e85ea4b9b5
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2524,8 +2472,7 @@ mod tests {
             const REAL_TESTNET_SAPLING_OUTPUT_TRANSACTIONS: [TransactionData; 3] = [
                 TransactionData {
                     // txid: 289f33b35eb814d4c8df4d38f9d4eefe2a63c88e8af609dc64456bfa6a591495
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2574,8 +2521,7 @@ mod tests {
                 },
                 TransactionData {
                     // txid: a018f5777860c7617266c43c9fecf53b939f96af70c1c21675351a51d373ac2a
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2638,8 +2584,7 @@ mod tests {
                 },
                 TransactionData {
                     // txid: f2f2408a3742c58ce24d96840bdfa1ff26b7042928075fb02ddb1847d1fd2038
-                    header: 2147483652,
-                    version_group_id: 0x892F2085,
+                    version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
                     inputs: [
@@ -2849,7 +2794,7 @@ mod tests {
         ];
 
         #[test]
-        fn test_invalid_inputs() {
+        fn test_invalid_sapling_inputs() {
             for input in INVALID_SAPLING_INPUTS.iter() {
                 let mut cmu = [0u8; 32];
                 cmu.copy_from_slice(&hex::decode(input.cmu).unwrap());
@@ -2888,7 +2833,7 @@ mod tests {
         }
 
         #[test]
-        fn test_invalid_outputs() {
+        fn test_invalid_sapling_outputs() {
             let rng = &mut StdRng::from_entropy();
             let seed: [u8; 32] = rng.gen();
             let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
@@ -2905,8 +2850,7 @@ mod tests {
 
         #[test]
         fn test_invalid_sapling_transactions_conflicting_anchor() {
-            let header = 2147483652;
-            let version_group_id = 0x892F2085;
+            let version = "sapling";
             let lock_time = 0;
             let expiry_height = 499999999;
 
@@ -2940,7 +2884,7 @@ mod tests {
             // Build raw transaction
 
             let mut transaction =
-                ZcashTransaction::<N>::build_raw_transaction(header, version_group_id, lock_time, expiry_height)
+                ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height)
                     .unwrap();
 
             // Build Sapling Spends
@@ -3000,8 +2944,7 @@ mod tests {
                 None,
             );
 
-            let header = 2147483652;
-            let version_group_id = 0x892F2085;
+            let version = "sapling";
             let lock_time = 0;
             let expiry_height = 499999999;
 
@@ -3020,7 +2963,7 @@ mod tests {
             };
 
             let mut transaction =
-                ZcashTransaction::<N>::build_raw_transaction(header, version_group_id, lock_time, expiry_height)
+                ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height)
                     .unwrap();
 
             transaction
