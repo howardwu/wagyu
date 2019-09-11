@@ -13,11 +13,7 @@ use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Div;
-use std::str;
-use std::str::FromStr;
+use std::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;

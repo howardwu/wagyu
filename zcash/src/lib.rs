@@ -23,8 +23,8 @@ pub use self::extended_private_key::*;
 pub mod extended_public_key;
 pub use self::extended_public_key::*;
 
+#[cfg_attr(tarpaulin, skip)]
 pub mod librustzcash;
-pub use self::librustzcash::*;
 
 pub mod network;
 pub use self::network::*;
@@ -34,3 +34,6 @@ pub use self::private_key::*;
 
 pub mod public_key;
 pub use self::public_key::*;
+
+pub mod transaction;
+pub use self::transaction::*;

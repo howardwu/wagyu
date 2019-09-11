@@ -454,7 +454,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
     Ok(script)
 }
 
-/// Determine the address type (P2PKH, P2SH_P2PKH, etc.) with the given scripts
+/// Validate the address format (P2PKH, P2SH_P2PKH, etc.) with the given scripts
 pub fn validate_address_format(
     address_format: &Format,
     amount: &Option<u64>,
@@ -472,21 +472,17 @@ pub fn validate_address_format(
         return Err(TransactionError::InvalidInputs("Bech32".into()));
     } else if address_format == &Format::P2PKH && redeem_script.is_some() && amount.is_some() {
         return Err(TransactionError::InvalidInputs("P2PKH".into()));
-    } else if (address_format == &Format::P2PKH || address_format == &Format::P2PKH)
+    } else if address_format == &Format::P2PKH
         && script_pub_key[0] != op_dup
         && script_pub_key[1] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_checksig
     {
-        return Err(TransactionError::Message(
-            "invalid script_pub_key for P2PKH or Bech32 transaction".into(),
-        ));
+        return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
     } else if address_format == &Format::P2SH_P2WPKH
         && script_pub_key[0] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_equal
     {
-        return Err(TransactionError::Message(
-            "invalid script_pub_key for P2SH_P2WPKH transaction".into(),
-        ));
+        return Err(TransactionError::InvalidScriptPubKey("P2SH_P2WPKH".into()));
     } else {
         // UNIMPLEMENTED - P2SH/P2WSH SPENDING
         Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
@@ -499,7 +495,7 @@ pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
     if size < 253 {
         Ok(vec![size as u8])
     } else if size <= 65535 {
-        //  size <= u16::max_value()
+        // size <= u16::max_value()
         Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat())
     } else if size <= 4294967295 {
         // size <= u32::max_value()
@@ -543,7 +539,7 @@ mod tests {
     }
 
     const INPUT_FILLER: Input = Input {
-        private_key: "L5QDKPT7t5S4biznTohoGqRmeHSzQrZzqHq9rfMJijuUtsvZksbj",
+        private_key: "",
         address_format: Format::P2PKH,
         transaction_id: "",
         index: 0,
@@ -1297,49 +1293,35 @@ mod tests {
 
         #[test]
         fn test_invalid_inputs() {
-            // Not enough information to craft a bitcoin transaction input
-
             for input in INVALID_INPUTS.iter() {
                 let transaction_id = hex::decode(input.transaction_id).unwrap();
+                let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
+                let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+                let sequence = input.sequence.map(|seq| seq.to_vec());
 
-                let redeem_script = if let Some(script) = input.redeem_script {
-                    Some(hex::decode(script).unwrap())
-                } else {
-                    None
-                };
-
-                let script_pub_key = if let Some(script) = input.script_pub_key {
-                    Some(hex::decode(script).unwrap())
-                } else {
-                    None
-                };
-
-                let sequence = if let Some(seq) = input.sequence {
-                    Some(seq.to_vec())
-                } else {
-                    None
-                };
-
-                let private_key = BitcoinPrivateKey::<N>::from_str(input.private_key).unwrap();
-                let address = private_key.to_address(&input.address_format).unwrap();
-                let invalid_input = BitcoinTransactionInput::new(
-                    address,
-                    transaction_id,
-                    input.index,
-                    input.utxo_amount,
-                    redeem_script,
-                    script_pub_key,
-                    sequence,
-                    input.sig_hash_code,
-                );
-                assert!(invalid_input.is_err());
+                let private_key = BitcoinPrivateKey::<N>::from_str(input.private_key);
+                match private_key {
+                    Ok(private_key) => {
+                        let address = private_key.to_address(&input.address_format).unwrap();
+                        let invalid_input = BitcoinTransactionInput::<N>::new(
+                            address,
+                            transaction_id,
+                            input.index,
+                            input.utxo_amount,
+                            redeem_script,
+                            script_pub_key,
+                            sequence,
+                            input.sig_hash_code,
+                        );
+                        assert!(invalid_input.is_err());
+                    }
+                    _ => assert!(private_key.is_err()),
+                }
             }
         }
 
         #[test]
         fn test_invalid_outputs() {
-            // Invalid output address
-
             for output in INVALID_OUTPUTS.iter() {
                 let invalid_output = BitcoinTransactionOutput::<N>::new(output.address, output.amount);
                 assert!(invalid_output.is_err());

@@ -1,8 +1,8 @@
 use crate::librustzcash::sapling_crypto::primitives::Diversifier;
-use crate::librustzcash::zcash_primitives::JUBJUB;
+use crate::librustzcash::JUBJUB;
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
-use crate::public_key::{P2PKHViewingKey, SaplingViewingKey, SproutViewingKey, ViewingKey, ZcashPublicKey};
+use crate::public_key::{P2PKHViewingKey, SaplingFullViewingKey, SproutViewingKey, ZcashPublicKey};
 use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
@@ -15,10 +15,7 @@ use curve25519_dalek::scalar::Scalar;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use serde::Serialize;
-use std::convert::TryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-use std::{str, str::FromStr};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -84,21 +81,21 @@ impl<N: ZcashNetwork> Address for ZcashAddress<N> {
 
     /// Returns the address corresponding to the given Zcash private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Result<Self, AddressError> {
-        match private_key.to_public_key().to_viewing_key() {
-            ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
-            ViewingKey::P2SH(_) => Ok(Self::p2sh()),
-            ViewingKey::Sprout(public_key) => Self::sprout(&public_key),
-            ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format),
+        match private_key.to_public_key() {
+            ZcashPublicKey::<N>::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
+            ZcashPublicKey::<N>::P2SH(_) => Ok(Self::p2sh()),
+            ZcashPublicKey::<N>::Sprout(public_key) => Self::sprout(&public_key),
+            ZcashPublicKey::<N>::Sapling(public_key) => Self::sapling(&public_key, format),
         }
     }
 
     /// Returns the address corresponding to the given Zcash public key.
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
-        match &public_key.to_viewing_key() {
-            ViewingKey::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
-            ViewingKey::P2SH(_) => Ok(Self::p2sh()),
-            ViewingKey::Sprout(public_key) => Self::sprout(&public_key),
-            ViewingKey::Sapling(public_key) => Self::sapling(&public_key, format),
+        match public_key {
+            ZcashPublicKey::<N>::P2PKH(public_key) => Ok(Self::p2pkh(&public_key)),
+            ZcashPublicKey::<N>::P2SH(_) => Ok(Self::p2sh()),
+            ZcashPublicKey::<N>::Sprout(public_key) => Self::sprout(&public_key),
+            ZcashPublicKey::<N>::Sapling(public_key) => Self::sapling(&public_key, format),
         }
     }
 }
@@ -148,7 +145,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 
     /// Returns a shielded address from a given Zcash public key.
-    pub fn sapling(public_key: &SaplingViewingKey, format: &Format) -> Result<Self, AddressError> {
+    pub fn sapling(public_key: &SaplingFullViewingKey<N>, format: &Format) -> Result<Self, AddressError> {
         // Randomness seeded by `getrandom`, which interfaces with the operating system
         // https://docs.rs/getrandom/
         let rng = &mut StdRng::from_entropy();
@@ -161,7 +158,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         let address;
         let diversifier;
         loop {
-            if let Some(output) = public_key.0.vk.into_payment_address(Diversifier(data), &JUBJUB) {
+            if let Some(output) = public_key.vk.into_payment_address(Diversifier(data), &JUBJUB) {
                 address = output;
                 diversifier = data;
                 break;
@@ -199,6 +196,16 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         let mut diversifier = [0u8; 11];
         diversifier.copy_from_slice(&buffer[0..11]);
         Ok(diversifier)
+    }
+
+    /// Retuns the pk_d of a sepcified Zcash Sapling address.
+    /// Returns the diversifier of a specified Zcash Sapling address.
+    pub fn get_pk_d(address: &str) -> Result<[u8; 32], AddressError> {
+        let address = Bech32::from_str(address)?;
+        let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
+        let mut pk_d = [0u8; 32];
+        pk_d.copy_from_slice(&buffer[11..43]);
+        Ok(pk_d)
     }
 
     /// Returns the format of the Monero address.
