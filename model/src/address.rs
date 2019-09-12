@@ -1,3 +1,4 @@
+use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::{PublicKey, PublicKeyError};
 
@@ -9,7 +10,7 @@ use std::{
 
 /// The interface for a generic address.
 pub trait Address: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash {
-    type Format;
+    type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 

@@ -1,8 +1,8 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{Mnemonic, PrivateKey, PublicKey};
 use crate::monero::{
-    address::Format as MoneroFormat, wordlist::*, Mainnet as MoneroMainnet, MoneroAddress, MoneroMnemonic,
-    MoneroNetwork, MoneroPublicKey, MoneroWordlist, Stagenet as MoneroStagenet, Testnet as MoneroTestnet,
+    format::MoneroFormat, wordlist::*, Mainnet as MoneroMainnet, MoneroAddress, MoneroMnemonic, MoneroNetwork,
+    MoneroPublicKey, MoneroWordlist, Stagenet as MoneroStagenet, Testnet as MoneroTestnet,
 };
 
 use clap::{ArgMatches, Values};
