@@ -1,4 +1,5 @@
-use crate::address::{BitcoinAddress, Format};
+use crate::address::BitcoinAddress;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
@@ -117,7 +118,7 @@ pub struct OutPoint<N: BitcoinNetwork> {
 
 impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
     type Address = BitcoinAddress<N>;
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PrivateKey = BitcoinPrivateKey<N>;
     type PublicKey = BitcoinPublicKey<N>;
 }
@@ -189,11 +190,11 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         &mut self,
         private_key: <Self as Transaction>::PrivateKey,
         input_index: usize,
-        address_format: Format,
+        address_format: <Self as Transaction>::Format,
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
         let transaction_hash_preimage = match input.out_point.address.format() {
-            Format::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
+            BitcoinFormat::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
             _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code)?,
         };
 
@@ -207,7 +208,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
 
         let public_key = private_key.to_public_key();
         let public_key_bytes = match (address_format, public_key.is_compressed()) {
-            (Format::P2PKH, false) => public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec(),
+            (BitcoinFormat::P2PKH, false) => public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec(),
             _ => public_key.to_secp256k1_public_key().serialize().to_vec(),
         };
 
@@ -215,8 +216,8 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
         match input.out_point.address.format() {
-            Format::P2PKH => self.inputs[input_index].script = [signature.clone(), public_key].concat(),
-            Format::P2SH_P2WPKH => {
+            BitcoinFormat::P2PKH => self.inputs[input_index].script = [signature.clone(), public_key].concat(),
+            BitcoinFormat::P2SH_P2WPKH => {
                 let input_script = input.out_point.redeem_script.clone();
 
                 self.segwit_flag = true;
@@ -288,7 +289,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         let hash_sequence = Sha256::digest(&Sha256::digest(&prev_sequences));
         let hash_outputs = Sha256::digest(&Sha256::digest(&outputs));
         let script = match input.out_point.address.format() {
-            Format::Bech32 => input.out_point.script_pub_key.clone(),
+            BitcoinFormat::Bech32 => input.out_point.script_pub_key.clone(),
             _ => input.out_point.redeem_script.clone(),
         }[1..]
             .to_vec();
@@ -374,7 +375,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             true => serialized_input.extend(vec![0x00]),
             false => {
                 match (self.script.len(), self.out_point.address.format()) {
-                    (0, Format::Bech32) => serialized_input.extend(vec![0x00]),
+                    (0, BitcoinFormat::Bech32) => serialized_input.extend(vec![0x00]),
                     (0, _) => {
                         let script_pub_key = &self.out_point.script_pub_key.clone();
                         serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
@@ -419,7 +420,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
     let mut script: Vec<u8> = Vec::new();
     let format = address.format();
     match format {
-        Format::P2PKH => {
+        BitcoinFormat::P2PKH => {
             let address_bytes = &address.to_string().from_base58()?;
             let pub_key_hash = address_bytes[1..(address_bytes.len() - 4)].to_vec();
 
@@ -430,7 +431,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
             script.push(OPCodes::OP_EQUALVERIFY as u8);
             script.push(OPCodes::OP_CHECKSIG as u8);
         }
-        Format::P2SH_P2WPKH => {
+        BitcoinFormat::P2SH_P2WPKH => {
             let script_bytes = &address.to_string().from_base58()?;
             let script_hash = script_bytes[1..(script_bytes.len() - 4)].to_vec();
 
@@ -439,7 +440,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
             script.extend(script_hash);
             script.push(OPCodes::OP_EQUAL as u8);
         }
-        Format::Bech32 => {
+        BitcoinFormat::Bech32 => {
             let bech32 = Bech32::from_str(&address.to_string())?;
             let (v, program) = bech32.data().split_at(1);
             let program_data = Vec::from_base32(program)?;
@@ -456,7 +457,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
 
 /// Validate the address format (P2PKH, P2SH_P2PKH, etc.) with the given scripts
 pub fn validate_address_format(
-    address_format: &Format,
+    address_format: &BitcoinFormat,
     amount: &Option<u64>,
     redeem_script: &Option<Vec<u8>>,
     script_pub_key: &Vec<u8>,
@@ -466,19 +467,19 @@ pub fn validate_address_format(
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
     let op_equal = OPCodes::OP_EQUAL as u8;
 
-    if address_format == &Format::P2SH_P2WPKH && (amount.is_none() || redeem_script.is_none()) {
+    if address_format == &BitcoinFormat::P2SH_P2WPKH && (amount.is_none() || redeem_script.is_none()) {
         return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into()));
-    } else if address_format == &Format::Bech32 && (amount.is_none() || redeem_script.is_some()) {
+    } else if address_format == &BitcoinFormat::Bech32 && (amount.is_none() || redeem_script.is_some()) {
         return Err(TransactionError::InvalidInputs("Bech32".into()));
-    } else if address_format == &Format::P2PKH && redeem_script.is_some() && amount.is_some() {
+    } else if address_format == &BitcoinFormat::P2PKH && redeem_script.is_some() && amount.is_some() {
         return Err(TransactionError::InvalidInputs("P2PKH".into()));
-    } else if address_format == &Format::P2PKH
+    } else if address_format == &BitcoinFormat::P2PKH
         && script_pub_key[0] != op_dup
         && script_pub_key[1] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_checksig
     {
         return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
-    } else if address_format == &Format::P2SH_P2WPKH
+    } else if address_format == &BitcoinFormat::P2SH_P2WPKH
         && script_pub_key[0] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_equal
     {
@@ -521,7 +522,7 @@ mod tests {
     #[derive(Clone)]
     pub struct Input {
         pub private_key: &'static str,
-        pub address_format: Format,
+        pub address_format: BitcoinFormat,
         pub transaction_id: &'static str,
         pub index: u32,
         pub redeem_script: Option<&'static str>,
@@ -539,7 +540,7 @@ mod tests {
 
     const INPUT_FILLER: Input = Input {
         private_key: "",
-        address_format: Format::P2PKH,
+        address_format: BitcoinFormat::P2PKH,
         transaction_id: "",
         index: 0,
         redeem_script: Some(""),
@@ -565,7 +566,7 @@ mod tests {
             let transaction_id = hex::decode(input.transaction_id).unwrap();
             let redeem_script = match (input.redeem_script, input.address_format.clone()) {
                 (Some(script), _) => Some(hex::decode(script).unwrap()),
-                (None, Format::P2SH_P2WPKH) => {
+                (None, BitcoinFormat::P2SH_P2WPKH) => {
                     let mut redeem_script: Vec<u8> = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
                         &private_key.to_public_key().to_secp256k1_public_key().serialize(),
@@ -626,7 +627,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L1uyy5qTuGrVXrmrsvHWHgVzW9kKdrp27wBC7Vs6nZDTF2BRUVwy",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                         index: 0,
                         redeem_script: None,
@@ -656,7 +657,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "5Kbxro1cmUF9mTJ8fDrTfNB6URTBsFMUG52jzzumP2p9C94uKCh",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "77541aeb3c4dac9260b68f74f44c973081a9d4cb2ebe8038b2d70faa201b6bdb",
                         index: 1,
                         redeem_script: None,
@@ -689,7 +690,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "KwtetKxofS1Lhp7idNJzb5B5WninBRfELdwkjvTMZZGME4G72kMz",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "375e1622b2690e395df21b33192bad06d2706c139692d43ea84d38df3d183313",
                         index: 0,
                         redeem_script: Some("0014b93f973eb2bf0b614bddc0f47286788c98c535b4"), // Manually specify redeem_script
@@ -722,7 +723,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L1Knwj9W3qK3qMKdTvmg3VfzUs3ij2LETTFhxza9LfD5dngnoLG1",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
                         index: 6,
                         redeem_script: None,
@@ -733,7 +734,7 @@ mod tests {
                     },
                     Input {
                         private_key: "KwcN2pT3wnRAurhy7qMczzbkpY5nXMW2ubh696UBc1bcwctTx26z",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730",
                         index: 0,
                         redeem_script: None,
@@ -765,7 +766,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "Kxxkik2L9KgrGgvdkEvYSkgAxaY4qPGfvxe1M1KBVBB7Ls3xDD8o",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "7c95424e4c86467eaea85b878985fa77d191bad2b9c5cac5a0cb98f760616afa",
                         index: 55,
                         redeem_script: None,
@@ -798,7 +799,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L3EEWFaodvuDcH7yeTtugQDvNxnBs8Fkzerqf8tgmHYKQ4QkQJDE",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "6b88c087247aa2f07ee1c5956b8e1a9f4c7f892a70e324f1bb3d161e05ca107b",
                         index: 0,
                         redeem_script: None,
@@ -809,7 +810,7 @@ mod tests {
                     },
                     Input {
                         private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "93ca92c0653260994680a4caa40cfc7b0aac02a077c4f022b007813d6416c70d",
                         index: 1,
                         redeem_script: None,
@@ -841,7 +842,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "5JsX1A2JNjqVmLFUUhUJuDsVjFH2yfoVdV5qtFQpWhLkYzamKKy",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "bda2ebcbf0bd6bc4ee1c330a64a9ff95e839cc2d25c593a01e704996bc1e869c",
                         index: 0,
                         redeem_script: None,
@@ -874,7 +875,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "1a2290470e0aa7549ab1e04b2453274374149ffee517a57715e5206e4142c233",
                         index: 1,
                         redeem_script: None,
@@ -907,7 +908,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L1X6apYnZ39CLFJFX6Ny7oriHX3nmeBcjkobeYgmk6arbyZfouJu",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "9f96ade4b41d5433f4eda31e1738ec2b36f6e7d1420d94a6af99801a88f7f7ff",
                         index: 0,
                         redeem_script: None,
@@ -918,7 +919,7 @@ mod tests {
                     },
                     Input {
                         private_key: "5JZGuGYM4vfKvpxaJg5g5D3uvVYVQ74UUdueCVvWCNacrAkkvGi",
-                        address_format: Format::Bech32,
+                        address_format: BitcoinFormat::Bech32,
                         transaction_id: "8ac60eb9575db5b2d987e29f301b5b819ea83a5c6579d282d189cc04b8e151ef",
                         index: 1,
                         redeem_script: None,
@@ -980,7 +981,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L1fUQgwdWcqGUAr3kFznuAP36Vw3oFeGHH29XRYMwxN1HpSw5yBm",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "a5766fafb27aba97e7aeb3e71be79806dd23f03bbd1b61135bf5792159f42ab6",
                         index: 0,
                         redeem_script: Some("0014b5ccbe3c5a285af4afada113a8619827fb30b2ee"),
@@ -1013,7 +1014,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "KzZQ4ZzAecDmeDqxEJqSKpCfpPCa1x74ouyBhXUgMV2UdqNcaJiJ",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c",
                         index: 0,
                         redeem_script: None,
@@ -1046,7 +1047,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L5HiUByNV6D4anzT5aMhheZpG9oKdcvoPXjWJopEPiEzFisNTM7X",
-                        address_format: Format::Bech32,
+                        address_format: BitcoinFormat::Bech32,
                         transaction_id: "60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c",
                         index: 1,
                         redeem_script: None,
@@ -1076,7 +1077,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429",
                         index: 0,
                         redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
@@ -1087,7 +1088,7 @@ mod tests {
                     },
                     Input {
                         private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab",
                         index: 0,
                         redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
@@ -1119,7 +1120,7 @@ mod tests {
                 inputs: [
                     Input {
                         private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
-                        address_format: Format::P2SH_P2WPKH,
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8",
                         index: 1,
                         redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
@@ -1130,7 +1131,7 @@ mod tests {
                     },
                     Input {
                         private_key: "5KRoKpnWWav74XDgz28opnJUsBozUg8STwEQPq354yUa3MiXySn",
-                        address_format: Format::P2PKH,
+                        address_format: BitcoinFormat::P2PKH,
                         transaction_id: "76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab",
                         index: 1,
                         redeem_script: None,
@@ -1141,7 +1142,7 @@ mod tests {
                     },
                     Input {
                         private_key: "Kzs2rY8y9brmULJ3VK9gZHiZAhNJ2ttjn7ZuyJbG52pToZfCpQDr",
-                        address_format: Format::Bech32,
+                        address_format: BitcoinFormat::Bech32,
                         transaction_id: "6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8",
                         index: 0,
                         redeem_script: None,
@@ -1192,7 +1193,7 @@ mod tests {
         const INVALID_INPUTS: [Input; 8] = [
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
+                address_format: BitcoinFormat::P2SH_P2WPKH,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
                 redeem_script: None,
@@ -1203,7 +1204,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2PKH,
+                address_format: BitcoinFormat::P2PKH,
                 transaction_id: "7dabce",
                 index: 0,
                 redeem_script: None,
@@ -1214,7 +1215,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
+                address_format: BitcoinFormat::P2SH_P2WPKH,
                 transaction_id: "7dabce",
                 index: 0,
                 redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
@@ -1225,7 +1226,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
+                address_format: BitcoinFormat::P2SH_P2WPKH,
                 transaction_id: "7dabce588a8a57786790",
                 index: 0,
                 redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
@@ -1236,7 +1237,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::P2SH_P2WPKH,
+                address_format: BitcoinFormat::P2SH_P2WPKH,
                 transaction_id: "7dabce588a8a57786790d27810514f5ffccff4148a8105894da57c985d02cdbb7dabce",
                 index: 0,
                 redeem_script: Some("00142b6e15d83c28acd7e2373ba81bb4adf4dee3c01a"),
@@ -1247,7 +1248,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::Bech32,
+                address_format: BitcoinFormat::Bech32,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
                 redeem_script: None,
@@ -1258,7 +1259,7 @@ mod tests {
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
-                address_format: Format::Bech32,
+                address_format: BitcoinFormat::Bech32,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
                 redeem_script: None,
