@@ -1,5 +1,6 @@
-use crate::address::{Format, ZcashAddress};
+use crate::address::ZcashAddress;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
+use crate::format::ZcashFormat;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
@@ -225,18 +226,14 @@ pub struct JoinSplit {}
 
 impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
     type Address = ZcashAddress<N>;
-    type Format = Format;
+    type Format = ZcashFormat;
     type PrivateKey = ZcashPrivateKey<N>;
     type PublicKey = ZcashPublicKey<N>;
 }
 
 impl<N: ZcashNetwork> ZcashTransaction<N> {
     /// Returns a raw unsigned zcash transaction
-    pub fn build_raw_transaction(
-        version: &str,
-        lock_time: u32,
-        expiry_height: u32,
-    ) -> Result<Self, TransactionError> {
+    pub fn build_raw_transaction(version: &str, lock_time: u32, expiry_height: u32) -> Result<Self, TransactionError> {
         let (header, version_group_id) = fetch_header_and_version_group_id(version);
 
         Ok(Self {
@@ -398,7 +395,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &self.inputs[input_index];
         let transaction_hash = match input.out_point.address.format() {
-            Format::P2PKH => self.generate_sighash(Some(input_index), input.sig_hash_code)?,
+            ZcashFormat::P2PKH => self.generate_sighash(Some(input_index), input.sig_hash_code)?,
             _ => unimplemented!(),
         };
 
@@ -430,7 +427,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         let public_key: Vec<u8> = [vec![viewing_key_bytes.len() as u8], viewing_key_bytes].concat();
 
         match input.out_point.address.format() {
-            Format::P2PKH => self.inputs[input_index].script = [signature.clone(), public_key].concat(),
+            ZcashFormat::P2PKH => self.inputs[input_index].script = [signature.clone(), public_key].concat(),
             _ => unimplemented!(),
         };
 
@@ -508,7 +505,6 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                     let proof = Proof::<Bls12>::read(&spend_description.zk_proof[..])?;
                     let check_sig = jubjubSignature::read(&spend_auth_sig[..])?;
 
-
                     // Verify the spend description
                     // Consider removing spend checks because zcash nodes also do this check when broadcasting transactions
 
@@ -523,7 +519,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_vk,
                         &JUBJUB,
                     ) {
-                        true => {},
+                        true => {}
                         false => return Err(TransactionError::InvalidSpendDescription()),
                     };
                 }
@@ -1013,7 +1009,7 @@ pub fn generate_script_pub_key<N: ZcashNetwork>(address: &str) -> Result<Vec<u8>
     let mut script: Vec<u8> = Vec::new();
     let format = address.format();
     match format {
-        Format::P2PKH => {
+        ZcashFormat::P2PKH => {
             let address_bytes = &address.to_string().from_base58()?;
             let pub_key_hash = address_bytes[2..(address_bytes.len() - 4)].to_vec();
 
@@ -1033,7 +1029,7 @@ pub fn generate_script_pub_key<N: ZcashNetwork>(address: &str) -> Result<Vec<u8>
 /// Validate the address format with the given scripts
 /// (P2SH currently unsupported)
 pub fn validate_address_format(
-    address_format: &Format,
+    address_format: &ZcashFormat,
     amount: &Option<u64>,
     redeem_script: &Option<Vec<u8>>,
     script_pub_key: &Vec<u8>,
@@ -1042,7 +1038,7 @@ pub fn validate_address_format(
     let op_hash160 = OPCodes::OP_HASH160 as u8;
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
 
-    if address_format == &Format::P2PKH
+    if address_format == &ZcashFormat::P2PKH
         && script_pub_key[0] != op_dup
         && script_pub_key[1] != op_hash160
         && script_pub_key[script_pub_key.len() - 1] != op_checksig
@@ -1096,7 +1092,7 @@ mod tests {
     #[derive(Clone)]
     pub struct Input {
         pub private_key: &'static str,
-        pub address_format: Format,
+        pub address_format: ZcashFormat,
         pub transaction_id: &'static str,
         pub index: u32,
         pub redeem_script: Option<&'static str>,
@@ -1133,7 +1129,7 @@ mod tests {
 
     const INPUT_FILLER: Input = Input {
         private_key: "",
-        address_format: Format::P2PKH,
+        address_format: ZcashFormat::P2PKH,
         transaction_id: "",
         index: 0,
         redeem_script: Some(""),
@@ -1160,8 +1156,7 @@ mod tests {
     ) {
         // Build raw transaction
 
-        let mut transaction =
-            ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
+        let mut transaction = ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
         // Add transparent inputs
 
@@ -1335,8 +1330,7 @@ mod tests {
     ) {
         // Build raw transaction
 
-        let mut transaction =
-            ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
+        let mut transaction = ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
         // Add transparent inputs
 
@@ -1460,7 +1454,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cUacGttX6uipjEPinJv2BHuax2VNNpHGrf3psRABxtuAddpxLep7",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "d9042195d9a1b65b2f1f79d68ceb1a5ea6459c9651a6ad4dc1f465824785c6a8",
                             index: 1,
                             redeem_script: None,
@@ -1510,7 +1504,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cVasUuNrNZCnfe4VAdVS2LpyxCh7UmFpdowUx1K9h5JigZxcpX4W",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "ce03f10f794d2db649a365b2bd460fcdf45288a7d36c13d0526457432ab82131",
                             index: 12,
                             redeem_script: None,
@@ -1563,7 +1557,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cQJJZoXt3fhmv7FVNqQX7H4kpVrihX2g6Mh5KpPreuT7XTGuUWiD",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "1ec22e34540e8748a369272d858421ff607c2b7991a88e154b352a9f7acd9431",
                             index: 0,
                             redeem_script: None,
@@ -1610,7 +1604,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cNmWGcSzDEwWB9FJkvsP4rUzrFt6nNRBUdfV8Krv6hSeDnTSjwzx",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "77533bf33c0835d20820f46f3dd484feb7c813d33e87400ed3066b1dfbfa3442",
                             index: 0,
                             redeem_script: None,
@@ -1621,7 +1615,7 @@ mod tests {
                         },
                         Input {
                             private_key: "cMefZsn9zKu7XPW6sGk6jXicgKQmT9DUE4Hj3wKLKQRfadSdDcWr",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "e39029f7936131571772a60c5ba390f52449dd0665aa3c5f422747f813a7ea52",
                             index: 1,
                             redeem_script: None,
@@ -1689,7 +1683,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cVDVjUASqQn7qokRZqpHTdFpTEkwbpf7ZzhgTsqt79y9XWDyPod6",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "72a67442781a84eee2b327f9bb7030d725cf0fc90798aa51cb45a8acfd08c12d",
                             index: 0,
                             redeem_script: None,
@@ -1739,7 +1733,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cTQpmkaF8YNivhZKw6PposeYz1FN9PxmW2r776rBKBWcAP8nA4bf",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf",
                             index: 1,
                             redeem_script: None,
@@ -1792,7 +1786,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cN2PtrZdZrZmoxgsg7fKcJPLGPX4sHDaZaNBsiRZQbQyC7kxAGxb",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
                             index: 0,
                             redeem_script: None,
@@ -1803,7 +1797,7 @@ mod tests {
                         },
                         Input {
                             private_key: "cT9pKXC1KMMG6g8dsCUGEHj3J4xnxwfBEhyv1ALs6Z6Ly9XH4qvj",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
                             index: 1,
                             redeem_script: None,
@@ -1852,7 +1846,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cR6NQzn89sCdRj1WmgQxF4mGJWi4bbgqzTDpmSfhmMQ2tfJCTPDF",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf",
                             index: 0,
                             redeem_script: None,
@@ -1863,7 +1857,7 @@ mod tests {
                         },
                         Input {
                             private_key: "cUSFcxAXwFkLVciaxm7Le3mZF3g1nX5MZsxwDs23sCwWgUekfd18",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
                             index: 2,
                             redeem_script: None,
@@ -1874,7 +1868,7 @@ mod tests {
                         },
                         Input {
                             private_key: "cUSFcxAXwFkLVciaxm7Le3mZF3g1nX5MZsxwDs23sCwWgUekfd18",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a",
                             index: 0,
                             redeem_script: None,
@@ -1885,7 +1879,7 @@ mod tests {
                         },
                         Input {
                             private_key: "cMjLTdEgp48viTAL5eFXxaEpdj7jBJAg8ehw114BjBiZdUbCJLCr",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a",
                             index: 1,
                             redeem_script: None,
@@ -1929,7 +1923,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cRi5RmG4fRjydFToBr1Z1FgD3jhCdmrsLs7WHn46ZVstPrKzwVHS",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c",
                             index: 0,
                             redeem_script: None,
@@ -2002,7 +1996,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "KwbK8JibyGAKz7h7uXAmW2hmM68SDGZenurVMKvUMoH5n97dEekL",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "1097b2e1ffbaf193ec0123c0d20b0e217f77250446485e3e9af906f314a01055",
                             index: 0,
                             redeem_script: None,
@@ -2049,7 +2043,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "KyWLtuy5hiPejU1muc2ENTQ6U6WVueWErEYtye96oeB9QrPZMj1t",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "f234d95b8313c7f8534e3dd3cc0549b307759ec3909626920c129e493ac84f39",
                             index: 0,
                             redeem_script: None,
@@ -2105,7 +2099,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "KyXn7mdxMm4GC2BLPopZTjkSp17P86vvDh25enpDRcma6vUnicCk",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "ffb595919dd6a431bc74948317cd56be39802b6a2c9a9f0d08606c7b01edb250",
                             index: 1,
                             redeem_script: None,
@@ -2116,7 +2110,7 @@ mod tests {
                         },
                         Input {
                             private_key: "KwY2f9ohrQoHv39dat6hdBnprxtD165dikuW21nExQVhY7KU2VHW",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "466351234fb03d3c09c501194f778342314307e923fc7cd6eec9e3fc581a9474",
                             index: 2,
                             redeem_script: None,
@@ -2127,7 +2121,7 @@ mod tests {
                         },
                         Input {
                             private_key: "L1CTbTh1npyZLjVdpfc2uYwW4mwRD549KGAY8d3RP2Fbk38Kryh4",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "2ed71a12ed95aa64c1812c5bbaceddfc706054dc439d206b42c191a5f790305d",
                             index: 3,
                             redeem_script: None,
@@ -2172,7 +2166,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "KxN4JLuVGg7A64gCrKxg2aiH1vsq3QGUhgXnARrsiqQpWFFdv7bU",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "0f4b24007bdf5eb11c1e62f186ef3478d70e46453ba06ae290ea323959af380d",
                             index: 1,
                             redeem_script: None,
@@ -2306,7 +2300,7 @@ mod tests {
             use super::*;
             type N = Testnet;
 
-            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT: [TransactionData; 2] = [
+            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS: [TransactionData; 3] = [
                 TransactionData { // txid: 6a25dbdbb4da6f8ff115d44aad9519be23e17e8322244ed61160d02a9249eca2
                     version: "sapling",
                     lock_time: 0,
@@ -2398,9 +2392,6 @@ mod tests {
                     ],
                     expected_signed_transaction: "",
                 },
-            ];
-
-            const REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS: [TransactionData; 1] = [
                 TransactionData { // txid: a333b3523cab6def651813ea76e885b964c0c0c0ba20ea2ea98664e85ea4b9b5
                     version: "sapling",
                     lock_time: 0,
@@ -2455,14 +2446,10 @@ mod tests {
             ];
 
             #[test]
-            fn test_real_sapling_spend_transactions_single_input() {
-                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_SINGLE_INPUT.to_vec());
+            fn test_real_sapling_spend_transactions() {
+                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS.to_vec());
             }
 
-            #[test]
-            fn test_real_sapling_spend_transactions_multiple_input() {
-                test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS_MULTIPLE_INPUTS.to_vec());
-            }
         }
 
         mod test_real_testnet_sapling_output_transactions {
@@ -2478,7 +2465,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cUBFqbapRJBAKbpVq7LBDUrSY4UWquuTcA1UrLCvdym1zHiWFPBb",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "cdb426cbd9dfe1c27df683a891977d0a5be6cc87e3b618917bb124caba7a78f2",
                             index: 0,
                             redeem_script: None,
@@ -2527,7 +2514,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cUnh9NAShCGCur8PjxQnRz96n93Hs6tNAo6fmH41ig1vKzrXtWdC",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
                             index: 0,
                             redeem_script: None,
@@ -2538,7 +2525,7 @@ mod tests {
                         },
                         Input {
                             private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
                             index: 1,
                             redeem_script: None,
@@ -2590,7 +2577,7 @@ mod tests {
                     inputs: [
                         Input {
                             private_key: "cMwUGSqBqKSavhstEH6Jsuf7cpqFf15ywuEaoUBmBuesdZxng41H",
-                            address_format: Format::P2PKH,
+                            address_format: ZcashFormat::P2PKH,
                             transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
                             index: 2,
                             redeem_script: None,
@@ -2650,7 +2637,7 @@ mod tests {
         const INVALID_INPUTS: [Input; 4] = [
             Input {
                 private_key: "KwNJ5ppQ1wCbXdpW5GBoxcBex1avA99cBFgBvgH16rf5pmBLu6WX",
-                address_format: Format::P2PKH,
+                address_format: ZcashFormat::P2PKH,
                 transaction_id: "61d520ccb74288c96bc1a2b20ea1c0d5a704776dd0164a396efec3ea7040349d",
                 index: 0,
                 redeem_script: None,
@@ -2661,7 +2648,7 @@ mod tests {
             },
             Input {
                 private_key: "KxyXFjrX9FjFX3HWWbRNxBrfZCRmD8A5kG31meyXtJDRPXrCXufK",
-                address_format: Format::P2PKH,
+                address_format: ZcashFormat::P2PKH,
                 transaction_id: "7dabce",
                 index: 0,
                 redeem_script: None,
@@ -2672,7 +2659,7 @@ mod tests {
             },
             Input {
                 private_key: "KxyXFjrX9FjFX3HWWbRNxBrfZCRmD8A5kG31meyXtJDRPXrCXufK",
-                address_format: Format::P2PKH,
+                address_format: ZcashFormat::P2PKH,
                 transaction_id: "7dabce",
                 index: 0,
                 redeem_script: None,
@@ -2884,8 +2871,7 @@ mod tests {
             // Build raw transaction
 
             let mut transaction =
-                ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height)
-                    .unwrap();
+                ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
             // Build Sapling Spends
 
@@ -2963,8 +2949,7 @@ mod tests {
             };
 
             let mut transaction =
-                ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height)
-                    .unwrap();
+                ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
             transaction
                 .add_transparent_output(output.address, output.amount)
