@@ -492,16 +492,15 @@ pub fn validate_address_format(
 /// Return Bitcoin variable length integer of the size
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
-    if size < 253 {
-        Ok(vec![size as u8])
-    } else if size <= 65535 {
-        // size <= u16::max_value()
-        Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat())
-    } else if size <= 4294967295 {
-        // size <= u32::max_value()
-        Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat())
-    } else {
-        Ok([vec![0xff], size.to_le_bytes().to_vec()].concat())
+    match size {
+        // bounded by u8::max_value()
+        0..=252 => Ok(vec![size as u8]),
+        // bounded by u16::max_value()
+        253..=65535 => Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat()),
+        // bounded by u32::max_value()
+        65536..=4294967295 => Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat()),
+        // bounded by u64::max_value()
+        _ => Ok([vec![0xff], size.to_le_bytes().to_vec()].concat()),
     }
 }
 
