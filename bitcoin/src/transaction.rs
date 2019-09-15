@@ -154,9 +154,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
 
         let mut has_witness = false;
         for input in &self.inputs {
-            if input.witnesses.len() > 0 {
-                has_witness = true;
-            }
+            has_witness = input.witnesses.len() > 0;
             serialized_transaction.extend(input.serialize(raw)?);
         }
 
