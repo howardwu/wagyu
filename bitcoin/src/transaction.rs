@@ -321,7 +321,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
     const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
 
-    /// Create a new Bitcoin Transaction input without the script
+    /// Create a new Bitcoin Transaction input
     pub fn new(
         address: BitcoinAddress<N>,
         transaction_id: Vec<u8>,
@@ -982,7 +982,7 @@ mod tests {
                         address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "a5766fafb27aba97e7aeb3e71be79806dd23f03bbd1b61135bf5792159f42ab6",
                         index: 0,
-                        redeem_script: Some("0014b5ccbe3c5a285af4afada113a8619827fb30b2ee"),
+                        redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(80000),
                         sequence: None,
@@ -1078,7 +1078,7 @@ mod tests {
                         address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429",
                         index: 0,
-                        redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
+                        redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(25000),
                         sequence: None,
@@ -1089,7 +1089,7 @@ mod tests {
                         address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab",
                         index: 0,
-                        redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
+                        redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(12000),
                         sequence: None,
@@ -1121,7 +1121,7 @@ mod tests {
                         address_format: BitcoinFormat::P2SH_P2WPKH,
                         transaction_id: "6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8",
                         index: 1,
-                        redeem_script: Some("0014354816a98500d7df9201d46e008c203dd5143b92"),
+                        redeem_script: None,
                         script_pub_key: None,
                         utxo_amount: Some(15000),
                         sequence: None,
