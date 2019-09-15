@@ -149,7 +149,7 @@ impl EthereumTransaction {
 mod tests {
     use super::*;
     use crate::network::EthereumNetwork;
-    use crate::{Mainnet, Kovan, Rinkeby, Ropsten};
+    use crate::{Goerli, Kovan, Mainnet, Rinkeby, Ropsten};
 
     pub struct Transaction {
         pub nonce: &'static str,
@@ -247,7 +247,7 @@ mod tests {
             to: "0x9Fd6441Ce8CC4524FaCd033921B6A2e910EC00FC",
             value: "49580000000000000",
             data: "",
-            chain_id: 5 as u8, // Goerli
+            chain_id: Goerli::CHAIN_ID as u8,
             private_key: "72a5f407855ca5bd8e30fe390362cf15c85313a2269ce142ad8fe51ef5b4ac1e",
             signed_transaction: "0xf86b808504a817c800825208949fd6441ce8cc4524facd033921b6a2e910ec00fc87b024bf4ff6c000802da03b2a07447818c1f85ca0d28c819575fa2796f8633a7641ebe8aedc56e91a7bffa0330acba28c47630bf49f4d8b0e36f7c28aaa83672081d57adc56e80937f49977",
             transaction_hash: "0x9683157f5d2a49ec36ecf93f0a18012db77b09e9dc0dc1f146fd3d42619d94a5"
