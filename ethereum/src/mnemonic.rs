@@ -47,10 +47,9 @@ impl<N: EthereumNetwork, W: EthereumWordlist> MnemonicCount for EthereumMnemonic
         Ok(Self {
             entropy: entropy[0..length].to_vec(),
             _network: PhantomData,
-            _wordlist: PhantomData
+            _wordlist: PhantomData,
         })
     }
-
 }
 
 impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W> {
@@ -65,7 +64,7 @@ impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W
         Ok(Self {
             entropy: entropy.to_vec(),
             _network: PhantomData,
-            _wordlist: PhantomData
+            _wordlist: PhantomData,
         })
     }
 
@@ -95,13 +94,13 @@ impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W
         let mnemonic = Self {
             entropy: entropy[..length].as_slice().to_vec(),
             _network: PhantomData,
-            _wordlist: PhantomData
+            _wordlist: PhantomData,
         };
 
         // Ensures the checksum word matches the checksum word in the given phrase.
         match phrase == mnemonic.to_phrase()? {
             true => Ok(mnemonic),
-            false => Err(MnemonicError::InvalidPhrase(phrase.into()))
+            false => Err(MnemonicError::InvalidPhrase(phrase.into())),
         }
     }
 
@@ -168,7 +167,10 @@ impl<N: EthereumNetwork, W: EthereumWordlist> MnemonicExtended for EthereumMnemo
 
     /// Returns the extended private key of the corresponding mnemonic.
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
-        Ok(Self::ExtendedPrivateKey::new_master(self.to_seed(password)?.as_slice(), &EthereumFormat::Standard)?)
+        Ok(Self::ExtendedPrivateKey::new_master(
+            self.to_seed(password)?.as_slice(),
+            &EthereumFormat::Standard,
+        )?)
     }
 
     /// Returns the extended public key of the corresponding mnemonic.
@@ -202,10 +204,14 @@ impl<N: EthereumNetwork, W: EthereumWordlist> FromStr for EthereumMnemonic<N, W>
 
 impl<N: EthereumNetwork, W: EthereumWordlist> fmt::Display for EthereumMnemonic<N, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self.to_phrase() {
-            Ok(phrase) => phrase,
-            _ => return Err(fmt::Error),
-        })
+        write!(
+            f,
+            "{}",
+            match self.to_phrase() {
+                Ok(phrase) => phrase,
+                _ => return Err(fmt::Error),
+            }
+        )
     }
 }
 
@@ -229,7 +235,11 @@ mod tests {
     }
 
     fn test_to_phrase<N: EthereumNetwork, W: EthereumWordlist>(expected_phrase: &str, entropy: &Vec<u8>) {
-        let mnemonic = EthereumMnemonic::<N, W> { entropy: entropy.clone(), _network: PhantomData, _wordlist: PhantomData };
+        let mnemonic = EthereumMnemonic::<N, W> {
+            entropy: entropy.clone(),
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        };
         assert_eq!(&entropy[..], &mnemonic.entropy[..]);
         assert_eq!(expected_phrase, mnemonic.to_phrase().unwrap());
     }
@@ -461,7 +471,11 @@ mod tests {
         fn to_seed() {
             KEYPAIRS.iter().for_each(|(entropy_str, _, expected_seed, _)| {
                 let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-                let mnemonic = EthereumMnemonic::<N, W> { entropy, _network: PhantomData, _wordlist: PhantomData };
+                let mnemonic = EthereumMnemonic::<N, W> {
+                    entropy,
+                    _network: PhantomData,
+                    _wordlist: PhantomData,
+                };
                 test_to_seed::<N, W>(expected_seed, Some(PASSWORD), mnemonic);
             });
         }
@@ -470,7 +484,11 @@ mod tests {
         fn to_seed_no_password() {
             let (entropy_str, _, _, _) = KEYPAIRS[0];
             let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
-            let mnemonic = EthereumMnemonic::<N, W> { entropy, _network: PhantomData, _wordlist: PhantomData };
+            let mnemonic = EthereumMnemonic::<N, W> {
+                entropy,
+                _network: PhantomData,
+                _wordlist: PhantomData,
+            };
             test_to_seed::<N, W>(NO_PASSWORD_STR, None, mnemonic);
         }
 
@@ -519,7 +537,7 @@ mod tests {
 
         #[test]
         #[should_panic(
-        expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon\")"
+            expected = "InvalidPhrase(\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon\")"
         )]
         fn from_phrase_invalid_checksum() {
             let _mnemonic = EthereumMnemonic::<N, W>::from_phrase(INVALID_PHRASE_CHECKSUM).unwrap();

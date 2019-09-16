@@ -143,10 +143,13 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 }
 
 impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
-
     /// Returns the mnemonic of the given private spend key
     pub fn from_private_spend_key(private_spend_key: &[u8; 32]) -> Self {
-        Self { seed: *private_spend_key, _network: PhantomData, _wordlist: PhantomData }
+        Self {
+            seed: *private_spend_key,
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        }
     }
 
     /// Compares the given phrase against the phrase extracted from its entropy.
@@ -174,10 +177,14 @@ impl<N: MoneroNetwork, W: MoneroWordlist> FromStr for MoneroMnemonic<N, W> {
 
 impl<N: MoneroNetwork, W: MoneroWordlist> fmt::Display for MoneroMnemonic<N, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self.to_phrase() {
-            Ok(phrase) => phrase,
-            _ => return Err(fmt::Error),
-        })
+        write!(
+            f,
+            "{}",
+            match self.to_phrase() {
+                Ok(phrase) => phrase,
+                _ => return Err(fmt::Error),
+            }
+        )
     }
 }
 
@@ -201,7 +208,11 @@ mod tests {
     }
 
     fn test_to_phrase<N: MoneroNetwork, W: MoneroWordlist>(expected_phrase: &str, seed: &[u8; 32]) {
-        let mnemonic = MoneroMnemonic::<N, W> { seed: *seed, _network: PhantomData, _wordlist: PhantomData };
+        let mnemonic = MoneroMnemonic::<N, W> {
+            seed: *seed,
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        };
         assert_eq!(&seed[..], &mnemonic.seed[..]);
         assert_eq!(expected_phrase, mnemonic.to_phrase().unwrap());
     }

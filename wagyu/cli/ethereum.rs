@@ -3,7 +3,9 @@ use crate::ethereum::{
     wordlist::*, EthereumAddress, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumExtendedPublicKey,
     EthereumFormat, EthereumMnemonic, EthereumNetwork, EthereumPrivateKey, EthereumPublicKey, Mainnet,
 };
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{
+    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey,
+};
 
 use clap::ArgMatches;
 use colored::*;

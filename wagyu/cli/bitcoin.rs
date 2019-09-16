@@ -4,7 +4,9 @@ use crate::bitcoin::{
     Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
 };
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{
+    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey,
+};
 
 use clap::ArgMatches;
 use colored::*;
