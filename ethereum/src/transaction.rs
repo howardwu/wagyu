@@ -314,98 +314,122 @@ mod tests {
         pub chain_id: u8,
         pub private_key: &'static str,
         pub signed_transaction: &'static str,
-        pub transaction_hash: &'static str,
+        pub signed_transaction_hash: &'static str,
     }
 
-    fn test_new<N: EthereumNetwork>(
-        expected_signed_transaction: &str,
-        expected_signed_transaction_hash: &str,
-        private_key: &EthereumPrivateKey,
-        receiver: &EthereumAddress,
-        amount: &U256,
-        parameters: &EthereumTransactionParameters
-    ) -> Result<(), TransactionError> {
-        let transaction = EthereumTransaction::<N>::new(receiver, amount, parameters)?;
-        let signed_transaction = transaction.sign(private_key)?;
+    fn test_new<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+        let expected_signed_transaction = transaction.signed_transaction;
+        let expected_signed_transaction_hash = transaction.signed_transaction_hash;
+        let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
+        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
+        let amount = U256::from_dec_str(transaction.value).unwrap();
+        let parameters = EthereumTransactionParameters {
+            gas: U256::from_dec_str(transaction.gas).unwrap(),
+            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            nonce: U256::from_dec_str(transaction.nonce).unwrap(),
+            data: transaction.data.as_bytes().to_vec()
+        };
+
+        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
-        assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash()?.to_string());
-        Ok(())
+        assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash().unwrap().to_string());
     }
 
-    fn test_sign<N: EthereumNetwork>(
-        expected_signed_transaction: &str,
-        private_key: &EthereumPrivateKey,
-        receiver: &EthereumAddress,
-        amount: &U256,
-        parameters: &EthereumTransactionParameters
-    ) -> Result<(), TransactionError> {
-        let transaction = EthereumTransaction::<N>::new(receiver, amount, parameters)?;
-        let signed_transaction = transaction.sign(private_key)?;
+    fn test_sign<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+        let expected_signed_transaction = transaction.signed_transaction;
+        let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
+        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
+        let amount = U256::from_dec_str(transaction.value).unwrap();
+        let parameters = EthereumTransactionParameters {
+            gas: U256::from_dec_str(transaction.gas).unwrap(),
+            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            nonce: U256::from_dec_str(transaction.nonce).unwrap(),
+            data: transaction.data.as_bytes().to_vec()
+        };
+
+        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let signed_transaction = transaction.sign(&private_key).unwrap();
 
         assert_eq!(None, transaction.sender);
-        assert_eq!(private_key.to_address(&EthereumFormat::Standard)?, signed_transaction.sender.clone().unwrap());
+        assert_eq!(private_key.to_address(&EthereumFormat::Standard).unwrap(), signed_transaction.sender.clone().unwrap());
 
-        assert_eq!(*receiver, transaction.receiver);
-        assert_eq!(*amount, transaction.amount);
-        assert_eq!(*parameters, transaction.parameters);
+        assert_eq!(receiver, transaction.receiver);
+        assert_eq!(amount, transaction.amount);
+        assert_eq!(parameters, transaction.parameters);
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
-
-        Ok(())
     }
 
-    fn test_from_transaction_bytes<N: EthereumNetwork>(
-        expected_sender: &Option<EthereumAddress>,
-        expected_receiver: &EthereumAddress,
-        expected_amount: &U256,
-        expected_parameters: &EthereumTransactionParameters,
-        signed_transaction_bytes: Vec<u8>,
-    ) -> Result<(), TransactionError>{
-        let transaction = EthereumTransaction::<N>::from_transaction_bytes(&signed_transaction_bytes)?;
-        assert_eq!(*expected_sender, transaction.sender);
-        assert_eq!(*expected_receiver, transaction.receiver);
-        assert_eq!(*expected_amount, transaction.amount);
-        assert_eq!(*expected_parameters, transaction.parameters);
-        assert_eq!(signed_transaction_bytes, transaction.to_transaction_bytes()?);
-        Ok(())
+    fn test_from_transaction_bytes<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+        let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
+        let expected_sender = Some(private_key.to_address(&EthereumFormat::Standard).unwrap());
+        let expected_receiver = EthereumAddress::from_str(transaction.to).unwrap();
+        let expected_amount = U256::from_dec_str(transaction.value).unwrap();
+        let expected_parameters = EthereumTransactionParameters {
+            gas: U256::from_dec_str(transaction.gas).unwrap(),
+            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            nonce: U256::from_dec_str(transaction.nonce).unwrap(),
+            data: transaction.data.as_bytes().to_vec()
+        };
+        let signed_transaction_bytes = hex::decode(&transaction.signed_transaction[2..]).unwrap();
+
+        let transaction = EthereumTransaction::<N>::from_transaction_bytes(&signed_transaction_bytes).unwrap();
+        assert_eq!(expected_sender, transaction.sender);
+        assert_eq!(expected_receiver, transaction.receiver);
+        assert_eq!(expected_amount, transaction.amount);
+        assert_eq!(expected_parameters, transaction.parameters);
+        assert_eq!(signed_transaction_bytes, transaction.to_transaction_bytes().unwrap());
     }
 
-    fn test_to_transaction_bytes<N: EthereumNetwork>(
-        expected_signed_transaction_bytes: Vec<u8>,
-        private_key: &EthereumPrivateKey,
-        receiver: &EthereumAddress,
-        amount: &U256,
-        parameters: &EthereumTransactionParameters
-    ) -> Result<(), TransactionError>{
-        let transaction = EthereumTransaction::<N>::new(receiver, amount, parameters)?;
-        let signed_transaction = transaction.sign(private_key)?;
-        assert_eq!(expected_signed_transaction_bytes, signed_transaction.to_transaction_bytes()?);
-        Ok(())
+    fn test_to_transaction_bytes<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+        let expected_signed_transaction_bytes = hex::decode(&transaction.signed_transaction[2..]).unwrap();
+        let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
+        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
+        let amount = U256::from_dec_str(transaction.value).unwrap();
+        let parameters = EthereumTransactionParameters {
+            gas: U256::from_dec_str(transaction.gas).unwrap(),
+            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            nonce: U256::from_dec_str(transaction.nonce).unwrap(),
+            data: transaction.data.as_bytes().to_vec()
+        };
+
+        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let signed_transaction = transaction.sign(&private_key).unwrap();
+        assert_eq!(expected_signed_transaction_bytes, signed_transaction.to_transaction_bytes().unwrap());
     }
 
-    fn test_to_transaction_hash<N: EthereumNetwork>(
-        expected_signed_transaction_hash: &str,
-        private_key: &EthereumPrivateKey,
-        receiver: &EthereumAddress,
-        amount: &U256,
-        parameters: &EthereumTransactionParameters
-    ) -> Result<(), TransactionError>{
-        let transaction = EthereumTransaction::<N>::new(receiver, amount, parameters)?;
-        let signed_transaction = transaction.sign(private_key)?;
-        assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash()?.to_string());
-        Ok(())
+    fn test_to_transaction_hash<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+        let expected_signed_transaction_hash = transaction.signed_transaction_hash;
+        let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
+        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
+        let amount = U256::from_dec_str(transaction.value).unwrap();
+        let parameters = EthereumTransactionParameters {
+            gas: U256::from_dec_str(transaction.gas).unwrap(),
+            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            nonce: U256::from_dec_str(transaction.nonce).unwrap(),
+            data: transaction.data.as_bytes().to_vec()
+        };
+
+        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let signed_transaction = transaction.sign(&private_key).unwrap();
+        assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash().unwrap().to_string());
     }
 
-    fn test_to_string<N: EthereumNetwork>(
-        expected_signed_transaction: &str,
-        private_key: &EthereumPrivateKey,
-        receiver: &EthereumAddress,
-        amount: &U256,
-        parameters: &EthereumTransactionParameters
-    ) -> Result<(), TransactionError>{
-        let transaction = EthereumTransaction::<N>::new(receiver, amount, parameters)?;
-        let signed_transaction = transaction.sign(private_key)?;
+    fn test_to_string<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+        let expected_signed_transaction = transaction.signed_transaction;
+        let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
+        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
+        let amount = U256::from_dec_str(transaction.value).unwrap();
+        let parameters = EthereumTransactionParameters {
+            gas: U256::from_dec_str(transaction.gas).unwrap(),
+            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            nonce: U256::from_dec_str(transaction.nonce).unwrap(),
+            data: transaction.data.as_bytes().to_vec()
+        };
+
+        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
-        Ok(())
     }
 
     mod mainnet {
@@ -424,7 +448,7 @@ mod tests {
                 chain_id: Mainnet::CHAIN_ID as u8,
                 private_key: "51ce358ffdcf208fadfb01a339f3ab715a89045a093777a44784d9e215277c1c",
                 signed_transaction: "0xf86b80843b9aca0082520894b5d590a6abf5e349c1b6c511bc87ceabfb3d7e65880de0b6b3a76400008026a0e19742af3c215eca3b0391ab9edbf3cbad726a18c5209388ebdcccda028197baa034ec566c3d7bf23441873205a7abd6f5c37996a1a3889cdb83ecc20b14f9dcc3",
-                transaction_hash: "0x03efc01e0ba13750867f4b04381f533409b4f5eb4b905cb33202d6c6612f0793"
+                signed_transaction_hash: "0x03efc01e0ba13750867f4b04381f533409b4f5eb4b905cb33202d6c6612f0793"
             },
             TransactionTestCase {
                 nonce: "12345",
@@ -436,148 +460,38 @@ mod tests {
                 chain_id: Mainnet::CHAIN_ID as u8,
                 private_key: "6cff516706e4eef887c3906f279efa86ac2eeb669b1a2a9f009e85c362fb640c",
                 signed_transaction: "0xf87b823039847735940082d2f09452c3a8a79a521d10b25569847cb1a3ffb66550d6893635c9adc5dea000008d53656e6420313030302045544825a0c13bfa13ac09b33ebaf846c9f134633fe03d94b4a3b5b94a6266158740064744a04963f584f3e96c51dc1800b35781e97990771d767766fc5dd5d8913ec2e0858b",
-                transaction_hash: "0x862e6475238f7ac42747fcc88373be739b60699563eb80b70a69f11409933761"
+                signed_transaction_hash: "0x862e6475238f7ac42747fcc88373be739b60699563eb80b70a69f11409933761"
             },
         ];
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_new::<N>(
-                    transaction.signed_transaction,
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_sign::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let sender = private_key.to_address(&EthereumFormat::Standard).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_from_transaction_bytes::<N>(
-                    &Some(sender),
-                    &receiver,
-                    &amount,
-                    &parameters,
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap()
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_bytes::<N>(
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap(),
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_hash::<N>(
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().for_each(test_to_transaction_hash::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_string::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().for_each(test_to_string::<N>);
         }
     }
 
@@ -597,7 +511,7 @@ mod tests {
                 chain_id: Rinkeby::CHAIN_ID as u8,
                 private_key: "763459f13c14e02490e71590fe0ebb43cd8758c4adc9fb4bc084b0a798f557e7",
                 signed_transaction: "0xf8750b8477359400830186a09452c3a8a79a521d10b25569847cb1a3ffb66550d6884563918244f40000895465737420446174612ba0d2751ac5bc52917575ffb4354fbb9bf0fd339d9eabd3dc5f016b0f695c848afaa014e76c21d60dde6b2452db6bd16d97201ec89ffdfe3c9930646f843220cd99ae",
-                transaction_hash: "0x437c266938314b6816014922202efb22a467fa87c8af40ae3d871cadac3de11e"
+                signed_transaction_hash: "0x437c266938314b6816014922202efb22a467fa87c8af40ae3d871cadac3de11e"
             },
         ];
 
@@ -612,148 +526,38 @@ mod tests {
                 chain_id: Rinkeby::CHAIN_ID as u8,
                 private_key: "3e5d0b2fd29b473b310ba4c84c14a77a1325a85494b7514ad77e201ff35367ee",
                 signed_transaction: "0xf86c8085098bca5a00825208944a6ff8173ceb9ee12873c8b5d663c6044b08b04e8802c37bdd8bed3000802ba06cd94f2a28d4e695504b6cd2458761fe6d27726d251501320fff6dc4e113c960a028b2b5dc5979d0e0d5d7e8868b7cdc2a74d1d1bcacb8ba982ae6d55a9d540694",
-                transaction_hash: "0xa79ec2950c873c878d2a2ea77e38662c17e3f1ab254fa3704b0917e245e49549"
+                signed_transaction_hash: "0xa79ec2950c873c878d2a2ea77e38662c17e3f1ab254fa3704b0917e245e49549"
             },
         ];
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_new::<N>(
-                    transaction.signed_transaction,
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_sign::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let sender = private_key.to_address(&EthereumFormat::Standard).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_from_transaction_bytes::<N>(
-                    &Some(sender),
-                    &receiver,
-                    &amount,
-                    &parameters,
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap()
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_bytes::<N>(
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap(),
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_hash::<N>(
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_string::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
         }
     }
 
@@ -773,7 +577,7 @@ mod tests {
                 chain_id: Ropsten::CHAIN_ID as u8,
                 private_key: "51ce358ffdcf208fadfb01a339f3ab715a89045a093777a44784d9e215277c1c",
                 signed_transaction: "0xf8718085098bca5a00829c4094a554952eebbc85464f32b7b470f5b7077df4f7e2808d5472616e73616374696f6e203129a086541fe081eb1a77cb14545fce6d9324c82dab0e1e62dd994662c3f3798ddce9a018be7c3a8aeb32e06d479ec2b17d398239589f3aa6f1896479c12fa8499754a1",
-                transaction_hash: "0x145f0d0303ac319911044ff7fb708f23a0a7814c7bcadcec94fb7dbc74f76fff"
+                signed_transaction_hash: "0x145f0d0303ac319911044ff7fb708f23a0a7814c7bcadcec94fb7dbc74f76fff"
             },
         ];
 
@@ -788,148 +592,38 @@ mod tests {
                 chain_id: Ropsten::CHAIN_ID as u8,
                 private_key: "da690842b1c8207b8c82940f6b50f8b83c4d8facdf604e0a323fb557e92d3141",
                 signed_transaction: "0xf86c8085170cdc1e008252089424130a9e027d89d5da3ef5f4eab94b4c42f506de880dd953dcbee71000802aa0a4d67df068d7cbf24e8f4694284029bc18cdd6f3c2d8cfeea703eb596a623e64a03eae1d47f06fa9fa0edc5709ce8c0aa0c90c856a183289659853c80775d0e4a7",
-                transaction_hash: "0x1d1240fd80dd85aa8ccb0716ea156c70a2940e0f22fc8464abf0dce361c1829f"
+                signed_transaction_hash: "0x1d1240fd80dd85aa8ccb0716ea156c70a2940e0f22fc8464abf0dce361c1829f"
             },
         ];
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_new::<N>(
-                    transaction.signed_transaction,
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_sign::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let sender = private_key.to_address(&EthereumFormat::Standard).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_from_transaction_bytes::<N>(
-                    &Some(sender),
-                    &receiver,
-                    &amount,
-                    &parameters,
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap()
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_bytes::<N>(
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap(),
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_hash::<N>(
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_string::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
         }
     }
 
@@ -950,148 +644,38 @@ mod tests {
                 chain_id: Goerli::CHAIN_ID as u8,
                 private_key: "72a5f407855ca5bd8e30fe390362cf15c85313a2269ce142ad8fe51ef5b4ac1e",
                 signed_transaction: "0xf86b808504a817c800825208949fd6441ce8cc4524facd033921b6a2e910ec00fc87b024bf4ff6c000802da03b2a07447818c1f85ca0d28c819575fa2796f8633a7641ebe8aedc56e91a7bffa0330acba28c47630bf49f4d8b0e36f7c28aaa83672081d57adc56e80937f49977",
-                transaction_hash: "0x9683157f5d2a49ec36ecf93f0a18012db77b09e9dc0dc1f146fd3d42619d94a5"
+                signed_transaction_hash: "0x9683157f5d2a49ec36ecf93f0a18012db77b09e9dc0dc1f146fd3d42619d94a5"
             },
         ];
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_new::<N>(
-                    transaction.signed_transaction,
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_sign::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let sender = private_key.to_address(&EthereumFormat::Standard).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_from_transaction_bytes::<N>(
-                    &Some(sender),
-                    &receiver,
-                    &amount,
-                    &parameters,
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap()
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_bytes::<N>(
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap(),
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_hash::<N>(
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_string::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
         }
     }
 
@@ -1112,148 +696,38 @@ mod tests {
                 chain_id: Kovan::CHAIN_ID as u8,
                 private_key: "a54c2d5b587df5cc529ef1f843cce324cb11201705328361b54421b0ba737883",
                 signed_transaction: "0xf88280850826299e008257e094af28b521c99d392ef50bd0cad2a7e1a52f62184a880dddea9a1e47c0009654657374204b6f76616e205472616e73616374696f6e77a029d204aad100a463a5b19974775b7c05c07c534553cc930b7257edb66392c346a04bd016c3180a7cdeb41b05bd07ea6517e698f879695b1f5aeac3ce62e144f17f",
-                transaction_hash: "0x1e20b0d7a7d0db79753a3ad6ac14b0e76bd453bf19883d185b627a8cf2413f4d"
+                signed_transaction_hash: "0x1e20b0d7a7d0db79753a3ad6ac14b0e76bd453bf19883d185b627a8cf2413f4d"
             },
         ];
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_new::<N>(
-                    transaction.signed_transaction,
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_sign::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let sender = private_key.to_address(&EthereumFormat::Standard).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_from_transaction_bytes::<N>(
-                    &Some(sender),
-                    &receiver,
-                    &amount,
-                    &parameters,
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap()
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_bytes::<N>(
-                    hex::decode(&transaction.signed_transaction[2..]).unwrap(),
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_transaction_hash::<N>(
-                    transaction.transaction_hash,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(|transaction: &TransactionTestCase| {
-                let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-                let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-                let amount = U256::from_dec_str(transaction.value).unwrap();
-                let parameters = EthereumTransactionParameters {
-                    gas: U256::from_dec_str(transaction.gas).unwrap(),
-                    gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
-                    nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-                    data: transaction.data.as_bytes().to_vec()
-                };
-
-                test_to_string::<N>(
-                    transaction.signed_transaction,
-                    &private_key,
-                    &receiver,
-                    &amount,
-                    &parameters
-                ).unwrap();
-            });
+            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
         }
     }
 }
