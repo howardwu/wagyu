@@ -1,14 +1,39 @@
 use crate::address::{Address, AddressError};
 use crate::extended_private_key::ExtendedPrivateKeyError;
+use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
+
+use rlp;
 
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {
     type Address: Address;
-    type Format;
+    type Amount;
+    type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
+    type TransactionHash;
+    type TransactionParameters;
+
+    /// Returns an unsigned transaction given the sender, receiver, amount, and parameters.
+    fn new(
+        receiver: &Self::Address,
+        amount: &Self::Amount,
+        parameters: &Self::TransactionParameters
+    ) -> Result<Self, TransactionError>;
+
+    /// Returns a signed transaction given the private key of the sender.
+    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError>;
+
+    /// Returns a transaction given the transaction bytes.
+    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError>;
+
+    /// Returns the transaction in bytes.
+    fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError>;
+
+    /// Returns the transaction hash.
+    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError>;
 }
 
 #[derive(Debug, Fail)]
@@ -49,14 +74,20 @@ pub enum TransactionError {
     #[fail(display = "invalid ouptut description for address: {}", _0)]
     InvalidOutputDescription(String),
 
+    #[fail(display = "invalid transaction RLP length: expected - 9, found - {:?}", _0)]
+    InvalidRlpLength(usize),
+
     #[fail(display = "invalid script pub key for format: {}", _0)]
     InvalidScriptPubKey(String),
 
     #[fail(display = "invalid spend description for address")]
-    InvalidSpendDescription(),
+    InvalidSpendDescription,
 
     #[fail(display = "invalid transaction id {:?}", _0)]
     InvalidTransactionId(usize),
+
+    #[fail(display = "invalid transaction - either both sender and signature should be present, or neither")]
+    InvalidTransactionState,
 
     #[fail(display = "invalid chain id {:?}", _0)]
     InvalidChainId(u8),
@@ -119,6 +150,12 @@ impl From<hex::FromHexError> for TransactionError {
 impl From<PrivateKeyError> for TransactionError {
     fn from(error: PrivateKeyError) -> Self {
         TransactionError::PrivateKeyError(error)
+    }
+}
+
+impl From<rlp::DecoderError> for TransactionError {
+    fn from(error: rlp::DecoderError) -> Self {
+        TransactionError::Crate("rlp", format!("{:?}", error))
     }
 }
 
