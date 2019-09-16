@@ -21,6 +21,7 @@
 //!
 
 use wagyu_model::AddressError;
+use wagyu_model::TransactionError;
 
 use std::str::FromStr;
 
@@ -45,6 +46,12 @@ pub enum WitnessProgramError {
 impl From<WitnessProgramError> for AddressError {
     fn from(error: WitnessProgramError) -> Self {
         AddressError::Crate("WitnessProgram", format!("{:?}", error))
+    }
+}
+
+impl From<WitnessProgramError> for TransactionError {
+    fn from(error: WitnessProgramError) -> Self {
+        TransactionError::Crate("WitnessProgram", format!("{:?}", error))
     }
 }
 

@@ -1,4 +1,5 @@
-use crate::address::{Format, ZcashAddress};
+use crate::address::ZcashAddress;
+use crate::format::ZcashFormat;
 use crate::librustzcash::algebra::curve::bls12_381::Bls12;
 use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldRepr};
 use crate::librustzcash::sapling_crypto::{
@@ -247,7 +248,7 @@ pub enum ZcashPrivateKey<N: ZcashNetwork> {
 
 impl<N: ZcashNetwork> PrivateKey for ZcashPrivateKey<N> {
     type Address = ZcashAddress<N>;
-    type Format = Format;
+    type Format = ZcashFormat;
     type PublicKey = ZcashPublicKey<N>;
 
     /// Returns a randomly-generated compressed Zcash private key.
@@ -427,7 +428,7 @@ mod tests {
 
     fn test_to_address<N: ZcashNetwork>(
         expected_address: &ZcashAddress<N>,
-        expected_format: &Format,
+        expected_format: &ZcashFormat,
         private_key: &ZcashPrivateKey<N>,
     ) {
         let address = private_key.to_address(expected_format).unwrap();
@@ -438,7 +439,7 @@ mod tests {
         expected_private_key: &ZcashPrivateKey<N>,
         expected_public_key: &str,
         expected_address: &str,
-        expected_format: &Format,
+        expected_format: &ZcashFormat,
         seed: &str,
     ) {
         let private_key = ZcashPrivateKey::<N>::from_str(seed).unwrap();
@@ -521,7 +522,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &private_key);
+                test_to_address(&address, &ZcashFormat::P2PKH, &private_key);
             });
         }
 
@@ -535,7 +536,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::P2PKH,
+                        &ZcashFormat::P2PKH,
                         &private_key,
                     );
                 });
@@ -611,7 +612,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &private_key);
+                test_to_address(&address, &ZcashFormat::P2PKH, &private_key);
             });
         }
 
@@ -625,7 +626,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::P2PKH,
+                        &ZcashFormat::P2PKH,
                         &private_key,
                     );
                 });
@@ -701,7 +702,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &private_key);
+                test_to_address(&address, &ZcashFormat::P2PKH, &private_key);
             });
         }
 
@@ -715,7 +716,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::P2PKH,
+                        &ZcashFormat::P2PKH,
                         &private_key,
                     );
                 });
@@ -791,7 +792,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &Format::P2PKH, &private_key);
+                test_to_address(&address, &ZcashFormat::P2PKH, &private_key);
             });
         }
 
@@ -805,7 +806,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::P2PKH,
+                        &ZcashFormat::P2PKH,
                         &private_key,
                     );
                 });
@@ -881,7 +882,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &Format::Sprout, &private_key);
+                test_to_address(&address, &ZcashFormat::Sprout, &private_key);
             });
         }
 
@@ -895,7 +896,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::Sprout,
+                        &ZcashFormat::Sprout,
                         &private_key,
                     );
                 });
@@ -985,7 +986,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
+                        &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
                         &private_key,
                     );
                 });
@@ -1068,7 +1069,7 @@ mod tests {
                         &expected_private_key,
                         expected_public_key,
                         expected_address,
-                        &Format::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
+                        &ZcashFormat::Sapling(Some(ZcashAddress::<N>::get_diversifier(expected_address).unwrap())),
                         &private_key,
                     );
                 });

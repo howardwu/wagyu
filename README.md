@@ -3,8 +3,8 @@
 </h1>
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
-    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.0.svg"></a>
-    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.0"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.0"></a>
+    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.1.svg"></a>
+    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.1"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.1"></a>
     <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
     <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
 </p>
@@ -29,8 +29,7 @@
 
 ## 1. Overview
 
-Wagyu is a lightweight command-line utility to generate a cryptocurrency wallet.
-
+Wagyu is a feature-rich command-line utility to generate a cryptocurrency wallet.
 
 Wagyu enables developers to build their own cryptocurrency application using the following modules.
 

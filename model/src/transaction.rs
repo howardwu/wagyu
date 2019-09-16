@@ -1,11 +1,10 @@
 use crate::address::{Address, AddressError};
-use crate::private_key::PrivateKey;
-use crate::public_key::{PublicKey, PublicKeyError};
-
-use std::{fmt::Debug, hash::Hash};
+use crate::extended_private_key::ExtendedPrivateKeyError;
+use crate::private_key::{PrivateKey, PrivateKeyError};
+use crate::public_key::PublicKey;
 
 /// The interface for a generic transactions.
-pub trait Transaction: Clone + Debug + Send + Sync + 'static + Eq + Ord + Sized + Hash {
+pub trait Transaction: Clone + Send + Sync + 'static {
     type Address: Address;
     type Format;
     type PrivateKey: PrivateKey;
@@ -17,11 +16,44 @@ pub enum TransactionError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
 
+    #[fail(display = "invalid binding signature for the transaction")]
+    InvalidBindingSig(),
+
+    #[fail(display = "witnesses have a conflicting anchor")]
+    ConflictingWitnessAnchors(),
+
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
+    #[fail(display = "{}", _0)]
+    ExtendedPrivateKeyError(ExtendedPrivateKeyError),
+
+    #[fail(display = "Failed note decryption for enc_cyphertext: {}", _0)]
+    FailedNoteDecryption(String),
+
+    #[fail(display = "{}", _0)]
+    Message(String),
+
+    #[fail(display = "missing spend description")]
+    MissingSpendDescription(),
+
+    #[fail(display = "invalid ephemeral key {}", _0)]
+    InvalidEphemeralKey(String),
+
     #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
     InvalidInputs(String),
+
+    #[fail(display = "invalid output address: {}", _0)]
+    InvalidOutputAddress(String),
+
+    #[fail(display = "invalid ouptut description for address: {}", _0)]
+    InvalidOutputDescription(String),
+
+    #[fail(display = "invalid script pub key for format: {}", _0)]
+    InvalidScriptPubKey(String),
+
+    #[fail(display = "invalid spend description for address")]
+    InvalidSpendDescription(),
 
     #[fail(display = "invalid transaction id {:?}", _0)]
     InvalidTransactionId(usize),
@@ -29,16 +61,22 @@ pub enum TransactionError {
     #[fail(display = "invalid chain id {:?}", _0)]
     InvalidChainId(u8),
 
-    #[fail(display = "{}", _0)]
-    Message(String),
+    #[fail(display = "Null Error {:?}", _0)]
+    NullError(()),
 
     #[fail(display = "{}", _0)]
-    PublicKeyError(PublicKeyError),
+    PrivateKeyError(PrivateKeyError),
 }
 
 impl From<&'static str> for TransactionError {
     fn from(msg: &'static str) -> Self {
         TransactionError::Message(msg.into())
+    }
+}
+
+impl From<()> for TransactionError {
+    fn from(error: ()) -> Self {
+        TransactionError::NullError(error)
     }
 }
 
@@ -62,7 +100,19 @@ impl From<base58_monero::base58::Error> for TransactionError {
 
 impl From<bech32::Error> for TransactionError {
     fn from(error: bech32::Error) -> Self {
-        TransactionError::Crate("hex", format!("{:?}", error))
+        TransactionError::Crate("bech32", format!("{:?}", error))
+    }
+}
+
+impl From<ExtendedPrivateKeyError> for TransactionError {
+    fn from(error: ExtendedPrivateKeyError) -> Self {
+        TransactionError::ExtendedPrivateKeyError(error)
+    }
+}
+
+impl From<ff::PrimeFieldDecodingError> for TransactionError {
+    fn from(error: ff::PrimeFieldDecodingError) -> Self {
+        TransactionError::Crate("ff", format!("{:?}", error))
     }
 }
 
@@ -72,9 +122,9 @@ impl From<hex::FromHexError> for TransactionError {
     }
 }
 
-impl From<PublicKeyError> for TransactionError {
-    fn from(error: PublicKeyError) -> Self {
-        TransactionError::PublicKeyError(error)
+impl From<PrivateKeyError> for TransactionError {
+    fn from(error: PrivateKeyError) -> Self {
+        TransactionError::PrivateKeyError(error)
     }
 }
 

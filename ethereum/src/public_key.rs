@@ -1,9 +1,10 @@
 use crate::address::EthereumAddress;
+use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
-use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -11,7 +12,7 @@ pub struct EthereumPublicKey(secp256k1::PublicKey);
 
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
-    type Format = PhantomData<u8>;
+    type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
 
     /// Returns the address corresponding to the given public key.
@@ -23,8 +24,8 @@ impl PublicKey for EthereumPublicKey {
     }
 
     /// Returns the address of the corresponding private key.
-    fn to_address(&self, _: &Self::Format) -> Result<Self::Address, AddressError> {
-        EthereumAddress::from_public_key(self, &PhantomData)
+    fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
+        EthereumAddress::from_public_key(self, _format)
     }
 }
 
@@ -69,13 +70,13 @@ mod tests {
     }
 
     fn test_to_address(expected_address: &EthereumAddress, public_key: &EthereumPublicKey) {
-        let address = public_key.to_address(&PhantomData).unwrap();
+        let address = public_key.to_address(&EthereumFormat::Standard).unwrap();
         assert_eq!(*expected_address, address);
     }
 
     fn test_from_str(expected_public_key: &str, expected_address: &str) {
         let public_key = EthereumPublicKey::from_str(expected_public_key).unwrap();
-        let address = public_key.to_address(&PhantomData).unwrap();
+        let address = public_key.to_address(&EthereumFormat::Standard).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_address, address.to_string());
     }

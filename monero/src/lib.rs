@@ -21,6 +21,9 @@ pub use self::address::*;
 pub mod mnemonic;
 pub use self::mnemonic::*;
 
+pub mod format;
+pub use self::format::*;
+
 pub mod network;
 pub use self::network::*;
 

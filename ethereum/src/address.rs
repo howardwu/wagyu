@@ -1,10 +1,11 @@
+use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{to_hex_string, Address, AddressError, PrivateKey};
 
 use regex::Regex;
 use serde::Serialize;
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents an Ethereum address
@@ -12,13 +13,13 @@ use tiny_keccak::keccak256;
 pub struct EthereumAddress(String);
 
 impl Address for EthereumAddress {
-    type Format = PhantomData<u8>;
+    type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_private_key(private_key: &Self::PrivateKey, _: &Self::Format) -> Result<Self, AddressError> {
-        Self::from_public_key(&private_key.to_public_key(), &PhantomData)
+    fn from_private_key(private_key: &Self::PrivateKey, _format: &Self::Format) -> Result<Self, AddressError> {
+        Self::from_public_key(&private_key.to_public_key(), _format)
     }
 
     /// Returns the address corresponding to the given public key.
@@ -94,12 +95,12 @@ mod tests {
     use wagyu_model::public_key::PublicKey;
 
     fn test_from_private_key(expected_address: &str, private_key: &EthereumPrivateKey) {
-        let address = EthereumAddress::from_private_key(private_key, &PhantomData).unwrap();
+        let address = EthereumAddress::from_private_key(private_key, &EthereumFormat::Standard).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
     fn test_from_public_key(expected_address: &str, public_key: &EthereumPublicKey) {
-        let address = EthereumAddress::from_public_key(public_key, &PhantomData).unwrap();
+        let address = EthereumAddress::from_public_key(public_key, &EthereumFormat::Standard).unwrap();
         assert_eq!(expected_address, address.to_string());
     }
 
@@ -179,11 +180,11 @@ mod tests {
         let expected_address = "0xF9001e6AEE6EA439D713fBbF960EbA76f4770E2B";
 
         let private_key = EthereumPrivateKey::from_str(private_key).unwrap();
-        let address = EthereumAddress::from_private_key(&private_key, &PhantomData).unwrap();
+        let address = EthereumAddress::from_private_key(&private_key, &EthereumFormat::Standard).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         let public_key = EthereumPublicKey::from_private_key(&private_key);
-        let address = EthereumAddress::from_public_key(&public_key, &PhantomData).unwrap();
+        let address = EthereumAddress::from_public_key(&public_key, &EthereumFormat::Standard).unwrap();
         assert_ne!(expected_address, address.to_string());
 
         // Invalid address length

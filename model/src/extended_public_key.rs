@@ -1,6 +1,7 @@
 use crate::address::{Address, AddressError};
 use crate::derivation_path::{DerivationPath, DerivationPathError};
 use crate::extended_private_key::ExtendedPrivateKey;
+use crate::format::Format;
 use crate::network::NetworkError;
 use crate::public_key::{PublicKey, PublicKeyError};
 
@@ -14,7 +15,7 @@ pub trait ExtendedPublicKey: Clone + Debug + Display + FromStr + Send + Sync + '
     type Address: Address;
     type DerivationPath: DerivationPath;
     type ExtendedPrivateKey: ExtendedPrivateKey;
-    type Format;
+    type Format: Format;
     type PublicKey: PublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.

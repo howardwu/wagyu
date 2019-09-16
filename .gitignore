@@ -1,8 +1,8 @@
 .idea/
 /target
 **/*.rs.bk
-Cargo.lock
 .DS_Store
+Cargo.lock
 **/*.rs.fmt
 *.rs.fmt
 **/*.toml.fmt

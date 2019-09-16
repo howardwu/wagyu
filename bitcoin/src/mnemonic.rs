@@ -1,6 +1,7 @@
-use crate::address::{BitcoinAddress, Format};
+use crate::address::BitcoinAddress;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::extended_public_key::BitcoinExtendedPublicKey;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
@@ -39,7 +40,7 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemonic
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
         Ok(Self::ExtendedPrivateKey::new_master(
             self.to_seed(password)?.as_slice(),
-            &Format::P2PKH,
+            &BitcoinFormat::P2PKH,
         )?)
     }
 
@@ -51,7 +52,7 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> MnemonicExtended for BitcoinMnemonic
 
 impl<N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
     type Address = BitcoinAddress<N>;
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PrivateKey = BitcoinPrivateKey<N>;
     type PublicKey = BitcoinPublicKey<N>;
 

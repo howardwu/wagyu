@@ -1,6 +1,8 @@
-use super::*;
-use crate::address::Format;
-use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use crate::format::BitcoinFormat;
+use crate::network::BitcoinNetwork;
+use wagyu_model::{
+    AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, NetworkError, PrivateKeyError,
+};
 
 use serde::Serialize;
 use std::{fmt, str::FromStr};
@@ -8,17 +10,19 @@ use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Mainnet;
 
-impl Network for Mainnet {}
+impl Network for Mainnet {
+    const NAME: &'static str = "mainnet";
+}
 
 impl BitcoinNetwork for Mainnet {
-    const NAME: &'static str = "mainnet";
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(0);
 
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &Format) -> Vec<u8> {
+    fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
-            Format::P2PKH => vec![0x00],
-            Format::P2SH_P2WPKH => vec![0x05],
-            Format::Bech32 => vec![0x62, 0x63],
+            BitcoinFormat::P2PKH => vec![0x00],
+            BitcoinFormat::P2SH_P2WPKH => vec![0x05],
+            BitcoinFormat::Bech32 => vec![0x62, 0x63],
         }
     }
 
@@ -31,12 +35,12 @@ impl BitcoinNetwork for Mainnet {
     }
 
     /// Returns the wif prefix of the given network.
-    fn to_wif_prefix() -> u8 {
+    fn to_private_key_prefix() -> u8 {
         0x80
     }
 
     /// Returns the network of the given wif prefix.
-    fn from_wif_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
+    fn from_private_key_prefix(prefix: u8) -> Result<Self, PrivateKeyError> {
         match prefix {
             0x80 => Ok(Self),
             _ => Err(PrivateKeyError::InvalidPrefix(vec![prefix])),
@@ -45,10 +49,10 @@ impl BitcoinNetwork for Mainnet {
 
     /// Returns the extended private key version bytes of the given network.
     /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
-    fn to_extended_private_key_version_bytes(format: &Format) -> Result<Vec<u8>, ExtendedPrivateKeyError> {
+    fn to_extended_private_key_version_bytes(format: &BitcoinFormat) -> Result<Vec<u8>, ExtendedPrivateKeyError> {
         match format {
-            Format::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]),       // xprv
-            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // yprv
+            BitcoinFormat::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]), // xprv
+            BitcoinFormat::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // yprv
             _ => Err(ExtendedPrivateKeyError::UnsupportedFormat(format.to_string())),
         }
     }
@@ -64,10 +68,10 @@ impl BitcoinNetwork for Mainnet {
 
     /// Returns the extended public key version bytes of the given network.
     /// https://github.com/satoshilabs/slips/blob/master/slip-0132.md
-    fn to_extended_public_key_version_bytes(format: &Format) -> Result<Vec<u8>, ExtendedPublicKeyError> {
+    fn to_extended_public_key_version_bytes(format: &BitcoinFormat) -> Result<Vec<u8>, ExtendedPublicKeyError> {
         match format {
-            Format::P2PKH => Ok(vec![0x04, 0x88, 0xB2, 0x1E]),       // xpub
-            Format::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x7C, 0xB2]), // ypub
+            BitcoinFormat::P2PKH => Ok(vec![0x04, 0x88, 0xB2, 0x1E]), // xpub
+            BitcoinFormat::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x7C, 0xB2]), // ypub
             _ => Err(ExtendedPublicKeyError::UnsupportedFormat(format.to_string())),
         }
     }

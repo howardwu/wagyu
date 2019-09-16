@@ -1,18 +1,19 @@
-use crate::address::{BitcoinAddress, Format};
+use crate::address::BitcoinAddress;
 use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
+use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
-    AddressError, ChildIndex, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
+    AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
 };
 
 use base58::{FromBase58, ToBase58};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -20,7 +21,7 @@ type HmacSha512 = Hmac<Sha512>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
     /// The address format
-    format: Format,
+    format: BitcoinFormat,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -31,15 +32,13 @@ pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
     chain_code: [u8; 32],
     /// The Bitcoin public key
     public_key: BitcoinPublicKey<N>,
-    /// PhantomData
-    _network: PhantomData<N>,
 }
 
 impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     type Address = BitcoinAddress<N>;
-    type DerivationPath = BitcoinDerivationPath;
+    type DerivationPath = BitcoinDerivationPath<N>;
     type ExtendedPrivateKey = BitcoinExtendedPrivateKey<N>;
-    type Format = Format;
+    type Format = BitcoinFormat;
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
@@ -51,7 +50,6 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             child_index: extended_private_key.child_index,
             chain_code: extended_private_key.chain_code,
             public_key: extended_private_key.to_public_key(),
-            _network: PhantomData,
         }
     }
 
@@ -63,7 +61,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
 
         let mut extended_public_key = self.clone();
 
-        for index in path.into_iter() {
+        for index in path.to_vec()?.into_iter() {
             let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
@@ -72,11 +70,11 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
                 ChildIndex::Normal(_) => mac.input(public_key_serialized),
                 // Return failure
                 ChildIndex::Hardened(_) => {
-                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(*index)))
+                    return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(index)))
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(*index).to_be_bytes());
+            mac.input(&u32::from(index).to_be_bytes());
             let hmac = mac.result().code();
 
             let mut chain_code = [0u8; 32];
@@ -90,13 +88,12 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
             extended_public_key = Self {
-                format: self.format.clone(),
-                depth: self.depth + 1,
+                format: extended_public_key.format.clone(),
+                depth: extended_public_key.depth + 1,
                 parent_fingerprint,
-                child_index: *index,
+                child_index: index,
                 chain_code,
                 public_key,
-                _network: PhantomData,
             };
         }
 
@@ -125,7 +122,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
 
         // Check that the version bytes correspond with the correct network.
         let _ = N::from_extended_public_key_version_bytes(&data[0..4])?;
-        let format = Format::from_extended_public_key_version_bytes(&data[0..4])?;
+        let format = BitcoinFormat::from_extended_public_key_version_bytes(&data[0..4])?;
 
         let mut version = [0u8; 4];
         version.copy_from_slice(&data[0..4]);
@@ -158,7 +155,6 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
             child_index,
             chain_code,
             public_key,
-            _network: PhantomData,
         })
     }
 }
@@ -192,6 +188,7 @@ mod tests {
     use wagyu_model::extended_private_key::ExtendedPrivateKey;
 
     use hex;
+    use std::convert::TryInto;
 
     fn test_from_extended_private_key<N: BitcoinNetwork>(
         expected_extended_public_key: &str,
@@ -222,7 +219,7 @@ mod tests {
         expected_extended_public_key2: &str,
         expected_child_index2: u32,
     ) {
-        let path = vec![ChildIndex::from(expected_child_index2)].into();
+        let path = vec![ChildIndex::from(expected_child_index2)].try_into().unwrap();
 
         let extended_private_key1 = BitcoinExtendedPrivateKey::<N>::from_str(expected_extended_private_key1).unwrap();
         let extended_private_key2 = extended_private_key1.derive(&path).unwrap();

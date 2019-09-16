@@ -1,24 +1,26 @@
 use super::*;
-use crate::address::Format;
-use wagyu_model::{AddressError, Network, NetworkError, PrivateKeyError};
+use crate::format::ZcashFormat;
+use wagyu_model::{AddressError, ChildIndex, Network, NetworkError, PrivateKeyError};
 
 use serde::Serialize;
 use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Testnet;
 
-impl Network for Testnet {}
+impl Network for Testnet {
+    const NAME: &'static str = "testnet";
+}
 
 impl ZcashNetwork for Testnet {
-    const NAME: &'static str = "testnet";
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(1);
 
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &Format) -> Vec<u8> {
+    fn to_address_prefix(format: &ZcashFormat) -> Vec<u8> {
         match format {
-            Format::P2PKH => vec![0x1D, 0x25],
-            Format::P2SH => vec![0x1C, 0xBA],
-            Format::Sprout => vec![0x16, 0xB6],
-            Format::Sapling(_) => "ztestsapling".as_bytes().to_vec(),
+            ZcashFormat::P2PKH => vec![0x1D, 0x25],
+            ZcashFormat::P2SH => vec![0x1C, 0xBA],
+            ZcashFormat::Sprout => vec![0x16, 0xB6],
+            ZcashFormat::Sapling(_) => "ztestsapling".as_bytes().to_vec(),
         }
     }
 
@@ -68,11 +70,13 @@ impl ZcashNetwork for Testnet {
     }
 
     /// Returns the extended private key prefix of the given network.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-spending-keys
     fn to_extended_private_key_prefix() -> String {
         "secret-extended-key-test".into()
     }
 
     /// Returns the network of the given extended private key prefix.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-spending-keys
     fn from_extended_private_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
         match prefix {
             "secret-extended-key-test" => Ok(Self),
@@ -81,14 +85,16 @@ impl ZcashNetwork for Testnet {
     }
 
     /// Returns the extended public key prefix of the given network.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-full-viewing-keys
     fn to_extended_public_key_prefix() -> String {
-        "zviewtestsapling".into()
+        "zxviewtestsapling".into()
     }
 
     /// Returns the network of the given extended public key prefix.
+    /// https://github.com/zcash/zips/blob/master/zip-0032.rst#sapling-extended-full-viewing-keys
     fn from_extended_public_key_prefix(prefix: &str) -> Result<Self, NetworkError> {
         match prefix {
-            "zviewtestsapling" => Ok(Self),
+            "zxviewtestsapling" => Ok(Self),
             _ => return Err(NetworkError::InvalidExtendedPublicKeyPrefix(prefix.into())),
         }
     }

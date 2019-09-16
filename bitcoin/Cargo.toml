@@ -21,7 +21,7 @@ wagyu-model = { path = "../model", version = "0.6.0" }
 
 base58 = { version = "0.1" }
 bech32 = { version = "0.6.0" }
-bitvec = { version = "0.14.0" }
+bitvec = { version = "0.15.1" }
 digest = { version = "0.8.1" }
 failure = { version = "0.1.5" }
 hex = { version = "0.3.2" }
@@ -29,7 +29,7 @@ hmac = { version = "0.7.0" }
 pbkdf2 = { version = "0.3.0", features=["parallel"], default-features = false }
 rand = { version = "0.7" }
 ripemd160 = { version = "0.8" }
-secp256k1 = { version = "0.15.0" }
+secp256k1 = { version = "0.15.3" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.8" }
