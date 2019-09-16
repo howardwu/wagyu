@@ -3,7 +3,7 @@ use crate::ethereum::{
     wordlist::*, EthereumAddress, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumExtendedPublicKey,
     EthereumFormat, EthereumMnemonic, EthereumNetwork, EthereumPrivateKey, EthereumPublicKey, Mainnet,
 };
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey};
 
 use clap::ArgMatches;
 use colored::*;
@@ -51,7 +51,7 @@ impl EthereumWallet {
         password: Option<&str>,
         path: &str,
     ) -> Result<Self, CLIError> {
-        let mnemonic = EthereumMnemonic::<N, W>::new(word_count, rng)?;
+        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(rng, word_count)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = EthereumDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;

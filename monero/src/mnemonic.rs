@@ -14,10 +14,8 @@ use std::{fmt, marker::PhantomData, str, str::FromStr};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Represents a Monero mnemonic
 pub struct MoneroMnemonic<N: MoneroNetwork, W: MoneroWordlist> {
-    /// Initial 256-bit seed
+    /// The initial 256-bit seed
     seed: [u8; 32],
-    /// The mnemonic phrase
-    phrase: String,
     /// PhantomData
     _network: PhantomData<N>,
     /// PhantomData
@@ -30,88 +28,17 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
 
+    /// Returns a new mnemonic.
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
+        Ok(Self {
+            seed: rng.gen(),
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        })
+    }
+
     /// Returns the mnemonic for the given phrase.
     fn from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        Ok(Self {
-            seed: Self::to_seed(phrase)?,
-            phrase: phrase.to_owned(),
-            _network: PhantomData,
-            _wordlist: PhantomData,
-        })
-    }
-
-    /// Returns the private key of the corresponding mnemonic.
-    fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
-        Ok(MoneroPrivateKey::from_seed(
-            hex::encode(&self.seed).as_str(),
-            &MoneroFormat::Standard,
-        )?)
-    }
-
-    /// Returns the public key of the corresponding mnemonic.
-    fn to_public_key(&self, _: Option<&str>) -> Result<Self::PublicKey, MnemonicError> {
-        Ok(self.to_private_key(None)?.to_public_key())
-    }
-
-    /// Returns the address of the corresponding mnemonic.
-    fn to_address(&self, _: Option<&str>, _: &Self::Format) -> Result<Self::Address, MnemonicError> {
-        Ok(self.to_private_key(None)?.to_address(&MoneroFormat::Standard)?)
-    }
-}
-
-impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
-    /// Returns a new mnemonic phrase.
-    pub fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
-        let seed: [u8; 32] = rng.gen();
-        Ok(Self::from_seed(&seed)?)
-    }
-
-    /// Compares the given phrase against the phrase extracted from its entropy.
-    pub fn verify_phrase(phrase: &str) -> bool {
-        Self::to_seed(phrase).is_ok()
-    }
-
-    /// Returns the mnemonic for the given seed.
-    pub fn from_seed(seed: &[u8; 32]) -> Result<Self, MnemonicError> {
-        let seed = &Scalar::from_bytes_mod_order(*seed).to_bytes();
-
-        // Reverse the endian in 4 byte intervals
-        let length = 1626;
-        let inputs = seed
-            .chunks(4)
-            .map(|chunk| {
-                let mut input: [u8; 4] = [0u8; 4];
-                input.copy_from_slice(chunk);
-
-                u32::from_le_bytes(input)
-            })
-            .collect::<Vec<u32>>();
-
-        // Generate three words from every 4 byte interval
-        let mut phrase = vec![];
-        for index in inputs {
-            let w1 = index % length;
-            let w2 = ((index / length) + w1) % length;
-            let w3 = (((index / length) / length) + w2) % length;
-
-            phrase.push(W::get(w1 as usize)?);
-            phrase.push(W::get(w2 as usize)?);
-            phrase.push(W::get(w3 as usize)?);
-        }
-
-        // Compute the checksum word
-        phrase.push(Self::checksum_word(&phrase));
-
-        Ok(Self {
-            seed: *seed,
-            phrase: phrase.join(" "),
-            _network: PhantomData,
-            _wordlist: PhantomData,
-        })
-    }
-
-    /// Returns the seed for the given phrase.
-    fn to_seed(phrase: &str) -> Result<[u8; 32], MnemonicError> {
         let length = 1626;
         let words = phrase.split(" ").collect::<Vec<&str>>();
         let mut phrase = words.iter().map(|word| word.to_string()).collect::<Vec<String>>();
@@ -153,10 +80,78 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
             return Err(MnemonicError::InvalidChecksumWord(expected, found));
         }
 
-        let mut data = [0u8; 32];
-        data.copy_from_slice(&buffer);
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(&buffer);
 
-        Ok(data)
+        Ok(Self {
+            seed,
+            _network: PhantomData,
+            _wordlist: PhantomData,
+        })
+    }
+
+    fn to_phrase(&self) -> Result<String, MnemonicError> {
+        let seed = &Scalar::from_bytes_mod_order(self.seed).to_bytes();
+
+        // Reverse the endian in 4 byte intervals
+        let length = 1626;
+        let inputs = seed
+            .chunks(4)
+            .map(|chunk| {
+                let mut input: [u8; 4] = [0u8; 4];
+                input.copy_from_slice(chunk);
+
+                u32::from_le_bytes(input)
+            })
+            .collect::<Vec<u32>>();
+
+        // Generate three words from every 4 byte interval
+        let mut phrase = vec![];
+        for index in inputs {
+            let w1 = index % length;
+            let w2 = ((index / length) + w1) % length;
+            let w3 = (((index / length) / length) + w2) % length;
+
+            phrase.push(W::get(w1 as usize)?);
+            phrase.push(W::get(w2 as usize)?);
+            phrase.push(W::get(w3 as usize)?);
+        }
+
+        // Compute the checksum word
+        phrase.push(Self::checksum_word(&phrase));
+
+        Ok(phrase.join(" "))
+    }
+
+    /// Returns the private key of the corresponding mnemonic.
+    fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
+        Ok(MoneroPrivateKey::from_seed(
+            hex::encode(&self.seed).as_str(),
+            &MoneroFormat::Standard,
+        )?)
+    }
+
+    /// Returns the public key of the corresponding mnemonic.
+    fn to_public_key(&self, _: Option<&str>) -> Result<Self::PublicKey, MnemonicError> {
+        Ok(self.to_private_key(None)?.to_public_key())
+    }
+
+    /// Returns the address of the corresponding mnemonic.
+    fn to_address(&self, _: Option<&str>, _: &Self::Format) -> Result<Self::Address, MnemonicError> {
+        Ok(self.to_private_key(None)?.to_address(&MoneroFormat::Standard)?)
+    }
+}
+
+impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
+
+    /// Returns the mnemonic of the given private spend key
+    pub fn from_private_spend_key(private_spend_key: &[u8; 32]) -> Self {
+        Self { seed: *private_spend_key, _network: PhantomData, _wordlist: PhantomData }
+    }
+
+    /// Compares the given phrase against the phrase extracted from its entropy.
+    pub fn verify_phrase(phrase: &str) -> bool {
+        Self::from_phrase(phrase).is_ok()
     }
 
     /// Returns the checksum word for a given phrase.
@@ -179,7 +174,10 @@ impl<N: MoneroNetwork, W: MoneroWordlist> FromStr for MoneroMnemonic<N, W> {
 
 impl<N: MoneroNetwork, W: MoneroWordlist> fmt::Display for MoneroMnemonic<N, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.phrase)
+        write!(f, "{}", match self.to_phrase() {
+            Ok(phrase) => phrase,
+            _ => return Err(fmt::Error),
+        })
     }
 }
 
@@ -192,28 +190,24 @@ mod tests {
 
     fn test_new<N: MoneroNetwork, W: MoneroWordlist>() {
         let rng = &mut rand::thread_rng();
-        let result = MoneroMnemonic::<N, W>::new(rng).unwrap();
-        test_from_seed::<N, W>(&result.phrase, &result.seed);
-    }
-
-    fn test_from_seed<N: MoneroNetwork, W: MoneroWordlist>(expected_phrase: &str, seed: &[u8; 32]) {
-        let result = MoneroMnemonic::<N, W>::from_seed(seed).unwrap();
-        assert_eq!(expected_phrase, result.phrase);
+        let mnemonic = MoneroMnemonic::<N, W>::new(rng).unwrap();
+        test_to_phrase::<N, W>(&mnemonic.to_phrase().unwrap(), &mnemonic.seed);
     }
 
     fn test_from_phrase<N: MoneroNetwork, W: MoneroWordlist>(expected_seed: &[u8; 32], phrase: &str) {
-        let result = MoneroMnemonic::<N, W>::from_phrase(phrase).unwrap();
-        assert_eq!(&expected_seed[..], &result.seed[..]);
-        assert_eq!(phrase, result.phrase);
+        let mnemonic = MoneroMnemonic::<N, W>::from_phrase(phrase).unwrap();
+        assert_eq!(&expected_seed[..], &mnemonic.seed[..]);
+        assert_eq!(phrase, mnemonic.to_phrase().unwrap());
+    }
+
+    fn test_to_phrase<N: MoneroNetwork, W: MoneroWordlist>(expected_phrase: &str, seed: &[u8; 32]) {
+        let mnemonic = MoneroMnemonic::<N, W> { seed: *seed, _network: PhantomData, _wordlist: PhantomData };
+        assert_eq!(&seed[..], &mnemonic.seed[..]);
+        assert_eq!(expected_phrase, mnemonic.to_phrase().unwrap());
     }
 
     fn test_verify_phrase<N: MoneroNetwork, W: MoneroWordlist>(phrase: &str) {
         assert!(MoneroMnemonic::<N, W>::verify_phrase(phrase));
-    }
-
-    fn test_to_seed<N: MoneroNetwork, W: MoneroWordlist>(expected_seed: &[u8; 32], phrase: &str) {
-        let result = MoneroMnemonic::<N, W>::to_seed(phrase).unwrap();
-        assert_eq!(&expected_seed[..], &result[..]);
     }
 
     fn test_to_private_key<N: MoneroNetwork, W: MoneroWordlist>(
@@ -274,15 +268,6 @@ mod tests {
         }
 
         #[test]
-        fn from_seed() {
-            KEYPAIRS.iter().for_each(|(seed_str, expected_phrase, _)| {
-                let mut seed = [0u8; 32];
-                seed.copy_from_slice(&hex::decode(seed_str).unwrap());
-                test_from_seed::<N, W>(expected_phrase, &seed);
-            });
-        }
-
-        #[test]
         fn from_phrase() {
             KEYPAIRS.iter().for_each(|(seed, phrase, _)| {
                 let mut expected_seed = [0u8; 32];
@@ -292,19 +277,19 @@ mod tests {
         }
 
         #[test]
-        fn verify_phrase() {
-            KEYPAIRS.iter().for_each(|(_, phrase, _)| {
-                test_verify_phrase::<N, W>(phrase);
+        fn to_phrase() {
+            KEYPAIRS.iter().for_each(|(seed_str, expected_phrase, _)| {
+                let mut seed = [0u8; 32];
+                seed.copy_from_slice(&hex::decode(seed_str).unwrap());
+                test_to_phrase::<N, W>(expected_phrase, &seed);
             });
         }
 
         #[test]
-        fn to_seed() {
-            KEYPAIRS.iter().for_each(|(seed, phrase, _)| {
-                let mut expected_seed = [0u8; 32];
-                expected_seed.copy_from_slice(&hex::decode(seed).unwrap());
-                test_to_seed::<N, W>(&expected_seed, phrase);
-            })
+        fn verify_phrase() {
+            KEYPAIRS.iter().for_each(|(_, phrase, _)| {
+                test_verify_phrase::<N, W>(phrase);
+            });
         }
 
         #[test]

@@ -6,6 +6,7 @@ use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::wordlist::WordlistError;
 
+use rand::Rng;
 use std::{
     fmt::{Debug, Display},
     str::FromStr,
@@ -18,8 +19,14 @@ pub trait Mnemonic: Clone + Debug + Display + FromStr + Send + Sync + 'static + 
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
 
+    /// Returns a new mnemonic.
+    fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError>;
+
     /// Returns the mnemonic for the given phrase.
     fn from_phrase(phrase: &str) -> Result<Self, MnemonicError>;
+
+    /// Returns the phrase of the corresponding mnemonic.
+    fn to_phrase(&self) -> Result<String, MnemonicError>;
 
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, password: Option<&str>) -> Result<Self::PrivateKey, MnemonicError>;
@@ -32,7 +39,13 @@ pub trait Mnemonic: Clone + Debug + Display + FromStr + Send + Sync + 'static + 
 }
 
 /// The interface for a generic mnemonic for extended keys.
-pub trait MnemonicExtended: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
+pub trait MnemonicCount: Mnemonic {
+    /// Returns a new mnemonic given the word count.
+    fn new_with_count<R: Rng>(rng: &mut R, word_count: u8) -> Result<Self, MnemonicError>;
+}
+
+/// The interface for a generic mnemonic for extended keys.
+pub trait MnemonicExtended: Mnemonic {
     type ExtendedPrivateKey: ExtendedPrivateKey;
     type ExtendedPublicKey: ExtendedPublicKey;
 
