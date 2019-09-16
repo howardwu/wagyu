@@ -144,6 +144,11 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
 
 impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
 
+    /// Returns the mnemonic of the given private spend key
+    pub fn from_private_spend_key(private_spend_key: &[u8; 32]) -> Self {
+        Self { seed: *private_spend_key, _network: PhantomData, _wordlist: PhantomData }
+    }
+
     /// Compares the given phrase against the phrase extracted from its entropy.
     pub fn verify_phrase(phrase: &str) -> bool {
         Self::from_phrase(phrase).is_ok()
