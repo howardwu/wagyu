@@ -1177,7 +1177,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "wagyu"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "arrayvec 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1194,16 +1194,16 @@ dependencies = [
  "serde 1.0.99 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wagyu-bitcoin 0.6.0",
- "wagyu-ethereum 0.6.0",
- "wagyu-model 0.6.0",
- "wagyu-monero 0.6.0",
- "wagyu-zcash 0.6.0",
+ "wagyu-bitcoin 0.6.1",
+ "wagyu-ethereum 0.6.1",
+ "wagyu-model 0.6.1",
+ "wagyu-monero 0.6.1",
+ "wagyu-zcash 0.6.1",
 ]
 
 [[package]]
 name = "wagyu-bitcoin"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bech32 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1220,12 +1220,12 @@ dependencies = [
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wagyu-model 0.6.0",
+ "wagyu-model 0.6.1",
 ]
 
 [[package]]
 name = "wagyu-ethereum"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitvec 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1239,12 +1239,12 @@ dependencies = [
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wagyu-model 0.6.0",
+ "wagyu-model 0.6.1",
 ]
 
 [[package]]
 name = "wagyu-model"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base58-monero 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1262,7 +1262,7 @@ dependencies = [
 
 [[package]]
 name = "wagyu-monero"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "base58-monero 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1272,12 +1272,12 @@ dependencies = [
  "serde 1.0.99 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wagyu-model 0.6.0",
+ "wagyu-model 0.6.1",
 ]
 
 [[package]]
 name = "wagyu-zcash"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "aes 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1299,7 +1299,7 @@ dependencies = [
  "secp256k1 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.99 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
- "wagyu-model 0.6.0",
+ "wagyu-model 0.6.1",
 ]
 
 [[package]]

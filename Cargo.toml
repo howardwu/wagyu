@@ -1,6 +1,6 @@
 [package]
 name = "wagyu"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "Collin Chin",
     "Raymond Chu",
@@ -30,11 +30,11 @@ members = [ "bitcoin", "ethereum", "model", "monero", "zcash" ]
 travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
 
 [dependencies]
-wagyu-bitcoin = { path = "./bitcoin", version = "0.6.0" }
-wagyu-ethereum = { path = "./ethereum", version = "0.6.0" }
-wagyu-model = { path = "./model", version = "0.6.0" }
-wagyu-monero = { path = "./monero", version = "0.6.0" }
-wagyu-zcash = { path = "./zcash", version = "0.6.0" }
+wagyu-bitcoin = { path = "./bitcoin", version = "0.6.1" }
+wagyu-ethereum = { path = "./ethereum", version = "0.6.1" }
+wagyu-model = { path = "./model", version = "0.6.1" }
+wagyu-monero = { path = "./monero", version = "0.6.1" }
+wagyu-zcash = { path = "./zcash", version = "0.6.1" }
 
 arrayvec = { version = "0.4.7" }
 base58 = { version = "0.1" }
