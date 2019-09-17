@@ -153,7 +153,7 @@ impl Default for CreateTransaction {
 }
 
 impl<N: MoneroNetwork> MoneroTransaction<N> {
-    /// Returns Monero transaction fee parameters and decoy outputs
+    /// Returns Monero transaction cost details, required mixin, and unspent outputs that will be used
     /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L445
     pub fn prepare_transaction(
         is_sweeping: bool,
@@ -228,7 +228,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         })
     }
 
-    /// Returns Monero transaction
+    /// Returns Monero raw transaction, transaction hash, transaction id, transaction public key
     /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L529
     pub fn create_transaction(
         change_amount: u64,
