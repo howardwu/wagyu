@@ -4,6 +4,7 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
+use wagyu_model::{PrivateKey, Transaction, TransactionError};
 
 use base58::FromBase58;
 use bech32::{Bech32, FromBase32};
@@ -11,404 +12,19 @@ use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{fmt, marker::PhantomData, str::FromStr};
-use wagyu_model::{PrivateKey, Transaction, TransactionError};
 
-/// Represents the signature hash opcode
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-#[allow(non_camel_case_types)]
-pub enum SigHashCode {
-    SIGHASH_ALL = 1,
-    SIGHASH_NONE = 2,
-    SIGHASH_SINGLE = 3,
-    SIGHASH_ANYONECANPAY = 128,
-}
-
-/// Represents the commonly used script opcodes
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-#[allow(non_camel_case_types)]
-pub enum OPCodes {
-    OP_DUP = 0x76,
-    OP_HASH160 = 0xa9,
-    OP_CHECKSIG = 0xac,
-    OP_EQUAL = 0x87,
-    OP_EQUALVERIFY = 0x88,
-}
-
-impl fmt::Display for SigHashCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            SigHashCode::SIGHASH_ALL => write!(f, "SIGHASH_ALL"),
-            SigHashCode::SIGHASH_NONE => write!(f, "SIGHASH_NONE"),
-            SigHashCode::SIGHASH_SINGLE => write!(f, "SIGHASH_SINGLE"),
-            SigHashCode::SIGHASH_ANYONECANPAY => write!(f, "SIGHASH_ANYONECANPAY"),
-        }
-    }
-}
-
-impl fmt::Display for OPCodes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OPCodes::OP_DUP => write!(f, "OP_DUP"),
-            OPCodes::OP_HASH160 => write!(f, "OP_HASH160"),
-            OPCodes::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
-            OPCodes::OP_EQUAL => write!(f, "OP_EQUAL"),
-            OPCodes::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
-        }
-    }
-}
-
-/// Represents a Bitcoin transaction
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BitcoinTransaction<N: BitcoinNetwork> {
-    /// Version number - 4 bytes
-    pub version: u32,
-    /// Optional 2 bytes to indicate segwit transactions
-    pub segwit_flag: bool,
-    /// Transaction inputs
-    pub inputs: Vec<BitcoinTransactionInput<N>>,
-    /// Transaction outputs
-    pub outputs: Vec<BitcoinTransactionOutput<N>>,
-    /// Lock time - 4 bytes
-    pub lock_time: u32,
-}
-
-/// Represents a Bitcoin transaction input
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
-    /// OutPoint - transaction id and index - 36 bytes
-    pub out_point: OutPoint<N>,
-    /// Tx-in script - Variable size
-    pub script: Vec<u8>,
-    /// Sequence number - 4 bytes (normally 0xFFFFFFFF, unless lock > 0)
-    /// Also used in replace-by-fee - BIP 125.
-    pub sequence: Vec<u8>,
-    /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
-    pub sig_hash_code: SigHashCode,
-    /// Witnesses used in segwit transactions
-    pub witnesses: Vec<Vec<u8>>,
-}
-
-/// Represents a Bitcoin transaction output
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BitcoinTransactionOutput<N: BitcoinNetwork> {
-    /// Transfer amount in Satoshi
-    pub amount: u64,
-    /// Output public key script
-    pub output_public_key: Vec<u8>,
-    /// PhantomData
-    _network: PhantomData<N>,
-}
-
-/// Represents a specific UTXO
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct OutPoint<N: BitcoinNetwork> {
-    /// Previous transaction hash (using Bitcoin RPC's reversed hash order) - 32 bytes
-    pub reverse_transaction_id: Vec<u8>,
-    /// Index of the transaction being used - 4 bytes
-    pub index: u32,
-    /// Amount associated with the UTXO - used for segwit transaction signatures
-    pub amount: u64,
-    /// Script public key asssociated with claiming this particular input UTXO
-    pub script_pub_key: Vec<u8>,
-    /// Optional redeem script - for segwit transactions
-    pub redeem_script: Vec<u8>,
-    /// Address of the outpoint
-    pub address: BitcoinAddress<N>,
-}
-
-impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
-    type Address = BitcoinAddress<N>;
-    type Format = BitcoinFormat;
-    type PrivateKey = BitcoinPrivateKey<N>;
-    type PublicKey = BitcoinPublicKey<N>;
-}
-
-impl<N: BitcoinNetwork> BitcoinTransaction<N> {
-    /// Returns a raw unsigned bitcoin transaction
-    pub fn build_raw_transaction(
-        version: u32,
-        inputs: Vec<BitcoinTransactionInput<N>>,
-        outputs: Vec<BitcoinTransactionOutput<N>>,
-        lock_time: u32,
-    ) -> Result<Self, TransactionError> {
-        Ok(Self {
-            version,
-            segwit_flag: false,
-            inputs,
-            outputs,
-            lock_time,
-        })
-    }
-
-    /// Returns the transaction as a byte vector
-    pub fn serialize_transaction(&mut self, raw: bool) -> Result<Vec<u8>, TransactionError> {
-        let mut serialized_transaction: Vec<u8> = Vec::new();
-
-        serialized_transaction.extend(&self.version.to_le_bytes());
-
-        if self.segwit_flag {
-            serialized_transaction.extend(vec![0x00, 0x01]);
-        }
-
-        serialized_transaction.extend(variable_length_integer(self.inputs.len() as u64)?);
-
-        let mut has_witness = false;
-        for input in &self.inputs {
-            has_witness = input.witnesses.len() > 0;
-            serialized_transaction.extend(input.serialize(raw)?);
-        }
-
-        serialized_transaction.extend(variable_length_integer(self.outputs.len() as u64)?);
-
-        for output in &self.outputs {
-            serialized_transaction.extend(output.serialize()?);
-        }
-
-        if has_witness {
-            for input in &self.inputs {
-                match input.witnesses.len() {
-                    0 => serialized_transaction.extend(vec![0x00]),
-                    _ => {
-                        serialized_transaction.extend(variable_length_integer(input.witnesses.len() as u64)?);
-                        for witness in &input.witnesses {
-                            serialized_transaction.extend(witness);
-                        }
-                    }
-                };
-            }
-        }
-
-        serialized_transaction.extend(&self.lock_time.to_le_bytes());
-
-        Ok(serialized_transaction)
-    }
-
-    /// Signs the raw transaction, updates the transaction, and returns the signature
-    pub fn sign_raw_transaction(
-        &mut self,
-        private_key: <Self as Transaction>::PrivateKey,
-        input_index: usize,
-        address_format: <Self as Transaction>::Format,
-    ) -> Result<Vec<u8>, TransactionError> {
-        let input = &self.inputs[input_index];
-        let transaction_hash_preimage = match input.out_point.address.format() {
-            BitcoinFormat::P2PKH => self.generate_p2pkh_hash_preimage(input_index, input.sig_hash_code)?,
-            _ => self.generate_segwit_hash_preimage(input_index, input.sig_hash_code)?,
-        };
-
-        let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
-        let message = secp256k1::Message::from_slice(&transaction_hash)?;
-        let mut signature = secp256k1::Secp256k1::signing_only()
-            .sign(&message, &private_key.to_secp256k1_secret_key())
-            .serialize_der()
-            .to_vec();
-        signature.push((input.sig_hash_code as u32).to_le_bytes()[0]);
-
-        let public_key = private_key.to_public_key();
-        let public_key_bytes = match (address_format, public_key.is_compressed()) {
-            (BitcoinFormat::P2PKH, false) => public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec(),
-            _ => public_key.to_secp256k1_public_key().serialize().to_vec(),
-        };
-
-        let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
-        let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
-
-        match input.out_point.address.format() {
-            BitcoinFormat::P2PKH => self.inputs[input_index].script = [signature.clone(), public_key].concat(),
-            BitcoinFormat::P2SH_P2WPKH => {
-                let input_script = input.out_point.redeem_script.clone();
-
-                self.segwit_flag = true;
-                self.inputs[input_index].script =
-                    [variable_length_integer(input_script.len() as u64)?, input_script].concat();
-                self.inputs[input_index]
-                    .witnesses
-                    .append(&mut vec![signature.clone(), public_key]);
-            }
-            BitcoinFormat::Bech32 => {
-                self.segwit_flag = true;
-                self.inputs[input_index]
-                    .witnesses
-                    .append(&mut vec![signature.clone(), public_key]);
-            },
-        };
-
-        Ok(signature)
-    }
-
-    /// Return the P2PKH hash preimage of the raw transaction
-    pub fn generate_p2pkh_hash_preimage(
-        &self,
-        input_index: usize,
-        sig_hash_code: SigHashCode,
-    ) -> Result<Vec<u8>, TransactionError> {
-        let mut transaction_hash_preimage: Vec<u8> = Vec::new();
-        transaction_hash_preimage.extend(&self.version.to_le_bytes());
-        transaction_hash_preimage.extend(variable_length_integer(self.inputs.len() as u64)?);
-
-        for (index, input) in self.inputs.iter().enumerate() {
-            transaction_hash_preimage.extend(input.serialize(index != input_index)?);
-        }
-
-        transaction_hash_preimage.extend(variable_length_integer(self.outputs.len() as u64)?);
-        for output in &self.outputs {
-            transaction_hash_preimage.extend(output.serialize()?);
-        }
-
-        transaction_hash_preimage.extend(&self.lock_time.to_le_bytes());
-        transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
-
-        Ok(transaction_hash_preimage)
-    }
-
-    /// Return the segwit hash preimage of the raw transaction
-    /// https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
-    pub fn generate_segwit_hash_preimage(
-        &self,
-        input_index: usize,
-        sig_hash_code: SigHashCode,
-    ) -> Result<Vec<u8>, TransactionError> {
-        let mut prev_outputs: Vec<u8> = Vec::new();
-        let mut prev_sequences: Vec<u8> = Vec::new();
-        let mut outputs: Vec<u8> = Vec::new();
-
-        for input in &self.inputs {
-            prev_outputs.extend(&input.out_point.reverse_transaction_id);
-            prev_outputs.extend(&input.out_point.index.to_le_bytes());
-            prev_sequences.extend(&input.sequence);
-        }
-
-        for output in &self.outputs {
-            outputs.extend(&output.serialize()?);
-        }
-
-        let input = &self.inputs[input_index];
-        let script = match input.out_point.address.format() {
-            BitcoinFormat::Bech32 => input.out_point.script_pub_key.clone(),
-            _ => input.out_point.redeem_script.clone(),
-        }[1..]
-            .to_vec();
-
-        let mut script_code: Vec<u8> = Vec::new();
-        script_code.push(OPCodes::OP_DUP as u8);
-        script_code.push(OPCodes::OP_HASH160 as u8);
-        script_code.extend(script);
-        script_code.push(OPCodes::OP_EQUALVERIFY as u8);
-        script_code.push(OPCodes::OP_CHECKSIG as u8);
-
-        let script_code = [variable_length_integer(script_code.len() as u64)?, script_code].concat();
-        let hash_prev_outputs = Sha256::digest(&Sha256::digest(&prev_outputs));
-        let hash_sequence = Sha256::digest(&Sha256::digest(&prev_sequences));
-        let hash_outputs = Sha256::digest(&Sha256::digest(&outputs));
-
-        let mut transaction_hash_preimage: Vec<u8> = Vec::new();
-        transaction_hash_preimage.extend(&self.version.to_le_bytes());
-        transaction_hash_preimage.extend(hash_prev_outputs);
-        transaction_hash_preimage.extend(hash_sequence);
-        transaction_hash_preimage.extend(&input.out_point.reverse_transaction_id);
-        transaction_hash_preimage.extend(&input.out_point.index.to_le_bytes());
-        transaction_hash_preimage.extend(&script_code);
-        transaction_hash_preimage.extend(&input.out_point.amount.to_le_bytes());
-        transaction_hash_preimage.extend(&input.sequence);
-        transaction_hash_preimage.extend(hash_outputs);
-        transaction_hash_preimage.extend(&self.lock_time.to_le_bytes());
-        transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
-
-        Ok(transaction_hash_preimage)
-    }
-}
-
-impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
-    const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
-
-    /// Create a new Bitcoin Transaction input without the script (unlocking)
-    pub fn new(
-        address: BitcoinAddress<N>,
-        transaction_id: Vec<u8>,
-        index: u32,
-        amount: Option<u64>,
-        redeem_script: Option<Vec<u8>>,
-        script_pub_key: Option<Vec<u8>>,
-        sequence: Option<Vec<u8>>,
-        sig_hash_code: SigHashCode,
-    ) -> Result<Self, TransactionError> {
-        if transaction_id.len() != 32 {
-            return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
-        }
-
-        // Reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
-        let mut reverse_transaction_id = transaction_id;
-        reverse_transaction_id.reverse();
-
-        let script_pub_key = script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.to_string())?);
-        let sequence = sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec());
-        let (amount, redeem_script) =
-            validate_address_format(address.format(), &amount, &redeem_script, &script_pub_key)?;
-
-        let out_point = OutPoint {
-            reverse_transaction_id,
-            index,
-            amount,
-            redeem_script,
-            script_pub_key,
-            address,
-        };
-
-        Ok(Self {
-            out_point,
-            script: Vec::new(),
-            sequence,
-            sig_hash_code,
-            witnesses: Vec::new(),
-        })
-    }
-
-    /// Serialize the transaction input
-    pub fn serialize(&self, raw: bool) -> Result<Vec<u8>, TransactionError> {
-        let mut serialized_input: Vec<u8> = Vec::new();
-        serialized_input.extend(&self.out_point.reverse_transaction_id);
-        serialized_input.extend(&self.out_point.index.to_le_bytes());
-
-        match raw {
-            true => serialized_input.extend(vec![0x00]),
-            false => {
-                match (self.script.len(), self.out_point.address.format()) {
-                    (0, BitcoinFormat::Bech32) => serialized_input.extend(vec![0x00]),
-                    (0, _) => {
-                        let script_pub_key = &self.out_point.script_pub_key.clone();
-                        serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
-                        serialized_input.extend(script_pub_key);
-                    }
-                    _ => {
-                        serialized_input.extend(variable_length_integer(self.script.len() as u64)?);
-                        serialized_input.extend(&self.script);
-                    }
-                };
-            }
-        };
-
-        serialized_input.extend(&self.sequence);
-        Ok(serialized_input)
-    }
-}
-
-impl<N: BitcoinNetwork> BitcoinTransactionOutput<N> {
-    /// Create a new Bitcoin transaction output
-    pub fn new(address: &str, amount: u64) -> Result<Self, TransactionError> {
-        Ok(Self {
-            amount,
-            output_public_key: generate_script_pub_key::<N>(address)?,
-            _network: PhantomData,
-        })
-    }
-
-    /// Serialize the transaction output
-    pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
-        let mut serialized_output: Vec<u8> = Vec::new();
-        serialized_output.extend(&self.amount.to_le_bytes());
-        serialized_output.extend(variable_length_integer(self.output_public_key.len() as u64)?);
-        serialized_output.extend(&self.output_public_key);
-        Ok(serialized_output)
+/// Return Bitcoin variable length integer of the size
+/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
+    match size {
+        // bounded by u8::max_value()
+        0..=252 => Ok(vec![size as u8]),
+        // bounded by u16::max_value()
+        253..=65535 => Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat()),
+        // bounded by u32::max_value()
+        65536..=4294967295 => Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat()),
+        // bounded by u64::max_value()
+        _ => Ok([vec![0xff], size.to_le_bytes().to_vec()].concat()),
     }
 }
 
@@ -416,8 +32,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionOutput<N> {
 pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u8>, TransactionError> {
     let address = BitcoinAddress::<N>::from_str(address)?;
     let mut script: Vec<u8> = Vec::new();
-    let format = address.format();
-    match format {
+
+    match address.format() {
         BitcoinFormat::P2PKH => {
             let address_bytes = &address.to_string().from_base58()?;
             let pub_key_hash = address_bytes[1..(address_bytes.len() - 4)].to_vec();
@@ -455,7 +71,7 @@ pub fn generate_script_pub_key<N: BitcoinNetwork>(address: &str) -> Result<Vec<u
 
 /// Validate the address format (P2PKH, P2SH_P2PKH, etc.) with the given scripts
 pub fn validate_address_format(
-    address_format: BitcoinFormat,
+    format: BitcoinFormat,
     amount: &Option<u64>,
     redeem_script: &Option<Vec<u8>>,
     script_pub_key: &Vec<u8>,
@@ -465,7 +81,7 @@ pub fn validate_address_format(
     let op_checksig = OPCodes::OP_CHECKSIG as u8;
     let op_equal = OPCodes::OP_EQUAL as u8;
 
-    match address_format {
+    match format {
         BitcoinFormat::P2PKH => {
             if redeem_script.is_some() && amount.is_some() {
                 return Err(TransactionError::InvalidInputs("P2PKH".into()));
@@ -495,18 +111,449 @@ pub fn validate_address_format(
     Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
 }
 
-/// Return Bitcoin variable length integer of the size
-/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
-    match size {
-        // bounded by u8::max_value()
-        0..=252 => Ok(vec![size as u8]),
-        // bounded by u16::max_value()
-        253..=65535 => Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat()),
-        // bounded by u32::max_value()
-        65536..=4294967295 => Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat()),
-        // bounded by u64::max_value()
-        _ => Ok([vec![0xff], size.to_le_bytes().to_vec()].concat()),
+/// Represents a Bitcoin signature hash
+/// https://en.bitcoin.it/wiki/OP_CHECKSIG
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum SignatureHash {
+    /// Signs all inputs and outputs.
+    SIGHASH_ALL = 0x01,
+    /// Signs all inputs and none of the outputs.
+    /// (e.g. "blank check" transaction, where any address can redeem the output)
+    SIGHASH_NONE = 0x02,
+    /// Signs all inputs and one corresponding output per input.
+    /// (e.g. signing vin 0 will result in signing vout 0)
+    SIGHASH_SINGLE = 0x03,
+    /// Signs only one input and all outputs.
+    /// Allows anyone to add or remove other inputs, forbids changing any outputs.
+    /// (e.g. "crowdfunding" transaction, where the output is the "goal" address)
+    SIGHASH_ALL_SIGHASH_ANYONECANPAY = 0x81,
+    /// Signs only one input and none of the outputs.
+    /// Allows anyone to add or remove other inputs or any outputs.
+    /// (e.g. "dust collector" transaction, where "dust" can be aggregated and spent together)
+    SIGHASH_NONE_SIGHASH_ANYONECANPAY = 0x82,
+    /// Signs only one input and one corresponding output per input.
+    /// Allows anyone to add or remove other inputs.
+    SIGHASH_SINGLE_SIGHASH_ANYONECANPAY = 0x83,
+}
+
+impl fmt::Display for SignatureHash {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SignatureHash::SIGHASH_ALL => write!(f, "SIGHASH_ALL"),
+            SignatureHash::SIGHASH_NONE => write!(f, "SIGHASH_NONE"),
+            SignatureHash::SIGHASH_SINGLE => write!(f, "SIGHASH_SINGLE"),
+            SignatureHash::SIGHASH_ALL_SIGHASH_ANYONECANPAY => write!(f, "SIGHASH_ALL | SIGHASH_ANYONECANPAY"),
+            SignatureHash::SIGHASH_NONE_SIGHASH_ANYONECANPAY => write!(f, "SIGHASH_NONE | SIGHASH_ANYONECANPAY"),
+            SignatureHash::SIGHASH_SINGLE_SIGHASH_ANYONECANPAY => write!(f, "SIGHASH_SINGLE | SIGHASH_ANYONECANPAY"),
+        }
+    }
+}
+
+/// Represents the commonly used script opcodes
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum OPCodes {
+    OP_DUP = 0x76,
+    OP_HASH160 = 0xa9,
+    OP_CHECKSIG = 0xac,
+    OP_EQUAL = 0x87,
+    OP_EQUALVERIFY = 0x88,
+}
+
+impl fmt::Display for OPCodes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OPCodes::OP_DUP => write!(f, "OP_DUP"),
+            OPCodes::OP_HASH160 => write!(f, "OP_HASH160"),
+            OPCodes::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
+            OPCodes::OP_EQUAL => write!(f, "OP_EQUAL"),
+            OPCodes::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
+        }
+    }
+}
+
+/// Represents a Bitcoin transaction input
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
+    /// OutPoint - transaction id and index - 36 bytes
+    pub out_point: OutPoint<N>,
+    /// Tx-in script - Variable size
+    pub script: Vec<u8>,
+    /// Sequence number - 4 bytes (normally 0xFFFFFFFF, unless lock > 0)
+    /// Also used in replace-by-fee - BIP 125.
+    pub sequence: Vec<u8>,
+    /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
+    pub sighash: SignatureHash,
+    /// Witnesses used in SegWit transactions
+    pub witnesses: Vec<Vec<u8>>,
+    /// If true, the input has been signed
+    pub is_signed: bool,
+}
+
+impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
+    const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+
+    /// Returns a new Bitcoin transaction input without the script (unlocking).
+    pub fn new(
+        address: BitcoinAddress<N>,
+        transaction_id: Vec<u8>,
+        index: u32,
+        amount: Option<u64>,
+        redeem_script: Option<Vec<u8>>,
+        script_pub_key: Option<Vec<u8>>,
+        sequence: Option<Vec<u8>>,
+        sighash: SignatureHash,
+    ) -> Result<Self, TransactionError> {
+        if transaction_id.len() != 32 {
+            return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
+        }
+
+        // Reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
+        let mut reverse_transaction_id = transaction_id;
+        reverse_transaction_id.reverse();
+
+        let script_pub_key = script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.to_string())?);
+        let sequence = sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec());
+        let (amount, redeem_script) =
+            validate_address_format(address.format(), &amount, &redeem_script, &script_pub_key)?;
+
+        let out_point = OutPoint {
+            reverse_transaction_id,
+            index,
+            amount,
+            redeem_script,
+            script_pub_key,
+            address,
+        };
+
+        Ok(Self {
+            out_point,
+            script: vec![],
+            sequence,
+            sighash,
+            witnesses: vec![],
+            is_signed: false
+        })
+    }
+
+    /// Returns the serialized transaction input.
+    pub fn serialize(&self, raw: bool) -> Result<Vec<u8>, TransactionError> {
+        let mut serialized_input: Vec<u8> = Vec::new();
+        serialized_input.extend(&self.out_point.reverse_transaction_id);
+        serialized_input.extend(&self.out_point.index.to_le_bytes());
+
+        match raw {
+            true => serialized_input.extend(vec![0x00]),
+            false => {
+                match (self.script.len(), self.out_point.address.format()) {
+                    (0, BitcoinFormat::Bech32) => serialized_input.extend(vec![0x00]),
+                    (0, _) => {
+                        let script_pub_key = &self.out_point.script_pub_key.clone();
+                        serialized_input.extend(variable_length_integer(script_pub_key.len() as u64)?);
+                        serialized_input.extend(script_pub_key);
+                    }
+                    _ => {
+                        serialized_input.extend(variable_length_integer(self.script.len() as u64)?);
+                        serialized_input.extend(&self.script);
+                    }
+                };
+            }
+        };
+
+        serialized_input.extend(&self.sequence);
+        Ok(serialized_input)
+    }
+}
+
+/// Represents a Bitcoin transaction output
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BitcoinTransactionOutput<N: BitcoinNetwork> {
+    /// Transfer amount in Satoshi
+    pub amount: u64,
+    /// Output public key script
+    pub output_public_key: Vec<u8>,
+    /// PhantomData
+    _network: PhantomData<N>,
+}
+
+impl<N: BitcoinNetwork> BitcoinTransactionOutput<N> {
+    /// Create a new Bitcoin transaction output
+    pub fn new(address: &str, amount: u64) -> Result<Self, TransactionError> {
+        Ok(Self {
+            amount,
+            output_public_key: generate_script_pub_key::<N>(address)?,
+            _network: PhantomData,
+        })
+    }
+
+    /// Serialize the transaction output
+    pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
+        let mut output = self.amount.to_le_bytes().to_vec();
+        output.extend(variable_length_integer(self.output_public_key.len() as u64)?);
+        output.extend(&self.output_public_key);
+        Ok(output)
+    }
+}
+
+/// Represents a specific UTXO
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OutPoint<N: BitcoinNetwork> {
+    /// Previous transaction hash (using Bitcoin RPC's reversed hash order) - 32 bytes
+    pub reverse_transaction_id: Vec<u8>,
+    /// Index of the transaction being used - 4 bytes
+    pub index: u32,
+    /// Amount associated with the UTXO - used for segwit transaction signatures
+    pub amount: u64,
+    /// Script public key asssociated with claiming this particular input UTXO
+    pub script_pub_key: Vec<u8>,
+    /// Optional redeem script - for segwit transactions
+    pub redeem_script: Vec<u8>,
+    /// Address of the outpoint
+    pub address: BitcoinAddress<N>,
+}
+
+
+/// Represents an Bitcoin transaction hash
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BitcoinTransactionHash(Vec<u8>);
+
+impl fmt::Display for BitcoinTransactionHash {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &hex::encode(&self.0))
+    }
+}
+
+/// Represents the Bitcoin transaction parameters
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BitcoinTransactionParameters<N: BitcoinNetwork> {
+    /// The version number (4 bytes)
+    pub version: u32,
+    /// The transaction inputs
+    pub inputs: Vec<BitcoinTransactionInput<N>>,
+    /// The transaction outputs
+    pub outputs: Vec<BitcoinTransactionOutput<N>>,
+    /// The lock time (4 bytes)
+    pub lock_time: u32,
+    /// An optional 2 bytes to indicate SegWit transactions
+    pub segwit_flag: bool,
+}
+
+/// Represents a Bitcoin transaction
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BitcoinTransaction<N: BitcoinNetwork> {
+    /// The address of the receiver
+    receiver: BitcoinAddress<N>,
+    /// The amount (in Satoshi)
+    amount: u64,
+    /// The transaction parameters (version, inputs, outputs, lock_time, segwit_flag)
+    parameters: BitcoinTransactionParameters<N>,
+    /// The transaction signature
+    signature: Option<Vec<u8>>,
+}
+
+impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
+    type Address = BitcoinAddress<N>;
+    type Amount = u64;
+    type Format = BitcoinFormat;
+    type PrivateKey = BitcoinPrivateKey<N>;
+    type PublicKey = BitcoinPublicKey<N>;
+    type TransactionHash = BitcoinTransactionHash;
+    type TransactionParameters = BitcoinTransactionParameters<N>;
+
+    /// Returns an unsigned transaction given receiver, amount, and parameters.
+    fn new(
+        receiver: &Self::Address,
+        amount: &Self::Amount,
+        parameters: &Self::TransactionParameters
+    ) -> Result<Self, TransactionError> {
+        Ok(Self {
+            receiver: receiver.clone(),
+            amount: amount.clone(),
+            parameters: parameters.clone(),
+            signature: None,
+        })
+    }
+
+    /// Returns a signed transaction given the private key of the sender.
+    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
+        let mut transaction = self.clone();
+
+        for (vin, input) in self.parameters.inputs.iter().enumerate() {
+
+            let format = input.out_point.address.format();
+
+            if input.out_point.address == private_key.to_address(&format)? && !transaction.parameters.inputs[vin].is_signed {
+                let transaction_hash_preimage = match format {
+                    BitcoinFormat::P2PKH => transaction.generate_p2pkh_hash_preimage(vin, input.sighash)?,
+                    _ => transaction.generate_segwit_hash_preimage(vin, input.sighash)?,
+                };
+
+                let transaction_hash = Sha256::digest(&Sha256::digest(&transaction_hash_preimage));
+                let message = secp256k1::Message::from_slice(&transaction_hash)?;
+                let mut signature = secp256k1::Secp256k1::signing_only()
+                    .sign(&message, &private_key.to_secp256k1_secret_key())
+                    .serialize_der()
+                    .to_vec();
+                signature.push((input.sighash as u32).to_le_bytes()[0]);
+
+                let public_key = private_key.to_public_key();
+                let public_key_bytes = match (input.out_point.address.format(), public_key.is_compressed()) {
+                    (BitcoinFormat::P2PKH, false) => public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec(),
+                    _ => public_key.to_secp256k1_public_key().serialize().to_vec(),
+                };
+
+                let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
+                let public_key: Vec<u8> = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
+
+                match input.out_point.address.format() {
+                    BitcoinFormat::P2PKH => {
+                        transaction.parameters.inputs[vin].script = [signature.clone(), public_key].concat();
+                        transaction.parameters.inputs[vin].is_signed = true;
+                    },
+                    BitcoinFormat::P2SH_P2WPKH => {
+                        let input_script = input.out_point.redeem_script.clone();
+
+                        transaction.parameters.segwit_flag = true;
+                        transaction.parameters.inputs[vin].script =
+                            [variable_length_integer(input_script.len() as u64)?, input_script].concat();
+                        transaction.parameters.inputs[vin]
+                            .witnesses.append(&mut vec![signature.clone(), public_key]);
+                        transaction.parameters.inputs[vin].is_signed = true;
+                    }
+                    BitcoinFormat::Bech32 => {
+                        transaction.parameters.segwit_flag = true;
+                        transaction.parameters.inputs[vin]
+                            .witnesses.append(&mut vec![signature.clone(), public_key]);
+                        transaction.parameters.inputs[vin].is_signed = true;
+                    },
+                };
+            }
+        }
+
+        Ok(transaction)
+    }
+
+    /// Returns a transaction given the transaction bytes.
+    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+        unimplemented!()
+    }
+
+    /// Returns the transaction in bytes.
+    fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError> {
+        let mut transaction = self.parameters.version.to_le_bytes().to_vec();
+
+        if self.parameters.segwit_flag {
+            transaction.extend(vec![0x00, 0x01]);
+        }
+
+        transaction.extend(variable_length_integer(self.parameters.inputs.len() as u64)?);
+
+        let mut has_witness = false;
+        for input in &self.parameters.inputs {
+            has_witness = input.witnesses.len() > 0;
+            // TODO (howardwu): Implement "raw" bool for serializing the raw transaction.
+            transaction.extend(input.serialize(false)?);
+        }
+
+        transaction.extend(variable_length_integer(self.parameters.outputs.len() as u64)?);
+
+        for output in &self.parameters.outputs {
+            transaction.extend(output.serialize()?);
+        }
+
+        if has_witness {
+            for input in &self.parameters.inputs {
+                match input.witnesses.len() {
+                    0 => transaction.extend(vec![0x00]),
+                    _ => {
+                        transaction.extend(variable_length_integer(input.witnesses.len() as u64)?);
+                        for witness in &input.witnesses {
+                            transaction.extend(witness);
+                        }
+                    }
+                };
+            }
+        }
+
+        transaction.extend(&self.parameters.lock_time.to_le_bytes());
+
+        Ok(transaction)
+    }
+
+    /// Returns the transaction hash.
+    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError> {
+        unimplemented!()
+    }
+}
+
+impl<N: BitcoinNetwork> BitcoinTransaction<N> {
+
+    /// Return the P2PKH hash preimage of the raw transaction.
+    pub fn generate_p2pkh_hash_preimage(&self, vin: usize, sighash: SignatureHash) -> Result<Vec<u8>, TransactionError> {
+        let mut preimage = self.parameters.version.to_le_bytes().to_vec();
+        preimage.extend(variable_length_integer(self.parameters.inputs.len() as u64)?);
+        for (index, input) in self.parameters.inputs.iter().enumerate() {
+            preimage.extend(input.serialize(index != vin)?);
+        }
+        preimage.extend(variable_length_integer(self.parameters.outputs.len() as u64)?);
+        for output in &self.parameters.outputs {
+            preimage.extend(output.serialize()?);
+        }
+        preimage.extend(&self.parameters.lock_time.to_le_bytes());
+        preimage.extend(&(sighash as u32).to_le_bytes());
+        Ok(preimage)
+    }
+
+    /// Return the SegWit hash preimage of the raw transaction
+    /// https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
+    pub fn generate_segwit_hash_preimage(&self, vin: usize, sighash: SignatureHash) -> Result<Vec<u8>, TransactionError> {
+        let mut prev_outputs = vec![];
+        let mut prev_sequences = vec![];
+        let mut outputs = vec![];
+
+        for input in &self.parameters.inputs {
+            prev_outputs.extend(&input.out_point.reverse_transaction_id);
+            prev_outputs.extend(&input.out_point.index.to_le_bytes());
+            prev_sequences.extend(&input.sequence);
+        }
+
+        for output in &self.parameters.outputs {
+            outputs.extend(&output.serialize()?);
+        }
+
+        let input = &self.parameters.inputs[vin];
+        let script = match input.out_point.address.format() {
+            BitcoinFormat::Bech32 => input.out_point.script_pub_key[1..].to_vec(),
+            _ => input.out_point.redeem_script[1..].to_vec(),
+        };
+
+        let mut script_code: Vec<u8> = Vec::new();
+        script_code.push(OPCodes::OP_DUP as u8);
+        script_code.push(OPCodes::OP_HASH160 as u8);
+        script_code.extend(script);
+        script_code.push(OPCodes::OP_EQUALVERIFY as u8);
+        script_code.push(OPCodes::OP_CHECKSIG as u8);
+
+        let script_code = [variable_length_integer(script_code.len() as u64)?, script_code].concat();
+        let hash_prev_outputs = Sha256::digest(&Sha256::digest(&prev_outputs));
+        let hash_sequence = Sha256::digest(&Sha256::digest(&prev_sequences));
+        let hash_outputs = Sha256::digest(&Sha256::digest(&outputs));
+
+        let mut preimage = vec![];
+        preimage.extend(&self.parameters.version.to_le_bytes());
+        preimage.extend(hash_prev_outputs);
+        preimage.extend(hash_sequence);
+        preimage.extend(&input.out_point.reverse_transaction_id);
+        preimage.extend(&input.out_point.index.to_le_bytes());
+        preimage.extend(&script_code);
+        preimage.extend(&input.out_point.amount.to_le_bytes());
+        preimage.extend(&input.sequence);
+        preimage.extend(hash_outputs);
+        preimage.extend(&self.parameters.lock_time.to_le_bytes());
+        preimage.extend(&(sighash as u32).to_le_bytes());
+
+        Ok(preimage)
     }
 }
 
@@ -516,7 +563,7 @@ mod tests {
     use crate::Mainnet;
     use wagyu_model::crypto::hash160;
 
-    pub struct Transaction {
+    pub struct TransactionTestCase {
         pub version: u32,
         pub lock_time: u32,
         pub inputs: [Input; 4],
@@ -534,7 +581,7 @@ mod tests {
         pub script_pub_key: Option<&'static str>,
         pub utxo_amount: Option<u64>,
         pub sequence: Option<[u8; 4]>,
-        pub sig_hash_code: SigHashCode,
+        pub sig_hash_code: SignatureHash,
     }
 
     #[derive(Clone)]
@@ -552,7 +599,7 @@ mod tests {
         script_pub_key: None,
         utxo_amount: None,
         sequence: None,
-        sig_hash_code: SigHashCode::SIGHASH_ALL,
+        sig_hash_code: SignatureHash::SIGHASH_ALL,
     };
 
     const OUTPUT_FILLER: Output = Output { address: "", amount: 0 };
@@ -603,20 +650,22 @@ mod tests {
             output_vec.push(BitcoinTransactionOutput::<N>::new(output.address, output.amount).unwrap());
         }
 
-        let mut transaction =
-            BitcoinTransaction::build_raw_transaction(version, input_vec, output_vec, lock_time).unwrap();
+        let transaction_parameters =
+            BitcoinTransactionParameters::<N> {
+                version,
+                inputs: input_vec,
+                outputs: output_vec,
+                lock_time,
+                segwit_flag: false
+            };
 
-        for (index, input) in inputs.iter().enumerate() {
-            transaction
-                .sign_raw_transaction(
-                    BitcoinPrivateKey::from_str(input.private_key).unwrap(),
-                    index,
-                    input.address_format.clone(),
-                )
-                .unwrap();
+        let mut transaction = BitcoinTransaction::<N>::new(&BitcoinAddress::from_str("1Fyxts6r24DpEieygQiNnWxUdb18ANa5p7").unwrap(), &1, &transaction_parameters).unwrap();
+
+        for input in inputs {
+            transaction = transaction.sign(&BitcoinPrivateKey::from_str(input.private_key).unwrap()).unwrap();
         }
 
-        let signed_transaction = hex::encode(transaction.serialize_transaction(false).unwrap());
+        let signed_transaction = hex::encode(transaction.to_transaction_bytes().unwrap());
         assert_eq!(expected_signed_transaction, signed_transaction);
     }
 
@@ -624,8 +673,8 @@ mod tests {
         use super::*;
         type N = Mainnet;
 
-        const TRANSACTIONS: [Transaction; 9] = [
-            Transaction { // p2pkh to p2pkh - based on https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+        const TRANSACTIONS: [TransactionTestCase; 9] = [
+            TransactionTestCase { // p2pkh to p2pkh - based on https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -638,7 +687,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -655,7 +704,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "01000000019d344070eac3fe6e394a16d06d7704a7d5c0a10eb2a2c16bc98842b7cc20d561000000006b48304502210088828c0bdfcdca68d8ae0caeb6ec62cd3fd5f9b2191848edae33feb533df35d302202e0beadd35e17e7f83a733f5277028a9b453d525553e3f5d2d7a7aa8010a81d60121029f50f51d63b345039a290c94bffd3180c99ed659ff6ea6b1242bca47eb93b59fffffffff01e02e0000000000001976a91406afd46bcdfd22ef94ac122aa11f241244a37ecc88ac00000000"
             },
-            Transaction { // p2sh_p2wpkh to p2pkh - based on https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#p2sh-p2wpkh
+            TransactionTestCase { // p2sh_p2wpkh to p2pkh - based on https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#p2sh-p2wpkh
                 version: 1,
                 lock_time: 1170,
                 inputs: [
@@ -668,7 +717,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1000000000),
                         sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -688,7 +737,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "01000000000101db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a5477010000001716001479091972186c449eb1ded22b78e40d009bdf0089feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac02473044022047ac8e878352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae903c713331d877c1f64677e3622ad4010726870540656fe9dcb012103ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000"
             },
-            Transaction { //p2sh_p2wpkh to segwit
+            TransactionTestCase { //p2sh_p2wpkh to segwit
                 version: 2,
                 lock_time: 140,
                 inputs: [
@@ -701,7 +750,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1000000000),
                         sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -721,7 +770,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "020000000001011333183ddf384da83ed49296136c70d206ad2b19331bf25d390e69b222165e370000000017160014b93f973eb2bf0b614bddc0f47286788c98c535b4feffffff0200e1f5050000000017a914a860f76561c85551594c18eecceffaee8c4822d787f0c1a4350000000017a914d8b6fcc85a383261df05423ddf068a8987bf0287870247304402206214bf6096f0050f8442be6107448f89983a7399974f7160ba02e80f96383a3f02207b2a169fed3f48433850f39599396f8c8237260a57462795a83b85cceff5b1aa012102e1a2ba641bbad8399bf6e16a7824faf9175d246aef205599364cc5b4ad64962f8c000000"
             },
-            Transaction { // p2pkh and p2sh_p2wpkh to p2pkh - based on https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
+            TransactionTestCase { // p2pkh and p2sh_p2wpkh to p2pkh - based on https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -734,7 +783,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "KwcN2pT3wnRAurhy7qMczzbkpY5nXMW2ubh696UBc1bcwctTx26z",
@@ -745,7 +794,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER
@@ -764,7 +813,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "01000000024c94e48a870b85f41228d33cf25213dfcc8dd796e7211ed6b1f9a014809dbbb5060000006a473044022041450c258ce7cac7da97316bf2ea1ce66d88967c4df94f3e91f4c2a30f5d08cb02203674d516e6bb2b0afd084c3551614bd9cec3c2945231245e891b145f2d6951f0012103e05ce435e462ec503143305feb6c00e06a3ad52fbf939e85c65f3a765bb7baacffffffff3077d9de049574c3af9bc9c09a7c9db80f2d94caaf63988c9166249b955e867d000000006b483045022100aeb5f1332c79c446d3f906e4499b2e678500580a3f90329edf1ba502eec9402e022072c8b863f8c8d6c26f4c691ac9a6610aa4200edc697306648ee844cfbc089d7a012103df7940ee7cddd2f97763f67e1fb13488da3fbdd7f9c68ec5ef0864074745a289ffffffff0220bf0200000000001976a9147dd65592d0ab2fe0d0257d571abf032cd9db93dc88ac10980200000000001976a914c42e7ef92fdb603af844d064faad95db9bcdfd3d88ac00000000"
             },
-            Transaction { // p2sh_p2wsh to multiple address types
+            TransactionTestCase { // p2sh_p2wsh to multiple address types
                 version: 2,
                 lock_time: 0,
                 inputs: [
@@ -777,7 +826,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(2000000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -797,7 +846,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "02000000000101fa6a6160f798cba0c5cac5b9d2ba91d177fa8589875ba8ae7e46864c4e42957c37000000171600143d295b6276ff8e4579f3350873db3e839e230f41ffffffff02307500000000000017a9148107a4409368488413295580eb88cbf7609cce658780841e00000000001976a914f0cb63944bcbbeb75c26492196939ae419c515a988ac024730440220243435ca67a713f6715d14d761b5ab073e88b30559a02f8b1add1aee8082f1c902207dfea838a2e815132999035245d9ebf51b4c740cbe4d95c609c7012ba9beb86301210324804353b8e10ce351d073da432fb046a4d13edf22052577a6e09cf9a5090cda00000000"
             },
-            Transaction { // p2sh_p2wsh and p2pkh to multiple address types
+            TransactionTestCase { // p2sh_p2wsh and p2pkh to multiple address types
                 version: 2,
                 lock_time: 0,
                 inputs: [
@@ -810,7 +859,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq",
@@ -821,7 +870,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(100000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER
@@ -840,7 +889,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "020000000001027b10ca051e163dbbf124e3702a897f4c9f1a8e6b95c5e17ef0a27a2487c0886b000000006b483045022100b15c1d8e7de7c1d77612f80ab49c48c3d0c23467a0becaa86fcd98009d2dff6002200f3b2341a591889f38e629dc4b938faf9165aecedc4e3be768b13ef491cbb37001210264174f4ff6006a98be258fe1c371b635b097b000ce714c6a2842d5c269dbf2e9ffffffff0dc716643d8107b022f0c477a002ac0a7bfc0ca4caa4804699603265c092ca9301000000171600142b654d833c287e239f73ba8165bbadf4dee3c00effffffff0250c300000000000017a914334982bfd308f92f8ea5d22e9f7ee52f2265543b8740e20100000000001976a9144b1d83c75928642a41f2945c8a3be48550822a9a88ac0002483045022100a37e7aeb82332d5dc65d1582bb917acbf2d56a90f5a792a932cfec3c09f7a534022033baa11aa0f3ad4ba9723c703e65dce724ccb79c00838e09b96892087e43f1c8012102d9c6aaa344ee7cc41466e4705780020deb70720bef8ddb9b4e83e75df02e1d8600000000"
             },
-            Transaction { // p2pkh to bech32
+            TransactionTestCase { // p2pkh to bech32
                 version: 2,
                 lock_time: 0,
                 inputs: [
@@ -853,7 +902,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -873,7 +922,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "02000000019c861ebc9649701ea093c5252dcc39e895ffa9640a331ceec46bbdf0cbeba2bd000000008a473044022077be9faa83fc2289bb59eb7538c3801f513d3640466a48cea9845f3b26f14cd802207b80fda8836610c487e8b59105e682d1c438f98f6324d1ea74cdec5d2d74ef04014104cc58298806e4e233ad1acb81feeb90368e05ad79a1d4b3698156dc4766ca077f39fbb47f52cbd5282c15a8a9fb08401e678acb9ef2fd28e043164723e9f29bb2ffffffff02d204000000000000160014e8df018c7e326cc253faac7e46cdc51e68542c426f00000000000000220020c7a1f1a4d6b4c1802a59631966a18359de779e8a6a65973735a3ccdfdabc407d00000000"
             },
-            Transaction { // p2sh-p2wpkh to bech32
+            TransactionTestCase { // p2sh-p2wpkh to bech32
                 version: 2,
                 lock_time: 0,
                 inputs: [
@@ -886,7 +935,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(1500000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -906,7 +955,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "0200000000010133c242416e20e51577a517e5fe9f1474432753244be0b19a54a70a0e4790221a01000000171600142b654d833c287e239f73ba8165bbadf4dee3c00effffffff0200e1f505000000002a5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6a17f880200000000160014070c01553e70b338ebd05a1cb55169d55e80d59c02483045022100b5cf710307329d8634842c1894057ef243e172284e0908b215479e3b1889f62302205dfdd0287899e3034c95526bcfb1f437a0ca66de42a63c3c36aabb5b893459fb012102d9c6aaa344ee7cc41466e4705780020deb70720bef8ddb9b4e83e75df02e1d8600000000"
             },
-            Transaction { // p2pkh and bech32(p2wpkh) to multiple address types
+            TransactionTestCase { // p2pkh and bech32(p2wpkh) to multiple address types
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -919,7 +968,7 @@ mod tests {
                         script_pub_key: Some("76a9148631bf621f7c6671f8d2d646327b636cbbe79f8c88ac"), // Manually specify script_pub_key
                         utxo_amount: None,
                         sequence: Some([0xee, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "5JZGuGYM4vfKvpxaJg5g5D3uvVYVQ74UUdueCVvWCNacrAkkvGi",
@@ -930,7 +979,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(600000000),
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER
@@ -978,8 +1027,8 @@ mod tests {
         use super::*;
         type N = Mainnet;
 
-        const REAL_TRANSACTIONS: [Transaction; 5] = [
-            Transaction { // Transaction 1 -> Segwit P2SH_P2WPKH to P2PKH and Bech32(P2WPKH) (60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c)
+        const REAL_TRANSACTIONS: [TransactionTestCase; 5] = [
+            TransactionTestCase { // Transaction 1 -> Segwit P2SH_P2WPKH to P2PKH and Bech32(P2WPKH) (60805eb82c53d9c53900ad6d1c423ffc2235caa0c266625afd9cf03e856bf92c)
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -992,7 +1041,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(80000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -1012,7 +1061,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "01000000000101b62af4592179f55b13611bbd3bf023dd0698e71be7b3aee797ba7ab2af6f76a50000000017160014b5ccbe3c5a285af4afada113a8619827fb30b2eeffffffff02b8880000000000001976a91442cd2c7460acc561c96b11c4aa96d0346b84db7f88acb888000000000000160014c4242ad7193d651d51e04f0b63f9646c447bd404024730440220449ca32ff3f8da3c17c1813dac91010cb1fea7a77b2f63065184b8318e1b9ed70220315da34cfeae62c26557c40f5ac5cde46b2801349e6677fc96597b4bfee04b0b012102973e9145ca85357b06de3009a12db171d70bae8a648dc8188e49723a2a46459100000000"
             },
-            Transaction { // Transaction 2 -> P2PKH to P2SH_P2WPKH and P2PKH uncompressed (76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab)
+            TransactionTestCase { // Transaction 2 -> P2PKH to P2SH_P2WPKH and P2PKH uncompressed (76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab)
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -1025,7 +1074,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -1045,7 +1094,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "01000000012cf96b853ef09cfd5a6266c2a0ca3522fc3f421c6dad0039c5d9532cb85e8060000000006a473044022079471aadca4be014260a4788e7dc7d7168712c8f21c536f326caccb843569ab802206c7b464e3fbe0518f147ee7c5fa39c05e04e7ed17fbe464a2773b179fe0ef35401210384faa5d9710f727523906f6d2fe781b40cf58a3139d02eeaad293dd03be7b69cffffffff02e02e00000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a70187e02e0000000000001976a914797f9c80ef57ba7f30b31598383683923a5a7a7c88ac00000000"
             },
-            Transaction { // Transaction 3 -> Bech32 (P2WPKH) to P2SH_P2WPKH (32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429)
+            TransactionTestCase { // Transaction 3 -> Bech32 (P2WPKH) to P2SH_P2WPKH (32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429)
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -1058,7 +1107,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(35000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER,
@@ -1075,7 +1124,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "010000000001012cf96b853ef09cfd5a6266c2a0ca3522fc3f421c6dad0039c5d9532cb85e80600100000000ffffffff01a86100000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a701870247304402206af8b1cad8d8138631f2b2b08535643afb0c9597e1dd9b8daa4a565be274c96902203844c6af50658fb244370afaaffdb6f6e85ca681b80cd094bfd4f3eeae4febf0012103dcf5a50ac66bde7fe9f01c4710fb5d438d51f1da1ce138863d34fee6499f328900000000"
             },
-            Transaction { // Transaction 4 -> Segwit P2SH_P2WPKH to Bech32(P2WPKH) and itself (6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8)
+            TransactionTestCase { // Transaction 4 -> Segwit P2SH_P2WPKH to Bech32(P2WPKH) and itself (6a06bd83718f24dd1883332939e59fdd26b95d8a328eac37a45b7c489618eac8)
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -1088,7 +1137,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(25000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
@@ -1099,7 +1148,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(12000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER,
                     INPUT_FILLER
@@ -1118,7 +1167,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "010000000001022934b0e9075c367e04ed413bac55bb8d6f76e1f1d2b5981383371c78344246320000000017160014354816a98500d7df9201d46e008c203dd5143b92ffffffffabd53e86a8de22508cf845f55f85f12c3a6879a9328435dc0ac1e470fa90ef760000000017160014354816a98500d7df9201d46e008c203dd5143b92ffffffff02e02e00000000000016001415b970d246e31c62bf28d51d6371da22829cfaaf983a00000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a7018702483045022100988bc569371f74d6e49f20ae05ab06abfbe7ba92bbc177b61e38c0c9f430646702207a874da47387b6cfc066c26c24c99ccb75dac6772a0f94b7327703bdb156c4c8012103f850b5fa8fe53be8675dd3045ed89c8a4235155b484d88eb62d0afed7cb9ef050247304402204296465f1f95480f058ccebd70a0f80b9f092021a15793c954f39373e1e6500102206ca2d3f6cb68d1a9fde36ed6ded6509e2284c6afe860abf7f49c3ae18944ffdf012103f850b5fa8fe53be8675dd3045ed89c8a4235155b484d88eb62d0afed7cb9ef0500000000"
             },
-            Transaction { // Transaction 5 -> P2SH_P2WPKH, P2PKH uncompressed, and Bech32(P2WPKH) to Bech32(P2WPKH) (b2eb46fe6f8075caf013cd8e947f3b9dc06a416896d28aef450c9ec8d310361f)
+            TransactionTestCase { // Transaction 5 -> P2SH_P2WPKH, P2PKH uncompressed, and Bech32(P2WPKH) to Bech32(P2WPKH) (b2eb46fe6f8075caf013cd8e947f3b9dc06a416896d28aef450c9ec8d310361f)
                 version: 1,
                 lock_time: 0,
                 inputs: [
@@ -1131,7 +1180,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(15000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "5KRoKpnWWav74XDgz28opnJUsBozUg8STwEQPq354yUa3MiXySn",
@@ -1142,7 +1191,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: None,
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "Kzs2rY8y9brmULJ3VK9gZHiZAhNJ2ttjn7ZuyJbG52pToZfCpQDr",
@@ -1153,7 +1202,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: Some(12000),
                         sequence: None,
-                        sig_hash_code: SigHashCode::SIGHASH_ALL
+                        sig_hash_code: SignatureHash::SIGHASH_ALL
                     },
                     INPUT_FILLER
                 ],
@@ -1204,7 +1253,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: None,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1215,7 +1264,7 @@ mod tests {
                 script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1226,7 +1275,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1237,7 +1286,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1248,7 +1297,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1259,7 +1308,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: None,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1270,7 +1319,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: None,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SigHashCode::SIGHASH_ALL,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
             INPUT_FILLER,
         ];

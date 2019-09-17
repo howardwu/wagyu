@@ -96,7 +96,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     type TransactionHash = EthereumTransactionHash;
     type TransactionParameters = EthereumTransactionParameters;
 
-    /// Returns an unsigned transaction given the sender, receiver, amount, and parameters.
+    /// Returns an unsigned transaction given the receiver, amount, and parameters.
     fn new(
         receiver: &Self::Address,
         amount: &Self::Amount,
