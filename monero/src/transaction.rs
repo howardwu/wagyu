@@ -1,7 +1,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use crate::address::{MoneroAddress, Format};
+use crate::address::MoneroAddress;
+use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
@@ -28,7 +29,7 @@ pub struct MoneroTransaction<N: MoneroNetwork> {
 
 impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
     type Address = MoneroAddress<N>;
-    type Format = Format;
+    type Format = MoneroFormat;
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
 }
@@ -152,9 +153,6 @@ impl Default for CreateTransaction {
 }
 
 impl<N: MoneroNetwork> MoneroTransaction<N> {
-
-    // Call into mymonero-core-cpp library json interface functions to send transaction
-
     /// Returns Monero transaction fee parameters and decoy outputs
     /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L445
     pub fn prepare_transaction(
@@ -179,14 +177,11 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             passedIn_attemptAt_fee: passed_in_attempt_at_fee.to_string(),
             payment_id_string: payment_id_string.to_string(),
         };
-//        println!("sending step 1: {}", args_value.to_string());
 
         let response = call_extern_function(
             &serde_json::to_string(&args_value)?,
             extern_send_step1,
         );
-
-//        println!("received step 1: {}", response);
 
         #[derive(Serialize, Deserialize)]
         struct Step1ResultString {
@@ -272,13 +267,9 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             using_outs,
         };
 
-//        println!("sending step 2: {}", args_value.to_string());
-
         let response = call_extern_function(
             &serde_json::to_string(&args_value)?,
             extern_send_step2);
-
-//        println!("received step 2: {}", response);
 
         #[derive(Serialize, Deserialize)]
         struct Step2Result {
@@ -344,7 +335,7 @@ mod tests {
         pub payment_id_string: &'static str,
         pub sending_amount: u64,
         pub priority: u32,
-        pub unspent_outs: &'static str,
+        pub unspent_outs: [Output; 1],
 
         pub mixin: u32,
 
@@ -357,12 +348,51 @@ mod tests {
         pub to_address_string: &'static str,
         pub nettype_string: &'static str,
         pub unlock_time: u64,
-        pub using_outs: &'static str,
-        pub mix_outs: &'static str,
+        pub using_outs: [Output; 1],
+        pub mix_outs: [MixAmountAndOutputs; 1],
+    }
+
+    #[derive(Clone)]
+    pub struct Output {
+        amount: u64,
+        index: u64,
+        global_index: u64,
+        public_key: &'static str,
+        rct: Option<&'static str>,
+        tx_pub_key: &'static str,
+    }
+
+    #[derive(Clone)]
+    pub struct MixAmountAndOutputs {
+        amount: u64,
+        outputs: [MixOutput; 10],
+    }
+
+    #[derive(Clone)]
+    pub struct MixOutput {
+        global_index: u64,
+        public_key: &'static str,
+        rct: Option<&'static str>,
     }
 
     pub fn test_prepare_transaction(transaction: Transaction) {
-        let unspent_outs: Vec<UnspentOutput> = serde_json::from_str(transaction.unspent_outs).unwrap();
+        let mut unspent_outs: Vec<UnspentOutput> = Vec::new();
+
+        for output in transaction.unspent_outs.to_vec() {
+            let rct: Option<String> = match output.rct {
+                Some(rct) => Some(rct.into()),
+                None => None
+            };
+
+            unspent_outs.push(UnspentOutput {
+                amount: output.amount,
+                index: output.index,
+                global_index: output.global_index,
+                public_key: output.public_key.into(),
+                rct,
+                tx_pub_key: output.tx_pub_key.into(),
+            });
+        }
 
         let transaction_parameters = MoneroTransaction::<N>::prepare_transaction(
             transaction.is_sweeping,
@@ -383,8 +413,45 @@ mod tests {
     }
 
     pub fn test_create_transaction(transaction: Transaction) {
-        let using_outs: Vec<UnspentOutput> = serde_json::from_str(transaction.using_outs).unwrap();
-        let mix_outs: Vec<MixAmountAndOuts> = serde_json::from_str(transaction.mix_outs).unwrap();
+        let mut using_outs: Vec<UnspentOutput> = Vec::new();
+        for output in transaction.using_outs.to_vec() {
+            let rct: Option<String> = match output.rct {
+                Some(rct) => Some(rct.into()),
+                None => None
+            };
+
+            using_outs.push(UnspentOutput {
+                amount: output.amount,
+                index: output.index,
+                global_index: output.global_index,
+                public_key: output.public_key.into(),
+                rct,
+                tx_pub_key: output.tx_pub_key.into(),
+            });
+        }
+
+        let mut mix_outs: Vec<MixAmountAndOuts> = Vec::new();
+        for amount_and_output in transaction.mix_outs.to_vec() {
+            let mut outputs: Vec<MixOut> = Vec::new();
+            for output in amount_and_output.outputs.to_vec() {
+                let rct: Option<String> = match output.rct {
+                    Some(rct) => Some(rct.into()),
+                    None => None
+                };
+
+                outputs.push(MixOut {
+                    global_index: output.global_index,
+                    public_key: output.public_key.into(),
+                    rct,
+                });
+            }
+
+            mix_outs.push(MixAmountAndOuts {
+                amount: amount_and_output.amount,
+                outputs,
+            })
+        }
+
 
         let transaction_result = MoneroTransaction::<N>::create_transaction(
             transaction.change_amount,
@@ -406,6 +473,7 @@ mod tests {
         ).unwrap();
 
         assert_eq!(transaction_result.tx_must_be_reconstructed, false);
+        assert!(!transaction_result.serialized_signed_tx.is_empty());
     }
 
 
@@ -422,7 +490,16 @@ mod tests {
             payment_id_string: "d2f602b240fbe624",
             sending_amount: 200000000,
             priority: 1,
-            unspent_outs: "[{\"amount\":3000000000,\"public_key\":\"41be1978f58cabf69a9bed5b6cb3c8d588621ef9b67602328da42a213ee42271\",\"index\":1,\"global_index\":7611174,\"rct\":\"86a2c9f1f8e66848cd99bfda7a14d4ac6c3525d06947e21e4e55fe42a368507eb5b234ccdd70beca8b1fc8de4f2ceb1374e0f1fd8810849e7f11316c2cc063060008ffa5ac9827b776993468df21af8c963d12148622354f950cbe1369a92a0c\",\"tx_id\":5334971,\"tx_hash\":\"9d37c7fdeab91abfd1e7e120f5c49eac17b7ac04a97a0c93b51c172115df21ea\",\"tx_pub_key\":\"bd703d7f37995cc7071fb4d2929594b5e2a4c27d2b7c68a9064500ca7bc638b8\"}]",
+            unspent_outs: [
+                Output {
+                    amount: 3000000000,
+                    public_key: "41be1978f58cabf69a9bed5b6cb3c8d588621ef9b67602328da42a213ee42271",
+                    index: 1,
+                    global_index: 7611174,
+                    rct: Some("86a2c9f1f8e66848cd99bfda7a14d4ac6c3525d06947e21e4e55fe42a368507eb5b234ccdd70beca8b1fc8de4f2ceb1374e0f1fd8810849e7f11316c2cc063060008ffa5ac9827b776993468df21af8c963d12148622354f950cbe1369a92a0c"),
+                    tx_pub_key: "bd703d7f37995cc7071fb4d2929594b5e2a4c27d2b7c68a9064500ca7bc638b8",
+                }
+            ],
 
             mixin: 10,
 
@@ -435,8 +512,74 @@ mod tests {
             to_address_string: "4APbcAKxZ2KPVPMnqa5cPtJK25tr7maE7LrJe67vzumiCtWwjDBvYnHZr18wFexJpih71Mxsjv8b7EpQftpB9NjPPXmZxHN",
             nettype_string: "MAINNET",
             unlock_time: 0,
-            using_outs: "[{\"amount\":3000000000,\"public_key\":\"41be1978f58cabf69a9bed5b6cb3c8d588621ef9b67602328da42a213ee42271\",\"index\":1,\"global_index\":7611174,\"rct\":\"86a2c9f1f8e66848cd99bfda7a14d4ac6c3525d06947e21e4e55fe42a368507eb5b234ccdd70beca8b1fc8de4f2ceb1374e0f1fd8810849e7f11316c2cc063060008ffa5ac9827b776993468df21af8c963d12148622354f950cbe1369a92a0c\",\"tx_id\":5334971,\"tx_hash\":\"9d37c7fdeab91abfd1e7e120f5c49eac17b7ac04a97a0c93b51c172115df21ea\",\"tx_pub_key\":\"bd703d7f37995cc7071fb4d2929594b5e2a4c27d2b7c68a9064500ca7bc638b8\"}]",
-            mix_outs: "[{\"amount\":0,\"outputs\":[{\"global_index\":7453099,\"public_key\":\"31f3a7fec0f6f09067e826b6c2904fd4b1684d7893dcf08c5b5d22e317e148bb\",\"rct\":\"ea6bcb193a25ce2787dd6abaaeef1ee0c924b323c6a5873db1406261e86145fc\"},{\"global_index\":7500097,\"public_key\":\"f9d923500671da05a1bf44b932b872f0c4a3c88e6b3d4bf774c8be915e25f42b\",\"rct\":\"dcae4267a6c382bcd71fd1af4d2cbceb3749d576d7a3acc473dd579ea9231a52\"},{\"global_index\":7548483,\"public_key\":\"839cbbb73685654b93e824c4843e745e8d5f7742e83494932307bf300641c480\",\"rct\":\"aa99d492f1d6f1b20dcd95b8fff8f67a219043d0d94b4551759016b4888573e7\"},{\"global_index\":7554755,\"public_key\":\"b8860f0697988c8cefd7b4285fbb8bec463f136c2b9a9cadb3e57cebee10717f\",\"rct\":\"327f9b07bee9c4c25b5a990123cd2444228e5704ebe32016cd632866710279b5\"},{\"global_index\":7561477,\"public_key\":\"561d734cb90bc4a64d49d37f85ea85575243e2ed749a3d6dcb4d27aa6bec6e88\",\"rct\":\"b5393e038df95b94bfda62b44a29141cac9e356127270af97193460d51949841\"},{\"global_index\":7567062,\"public_key\":\"db1024ef67e7e73608ef8afab62f49e2402c8da3dc3197008e3ba720ad3c94a8\",\"rct\":\"1fedf95621881b77f823a70aa83ece26aef62974976d2b8cd87ed4862a4ec92c\"},{\"global_index\":7567508,\"public_key\":\"6283f3cd2f050bba90276443fe04f6076ad2ad46a515bf07b84d424a3ba43d27\",\"rct\":\"10e16bb8a8b7b0c8a4b193467b010976b962809c9f3e6c047335dba09daa351f\"},{\"global_index\":7568716,\"public_key\":\"7a7deb4eef81c1f5ce9cbd0552891cb19f1014a03a5863d549630824c7c7c0d3\",\"rct\":\"735d059dc3526334ac705ddc44c4316bb8805d2426dcea9544cde50cf6c7a850\"},{\"global_index\":7571196,\"public_key\":\"535208e354cae530ed7ce752935e555d630cf2edd7f91525024ed9c332b2a347\",\"rct\":\"c3cf838faa14e993536c5581ca582fb0d96b70f713cf88f7f15c89336e5853ec\"},{\"global_index\":7571333,\"public_key\":\"e73f27b7eb001aa7eac13df82814cda65b42ceeb6ef36227c25d5cbf82f6a5e4\",\"rct\":\"5f45f33c6800cdae202b37abe6d87b53d6873e7b30f3527161f44fa8db3104b6\"},{\"global_index\":7571335,\"public_key\":\"fce982dbz8e7a6b71a1e632c7de8c5cbf54e8bacdfbf250f1ffc2a8d2f7055ce3\",\"rct\":\"407bdcc48e70eb3ef2cc22cefee6c6b5a3c59fd17bde12fda5f1a44a0fb39d14\"}]}]"
+            using_outs: [
+                Output {
+                    amount: 3000000000,
+                    public_key: "41be1978f58cabf69a9bed5b6cb3c8d588621ef9b67602328da42a213ee42271",
+                    index: 1,
+                    global_index: 7611174,
+                    rct: Some("86a2c9f1f8e66848cd99bfda7a14d4ac6c3525d06947e21e4e55fe42a368507eb5b234ccdd70beca8b1fc8de4f2ceb1374e0f1fd8810849e7f11316c2cc063060008ffa5ac9827b776993468df21af8c963d12148622354f950cbe1369a92a0c"),
+                    tx_pub_key: "bd703d7f37995cc7071fb4d2929594b5e2a4c27d2b7c68a9064500ca7bc638b8",
+                }
+            ],
+            mix_outs: [
+                MixAmountAndOutputs {
+                    amount: 0,
+                    outputs: [
+                        MixOutput {
+                            global_index: 7453099,
+                            public_key: "31f3a7fec0f6f09067e826b6c2904fd4b1684d7893dcf08c5b5d22e317e148bb",
+                            rct: Some("ea6bcb193a25ce2787dd6abaaeef1ee0c924b323c6a5873db1406261e86145fc"),
+                        },
+                        MixOutput {
+                            global_index: 7500097,
+                            public_key: "f9d923500671da05a1bf44b932b872f0c4a3c88e6b3d4bf774c8be915e25f42b",
+                            rct: Some("dcae4267a6c382bcd71fd1af4d2cbceb3749d576d7a3acc473dd579ea9231a52"),
+                        },
+                        MixOutput {
+                            global_index: 7548483,
+                            public_key: "839cbbb73685654b93e824c4843e745e8d5f7742e83494932307bf300641c480",
+                            rct: Some("aa99d492f1d6f1b20dcd95b8fff8f67a219043d0d94b4551759016b4888573e7"),
+                        },
+                        MixOutput {
+                            global_index: 7554755,
+                            public_key: "b8860f0697988c8cefd7b4285fbb8bec463f136c2b9a9cadb3e57cebee10717f",
+                            rct: Some("327f9b07bee9c4c25b5a990123cd2444228e5704ebe32016cd632866710279b5"),
+                        },
+                        MixOutput {
+                            global_index: 7561477,
+                            public_key: "561d734cb90bc4a64d49d37f85ea85575243e2ed749a3d6dcb4d27aa6bec6e88",
+                            rct: Some("b5393e038df95b94bfda62b44a29141cac9e356127270af97193460d51949841"),
+                        },
+                        MixOutput {
+                            global_index: 7567062,
+                            public_key: "db1024ef67e7e73608ef8afab62f49e2402c8da3dc3197008e3ba720ad3c94a8",
+                            rct: Some("1fedf95621881b77f823a70aa83ece26aef62974976d2b8cd87ed4862a4ec92c"),
+                        },
+                        MixOutput {
+                            global_index: 7567508,
+                            public_key: "6283f3cd2f050bba90276443fe04f6076ad2ad46a515bf07b84d424a3ba43d27",
+                            rct: Some("10e16bb8a8b7b0c8a4b193467b010976b962809c9f3e6c047335dba09daa351f"),
+                        },
+                        MixOutput {
+                            global_index: 7568716,
+                            public_key: "7a7deb4eef81c1f5ce9cbd0552891cb19f1014a03a5863d549630824c7c7c0d3",
+                            rct: Some("735d059dc3526334ac705ddc44c4316bb8805d2426dcea9544cde50cf6c7a850"),
+                        },
+                        MixOutput {
+                            global_index: 7571196,
+                            public_key: "535208e354cae530ed7ce752935e555d630cf2edd7f91525024ed9c332b2a347",
+                            rct: Some("c3cf838faa14e993536c5581ca582fb0d96b70f713cf88f7f15c89336e5853ec"),
+                        },
+                        MixOutput {
+                            global_index: 7571333,
+                            public_key: "e73f27b7eb001aa7eac13df82814cda65b42ceeb6ef36227c25d5cbf82f6a5e4",
+                            rct: Some("5f45f33c6800cdae202b37abe6d87b53d6873e7b30f3527161f44fa8db3104b6"),
+                        },
+                    ],
+                }
+            ],
+
         };
 
         #[test]
@@ -462,7 +605,16 @@ mod tests {
             payment_id_string: "",
             sending_amount: 200000000,
             priority: 1,
-            unspent_outs: "[{\"amount\":9996522470000,\"public_key\":\"dd397dea109a2b94056fd5e236eada6f57c60ab4de5563469a4245e7394f8f65\",\"index\":0,\"global_index\":1745616,\"rct\":\"c32e27e0f773d08efc3a651cbabbbd563a60fb230ccd3ebf5320ae825ab05e86da36753b8b5957c4\",\"tx_id\":802,\"tx_hash\":\"902e4e9661cff7acc9b4d8de7a902b0e8c0a90b5fded6ad4ce6fb5633d1e01c3\",\"tx_pub_key\":\"0ee98e87f68a2526393ed487495f2d3dba6e90e860537d0aae1d5fad5d492f21\"}, {\"amount\":10000000000000,\"public_key\":\"a916a631a0cb830c2203536492542a08e893158e131ce13bb78d6057ae649476\",\"index\":1,\"global_index\":1745603,\"rct\":\"5ed44e17993122468916e0aaea3690e19bf983c2ceaf9f2f9463565589f7b089df331eaea305890e\",\"tx_id\":801,\"tx_hash\":\"d62dfe7ff500b40ca60b0ec1b4e01988f1486bf094054a9a098b3a6f5f3ecb9a\",\"tx_pub_key\":\"ea8232f7d80c9a98e3e7a06c37b0b9d813542657e7e7962fd94cf49cafb58252\"}]",
+            unspent_outs: [
+                Output {
+                    amount: 9996522470000,
+                    public_key: "dd397dea109a2b94056fd5e236eada6f57c60ab4de5563469a4245e7394f8f65",
+                    index: 0,
+                    global_index: 1745616,
+                    rct: Some("c32e27e0f773d08efc3a651cbabbbd563a60fb230ccd3ebf5320ae825ab05e86da36753b8b5957c4"),
+                    tx_pub_key: "0ee98e87f68a2526393ed487495f2d3dba6e90e860537d0aae1d5fad5d492f21",
+                }
+            ],
 
             mixin: 10,
 
@@ -475,8 +627,73 @@ mod tests {
             to_address_string: "59McWTPGc745SRWrSMoh8oTjoXoQq6sPUgKZ66dQWXuKFQ2q19h9gvhJNZcFTizcnT12r63NFgHiGd6gBCjabzmzHAMoyD6",
             nettype_string: "STAGENET",
             unlock_time: 0,
-            using_outs: "[{\"amount\":9996522470000,\"public_key\":\"dd397dea109a2b94056fd5e236eada6f57c60ab4de5563469a4245e7394f8f65\",\"index\":0,\"global_index\":1745616,\"rct\":\"c32e27e0f773d08efc3a651cbabbbd563a60fb230ccd3ebf5320ae825ab05e86da36753b8b5957c4\",\"tx_id\":802,\"tx_hash\":\"902e4e9661cff7acc9b4d8de7a902b0e8c0a90b5fded6ad4ce6fb5633d1e01c3\",\"tx_pub_key\":\"0ee98e87f68a2526393ed487495f2d3dba6e90e860537d0aae1d5fad5d492f21\"}]",
-            mix_outs: "[{\"amount\":0,\"outputs\":[{\"global_index\":1522098,\"public_key\":\"4c72fa2bef04dca799f1b8821f3f5e53d14e30dd143e73426c473995c7fac5e7\",\"rct\":\"b76844a6b8ae138a319198efb3bba88406e2b717cb2bd6a1c5675f5c040f4cb600000000000000000000000000000000000000000000000000000000000000001a9c1b4ec57e1362000000000000000000000000000000000000000000000000\"},{\"global_index\":1314128,\"public_key\":\"99b7f212b56fa75260ee7c83535922561e4a3072447bb96cb4e07beb29152220\",\"rct\":\"13a42eca66f12becc3538aa3ee3da6cab24100079f4bc280b5ea38ec372f64ab00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\"},{\"global_index\":1455703,\"public_key\":\"ae29e674c69363a6d3f0ab5e1648375cafb3b7e6088747781959a4248a706549\",\"rct\":\"8f49acf1046ceb5c0aec067623ac6ab30d20d10d5a4b73d0562150dbab20f4070000000000000000000000000000000000000000000000000000000000000000825b0e78dc68428e000000000000000000000000000000000000000000000000\"},{\"global_index\":640952,\"public_key\":\"8d6038a16684a251b19a7684fc91345a468a87b1f90c87492c57a6939f69dbac\",\"rct\":\"fc6a95dd6bafdce7ffba40ef6282351f82e4580cc439f4325b2b8df0388eac5400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\"},{\"global_index\":834344,\"public_key\":\"0ab50a508bbbd3cac1c7203a19c30c4cad5dc8aa0c24b824c8283281eaec961e\",\"rct\":\"9af4f716993de3afd02062339aecd3197356226ed7baca56329a7a3e330041c8ed3c4ad84a4f5974564a7939de6457d989f6f7fae0a578a0a68084444bc30403081b6b568a4379723fb3817b41aad7881d40c2abd8770e1de698ffee2d2c2206\"},{\"global_index\":1214508,\"public_key\":\"53c94ea948205b1c582b82d63e3f90c11d293baffab8d6d1662b8f45d1053464\",\"rct\":\"4ddb5c7348878df1c30bb1f5d6f65697043f4aae4d62c76adfc630d34580ef3600000000000000000000000000000000000000000000000000000000000000003c171473b3c5ee70000000000000000000000000000000000000000000000000\"},{\"global_index\":1617396,\"public_key\":\"24ad1a4ff3fc39e5b9473f09506041f7ede9605ddf633410a3353be1a2b8b259\",\"rct\":\"7720631e160804759223ca4dfbb0c66329f102c855c17c12adc6f560d5597f9300000000000000000000000000000000000000000000000000000000000000007d1fff73a88e2caf000000000000000000000000000000000000000000000000\"},{\"global_index\":321717,\"public_key\":\"77b0ff37990913b62a081fe3e98a25be633cf58593194b97fb13ff59e6e4d405\",\"rct\":\"9883d971e67f14b39f11d4862fa31e6b0849f320f96c687400327dfca43b9b139b633364db9ce0d949d1675c4136e19c24de4ef3a331893d57f6b033bda1760beec0335ea02e8295886e2f0b7c8066ab0649468c812b080fc53e6ee723df720b\"},{\"global_index\":1501374,\"public_key\":\"3bb106d2f8de03523cc201123f768b5670da942130c0360dee70c017ad2a4159\",\"rct\":\"a0229ea3c1aef3a7570f3834e6f536749fd9aa52198d614134c7d798b5bd15c80000000000000000000000000000000000000000000000000000000000000000631b748cfde1645e000000000000000000000000000000000000000000000000\"},{\"global_index\":491964,\"public_key\":\"d968a59e48c40ff79b4fb47eb08b630184ddbb1f3bc043b1a4797aa87d5d07d8\",\"rct\":\"d4ac039c43c99460b818cd8daca5468ee78d53e3017b90e6a6a64fd0de79e072a582ce2c8a2b471f51be15c4ca5218748e520c759f07581ae0c0d297668b5c0562adc3999444d40dc11388ac5f2fca05b2f42ed91e3b7c11537213d09d925003\"}]}]"
+            using_outs: [
+                Output {
+                    amount: 9996522470000,
+                    public_key: "dd397dea109a2b94056fd5e236eada6f57c60ab4de5563469a4245e7394f8f65",
+                    index: 0,
+                    global_index: 1745616,
+                    rct: Some("c32e27e0f773d08efc3a651cbabbbd563a60fb230ccd3ebf5320ae825ab05e86da36753b8b5957c4"),
+                    tx_pub_key: "0ee98e87f68a2526393ed487495f2d3dba6e90e860537d0aae1d5fad5d492f21",
+                }
+            ],
+            mix_outs: [
+                MixAmountAndOutputs {
+                    amount: 0,
+                    outputs: [
+                        MixOutput {
+                            global_index: 1522098,
+                            public_key: "4c72fa2bef04dca799f1b8821f3f5e53d14e30dd143e73426c473995c7fac5e7",
+                            rct: Some("b76844a6b8ae138a319198efb3bba88406e2b717cb2bd6a1c5675f5c040f4cb600000000000000000000000000000000000000000000000000000000000000001a9c1b4ec57e1362000000000000000000000000000000000000000000000000"),
+                        },
+                        MixOutput {
+                            global_index: 1314128,
+                            public_key: "99b7f212b56fa75260ee7c83535922561e4a3072447bb96cb4e07beb29152220",
+                            rct: Some("13a42eca66f12becc3538aa3ee3da6cab24100079f4bc280b5ea38ec372f64ab00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                        },
+                        MixOutput {
+                            global_index: 1455703,
+                            public_key: "ae29e674c69363a6d3f0ab5e1648375cafb3b7e6088747781959a4248a706549",
+                            rct: Some("8f49acf1046ceb5c0aec067623ac6ab30d20d10d5a4b73d0562150dbab20f4070000000000000000000000000000000000000000000000000000000000000000825b0e78dc68428e000000000000000000000000000000000000000000000000")
+                        },
+                        MixOutput {
+                            global_index: 640952,
+                            public_key: "8d6038a16684a251b19a7684fc91345a468a87b1f90c87492c57a6939f69dbac",
+                            rct: Some("fc6a95dd6bafdce7ffba40ef6282351f82e4580cc439f4325b2b8df0388eac5400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                        },
+                        MixOutput {
+                            global_index: 834344,
+                            public_key: "0ab50a508bbbd3cac1c7203a19c30c4cad5dc8aa0c24b824c8283281eaec961e",
+                            rct: Some("9af4f716993de3afd02062339aecd3197356226ed7baca56329a7a3e330041c8ed3c4ad84a4f5974564a7939de6457d989f6f7fae0a578a0a68084444bc30403081b6b568a4379723fb3817b41aad7881d40c2abd8770e1de698ffee2d2c2206")
+                        },
+                        MixOutput {
+                            global_index: 1214508,
+                            public_key: "53c94ea948205b1c582b82d63e3f90c11d293baffab8d6d1662b8f45d1053464",
+                            rct: Some("4ddb5c7348878df1c30bb1f5d6f65697043f4aae4d62c76adfc630d34580ef3600000000000000000000000000000000000000000000000000000000000000003c171473b3c5ee70000000000000000000000000000000000000000000000000")
+                        },
+                        MixOutput {
+                            global_index: 1617396,
+                            public_key: "24ad1a4ff3fc39e5b9473f09506041f7ede9605ddf633410a3353be1a2b8b259",
+                            rct: Some("7720631e160804759223ca4dfbb0c66329f102c855c17c12adc6f560d5597f9300000000000000000000000000000000000000000000000000000000000000007d1fff73a88e2caf000000000000000000000000000000000000000000000000")
+                        },
+                        MixOutput {
+                            global_index: 321717,
+                            public_key: "77b0ff37990913b62a081fe3e98a25be633cf58593194b97fb13ff59e6e4d405",
+                            rct: Some("9883d971e67f14b39f11d4862fa31e6b0849f320f96c687400327dfca43b9b139b633364db9ce0d949d1675c4136e19c24de4ef3a331893d57f6b033bda1760beec0335ea02e8295886e2f0b7c8066ab0649468c812b080fc53e6ee723df720b")
+                        },
+                        MixOutput {
+                            global_index: 1501374,
+                            public_key: "3bb106d2f8de03523cc201123f768b5670da942130c0360dee70c017ad2a4159",
+                            rct: Some("a0229ea3c1aef3a7570f3834e6f536749fd9aa52198d614134c7d798b5bd15c80000000000000000000000000000000000000000000000000000000000000000631b748cfde1645e000000000000000000000000000000000000000000000000")
+                        },
+                        MixOutput {
+                            global_index: 491964,
+                            public_key: "d968a59e48c40ff79b4fb47eb08b630184ddbb1f3bc043b1a4797aa87d5d07d8",
+                            rct: Some("d4ac039c43c99460b818cd8daca5468ee78d53e3017b90e6a6a64fd0de79e072a582ce2c8a2b471f51be15c4ca5218748e520c759f07581ae0c0d297668b5c0562adc3999444d40dc11388ac5f2fca05b2f42ed91e3b7c11537213d09d925003")
+                        }
+                    ],
+                }
+            ],
         };
 
         #[test]
