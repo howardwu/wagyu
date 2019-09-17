@@ -152,7 +152,7 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// The outpoint (36 bytes)
     pub outpoint: Outpoint<N>,
     /// The transaction input script (variable size)
-    pub script: Vec<u8>,
+    pub scriptSig: Vec<u8>,
     /// The sequence number (4 bytes) (0xFFFFFFFF unless lock > 0)
     /// Also used in replace-by-fee (BIP 125)
     pub sequence: Vec<u8>,
@@ -223,7 +223,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
                 script_pub_key,
                 address: address.clone(),
             },
-            script: vec![],
+            scriptSig: vec![],
             sequence: sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec()),
             sighash,
             witnesses: vec![],
@@ -239,7 +239,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
         match raw {
             true => input.extend(vec![0x00]),
-            false => match (self.script.len(), self.outpoint.address.format()) {
+            false => match (self.scriptSig.len(), self.outpoint.address.format()) {
                 (0, BitcoinFormat::Bech32) => input.extend(vec![0x00]),
                 (0, _) => {
                     let script_pub_key = &self.outpoint.script_pub_key.clone();
@@ -247,8 +247,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
                     input.extend(script_pub_key);
                 }
                 _ => {
-                    input.extend(variable_length_integer(self.script.len() as u64)?);
-                    input.extend(&self.script);
+                    input.extend(variable_length_integer(self.scriptSig.len() as u64)?);
+                    input.extend(&self.scriptSig);
                 }
             },
         };
@@ -371,7 +371,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
 
                 match input.outpoint.address.format() {
                     BitcoinFormat::P2PKH => {
-                        transaction.parameters.inputs[vin].script = [signature.clone(), public_key].concat();
+                        transaction.parameters.inputs[vin].scriptSig = [signature.clone(), public_key].concat();
                         transaction.parameters.inputs[vin].is_signed = true;
                     }
                     BitcoinFormat::P2SH_P2WPKH => {
@@ -380,7 +380,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                             None => return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into())),
                         };
                         transaction.parameters.segwit_flag = true;
-                        transaction.parameters.inputs[vin].script =
+                        transaction.parameters.inputs[vin].scriptSig =
                             [variable_length_integer(input_script.len() as u64)?, input_script].concat();
                         transaction.parameters.inputs[vin]
                             .witnesses
