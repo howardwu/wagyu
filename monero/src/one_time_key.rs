@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 
-use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
@@ -163,6 +162,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::format::MoneroFormat;
     use crate::Mainnet;
     use hex;
 

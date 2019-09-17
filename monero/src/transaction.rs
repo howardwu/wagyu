@@ -486,7 +486,7 @@ mod tests {
             fee_mask: 10000,
             fee_per_b: 24658,
             fork_version: 10,
-            passed_in_attempt_at_fee: "",
+            passed_in_attempt_at_fee: "66290000",
             payment_id_string: "d2f602b240fbe624",
             sending_amount: 200000000,
             priority: 1,
