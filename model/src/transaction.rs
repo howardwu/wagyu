@@ -9,19 +9,14 @@ use rlp;
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {
     type Address: Address;
-    type Amount;
     type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
     type TransactionHash;
     type TransactionParameters;
 
-    /// Returns an unsigned transaction given the receiver, amount, and parameters.
-    fn new(
-        receiver: &Self::Address,
-        amount: &Self::Amount,
-        parameters: &Self::TransactionParameters
-    ) -> Result<Self, TransactionError>;
+    /// Returns an unsigned transaction given the transaction parameters.
+    fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError>;
 
     /// Returns a signed transaction given the private key of the sender.
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError>;
@@ -97,6 +92,9 @@ pub enum TransactionError {
 
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
+
+    #[fail(display = "unsupported preimage operation on address format of {}", _0)]
+    UnsupportedPreimage(String),
 }
 
 impl From<&'static str> for TransactionError {

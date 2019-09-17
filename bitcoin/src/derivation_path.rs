@@ -410,11 +410,9 @@ mod tests {
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0/1"),
-            Ok(
-                vec![ChildIndex::normal(0).unwrap(), ChildIndex::normal(1).unwrap()]
-                    .try_into()
-                    .unwrap()
-            )
+            Ok(vec![ChildIndex::normal(0).unwrap(), ChildIndex::normal(1).unwrap()]
+                .try_into()
+                .unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0/1/2"),
@@ -448,12 +446,9 @@ mod tests {
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1"),
-            Ok(vec![
-                ChildIndex::hardened(0).unwrap(),
-                ChildIndex::normal(1).unwrap()
-            ]
-            .try_into()
-            .unwrap())
+            Ok(vec![ChildIndex::hardened(0).unwrap(), ChildIndex::normal(1).unwrap()]
+                .try_into()
+                .unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1/2'"),
@@ -499,12 +494,9 @@ mod tests {
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0h/1'"),
-            Ok(vec![
-                ChildIndex::hardened(0).unwrap(),
-                ChildIndex::hardened(1).unwrap()
-            ]
-            .try_into()
-            .unwrap())
+            Ok(vec![ChildIndex::hardened(0).unwrap(), ChildIndex::hardened(1).unwrap()]
+                .try_into()
+                .unwrap())
         );
         assert_eq!(
             BitcoinDerivationPath::<N>::from_str("m/0'/1h/2'"),

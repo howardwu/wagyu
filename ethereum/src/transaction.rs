@@ -36,6 +36,10 @@ pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
 /// Represents the parameters for an Ethereum transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransactionParameters {
+    /// The address of the receiver
+    pub receiver: EthereumAddress,
+    /// The amount (in wei)
+    pub amount: U256,
     /// The transaction gas limit
     pub gas: U256,
     /// The transaction gas price in wei
@@ -75,10 +79,6 @@ impl fmt::Display for EthereumTransactionHash {
 pub struct EthereumTransaction<N: EthereumNetwork> {
     /// The address of the sender
     sender: Option<EthereumAddress>,
-    /// The address of the receiver
-    receiver: EthereumAddress,
-    /// The amount (in wei)
-    amount: U256,
     /// The transaction parameters (gas, gas_price, nonce, data)
     parameters: EthereumTransactionParameters,
     /// The transaction signature
@@ -89,23 +89,16 @@ pub struct EthereumTransaction<N: EthereumNetwork> {
 
 impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     type Address = EthereumAddress;
-    type Amount = U256;
     type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
     type TransactionHash = EthereumTransactionHash;
     type TransactionParameters = EthereumTransactionParameters;
 
-    /// Returns an unsigned transaction given the receiver, amount, and parameters.
-    fn new(
-        receiver: &Self::Address,
-        amount: &Self::Amount,
-        parameters: &Self::TransactionParameters
-    ) -> Result<Self, TransactionError> {
+    /// Returns an unsigned transaction given the transaction parameters.
+    fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         Ok(Self {
             sender: None,
-            receiver: receiver.clone(),
-            amount: amount.clone(),
             parameters: parameters.clone(),
             signature: None,
             _network: PhantomData,
@@ -145,12 +138,12 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             return Err(TransactionError::InvalidRlpLength(list.len()))
         }
 
-        let receiver = EthereumAddress::from_str(&hex::encode(&list[3]))?;
-        let amount: U256 = match list[4].is_empty() {
-            true => U256::zero(),
-            false => U256::from(list[4].as_slice()),
-        };
         let parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(&hex::encode(&list[3]))?,
+            amount: match list[4].is_empty() {
+                true => U256::zero(),
+                false => U256::from(list[4].as_slice()),
+            },
             gas: match list[2].is_empty() {
                 true => U256::zero(),
                 false => U256::from(list[2].as_slice()),
@@ -171,8 +164,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 // Raw transaction
                 Ok(Self {
                     sender: None,
-                    receiver,
-                    amount,
                     parameters,
                     signature: None,
                     _network: PhantomData
@@ -187,8 +178,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
                 let raw_transaction = Self {
                     sender: None,
-                    receiver: receiver.clone(),
-                    amount,
                     parameters: parameters.clone(),
                     signature: None,
                     _network: PhantomData
@@ -200,8 +189,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),
-                    receiver,
-                    amount,
                     parameters,
                     signature: Some(EthereumTransactionSignature {
                         v: list[6].clone(),
@@ -221,28 +208,24 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         // https://github.com/ethereum/wiki/wiki/RLP
         fn encode_transaction(
             transaction_rlp: &mut RlpStream,
-            receiver: &EthereumAddress,
-            amount: &U256,
             parameters: &EthereumTransactionParameters
         ) -> Result<(), TransactionError> {
             transaction_rlp.append(&parameters.nonce);
             transaction_rlp.append(&parameters.gas_price);
             transaction_rlp.append(&parameters.gas);
-            transaction_rlp.append(&hex::decode(&receiver.to_string()[2..])?);
-            transaction_rlp.append(amount);
+            transaction_rlp.append(&hex::decode(&parameters.receiver.to_string()[2..])?);
+            transaction_rlp.append(&parameters.amount);
             transaction_rlp.append(&parameters.data);
             Ok(())
         }
 
         // Returns the raw transaction (in RLP).
         fn raw_transaction<N: EthereumNetwork>(
-            receiver: &EthereumAddress,
-            amount: &U256,
             parameters: &EthereumTransactionParameters,
         ) -> Result<RlpStream, TransactionError> {
             let mut transaction_rlp = RlpStream::new();
             transaction_rlp.begin_list(9);
-            encode_transaction(&mut transaction_rlp, receiver, amount, parameters)?;
+            encode_transaction(&mut transaction_rlp, parameters)?;
             transaction_rlp.append(&to_bytes(N::CHAIN_ID)?);
             transaction_rlp.append(&0u8);
             transaction_rlp.append(&0u8);
@@ -251,14 +234,12 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
         // Returns the signed transaction (in RLP).
         fn signed_transaction(
-            receiver: &EthereumAddress,
-            amount: &U256,
             parameters: &EthereumTransactionParameters,
             signature: &EthereumTransactionSignature,
         ) -> Result<RlpStream, TransactionError> {
             let mut transaction_rlp = RlpStream::new();
             transaction_rlp.begin_list(9);
-            encode_transaction(&mut transaction_rlp, receiver, amount, parameters)?;
+            encode_transaction(&mut transaction_rlp, parameters)?;
             transaction_rlp.append(&signature.v);
             transaction_rlp.append(&signature.r);
             transaction_rlp.append(&signature.s);
@@ -266,8 +247,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         }
 
         match &self.signature {
-            Some(signature) => Ok(signed_transaction(&self.receiver, &self.amount, &self.parameters, signature)?.out()),
-            None => Ok(raw_transaction::<N>(&self.receiver, &self.amount, &self.parameters)?.out()),
+            Some(signature) => Ok(signed_transaction(&self.parameters, signature)?.out()),
+            None => Ok(raw_transaction::<N>( &self.parameters)?.out()),
         }
     }
 
@@ -321,16 +302,16 @@ mod tests {
         let expected_signed_transaction = transaction.signed_transaction;
         let expected_signed_transaction_hash = transaction.signed_transaction_hash;
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-        let amount = U256::from_dec_str(transaction.value).unwrap();
         let parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(transaction.to).unwrap(),
+            amount: U256::from_dec_str(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec()
         };
 
-        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
         assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash().unwrap().to_string());
@@ -339,23 +320,21 @@ mod tests {
     fn test_sign<N: EthereumNetwork>(transaction: &TransactionTestCase) {
         let expected_signed_transaction = transaction.signed_transaction;
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-        let amount = U256::from_dec_str(transaction.value).unwrap();
         let parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(transaction.to).unwrap(),
+            amount: U256::from_dec_str(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec()
         };
 
-        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
 
         assert_eq!(None, transaction.sender);
         assert_eq!(private_key.to_address(&EthereumFormat::Standard).unwrap(), signed_transaction.sender.clone().unwrap());
 
-        assert_eq!(receiver, transaction.receiver);
-        assert_eq!(amount, transaction.amount);
         assert_eq!(parameters, transaction.parameters);
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
     }
@@ -363,9 +342,9 @@ mod tests {
     fn test_from_transaction_bytes<N: EthereumNetwork>(transaction: &TransactionTestCase) {
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let expected_sender = Some(private_key.to_address(&EthereumFormat::Standard).unwrap());
-        let expected_receiver = EthereumAddress::from_str(transaction.to).unwrap();
-        let expected_amount = U256::from_dec_str(transaction.value).unwrap();
         let expected_parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(transaction.to).unwrap(),
+            amount: U256::from_dec_str(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
@@ -375,8 +354,6 @@ mod tests {
 
         let transaction = EthereumTransaction::<N>::from_transaction_bytes(&signed_transaction_bytes).unwrap();
         assert_eq!(expected_sender, transaction.sender);
-        assert_eq!(expected_receiver, transaction.receiver);
-        assert_eq!(expected_amount, transaction.amount);
         assert_eq!(expected_parameters, transaction.parameters);
         assert_eq!(signed_transaction_bytes, transaction.to_transaction_bytes().unwrap());
     }
@@ -384,16 +361,16 @@ mod tests {
     fn test_to_transaction_bytes<N: EthereumNetwork>(transaction: &TransactionTestCase) {
         let expected_signed_transaction_bytes = hex::decode(&transaction.signed_transaction[2..]).unwrap();
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-        let amount = U256::from_dec_str(transaction.value).unwrap();
         let parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(transaction.to).unwrap(),
+            amount: U256::from_dec_str(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec()
         };
 
-        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction_bytes, signed_transaction.to_transaction_bytes().unwrap());
     }
@@ -401,16 +378,16 @@ mod tests {
     fn test_to_transaction_hash<N: EthereumNetwork>(transaction: &TransactionTestCase) {
         let expected_signed_transaction_hash = transaction.signed_transaction_hash;
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-        let amount = U256::from_dec_str(transaction.value).unwrap();
         let parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(transaction.to).unwrap(),
+            amount: U256::from_dec_str(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec()
         };
 
-        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash().unwrap().to_string());
     }
@@ -418,16 +395,16 @@ mod tests {
     fn test_to_string<N: EthereumNetwork>(transaction: &TransactionTestCase) {
         let expected_signed_transaction = transaction.signed_transaction;
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
-        let receiver = EthereumAddress::from_str(transaction.to).unwrap();
-        let amount = U256::from_dec_str(transaction.value).unwrap();
         let parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(transaction.to).unwrap(),
+            amount: U256::from_dec_str(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec()
         };
 
-        let transaction = EthereumTransaction::<N>::new(&receiver, &amount, &parameters).unwrap();
+        let transaction = EthereumTransaction::<N>::new( &parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
     }
