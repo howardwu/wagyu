@@ -328,9 +328,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
 
     /// Returns an unsigned transaction given the transaction parameters.
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        Ok(Self {
-            parameters: parameters.clone(),
-        })
+        Ok(Self { parameters: parameters.clone() })
     }
 
     /// Returns a signed transaction given the private key of the sender.

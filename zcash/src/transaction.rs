@@ -31,81 +31,53 @@ use zcash_primitives::{
 };
 use zcash_proofs::sapling::{SaplingProvingContext, SaplingVerificationContext};
 
-const GROTH_PROOF_SIZE: usize = 48 // π_A
-    + 96 // π_B
-    + 48; // π_C
+const GROTH_PROOF_SIZE: usize = 48 + 96 + 48; // π_A + π_B + π_C
 
-/// Return the variable length integer of the size (compactSize uint)
+/// Returns the variable length integer of the given value.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-pub fn variable_length_integer(size: u64) -> Result<Vec<u8>, TransactionError> {
-    match size {
+pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> {
+    match value {
         // bounded by u8::max_value()
-        0..=252 => Ok(vec![size as u8]),
+        0..=252 => Ok(vec![value as u8]),
         // bounded by u16::max_value()
-        253..=65535 => Ok([vec![0xfd], (size as u16).to_le_bytes().to_vec()].concat()),
+        253..=65535 => Ok([vec![0xfd], (value as u16).to_le_bytes().to_vec()].concat()),
         // bounded by u32::max_value()
-        65536..=4294967295 => Ok([vec![0xfe], (size as u32).to_le_bytes().to_vec()].concat()),
+        65536..=4294967295 => Ok([vec![0xfe], (value as u32).to_le_bytes().to_vec()].concat()),
         // bounded by u64::max_value()
-        _ => Ok([vec![0xff], size.to_le_bytes().to_vec()].concat()),
+        _ => Ok([vec![0xff], value.to_le_bytes().to_vec()].concat()),
     }
-}
-
-/// Validate the address format with the given scripts
-/// (P2SH currently unsupported)
-pub fn validate_address_format(
-    address_format: &ZcashFormat,
-    amount: &Option<u64>,
-    redeem_script: &Option<Vec<u8>>,
-    script_pub_key: &Vec<u8>,
-) -> Result<(u64, Vec<u8>), TransactionError> {
-    let op_dup = Opcodes::OP_DUP as u8;
-    let op_hash160 = Opcodes::OP_HASH160 as u8;
-    let op_checksig = Opcodes::OP_CHECKSIG as u8;
-
-    if address_format == &ZcashFormat::P2PKH
-        && script_pub_key[0] != op_dup
-        && script_pub_key[1] != op_hash160
-        && script_pub_key[script_pub_key.len() - 1] != op_checksig
-    {
-        return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
-    }
-
-    Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
 }
 
 /// Generate the script_pub_key of a corresponding address
-pub fn generate_script_pub_key<N: ZcashNetwork>(address: &str) -> Result<Vec<u8>, TransactionError> {
-    let address = ZcashAddress::<N>::from_str(address)?;
-    let mut script: Vec<u8> = Vec::new();
-    let format = address.format();
-    match format {
+pub fn create_script_pub_key<N: ZcashNetwork>(address: &ZcashAddress<N>) -> Result<Vec<u8>, TransactionError> {
+    match address.format() {
         ZcashFormat::P2PKH => {
             let address_bytes = &address.to_string().from_base58()?;
             let pub_key_hash = address_bytes[2..(address_bytes.len() - 4)].to_vec();
 
+            let mut script = vec![];
             script.push(Opcodes::OP_DUP as u8);
             script.push(Opcodes::OP_HASH160 as u8);
             script.extend(variable_length_integer(pub_key_hash.len() as u64)?);
             script.extend(pub_key_hash);
             script.push(Opcodes::OP_EQUALVERIFY as u8);
             script.push(Opcodes::OP_CHECKSIG as u8);
+            Ok(script)
         }
         _ => unreachable!(),
     }
-
-    Ok(script)
 }
 
 /// Return the transaction header given a version
 fn fetch_header_and_version_group_id(version: &str) -> (u32, u32) {
     match version {
         "sapling" => (2147483652, 0x892F2085),
-        // zcash currently only supports sapling transactions
+        // Zcash currently only supports sapling transactions
         _ => unimplemented!(),
     }
 }
 
-/// Return the Blake256 hash given a personalization and optional zcash version
+/// Returns a Blake256 hash of a given personalization, message, and optional Zcash version
 fn blake2_256_hash(personalization: &str, message: Vec<u8>, version: Option<&str>) -> Hash {
     let personalization = match version {
         Some("sapling") => [personalization.as_bytes(), &(0x76b809bb as u32).to_le_bytes()].concat(),
@@ -223,7 +195,26 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let script_pub_key = script_pub_key.unwrap_or(generate_script_pub_key::<N>(&address.to_string())?);
+
+        /// Validate the address format with the given scripts (P2SH currently unsupported)
+        pub fn validate_address_format(
+            address_format: &ZcashFormat,
+            amount: &Option<u64>,
+            redeem_script: &Option<Vec<u8>>,
+            script_pub_key: &Vec<u8>,
+        ) -> Result<(u64, Vec<u8>), TransactionError> {
+            if address_format == &ZcashFormat::P2PKH
+                && script_pub_key[0] != Opcodes::OP_DUP as u8
+                && script_pub_key[1] != Opcodes::OP_HASH160 as u8
+                && script_pub_key[script_pub_key.len() - 1] != Opcodes::OP_CHECKSIG as u8
+            {
+                return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
+            }
+
+            Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
+        }
+
+        let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
         let (amount, redeem_script) =
             validate_address_format(&address.format(), &amount, &redeem_script, &script_pub_key)?;
 
@@ -247,7 +238,7 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
 
     /// Serialize the transaction input
     pub fn serialize(&self, raw: bool, hash_preimage: bool) -> Result<Vec<u8>, TransactionError> {
-        let mut serialized_input: Vec<u8> = Vec::new();
+        let mut serialized_input = vec![];
         serialized_input.extend(&self.out_point.reverse_transaction_id);
         serialized_input.extend(&self.out_point.index.to_le_bytes());
 
@@ -277,24 +268,24 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
 /// Represents a Zcash transaction output
 #[derive(Debug, Clone)]
 pub struct ZcashTransactionOutput {
-    /// Transfer amount in Satoshi
+    /// The amount (in zatoshi)
     pub amount: u64,
-    /// Output public key script
-    pub output_public_key: Vec<u8>
+    /// The public key script
+    pub script_pub_key: Vec<u8>
 }
 
 impl ZcashTransactionOutput {
     /// Create a new Zcash transaction output
-    pub fn new<N: ZcashNetwork>(address: &str, amount: u64) -> Result<Self, TransactionError> {
-        Ok(Self { amount, output_public_key: generate_script_pub_key::<N>(address)? })
+    pub fn new<N: ZcashNetwork>(address: &ZcashAddress<N>, amount: u64) -> Result<Self, TransactionError> {
+        Ok(Self { amount, script_pub_key: create_script_pub_key::<N>(address)? })
     }
 
     /// Serialize the transaction output
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut serialized_output = vec![];
         serialized_output.extend(&self.amount.to_le_bytes());
-        serialized_output.extend(variable_length_integer(self.output_public_key.len() as u64)?);
-        serialized_output.extend(&self.output_public_key);
+        serialized_output.extend(variable_length_integer(self.script_pub_key.len() as u64)?);
+        serialized_output.extend(&self.script_pub_key);
         Ok(serialized_output)
     }
 }
@@ -302,34 +293,32 @@ impl ZcashTransactionOutput {
 /// Represents a Zcash transaction Shielded Spend
 #[derive(Clone)]
 pub struct SaplingSpend<N: ZcashNetwork> {
-    /// Sapling extended secret key
-    pub extended_spend_key: ZcashExtendedPrivateKey<N>,
-    /// Sapling address diversifier
+    /// The Sapling extended secret key
+    pub extended_private_key: ZcashExtendedPrivateKey<N>,
+    /// The Sapling address diversifier
     pub diversifier: [u8; 11],
-    /// Sapling Spend note
+    /// The Sapling spend note
     pub note: Note<Bls12>,
-    /// Alpha randomness
+    /// The alpha randomness
     pub alpha: Fs,
-    /// Anchor
+    /// The anchor
     pub anchor: Fr,
-    /// Commitment witness
+    /// The commitment witness
     pub witness: CommitmentTreeWitness<Node>,
-    /// SpendDescription
+    /// The spend description
     pub spend_description: Option<SpendDescription>,
 }
 
 impl<N: ZcashNetwork> SaplingSpend<N> {
     pub fn new(
-        extended_key: &str,
+        extended_private_key: &ZcashExtendedPrivateKey<N>,
         cmu: &[u8; 32],
         epk: &[u8; 32],
         enc_ciphertext: &str,
         anchor: Fr,
         witness: CommitmentTreeWitness<Node>,
     ) -> Result<Self, TransactionError> {
-        let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(extended_key)?;
-
-        let full_viewing_key = extended_spend_key
+        let full_viewing_key = extended_private_key
             .to_extended_public_key()
             .to_extended_full_viewing_key()
             .fvk
@@ -355,7 +344,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
             };
 
         Ok(SaplingSpend {
-            extended_spend_key,
+            extended_private_key: extended_private_key.clone(),
             diversifier: payment_address.diversifier().0,
             note,
             alpha,
@@ -365,14 +354,14 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         })
     }
 
-    /// Create Sapling Spend Description
+    /// Create Sapling spend description
     pub fn create_sapling_spend_description(
         &mut self,
         proving_ctx: &mut SaplingProvingContext,
         spend_params: &Parameters<Bls12>,
         spend_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        let spending_key = self.extended_spend_key.to_extended_spending_key().expsk.to_bytes();
+        let spending_key = self.extended_private_key.to_extended_spending_key().expsk.to_bytes();
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.proof_generation_key(&JUBJUB);
 
         let nf = &self.note.nf(
@@ -456,27 +445,34 @@ impl SpendDescription {
     }
 }
 
-/// Represents a Zcash transaction Shielded Output
+/// Represents a Zcash transaction shielded output
 #[derive(Debug, Clone)]
 pub struct SaplingOutput<N: ZcashNetwork> {
-    /// Sapling address
+    /// The Sapling address
     pub address: ZcashAddress<N>,
-    /// outgoing view key
+    /// The outgoing view key
     pub ovk: SaplingOutgoingViewingKey,
-    /// Sapling output address
+    /// The Sapling output address
     pub to: PaymentAddress<Bls12>,
-    /// Sapling output note
+    /// The Sapling output note
     pub note: Note<Bls12>,
-    /// Optional memo
+    /// An optional memo
     pub memo: Memo,
-    /// OutputDescription
+    /// The output description
     pub output_description: Option<OutputDescription>,
 }
 
 impl<N: ZcashNetwork> SaplingOutput<N> {
-    pub fn new(ovk: SaplingOutgoingViewingKey, address: &str, value: u64) -> Result<Self, TransactionError> {
-        let diversifier = ZcashAddress::<N>::get_diversifier(&address)?;
-        let pk_d = ZcashAddress::<N>::get_pk_d(&address)?;
+    pub fn new(ovk: SaplingOutgoingViewingKey, address: &ZcashAddress<N>, value: u64) -> Result<Self, TransactionError> {
+        let diversifier = match address.to_diversifier() {
+            Some(d) => {
+                let mut diversifier = [0u8; 11];
+                diversifier.copy_from_slice(&hex::decode(d)?);
+                diversifier
+            },
+            None => return Err(TransactionError::MissingDiversifier),
+        };
+        let pk_d = ZcashAddress::<N>::get_pk_d(&address.to_string())?;
 
         let pk_d = edwards::Point::<Bls12, _>::read(&pk_d[..], &JUBJUB)?.as_prime_order(&JUBJUB);
 
@@ -501,7 +497,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
                 };
 
                 Ok(Self {
-                    address: ZcashAddress::<N>::from_str(&address)?,
+                    address: address.clone(),
                     ovk,
                     to,
                     note,
@@ -596,24 +592,24 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
 /// Represents a Zcash transaction Shielded Output Description
 #[derive(Debug, Clone)]
 pub struct OutputDescription {
-    /// Value commitment for the output note
+    /// The value commitment for the output note
     pub cv: [u8; 32],
-    /// Commitment for the output note
+    /// The commitment for the output note
     pub cmu: [u8; 32],
-    /// Jubjub public Key
+    /// The JubJub public key
     pub ephemeral_key: [u8; 32],
-    /// Ciphertext for the encrypted output note
+    /// The ciphertext for the encrypted output note
     pub enc_ciphertext: Vec<u8>,
-    /// Ciphertext for the encrypted output note
+    /// The ciphertext for the encrypted output note
     pub out_ciphertext: Vec<u8>,
-    /// Zero knowledge proof used for the output circuit
+    /// The zero knowledge proof for the output circuit
     pub zk_proof: Vec<u8>,
 }
 
 impl OutputDescription {
     /// Serialize the Sapling output description
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
-        let mut serialized_output: Vec<u8> = Vec::new();
+        let mut serialized_output = vec![];
         serialized_output.extend(&self.cv);
         serialized_output.extend(&self.cmu);
         serialized_output.extend(&self.ephemeral_key);
@@ -624,7 +620,7 @@ impl OutputDescription {
     }
 }
 
-/// Represents a Zcash transaction - Sapling
+/// Represents a Zcash transaction
 #[derive(Clone)]
 pub struct ZcashTransaction<N: ZcashNetwork> {
     /// Transactions header - overwintered flag and transaction version (04000080 for sapling)
@@ -736,7 +732,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     }
 
     /// Add a transparent output to the transaction
-    pub fn add_transparent_output(&mut self, address: &str, amount: u64) -> Result<(), TransactionError> {
+    pub fn add_transparent_output(&mut self, address: &ZcashAddress<N>, amount: u64) -> Result<(), TransactionError> {
         let output = ZcashTransactionOutput::new::<N>(address, amount)?;
         self.outputs.push(output);
         Ok(())
@@ -745,7 +741,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     /// Add a sapling shielded spend to the transaction
     pub fn add_sapling_spend(
         &mut self,
-        extended_secret_key: &str,
+        extended_private_key: &ZcashExtendedPrivateKey<N>,
         cmu: &[u8; 32],
         epk: &[u8; 32],
         enc_ciphertext: &str,
@@ -763,7 +759,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         let sapling_spend =
-            SaplingSpend::<N>::new(extended_secret_key, cmu, epk, enc_ciphertext, input_anchor, witness)?;
+            SaplingSpend::<N>::new(extended_private_key, cmu, epk, enc_ciphertext, input_anchor, witness)?;
 
         self.value_balance += sapling_spend.note.value as i64;
         self.shielded_spends.push(sapling_spend);
@@ -774,7 +770,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     pub fn add_sapling_output(
         &mut self,
         ovk: SaplingOutgoingViewingKey,
-        address: &str,
+        address: &ZcashAddress<N>,
         amount: u64,
     ) -> Result<(()), TransactionError> {
         let shielded_output = SaplingOutput::<N>::new(ovk, address, amount)?;
@@ -785,62 +781,62 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
     /// Returns the transaction as a byte vector
     pub fn serialize_transaction(&mut self, raw: bool) -> Result<Vec<u8>, TransactionError> {
-        let mut serialized_transaction: Vec<u8> = Vec::new();
+        let mut transaction = vec![];
 
-        serialized_transaction.extend(&self.header.to_le_bytes());
-        serialized_transaction.extend(&self.version_group_id.to_le_bytes());
-        serialized_transaction.extend(variable_length_integer(self.inputs.len() as u64)?);
+        transaction.extend(&self.header.to_le_bytes());
+        transaction.extend(&self.version_group_id.to_le_bytes());
+        transaction.extend(variable_length_integer(self.inputs.len() as u64)?);
 
         for input in &self.inputs {
-            serialized_transaction.extend(input.serialize(raw, false)?);
+            transaction.extend(input.serialize(raw, false)?);
         }
 
-        serialized_transaction.extend(variable_length_integer(self.outputs.len() as u64)?);
+        transaction.extend(variable_length_integer(self.outputs.len() as u64)?);
 
         for output in &self.outputs {
-            serialized_transaction.extend(output.serialize()?);
+            transaction.extend(output.serialize()?);
         }
 
-        serialized_transaction.extend(&self.lock_time.to_le_bytes());
-        serialized_transaction.extend(&self.expiry_height.to_le_bytes());
-        serialized_transaction.extend(&self.value_balance.to_le_bytes());
+        transaction.extend(&self.lock_time.to_le_bytes());
+        transaction.extend(&self.expiry_height.to_le_bytes());
+        transaction.extend(&self.value_balance.to_le_bytes());
 
         match &self.shielded_spends.len() {
-            0 => serialized_transaction.push(0u8),
+            0 => transaction.push(0u8),
             _ => {
-                serialized_transaction.extend(variable_length_integer(self.shielded_spends.len() as u64)?);
+                transaction.extend(variable_length_integer(self.shielded_spends.len() as u64)?);
 
                 for spend in &self.shielded_spends {
                     if let Some(description) = &spend.spend_description {
-                        serialized_transaction.extend(description.serialize(false)?);
+                        transaction.extend(description.serialize(false)?);
                     };
                 }
             }
         };
 
         match &self.shielded_outputs.len() {
-            0 => serialized_transaction.push(0u8),
+            0 => transaction.push(0u8),
             _ => {
-                serialized_transaction.extend(variable_length_integer(self.shielded_outputs.len() as u64)?);
+                transaction.extend(variable_length_integer(self.shielded_outputs.len() as u64)?);
 
                 for output in &self.shielded_outputs {
                     if let Some(description) = &output.output_description {
-                        serialized_transaction.extend(description.serialize()?);
+                        transaction.extend(description.serialize()?);
                     };
                 }
             }
         };
 
         match &self.join_splits.len() {
-            0 => serialized_transaction.push(0u8),
+            0 => transaction.push(0u8),
             _ => unimplemented!(),
         };
 
         if let Some(binding_sig) = &self.binding_sig {
-            serialized_transaction.extend(binding_sig);
+            transaction.extend(binding_sig);
         };
 
-        Ok(serialized_transaction)
+        Ok(transaction)
     }
 
     /// Signs the raw transaction, updates the transaction, and returns the signature - P2SH unimplemented
@@ -936,7 +932,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         for spend in &mut self.shielded_spends {
             match &mut spend.spend_description {
                 Some(spend_description) => {
-                    let spending_key = spend.extended_spend_key.to_extended_spending_key().expsk.to_bytes();
+                    let spending_key = spend.extended_private_key.to_extended_spending_key().expsk.to_bytes();
                     let ask = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.ask;
 
                     let sig = spend_sig(
@@ -979,7 +975,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         false => return Err(TransactionError::InvalidSpendDescription),
                     };
                 }
-                None => return Err(TransactionError::MissingSpendDescription()),
+                None => return Err(TransactionError::MissingSpendDescription),
             }
         }
 
@@ -1049,11 +1045,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         let hash_shielded_outputs = match &self.shielded_outputs.len() {
             0 => [0u8; 32].to_vec(),
             _ => {
-                let mut output_descriptions: Vec<u8> = Vec::new();
+                let mut output_descriptions = vec![];
                 for output in &self.shielded_outputs {
                     if let Some(description) = &output.output_description {
                         output_descriptions.extend(description.serialize()?);
-                    };
+                    }
                 }
 
                 blake2_256_hash("ZcashSOutputHash", output_descriptions, None)
@@ -1062,27 +1058,25 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             }
         };
 
-        let mut transaction_hash_preimage: Vec<u8> = Vec::new();
-        transaction_hash_preimage.extend(&self.header.to_le_bytes());
-        transaction_hash_preimage.extend(&self.version_group_id.to_le_bytes());
-        transaction_hash_preimage.extend(hash_prev_outputs.as_bytes());
-        transaction_hash_preimage.extend(hash_sequence.as_bytes());
-        transaction_hash_preimage.extend(hash_outputs.as_bytes());
-        transaction_hash_preimage.extend(&hash_joinsplits);
-        transaction_hash_preimage.extend(&hash_shielded_spends);
-        transaction_hash_preimage.extend(&hash_shielded_outputs);
-        transaction_hash_preimage.extend(&self.lock_time.to_le_bytes());
-        transaction_hash_preimage.extend(&self.expiry_height.to_le_bytes());
-        transaction_hash_preimage.extend(&self.value_balance.to_le_bytes());
-        transaction_hash_preimage.extend(&(sig_hash_code as u32).to_le_bytes());
+        let mut preimage = vec![];
+        preimage.extend(&self.header.to_le_bytes());
+        preimage.extend(&self.version_group_id.to_le_bytes());
+        preimage.extend(hash_prev_outputs.as_bytes());
+        preimage.extend(hash_sequence.as_bytes());
+        preimage.extend(hash_outputs.as_bytes());
+        preimage.extend(&hash_joinsplits);
+        preimage.extend(&hash_shielded_spends);
+        preimage.extend(&hash_shielded_outputs);
+        preimage.extend(&self.lock_time.to_le_bytes());
+        preimage.extend(&self.expiry_height.to_le_bytes());
+        preimage.extend(&self.value_balance.to_le_bytes());
+        preimage.extend(&(sig_hash_code as u32).to_le_bytes());
 
         if let Some(index) = input_index {
-            transaction_hash_preimage.extend(&self.inputs[index].serialize(false, true)?);
+            preimage.extend(&self.inputs[index].serialize(false, true)?);
         };
 
-        let transaction_hash = blake2_256_hash("ZcashSigHash", transaction_hash_preimage, Some("sapling"));
-
-        Ok(transaction_hash)
+        Ok(blake2_256_hash("ZcashSigHash", preimage, Some("sapling")))
     }
 }
 
@@ -1126,7 +1120,7 @@ mod tests {
 
     #[derive(Clone)]
     pub struct SaplingInput {
-        pub extended_secret_key: &'static str,
+        pub extended_private_key: &'static str,
         pub cmu: &'static str,
         pub epk: &'static str,
         pub enc_ciphertext: &'static str,
@@ -1151,8 +1145,6 @@ mod tests {
         sequence: None,
         sig_hash_code: SignatureHash::SIGHASH_ALL,
     };
-
-    const OUTPUT_FILLER: Output = Output { address: "", amount: 0 };
 
     fn test_sapling_transaction<N: ZcashNetwork>(
         version: &str,
@@ -1199,8 +1191,9 @@ mod tests {
         // Add transparent outputs
 
         for output in outputs {
+            let address = ZcashAddress::<N>::from_str(output.address).unwrap();
             transaction
-                .add_transparent_output(output.address, output.amount)
+                .add_transparent_output(&address, output.amount)
                 .unwrap();
         }
 
@@ -1231,7 +1224,7 @@ mod tests {
                 None => {
                     // Generate note witness for testing purposes only.
                     // Real transactions require a stateful client to fetch witnesses/anchors from sapling tree state.
-                    let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_secret_key).unwrap();
+                    let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
                     let full_viewing_key = extended_spend_key
                         .to_extended_public_key()
                         .to_extended_full_viewing_key()
@@ -1262,9 +1255,10 @@ mod tests {
 
             // Add Sapling Spend
 
+            let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
             transaction
                 .add_sapling_spend(
-                    input.extended_secret_key,
+                    &extended_private_key,
                     &cmu,
                     &epk,
                     input.enc_ciphertext,
@@ -1273,7 +1267,7 @@ mod tests {
                 )
                 .unwrap();
 
-            let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_secret_key).unwrap();
+            let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
             sapling_spend_key = Some(extended_spend_key.to_extended_spending_key().expsk);
         }
 
@@ -1298,8 +1292,9 @@ mod tests {
         // Build Sapling outputs
 
         for output in sapling_outputs {
+            let address = ZcashAddress::<N>::from_str(output.address).unwrap();
             transaction
-                .add_sapling_output(ovk, output.address, output.amount)
+                .add_sapling_output(ovk, &address, output.amount)
                 .unwrap();
         }
 
@@ -1373,9 +1368,8 @@ mod tests {
         // Add transparent outputs
 
         for output in outputs {
-            transaction
-                .add_transparent_output(output.address, output.amount)
-                .unwrap();
+            let address = ZcashAddress::<N>::from_str(output.address).unwrap();
+            transaction.add_transparent_output(&address, output.amount).unwrap();
         }
 
         // Sign the raw transaction
@@ -1430,7 +1424,7 @@ mod tests {
             pruned_outputs.retain(|output| output.address != "");
 
             let mut pruned_sapling_inputs = transaction.sapling_inputs.to_vec();
-            pruned_sapling_inputs.retain(|sapling_input| sapling_input.extended_secret_key != "");
+            pruned_sapling_inputs.retain(|sapling_input| sapling_input.extended_private_key != "");
 
             let mut pruned_sapling_outputs = transaction.sapling_outputs.to_vec();
             pruned_sapling_outputs.retain(|sapling_output| sapling_output.address != "");
@@ -2041,7 +2035,7 @@ mod tests {
                     ],
                     sapling_inputs: &[
                         SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                            extended_private_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
                             cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
                             epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
                             enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
@@ -2078,7 +2072,7 @@ mod tests {
                     ],
                     sapling_inputs: &[
                         SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                            extended_private_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
                             cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
                             epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
                             enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
@@ -2097,7 +2091,7 @@ mod tests {
                     outputs: &[],
                     sapling_inputs: &[
                         SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                            extended_private_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
                             cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
                             epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
                             enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
@@ -2125,7 +2119,7 @@ mod tests {
                     outputs: &[],
                     sapling_inputs: &[
                         SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfquqqpqprdealqmnm5u8udxapgt5twpvwcnaam2u8ycff2c094ucu9fcf86vhtnvjj8d4g2g499qnnrqqt4q9untr4pf44n9k57hnzjdptggqs7hy3emfgrflahl72jfx2uvkzvmeukxhh2kye8pcnzm55pdvpusf79ujph6c0pupn9ty090xsx8r57jqv3aqk2x7kfgzmmlh26d5npuyaz45gjusx9h5w2d3nflk0na6vnk08dvv5p7rz75yw966u83pg7gw8r82v",
+                            extended_private_key: "secret-extended-key-test1qwq6zxvfquqqpqprdealqmnm5u8udxapgt5twpvwcnaam2u8ycff2c094ucu9fcf86vhtnvjj8d4g2g499qnnrqqt4q9untr4pf44n9k57hnzjdptggqs7hy3emfgrflahl72jfx2uvkzvmeukxhh2kye8pcnzm55pdvpusf79ujph6c0pupn9ty090xsx8r57jqv3aqk2x7kfgzmmlh26d5npuyaz45gjusx9h5w2d3nflk0na6vnk08dvv5p7rz75yw966u83pg7gw8r82v",
                             cmu: "6dc0792cd8cf8fb71229ec522862539b7e9f3f53acbb2cedcc1b21ea1bcfac91",
                             epk: "669a7bcdc0d9906a1c4101008b2557896d85a496e63359b350e9773c640d18e6",
                             enc_ciphertext: "c41762618b4e50a94d1f6c19d3d9a62fdc2add170702fd8004b17cad3c0fd2855d8f86db5c740e91d4b831e945f4d510eaa11cc6d80cb0c5f7c7e5391cf9d940f06054b7e24255c02e81d63ceaaa37c4c8236e9ebe546819316806bdc1ce60fb1862274811bd8248d5b0d4cbf6027bb5765b4e3d3558e8dd6b42790e53000f229a5cdb031d9ded5fec16231a208be48b149db04606e3fcec0164d8c4ea6dcd9c56140e3ae1bfa6a649db730f80119928901fbb6a1b018831650fbebb2fc8169e46a07dffdb09f070da9db4b41f929bf6949f70465087337421af2242ae7fe12f295dc1017cffaed9aa03e094971489230e90a3feb86235f89508cd4ef16637d443d72f88f9894de9b4fa6597127d7ab6526572b1283a357ffdd586b0944b42cbb579c8aeb50f0c371995fcb89d83069d533967d0563e9de74a600d3cf774a182d16727f66a9c62db38debc70f7327e7e1d6d4e3edadd8d1cae7e2af52fb72c499d91d416b970b3dc8b233a3e915937f5fd2bf1f782a5045ab825a13594543bd50cf6c99dd49a42c7aabf5e4b5178067dd8f5bc10e7d8ca400f045cba9cb5ed39cd3f3d389c7cb06de3de636fcae6954be389194aee12b4852031c1a2a56f91b0348850291c3581463186e1d1c36e2752ef0f8c87455397e1d6f6b5c8294eda53a7fabe495bcbfe921c9f973187ac91217366f53361912a2f2e9c987c04ed8aaff9b0d1948f60f24429233b66b2fa7e212a88af0093a586e199cc7b24cdf38f290f659ccbfcf509101f2755a32b995333648287adba3efbf44662d0566fe1d5235b5e3c69",
@@ -2133,7 +2127,7 @@ mod tests {
                             witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab248204cdeae12395dd7e80047919e81031d425377bc14fdb82c8dfea869943cbf001b20ffe9fc03f18b176c998806439ff0bb8ad193afdb27b2ccbc88856916dd804e342096ae2abb5c1a38ac9664d9473a54c1106bcb9151dbf2ff66fb27b5512b92d22c2012d58b0466abebf7c2e0ab9f84c06044e8126c4b177d423ce179d4d8468dc505fa1a010000000000"),
                         },
                         SaplingInput {
-                            extended_secret_key: "secret-extended-key-test1qwq6zxvfpqqqpq90l4tj7ruxk3t6sj7g0r43hksurrgrcdny0mfwj9gjt3ez2euwmrvxqn26mr9g9flkhd54dake6njrshrscstpvqjvuy4cphcan6rspragf93krxptsmqdmgz5h7zlzcddf9r4zjctk43e5m7jtwer9csdcud24uhwua9zunwjp47fjs6s5qdzzhdylnr2g7n95sk0klurqfqgdnza0vqk756qmg89lu2pu39nap29u846gs23g5x2jqjhzpggtvskqf7rc",
+                            extended_private_key: "secret-extended-key-test1qwq6zxvfpqqqpq90l4tj7ruxk3t6sj7g0r43hksurrgrcdny0mfwj9gjt3ez2euwmrvxqn26mr9g9flkhd54dake6njrshrscstpvqjvuy4cphcan6rspragf93krxptsmqdmgz5h7zlzcddf9r4zjctk43e5m7jtwer9csdcud24uhwua9zunwjp47fjs6s5qdzzhdylnr2g7n95sk0klurqfqgdnza0vqk756qmg89lu2pu39nap29u846gs23g5x2jqjhzpggtvskqf7rc",
                             cmu: "05c58d46d8d479e13c427d174b6c12e84460c0849fabe0c2f7ebab66048bd512",
                             epk: "d2a85b034e12f6659974cfa03d3062d60bee3d1ff581d499f13e217a181cf6e0",
                             enc_ciphertext: "611fce5e0c1b4541815537c69cb2567129c490547919e082d04d1e1b68d16ca876570d4d98a0fd5938583bc4d8a759919933bf6cc3e147b4afabbeaefa1b6cd1d5b9c3c4b2fbfd2ab227a4f0e5f4bc3265f9aeb41f497236991f255873c452f36dfd6edc4e352abc38888a6050c73f5655c514043a1c9bdebb06ffc471dd66a5280a54c63c0e64e32737360278caf5ddd25d7235b6aa332131c7d3ddbee1982170d42021e3fdc8ecb9863cc3a6064dcb491dd45df56b4879b3f0040a5f47a44675b38642ae582706c0d10a4f5b2e0783f2403f9b062aa5cad9b1bcaca361c113779bca01ac31561b3308de6238938e0691073d2c36e16f5093c24be66adf6619d2dabac11ee4a81928b27ad3031356076350887cd857f99e520e2dd7f41886c75478e840d5fa8701f4680b1506f3d22be2959c8f98948a13ff8188fc11d36cd85713fc5131b4445984a49c1579a004a9bcebf0f439bf42cc6ef43c1b08c12e40ac182234f8e8b614e16ed14a8d8dadcbe68b43688409dcac8b1cce8a766494a2e62c633671bd618a0fc03cbc647074fef9c508a00a6cd3b3b4144f63aa9006990f294bef762c5d98dbb201bba57703b8fcd2ac624afdda783635842cbafb722d8805ef0495d5c5ce2e5aa72a2e81dad612fae8870833bb04bd0cf8abb82e972430cce59c632bfab023ef2e099dd108c940a6362475b8f0dddf60479351131c7f8ddb63b0d8297e236e0d32d13467e9e52d29f0fb104cdea64255f178f155a1ef5bcb1935b760dd3791372ca4fe95c3d121a3af922e27bc781bd5a8b99991b45343168fef",
@@ -2321,26 +2315,6 @@ mod tests {
             INPUT_FILLER,
         ];
 
-        const INVALID_OUTPUTS: [Output; 5] = [
-            Output {
-                address: "ABCD",
-                amount: 100,
-            },
-            Output {
-                address: "INVALID ADDRESS",
-                amount: 12345,
-            },
-            Output {
-                address: "0xE345828db876E265Dc2cea04c6b16F62021841A1",
-                amount: 100000,
-            },
-            Output {
-                address: "t1Z2Jwhs5D4vmYgH5MDgSATADnGqrjeRy",
-                amount: 5,
-            },
-            OUTPUT_FILLER,
-        ];
-
         #[test]
         fn test_invalid_inputs() {
             for input in INVALID_INPUTS.iter() {
@@ -2369,31 +2343,15 @@ mod tests {
                 }
             }
         }
-
-        #[test]
-        fn test_invalid_outputs() {
-            for output in INVALID_OUTPUTS.iter() {
-                let invalid_output = ZcashTransactionOutput::new::<N>(output.address, output.amount);
-                assert!(invalid_output.is_err());
-            }
-        }
     }
 
     mod test_invalid_sapling_transactions {
         use super::*;
         type N = Testnet;
 
-        const INVALID_SAPLING_INPUTS: [SaplingInput; 3] = [
+        const INVALID_SAPLING_INPUTS: [SaplingInput; 2] = [
             SaplingInput {
-                extended_secret_key: "secret-extended-key-000",
-                cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
-                epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
-                enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
-                anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
-                witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
-            },
-            SaplingInput {
-                extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                extended_private_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
                 cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
                 epk: "0000000000000000000000000000000000000000000000000000000000000000",
                 enc_ciphertext: "d259f0cb859e6bc1b92590600f2a5d9b3464c7c568c96926fb97b2ffcecd7f9c8bfb878e3650cf30378ec222797787ab2c354589cda6da227c9b72945751827857823848a03bddeef13ecc14570291ee6638da600e0f91ca0348a6146b9f176b60f053a7f4bd94f5d9c669e8958b3d03c2fd456caa4703ec1ffcf75759ffaf098502295c7eadbdab928e77740220339611c4c977b0185627f2ac6db5c0fca6c1d6a89f0ba6503f6d520e6814f0f592bc950023395b2907e39067242a87d74dc535a7decf37c4530b1b5f375cd588949cc9948c409ad3b7bf1bd6a307d076b34a1c93c330f7a42df419ef95965e747b43306f277255cc2fe4b7f4ec3e6ca06f7161ac4a89b703b2b99b201d3a2279b45d60b0f899931afc45a6be5496df192abade2039403132711d899bc8e02700d2f9cf225ca7de9b4c9e3899c9e63eb669e4b626006797ad61247bef423b27ad4e2d472c648420ac88d9f03abc9132d360b1e634684bb73eb251495f3c34a5ab6f73436b2b58e5fb89a5e41692ceea8f04d19b2dd76a796bda2d99f95b5aca03a750acb50f44924f7fea953fe33316255da6c5cadb80687875bc63b2865d79010a3d845d9bc1836a2726d3040ed05fe403f30a51597f8921e3c0c4544d1aab8d67a382410ce377654e79e27e9ff81bd8264d5fbd4e5915a7fa804424cc65ff19ca4d4dd0f3fb34585d18b75f6c39d99cc48e800bab6fa2324340922f62273fe371f2d725567fae988579a00bf7bc3b911cf03746cf47286f05d24c64c38f829d0d40a34799151176057cfe49d6b9fc6b9d983612d75d",
@@ -2401,33 +2359,13 @@ mod tests {
                 witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
             },
             SaplingInput {
-                extended_secret_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
+                extended_private_key: "secret-extended-key-test1qwq6zxvfqsqqpqzn4hxmcv7d9whwepfpx72aahddkf073x2cwr6fwar0p2ns4xkcu73xgs2pnxgux2nfx8a5nt2w7tm49ptnq9v3z4qncjlk8er7q27qewhcul9xtlxjqe56jyspamlhh8r4glmva2zxvkuejw8ypsfp5lsgc564r6g5w068kqlrcy0s0wnu0382tv2eqnlart5gjczwa0l72qgtaa794dqpva62206wwvemvath3t2f5j6x9nlvsgus0wavrvwavucculeth",
                 cmu: "40d9712ba3dd9787a0451462e4fdda07929305b06248dd8aaeabdce13985b576",
                 epk: "8dca2796416d9ab8409e40e3b3839eb28b5765ba9b7dcfb2c267ac54b85fc6be",
                 enc_ciphertext: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
                 anchor: Some("a9cea23799a2a99a4f141bb997ea1698fa2f45fc3ac3916aaa1982ea2326ee48"),
                 witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce72206a963be7305e1bd7e01f031baeed91551fec981609a52e8346c4f58e4b58214c2038cbc4cb015400c0436372d5583297ff9c1a3b2f7c99348afe44535cb3bdb33e2073de2ff5ca8ff6e2ffdf5861de3e669da231490093e6fb85486c7d4f04af664120c525cc77cac8a206aec5bdcbf2f02e9bf692a71b837b5956d14a447b936a8d06206e7f74f94b4c1bbd1e3a389730fe67f65d99cdbebd9a5dda0fd8a6babf0b1d0c20918ec10271032b8f755de870cde81da73b931f4641087d3a3e010ffab3468a4d203632627cc328c6f53f4b2edd3463e6aa7e3989ee714680ce7e415223ef8c8f3120e94edebe993a74cab0a49c6c6b2ac2538f97342faff86a24136c0ac1bd57253620bde37373a13118f8e504812bdb3a60ffbfa3da31e20fc3e1545041828f14d6132075a1481793b3a67864fa65adb30840dd4369899b3d4756fa268ba45cca2f0d2cef19010000000000"),
             },
-        ];
-
-        const INVALID_SAPLING_OUTPUTS: [Output; 5] = [
-            Output {
-                address: "ztestsapling1qqqqqqqqqqqqqqqqqqqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq97w6q7",
-                amount: 10000000,
-            },
-            Output {
-                address: "INVALID ADDRESS",
-                amount: 1234512345,
-            },
-            Output {
-                address: "ztestsapling1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqfhgwqu",
-                amount: 100000,
-            },
-            Output {
-                address: "ztestsapling1a",
-                amount: 1,
-            },
-            OUTPUT_FILLER,
         ];
 
         #[test]
@@ -2456,8 +2394,9 @@ mod tests {
                     None => unreachable!(),
                 };
 
+                let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
                 let sapling_spend = SaplingSpend::<N>::new(
-                    input.extended_secret_key,
+                    &extended_private_key,
                     &cmu,
                     &epk,
                     input.enc_ciphertext,
@@ -2470,22 +2409,6 @@ mod tests {
         }
 
         #[test]
-        fn test_invalid_sapling_outputs() {
-            let rng = &mut StdRng::from_entropy();
-            let seed: [u8; 32] = rng.gen();
-            let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
-            let mut ovk = [0u8; 32];
-            ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
-
-            let ovk = SaplingOutgoingViewingKey(ovk);
-
-            for output in INVALID_SAPLING_OUTPUTS.iter() {
-                let invalid_output = SaplingOutput::<N>::new(ovk, output.address, output.amount);
-                assert!(invalid_output.is_err());
-            }
-        }
-
-        #[test]
         fn test_invalid_sapling_transactions_conflicting_anchor() {
             let version = "sapling";
             let lock_time = 0;
@@ -2493,7 +2416,7 @@ mod tests {
 
             let sapling_inputs = [
                 SaplingInput {
-                    extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                    extended_private_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
                     cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
                     epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
                     enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
@@ -2501,7 +2424,7 @@ mod tests {
                     witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
                 },
                 SaplingInput {
-                    extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                    extended_private_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
                     cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
                     epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
                     enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
@@ -2509,7 +2432,7 @@ mod tests {
                     witness: Some("2020b2eed031d4d6a4f02a097f80b54cc1541d4163c6b6f5971f88b6e41d35c538142012935f14b676509b81eb49ef25f39269ed72309238b4c145803544b646dca62d20e1f34b034d4a3cd28557e2907ebf990c918f64ecb50a94f01d6fda5ca5c7ef722028e7b841dcbc47cceb69d7cb8d94245fb7cb2ba3a7a6bc18f13f945f7dbd6e2a20a5122c08ff9c161d9ca6fc462073396c7d7d38e8ee48cdb3bea7e2230134ed6a20d2e1642c9a462229289e5b0e3b7f9008e0301cbb93385ee0e21da2545073cb582016d6252968971a83da8521d65382e61f0176646d771c91528e3276ee45383e4a20fee0e52802cb0c46b1eb4d376c62697f4759f6c8917fa352571202fd778fd712204c6937d78f42685f84b43ad3b7b00f81285662f85c6a68ef11d62ad1a3ee0850200769557bc682b1bf308646fd0b22e648e8b9e98f57e29f5af40f6edb833e2c492008eeab0c13abd6069e6310197bf80f9c1ea6de78fd19cbae24d4a520e6cf3023208d5fa43e5a10d11605ac7430ba1f5d81fb1b68d29a640405767749e841527673206aca8448d8263e547d5ff2950e2ed3839e998d31cbc6ac9fd57bc6002b15921620cd1c8dbf6e3acc7a80439bc4962cf25b9dce7c896f3a5bd70803fc5a0e33cf00206edb16d01907b759977d7650dad7e3ec049af1a3d875380b697c862c9ec5d51c201f8322ef806eb2430dc4a7a41c1b344bea5be946efc7b4349c1c9edb14ff9d3920d6acdedf95f608e09fa53fb43dcd0990475726c5131210c9e5caeab97f0e642f20bd74b25aacb92378a871bf27d225cfc26baca344a1ea35fdd94510f3d157082c201b77dac4d24fb7258c3c528704c59430b630718bec486421837021cf75dab6512045e3d4899fcd7f0f1236ae31eafb3f4b65ad6b11a17eae1729cec09bd3afa01a20c104705fac60a85596010e41260d07f3a64f38f37a112eaef41cd9d736edc52720ba49b659fbd0b7334211ea6a9d9df185c757e70aa81da562fb912b84f49bce7220bac21af2f8b1eba9d2eed719a3108efaa19b44386f2dd38212294253e6fa1102207b99abdc3730991cc9274727d7d82d28cb794edbc7034b4f0053ff7c4b680444204484e8faa977ac6a7372dfa525d10868666d9b8c8b06e95df0594bc33f5f7b5620b9e8757b6d27fcfd9adc914558e9bf055e125f610fd6170072b4778fa0c4f90b20db4ea7c2d058649c99ba7a9c700db7dfc53a2c14a4dd2a20dad9d35294b61559207ffb9317c7941ebc524eaceb48316ecdf9cdf39d190ab12c16836f885a0ab24820d8283386ef2ef07ebdbb4383c12a739a953a4d6e0d6fb1139a4036d693bfbb6c201a0564d96a7d7b6beb993318e8de10c44bb6eb0d91c674a8c04b0a15ccb33c7020bc540156b432138ebd0ab33dd371ee22ed7f5d3f987af37de468a7f74c055f5c2021cac521ca62e3b84381d8303660a7ca9fa99af47ee7080ea7f35f48c865b065f71a010000000000"),
                 },
                 SaplingInput {
-                    extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                    extended_private_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
                     cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
                     epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
                     enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
@@ -2550,8 +2473,9 @@ mod tests {
 
                 // Add Sapling Spend
 
+                let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
                 let status = transaction.add_sapling_spend(
-                    input.extended_secret_key,
+                    &extended_private_key,
                     &cmu,
                     &epk,
                     input.enc_ciphertext,
@@ -2585,7 +2509,7 @@ mod tests {
             let expiry_height = 499999999;
 
             let sapling_input = SaplingInput {
-                extended_secret_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
+                extended_private_key: "secret-extended-key-test1qwq6zxvfqcqqpqx9yxfvz024pygvsyc5mk3tvx90c9xyvc8660xk9q3954rmdngzhsdms6h8mdwgmwgct0degp3x5aeruddxpxwg3c3gy4krptv47w2q6790n88h8uztvxzxjd9ndz4yx80vm8mqqjj73m5gyzz3edmnlxgp0y642f36dv3xl30pm7fetducd0rfcpg8nq9nuj5pxtlu35p946yk5nwa6gdzc5v4w7dpwzmdszqudq6ecn0esryntk9vly0fkh53grsnjunxl",
                 cmu: "6bea0e40d62442443a3475b3486b3b230e6f3895f6ec931bdcf378ab72e1f7b8",
                 epk: "bdfe7b1a08c3a43f8357be258d10ddbaf4f6ed58d99ba94184d4536b1ae7daac",
                 enc_ciphertext: "c8af78c4b420366f686c450c0652d28d0955c0bf26380d7cfd81501864b806ef868f1b5ec6d7ac2eb1809299074498a101ef370389129b90c7b10207a685148743b3c4f083538c62a33199ccf65d1987a73d5cf293a5691b4d57aba2b95d4c67c6d0001d4741bba826cd9c1f1695700146dcd65f4e61cc2b1dd96f03046c8c334d036c8f43d3d15c7f58c39dd35ecb2b34189710489c5aa0fa02d64f1d6d76014e6862be2e741025bd7f11f99a65518da4340854daa54b4719ed3716f3f409e7821e7cf973f2adeebc229458da60007b97c006398a0da0e5cf6753c44533e1fc97850705dbfd6cd68f1b618faf7e0b29c2c03ab3c8c7015db095e4ffcbb3be8e2a2fde2a40c7570e54cecc02348706251ff0ed88513051b9886b8a0d9681c2713f2d2162ef93c7c81c3cbc7e9a9685388c8690397b53ab217b048d22f5c9c019cce142eaef9f330ec5239dc4f61c0eafdb10bd4679e52a2863969c5cd6172f893a2a6e4af31c4b73456d339b127ca3e98595da3599f1a00c6804363e4b1d393f925d0f3eaa79e03d96411139fb024bbc2587334bb04f447f074e50639c627fd665d59253a261779ce5de22d678ceaad9a3e20078346d17bc6ca294df1ef3bfe239bbb1bb33bb34f6701874d48dab94c5649577aff9b98fa0f69adee522868da0cd31cd744f31b6f01d1701d36ae50af38a653651ce85dd432d90fbce2cdd06c69d644fdab912b89c7c69a7c19b95442c0ea62de16ad88ade0130c84ebead2ff99fe12bd686bbba322f9ff61531341513f6a4b51fa65c47cb45dd5cdeb85f0b9abf8f68a3",
@@ -2601,8 +2525,9 @@ mod tests {
             let mut transaction =
                 ZcashTransaction::<N>::build_raw_transaction(version, lock_time, expiry_height).unwrap();
 
+            let address = ZcashAddress::<N>::from_str(output.address).unwrap();
             transaction
-                .add_transparent_output(output.address, output.amount)
+                .add_transparent_output(&address, output.amount)
                 .unwrap();
 
             // Build Sapling Spends
@@ -2632,9 +2557,10 @@ mod tests {
 
             // Add Sapling Spend
 
+            let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(sapling_input.extended_private_key).unwrap();
             transaction
                 .add_sapling_spend(
-                    sapling_input.extended_secret_key,
+                    &extended_private_key,
                     &cmu,
                     &epk,
                     sapling_input.enc_ciphertext,

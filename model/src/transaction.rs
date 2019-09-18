@@ -36,9 +36,6 @@ pub enum TransactionError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
 
-    #[fail(display = "invalid binding signature for the transaction")]
-    InvalidBindingSig(),
-
     #[fail(display = "witnesses have a conflicting anchor")]
     ConflictingWitnessAnchors(),
 
@@ -51,11 +48,11 @@ pub enum TransactionError {
     #[fail(display = "Failed note decryption for enc_cyphertext: {}", _0)]
     FailedNoteDecryption(String),
 
-    #[fail(display = "{}", _0)]
-    Message(String),
+    #[fail(display = "invalid binding signature for the transaction")]
+    InvalidBindingSig(),
 
-    #[fail(display = "missing spend description")]
-    MissingSpendDescription(),
+    #[fail(display = "invalid chain id {:?}", _0)]
+    InvalidChainId(u8),
 
     #[fail(display = "invalid ephemeral key {}", _0)]
     InvalidEphemeralKey(String),
@@ -84,8 +81,14 @@ pub enum TransactionError {
     #[fail(display = "invalid transaction - either both sender and signature should be present, or neither")]
     InvalidTransactionState,
 
-    #[fail(display = "invalid chain id {:?}", _0)]
-    InvalidChainId(u8),
+    #[fail(display = "{}", _0)]
+    Message(String),
+
+    #[fail(display = "missing diversifier, check that the address is a Sapling address")]
+    MissingDiversifier,
+
+    #[fail(display = "missing spend description")]
+    MissingSpendDescription,
 
     #[fail(display = "Null Error {:?}", _0)]
     NullError(()),
