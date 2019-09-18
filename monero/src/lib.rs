@@ -3,6 +3,9 @@
 //! A library for generating Monero wallets.
 #![warn(unused_extern_crates)]
 
+#[macro_use]
+extern crate failure;
+
 pub mod address;
 pub use self::address::*;
 

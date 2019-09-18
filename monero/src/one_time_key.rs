@@ -3,12 +3,39 @@
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
-use wagyu_model::{one_time_key::OneTimeKeyError, PublicKeyError};
+use wagyu_model::{PublicKeyError, TransactionError};
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
 use tiny_keccak::keccak256;
 use std::marker::PhantomData;
+
+#[derive(Debug, Fail)]
+pub enum OneTimeKeyError {
+    #[fail(display = "{}: {}", _0, _1)]
+    Crate(&'static str, String),
+
+    #[fail(display = "could not generate Edwards point from slice {:?}", _0)]
+    EdwardsPointError([u8; 32]),
+
+    #[fail(display = "{}", _0)]
+    PublicKeyError(PublicKeyError),
+
+    #[fail(display = "{}", _0)]
+    TransactionError(TransactionError),
+}
+
+impl From<PublicKeyError> for OneTimeKeyError {
+    fn from(error: PublicKeyError) -> Self {
+        OneTimeKeyError::PublicKeyError(error)
+    }
+}
+
+impl From<TransactionError> for OneTimeKeyError {
+    fn from(error: TransactionError) -> Self {
+        OneTimeKeyError::TransactionError(error)
+    }
+}
 
 /// Represents a one time key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
