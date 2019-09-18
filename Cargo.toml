@@ -43,7 +43,7 @@ colored = { version = "1.8" }
 digest = { version = "0.8.1" }
 either = { version = "1.5.3" }
 failure = { version = "0.1.5" }
-hex = { version = "0.3.2" }
+hex = { version = "0.4.0" }
 lazy_static = { version = "1.4.0" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.1" }
