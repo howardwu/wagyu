@@ -94,7 +94,7 @@ impl MoneroWallet {
     ) -> Result<Self, CLIError> {
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&hex::decode(private_spend_key)?);
-        let mnemonic = MoneroMnemonic::<N, W>::from_seed(&seed)?;
+        let mnemonic = MoneroMnemonic::<N, W>::from_private_spend_key(&seed);
         let private_key = mnemonic.to_private_key(None)?;
         if private_spend_key.to_string() != hex::encode(private_key.to_private_spend_key()) {
             return Err(CLIError::InvalidMnemonicForPrivateSpendKey);
