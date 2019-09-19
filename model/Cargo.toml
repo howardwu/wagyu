@@ -1,6 +1,6 @@
 [package]
 name = "wagyu-model"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "Collin Chin",
     "Raymond Chu",
@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A generic model for cryptocurrency wallets"
 homepage = "https://github.com/ArgusHQ/wagyu"
-repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.0/model"
+repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.1/model"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["bitcoin", "blockchain", "cryptocurrency", "ethereum", "wallet"]
 readme = "README.md"
@@ -29,7 +29,8 @@ hex = { version = "0.3.2" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.1" }
 ripemd160 = { version = "0.8" }
-secp256k1 = { version = "0.15.3" }
+rlp = { version = "0.4" }
+secp256k1 = { version = "0.15.5" }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.8" }
 uint = { version = "0.7.1" }

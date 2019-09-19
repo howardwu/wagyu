@@ -4,7 +4,9 @@ use crate::bitcoin::{
     Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
 };
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicExtended, PrivateKey, PublicKey};
+use crate::model::{
+    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey,
+};
 
 use clap::ArgMatches;
 use colored::*;
@@ -62,7 +64,7 @@ impl BitcoinWallet {
         path: &str,
         format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
-        let mnemonic = BitcoinMnemonic::<N, W>::new(word_count, rng)?;
+        let mnemonic = BitcoinMnemonic::<N, W>::new_with_count(rng, word_count)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = BitcoinDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;

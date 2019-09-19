@@ -1,23 +1,40 @@
 use crate::address::{Address, AddressError};
 use crate::extended_private_key::ExtendedPrivateKeyError;
+use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
+
+use rlp;
 
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {
     type Address: Address;
-    type Format;
+    type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
+    type TransactionHash;
+    type TransactionParameters;
+
+    /// Returns an unsigned transaction given the transaction parameters.
+    fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError>;
+
+    /// Returns a signed transaction given the private key of the sender.
+    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError>;
+
+    /// Returns a transaction given the transaction bytes.
+    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError>;
+
+    /// Returns the transaction in bytes.
+    fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError>;
+
+    /// Returns the transaction hash.
+    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError>;
 }
 
 #[derive(Debug, Fail)]
 pub enum TransactionError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
-
-    #[fail(display = "invalid binding signature for the transaction")]
-    InvalidBindingSig(),
 
     #[fail(display = "witnesses have a conflicting anchor")]
     ConflictingWitnessAnchors(),
@@ -31,11 +48,11 @@ pub enum TransactionError {
     #[fail(display = "Failed note decryption for enc_cyphertext: {}", _0)]
     FailedNoteDecryption(String),
 
-    #[fail(display = "{}", _0)]
-    Message(String),
+    #[fail(display = "invalid binding signature for the transaction")]
+    InvalidBindingSig(),
 
-    #[fail(display = "missing spend description")]
-    MissingSpendDescription(),
+    #[fail(display = "invalid chain id {:?}", _0)]
+    InvalidChainId(u8),
 
     #[fail(display = "invalid ephemeral key {}", _0)]
     InvalidEphemeralKey(String),
@@ -49,23 +66,38 @@ pub enum TransactionError {
     #[fail(display = "invalid ouptut description for address: {}", _0)]
     InvalidOutputDescription(String),
 
+    #[fail(display = "invalid transaction RLP length: expected - 9, found - {:?}", _0)]
+    InvalidRlpLength(usize),
+
     #[fail(display = "invalid script pub key for format: {}", _0)]
     InvalidScriptPubKey(String),
 
     #[fail(display = "invalid spend description for address")]
-    InvalidSpendDescription(),
+    InvalidSpendDescription,
 
     #[fail(display = "invalid transaction id {:?}", _0)]
     InvalidTransactionId(usize),
 
-    #[fail(display = "invalid chain id {:?}", _0)]
-    InvalidChainId(u8),
+    #[fail(display = "invalid transaction - either both sender and signature should be present, or neither")]
+    InvalidTransactionState,
+
+    #[fail(display = "{}", _0)]
+    Message(String),
+
+    #[fail(display = "missing diversifier, check that the address is a Sapling address")]
+    MissingDiversifier,
+
+    #[fail(display = "missing spend description")]
+    MissingSpendDescription,
 
     #[fail(display = "Null Error {:?}", _0)]
     NullError(()),
 
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
+
+    #[fail(display = "unsupported preimage operation on address format of {}", _0)]
+    UnsupportedPreimage(String),
 }
 
 impl From<&'static str> for TransactionError {
@@ -125,6 +157,12 @@ impl From<hex::FromHexError> for TransactionError {
 impl From<PrivateKeyError> for TransactionError {
     fn from(error: PrivateKeyError) -> Self {
         TransactionError::PrivateKeyError(error)
+    }
+}
+
+impl From<rlp::DecoderError> for TransactionError {
+    fn from(error: rlp::DecoderError) -> Self {
+        TransactionError::Crate("rlp", format!("{:?}", error))
     }
 }
 
