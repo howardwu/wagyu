@@ -118,6 +118,17 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
     pub fn format(&self) -> Result<MoneroFormat, AddressError> {
         MoneroFormat::from_address(&base58::decode(&self.address)?)
     }
+
+    /// Returns public spending key and public viewing key
+    pub fn to_public_key(&self) -> Result<MoneroPublicKey<N>, AddressError> {
+        let bytes = base58::decode(&self.address)?;
+        let format = MoneroFormat::from_address(&bytes)?;
+
+        let public_spend_key = hex::encode(&bytes[1..33]);
+        let public_view_key = hex::encode(&bytes[33..65]);
+
+        Ok(MoneroPublicKey::<N>::from(&public_spend_key, &public_view_key, &format)?)
+    }
 }
 
 impl<'a, N: MoneroNetwork> TryFrom<&'a str> for MoneroAddress<N> {
