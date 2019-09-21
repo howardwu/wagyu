@@ -2,7 +2,7 @@
 #$ brew install name-of-formula
 class WagyuBin < Formula
   version '0.6.0'
-  desc "<FILL IN>"
+  desc "Rust library for generating cryptocurrency wallets"
   homepage "https://github.com/ArgusHQ/wagyu"
 
   if OS.mac?
