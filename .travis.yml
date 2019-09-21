@@ -37,8 +37,7 @@ matrix:
             - musl-tools
 
 script:
-  - cargo build --verbose
-  - RUST_BACKTRACE=1 cargo test --all --verbose
+  - cargo test --all
 
 before_deploy:
   - |
