@@ -163,7 +163,7 @@ fn random_addition_tests<G: CurveProjective>() {
         0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..100 {
+    for _ in 0..10 {
         let a = G::random(&mut rng);
         let b = G::random(&mut rng);
         let c = G::random(&mut rng);
@@ -243,7 +243,7 @@ fn random_transformation_tests<G: CurveProjective>() {
         0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..100 {
+    for _ in 0..10 {
         let g = G::random(&mut rng);
         let g_affine = g.into_affine();
         let g_projective = g_affine.into_projective();
@@ -252,7 +252,7 @@ fn random_transformation_tests<G: CurveProjective>() {
 
     // Batch normalization
     for _ in 0..10 {
-        const RANGE: usize = 100;
+        const RANGE: usize = 10;
 
         let mut v = (0..RANGE).map(|_| G::random(&mut rng)).collect::<Vec<_>>();
 
@@ -291,7 +291,7 @@ fn random_encoding_tests<G: CurveAffine>() {
 
     assert_eq!(G::zero().into_compressed().into_affine().unwrap(), G::zero());
 
-    for _ in 0..100 {
+    for _ in 0..10 {
         let mut r = G::Projective::random(&mut rng).into_affine();
 
         let uncompressed = r.into_uncompressed();

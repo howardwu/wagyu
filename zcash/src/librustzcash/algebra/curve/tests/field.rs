@@ -28,7 +28,7 @@ pub fn random_sqrt_tests<F: SqrtField>() {
         0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..10000 {
+    for _ in 0..100 {
         let a = F::random(&mut rng);
         let mut b = a;
         b.square();
@@ -42,7 +42,7 @@ pub fn random_sqrt_tests<F: SqrtField>() {
     }
 
     let mut c = F::one();
-    for _ in 0..10000 {
+    for _ in 0..100 {
         let mut b = c;
         b.square();
         assert_eq!(b.legendre(), LegendreSymbol::QuadraticResidue);
@@ -135,7 +135,7 @@ pub fn from_str_tests<F: PrimeField>() {
 }
 
 fn random_multiplication_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let a = F::random(rng);
         let b = F::random(rng);
         let c = F::random(rng);
@@ -158,7 +158,7 @@ fn random_multiplication_tests<F: Field, R: RngCore>(rng: &mut R) {
 }
 
 fn random_addition_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let a = F::random(rng);
         let b = F::random(rng);
         let c = F::random(rng);
@@ -181,7 +181,7 @@ fn random_addition_tests<F: Field, R: RngCore>(rng: &mut R) {
 }
 
 fn random_subtraction_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let b = F::random(rng);
         let a = F::random(rng);
 
@@ -199,7 +199,7 @@ fn random_subtraction_tests<F: Field, R: RngCore>(rng: &mut R) {
 }
 
 fn random_negation_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let a = F::random(rng);
         let mut b = a;
         b.negate();
@@ -210,7 +210,7 @@ fn random_negation_tests<F: Field, R: RngCore>(rng: &mut R) {
 }
 
 fn random_doubling_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let mut a = F::random(rng);
         let mut b = a;
         a.add_assign(&b);
@@ -221,7 +221,7 @@ fn random_doubling_tests<F: Field, R: RngCore>(rng: &mut R) {
 }
 
 fn random_squaring_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let mut a = F::random(rng);
         let mut b = a;
         a.mul_assign(&b);
@@ -234,7 +234,7 @@ fn random_squaring_tests<F: Field, R: RngCore>(rng: &mut R) {
 fn random_inversion_tests<F: Field, R: RngCore>(rng: &mut R) {
     assert!(F::zero().inverse().is_none());
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let mut a = F::random(rng);
         let b = a.inverse().unwrap(); // probablistically nonzero
         a.mul_assign(&b);
@@ -244,7 +244,7 @@ fn random_inversion_tests<F: Field, R: RngCore>(rng: &mut R) {
 }
 
 fn random_expansion_tests<F: Field, R: RngCore>(rng: &mut R) {
-    for _ in 0..1000 {
+    for _ in 0..100 {
         // Compare (a + b)(c + d) and (a*c + b*c + a*d + b*d)
 
         let a = F::random(rng);

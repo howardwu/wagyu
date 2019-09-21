@@ -158,7 +158,7 @@ fn test_addition_associativity<E: JubjubEngine>(params: &E::Params) {
         0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         use self::montgomery::Point;
 
         let a = Point::<E, _>::rand(rng, params);
@@ -168,7 +168,7 @@ fn test_addition_associativity<E: JubjubEngine>(params: &E::Params) {
         assert!(a.add(&b, &params).add(&c, &params) == c.add(&a, &params).add(&b, &params));
     }
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         use self::edwards::Point;
 
         let a = Point::<E, _>::rand(rng, params);
@@ -220,7 +220,7 @@ fn test_get_for<E: JubjubEngine>(params: &E::Params) {
         0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let y = E::Fr::random(rng);
         let sign = rng.next_u32() % 2 == 1;
 
@@ -237,7 +237,7 @@ fn test_read_write<E: JubjubEngine>(params: &E::Params) {
         0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let e = edwards::Point::<E, _>::rand(rng, params);
 
         let mut v = vec![];
@@ -254,7 +254,7 @@ fn test_rand<E: JubjubEngine>(params: &E::Params) {
         0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let p = montgomery::Point::<E, _>::rand(rng, params);
         let e = edwards::Point::<E, _>::rand(rng, params);
 
@@ -275,7 +275,7 @@ fn test_back_and_forth<E: JubjubEngine>(params: &E::Params) {
         0x59, 0x62, 0xbe, 0x3d, 0x76, 0x5d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
     ]);
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let s = E::Fs::random(rng);
         let edwards_p1 = edwards::Point::<E, _>::rand(rng, params);
         let mont_p1 = montgomery::Point::from_edwards(&edwards_p1, params);
