@@ -348,7 +348,7 @@ mod tests {
         let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
         assert_eq!(expected_address, address.to_string());
-        assert_eq!(*expected_format, address.format());
+        assert_eq!(*expected_format, address.to_format());
     }
 
     fn test_to_str<N: ZcashNetwork>(expected_public_key: &str, public_key: &ZcashPublicKey<N>) {

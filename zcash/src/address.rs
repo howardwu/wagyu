@@ -152,18 +152,17 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         Ok(diversifier)
     }
 
-    /// Retuns the pk_d of a sepcified Zcash Sapling address.
-    /// Returns the diversifier of a specified Zcash Sapling address.
-    pub fn get_pk_d(address: &str) -> Result<[u8; 32], AddressError> {
-        let address = Bech32::from_str(address)?;
+    /// Returns the diversified transmission key of the Zcash Sapling address.
+    pub fn to_diversified_transmission_key(&self) -> Result<[u8; 32], AddressError> {
+        let address = Bech32::from_str(&self.address)?;
         let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
         let mut pk_d = [0u8; 32];
         pk_d.copy_from_slice(&buffer[11..43]);
         Ok(pk_d)
     }
 
-    /// Returns the format of the Monero address.
-    pub fn format(&self) -> ZcashFormat {
+    /// Returns the format of the Zcash address.
+    pub fn to_format(&self) -> ZcashFormat {
         self.format.clone()
     }
 }

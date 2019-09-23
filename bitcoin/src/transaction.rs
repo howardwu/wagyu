@@ -270,10 +270,7 @@ pub struct BitcoinTransactionOutput {
 impl BitcoinTransactionOutput {
     /// Returns a Bitcoin transaction output.
     pub fn new<N: BitcoinNetwork>(address: &BitcoinAddress<N>, amount: u64) -> Result<Self, TransactionError> {
-        Ok(Self {
-            amount,
-            script_pub_key: create_script_pub_key::<N>(address)?,
-        })
+        Ok(Self { amount, script_pub_key: create_script_pub_key::<N>(address)? })
     }
 
     /// Returns the serialized transaction output.
@@ -341,8 +338,8 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
             {
                 // Transaction hash
                 let preimage = match format {
-                    BitcoinFormat::P2PKH => transaction.create_p2pkh_hash_preimage(vin, input.sighash)?,
-                    _ => transaction.create_segwit_hash_preimage(vin, input.sighash)?,
+                    BitcoinFormat::P2PKH => transaction.p2pkh_hash_preimage(vin, input.sighash)?,
+                    _ => transaction.segwit_hash_preimage(vin, input.sighash)?,
                 };
                 let transaction_hash = Sha256::digest(&Sha256::digest(&preimage));
 
@@ -451,7 +448,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
 
 impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     /// Return the P2PKH hash preimage of the raw transaction.
-    pub fn create_p2pkh_hash_preimage(&self, vin: usize, sighash: SignatureHash) -> Result<Vec<u8>, TransactionError> {
+    pub fn p2pkh_hash_preimage(&self, vin: usize, sighash: SignatureHash) -> Result<Vec<u8>, TransactionError> {
         let mut preimage = self.parameters.version.to_le_bytes().to_vec();
         preimage.extend(variable_length_integer(self.parameters.inputs.len() as u64)?);
         for (index, input) in self.parameters.inputs.iter().enumerate() {
@@ -468,7 +465,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
 
     /// Return the SegWit hash preimage of the raw transaction
     /// https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
-    pub fn create_segwit_hash_preimage(&self, vin: usize, sighash: SignatureHash) -> Result<Vec<u8>, TransactionError> {
+    pub fn segwit_hash_preimage(&self, vin: usize, sighash: SignatureHash) -> Result<Vec<u8>, TransactionError> {
         let mut prev_outputs = vec![];
         let mut prev_sequences = vec![];
         let mut outputs = vec![];
