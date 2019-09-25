@@ -27,11 +27,35 @@ pub struct MoneroTransaction<N: MoneroNetwork> {
     _network: PhantomData<N>,
 }
 
+pub struct MoneroTransactionHash(Vec<u8>);
+
 impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
     type Address = MoneroAddress<N>;
     type Format = MoneroFormat;
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
+    type TransactionHash = MoneroTransactionHash;
+    type TransactionParameters = TransactionParameters;
+
+    fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
+        unimplemented!();
+    }
+
+    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
+        unimplemented!();
+    }
+
+    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+        unimplemented!();
+    }
+
+    fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError> {
+        unimplemented!();
+    }
+
+    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError> {
+        unimplemented!();
+    }
 }
 
 /// External C methods from mymonero-core-cpp library
