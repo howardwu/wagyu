@@ -146,6 +146,7 @@ mod tests {
     mod child_index {
         use super::*;
 
+        #[ignore]
         #[test]
         fn normal() {
             for i in 0..1 << 31 {
@@ -156,6 +157,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn hardened() {
             for i in 0..1 << 31 {
@@ -166,6 +168,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn is_normal() {
             for i in 0..1 << 31 {
@@ -174,6 +177,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn is_hardened() {
             for i in 0..1 << 31 {
@@ -182,6 +186,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn to_index() {
             for i in 0..1 << 31 {
@@ -190,6 +195,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn from() {
             const THRESHOLD: u32 = 1 << 31;
@@ -201,6 +207,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn from_str() {
             for i in (0..1 << 31).step_by(1 << 10) {
@@ -216,6 +223,7 @@ mod tests {
             }
         }
 
+        #[ignore]
         #[test]
         fn to_string() {
             for i in (0..1 << 31).step_by(1 << 10) {
