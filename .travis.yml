@@ -13,7 +13,7 @@ matrix:
           packages:
             - libssl-dev
       before_cache:
-        - cargo install cargo-tarpaulin -f
+        - cargo install cargo-tarpaulin
       after_success:
         - cargo tarpaulin --all --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
     - rust: beta
