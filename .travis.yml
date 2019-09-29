@@ -11,11 +11,27 @@ matrix:
       addons:
         apt:
           packages:
-            - libssl-dev
-      before_cache:
-        - cargo install cargo-tarpaulin -f
-      after_success:
-        - cargo tarpaulin --all --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - cmake
+            - gcc
+            - binutils-dev
+            - libiberty-dev
+      after_success: |
+        wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+        tar xzf master.tar.gz &&
+        cd kcov-master &&
+        mkdir build &&
+        cd build &&
+        cmake .. &&
+        make &&
+        sudo make install &&
+        cd ../.. &&
+        rm -rf kcov-master &&
+        for file in target/debug/*-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+        bash <(curl -s https://codecov.io/bash) &&
+        echo "Uploaded code coverage"
     - rust: beta
     - rust: nightly
     # Deployments
