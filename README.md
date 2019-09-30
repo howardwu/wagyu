@@ -4,7 +4,7 @@
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
     <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.1.svg"></a>
-    <a href="https://coveralls.io/github/ArgusHQ/wagyu?branch=v0.6.1"><img src="https://coveralls.io/repos/github/ArgusHQ/wagyu/badge.svg?branch=v0.6.1"></a>
+    <a href="https://codecov.io/gh/ArgusHQ/wagyu"><img src="https://img.shields.io/codecov/c/github/ArgusHQ/wagyu.svg"></a>
     <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
     <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
 </p>
