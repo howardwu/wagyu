@@ -512,7 +512,7 @@ impl BitcoinOptions {
         match self.derivation.as_str() {
             "bip32" => Some(format!("m/0'/0'/{}'", self.index)),
             "bip44" => Some(format!("m/44'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
-            "bip49" => Some(format!("m/44'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
+            "bip49" => Some(format!("m/49'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
             "custom" => self.path.clone(),
             _ => match default {
                 true => Some(format!("m/0'/0'/{}'", self.index)),
