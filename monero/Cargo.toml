@@ -24,7 +24,7 @@ base58-monero = { version = "0.1.1" }
 crc = { version = "1.8.1" }
 curve25519-dalek = { version = "1.2.3" }
 failure = { version = "0.1.5" }
-hex = { version = "0.3.2" }
+hex = { version = "0.4.0" }
 libc = { version = "0.2" }
 rand = { version = "0.7" }
 serde = { version = "1.0", features = ["derive"] }

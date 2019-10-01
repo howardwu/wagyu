@@ -25,7 +25,7 @@ crypto-mac = { version = "0.7.0" }
 ethereum-types = { version = "0.6.0" }
 ff = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
 failure = { version = "0.1.5" }
-hex = { version = "0.3.2" }
+hex = { version = "0.4.0" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.1" }
 ripemd160 = { version = "0.8" }

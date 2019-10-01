@@ -37,7 +37,7 @@ bech32 = { version = "0.6" }
 base58 = { version = "0.1" }
 byteorder = { version = "1.1" }
 curve25519-dalek = { version = "1.2.3" }
-hex = { version = "0.3.2" }
+hex = { version = "0.4.0" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.1" }
 rust-crypto = { version = "0.2" }
