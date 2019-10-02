@@ -62,7 +62,6 @@ impl BitcoinWallet {
         word_count: u8,
         password: Option<&str>,
         path: &str,
-        format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::new_with_count(rng, word_count)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
@@ -71,7 +70,7 @@ impl BitcoinWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(format)?;
+        let address = public_key.to_address(&extended_private_key.format())?;
         let compressed = private_key.is_compressed();
         Ok(Self {
             path: Some(path.to_string()),
@@ -92,7 +91,6 @@ impl BitcoinWallet {
         mnemonic: &str,
         password: &Option<&str>,
         path: &str,
-        format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password.clone())?;
@@ -101,7 +99,7 @@ impl BitcoinWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(format)?;
+        let address = public_key.to_address(&extended_private_key.format())?;
         let compressed = private_key.is_compressed();
         Ok(Self {
             path: Some(path.to_string()),
@@ -121,7 +119,6 @@ impl BitcoinWallet {
     pub fn from_extended_private_key<N: BitcoinNetwork>(
         extended_private_key: &str,
         path: &Option<String>,
-        format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mut extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(extended_private_key)?;
         if let Some(derivation_path) = path {
@@ -131,7 +128,7 @@ impl BitcoinWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(format)?;
+        let address = public_key.to_address(&extended_private_key.format())?;
         let compressed = private_key.is_compressed();
         Ok(Self {
             path: path.clone(),
@@ -150,7 +147,6 @@ impl BitcoinWallet {
     pub fn from_extended_public_key<N: BitcoinNetwork>(
         extended_public_key: &str,
         path: &Option<String>,
-        format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mut extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(extended_public_key)?;
         if let Some(derivation_path) = path {
@@ -158,7 +154,7 @@ impl BitcoinWallet {
             extended_public_key = extended_public_key.derive(&derivation_path)?;
         }
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(format)?;
+        let address = public_key.to_address(&extended_public_key.format())?;
         let compressed = public_key.is_compressed();
         Ok(Self {
             path: path.clone(),
@@ -511,8 +507,8 @@ impl BitcoinOptions {
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
             "bip32" => Some(format!("m/0'/0'/{}'", self.index)),
-            "bip44" => Some(format!("m/44'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
-            "bip49" => Some(format!("m/44'/0'/{}'/{}/{}'", self.account, self.chain, self.index)),
+            "bip44" => Some(format!("m/44'/0'/{}'/{}/{}", self.account, self.chain, self.index)),
+            "bip49" => Some(format!("m/49'/0'/{}'/{}/{}", self.account, self.chain, self.index)),
             "custom" => self.path.clone(),
             _ => match default {
                 true => Some(format!("m/0'/0'/{}'", self.index)),
@@ -591,7 +587,6 @@ impl CLI for BitcoinCLI {
                                 options.word_count,
                                 options.password.as_ref().map(String::as_str),
                                 &path,
-                                &options.format,
                             ) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
@@ -619,52 +614,31 @@ impl CLI for BitcoinCLI {
                     if let Some(mnemonic) = options.mnemonic.clone() {
                         let password = &options.password.as_ref().map(String::as_str);
                         let path = &options.to_derivation_path(true).unwrap();
-                        let format = &options.format;
 
                         vec![
-                            BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(&mnemonic, password, path, format)
+                            BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(&mnemonic, password, path)
                                 .or(BitcoinWallet::from_mnemonic::<N, ChineseTraditional>(
-                                    &mnemonic, password, path, format,
+                                    &mnemonic, password, path,
                                 ))
-                                .or(BitcoinWallet::from_mnemonic::<N, English>(
-                                    &mnemonic, password, path, format,
-                                ))
-                                .or(BitcoinWallet::from_mnemonic::<N, French>(
-                                    &mnemonic, password, path, format,
-                                ))
-                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(
-                                    &mnemonic, password, path, format,
-                                ))
-                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(
-                                    &mnemonic, password, path, format,
-                                ))
-                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(
-                                    &mnemonic, password, path, format,
-                                ))
-                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(
-                                    &mnemonic, password, path, format,
-                                ))?,
+                                .or(BitcoinWallet::from_mnemonic::<N, English>(&mnemonic, password, path))
+                                .or(BitcoinWallet::from_mnemonic::<N, French>(&mnemonic, password, path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(&mnemonic, password, path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(&mnemonic, password, path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, path))?,
                         ]
                     } else if let Some(extended_private_key) = options.extended_private_key.clone() {
                         let key = &extended_private_key;
                         let path = &options.to_derivation_path(false);
-                        let format = &options.format;
 
-                        vec![
-                            BitcoinWallet::from_extended_private_key::<BitcoinMainnet>(key, path, format).or(
-                                BitcoinWallet::from_extended_private_key::<BitcoinTestnet>(key, path, format),
-                            )?,
-                        ]
+                        vec![BitcoinWallet::from_extended_private_key::<BitcoinMainnet>(key, path)
+                            .or(BitcoinWallet::from_extended_private_key::<BitcoinTestnet>(key, path))?]
                     } else if let Some(extended_public_key) = options.extended_public_key.clone() {
                         let key = &extended_public_key;
                         let path = &options.to_derivation_path(false);
-                        let format = &options.format;
 
-                        vec![
-                            BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path, format).or(
-                                BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path, format),
-                            )?,
-                        ]
+                        vec![BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path)
+                            .or(BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path))?]
                     } else {
                         vec![]
                     }
