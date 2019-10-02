@@ -53,6 +53,8 @@ matrix:
             - musl-tools
 
 script:
+  - git submodule init && git submodule update
+  - ./monero/mymonero-core-cpp/bin/update_submodules
   - cargo build --verbose
   - RUST_BACKTRACE=1 cargo test --all --verbose
 
