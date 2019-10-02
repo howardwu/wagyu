@@ -542,7 +542,7 @@ impl CLI for BitcoinCLI {
         match arguments.subcommand() {
             ("hd", Some(arguments)) => {
                 options.subcommand = Some("hd".into());
-                options.parse(arguments, &["count", "format", "json", "network"]);
+                options.parse(arguments, &["count", "json", "network"]);
                 options.parse(arguments, &["derivation", "language", "password", "word count"]);
             }
             ("import", Some(arguments)) => {
@@ -552,7 +552,7 @@ impl CLI for BitcoinCLI {
             }
             ("import-hd", Some(arguments)) => {
                 options.subcommand = Some("import-hd".into());
-                options.parse(arguments, &["format", "json", "network"]);
+                options.parse(arguments, &["json", "network"]);
                 options.parse(
                     arguments,
                     &[
