@@ -14,6 +14,9 @@ extern crate lazy_static;
 pub mod address;
 pub use self::address::*;
 
+pub mod amount;
+pub use self::amount::*;
+
 pub mod derivation_path;
 pub use self::derivation_path::*;
 
