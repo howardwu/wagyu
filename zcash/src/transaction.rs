@@ -1126,19 +1126,7 @@ mod tests {
         pub address: &'static str,
         pub amount: u64,
     }
-
-    const INPUT_FILLER: Input = Input {
-        private_key: "",
-        address_format: ZcashFormat::P2PKH,
-        transaction_id: "",
-        index: 0,
-        redeem_script: Some(""),
-        script_pub_key: None,
-        utxo_amount: None,
-        sequence: None,
-        sig_hash_code: SignatureHash::SIGHASH_ALL,
-    };
-
+    
     fn test_sapling_transaction<N: ZcashNetwork>(
         version: &str,
         lock_time: u32,
@@ -2307,7 +2295,17 @@ mod tests {
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
-            INPUT_FILLER,
+            Input {
+                private_key: "",
+                address_format: ZcashFormat::P2PKH,
+                transaction_id: "",
+                index: 0,
+                redeem_script: Some(""),
+                script_pub_key: None,
+                utxo_amount: None,
+                sequence: None,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
+            },
         ];
 
         #[test]

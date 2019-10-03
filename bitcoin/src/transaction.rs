@@ -552,18 +552,6 @@ mod tests {
         pub amount: u64,
     }
 
-    const INPUT_FILLER: Input = Input {
-        private_key: "",
-        address_format: BitcoinFormat::P2PKH,
-        transaction_id: "",
-        index: 0,
-        redeem_script: Some(""),
-        script_pub_key: None,
-        utxo_amount: 0,
-        sequence: None,
-        sig_hash_code: SignatureHash::SIGHASH_ALL,
-    };
-
     fn test_transaction<N: BitcoinNetwork>(
         version: u32,
         lock_time: u32,
@@ -1193,7 +1181,17 @@ mod tests {
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sig_hash_code: SignatureHash::SIGHASH_ALL,
             },
-            INPUT_FILLER,
+            Input {
+                private_key: "",
+                address_format: BitcoinFormat::P2PKH,
+                transaction_id: "",
+                index: 0,
+                redeem_script: Some(""),
+                script_pub_key: None,
+                utxo_amount: 0,
+                sequence: None,
+                sig_hash_code: SignatureHash::SIGHASH_ALL,
+            },
         ];
 
         #[test]
