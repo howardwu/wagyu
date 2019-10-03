@@ -5,6 +5,7 @@ use std::fmt;
 
 // Number of satoshis per BTC
 const COIN: i64 = 1_0000_0000;
+
 // Maximum number of satoshis
 const MAX_COINS: i64 = 21_000_000 * COIN;
 
@@ -158,6 +159,22 @@ mod tests {
         assert_eq!(expected_amount, amount)
     }
 
+    fn test_addition(a: &i64, b: &i64, result: &i64) {
+        let a = BitcoinAmount::from_satoshi(*a).unwrap();
+        let b = BitcoinAmount::from_satoshi(*b).unwrap();
+        let result = BitcoinAmount::from_satoshi(*result).unwrap();
+
+        assert_eq!(result, a.add(b).unwrap());
+    }
+
+    fn test_subtraction(a: &i64, b: &i64, result: &i64) {
+        let a = BitcoinAmount::from_satoshi(*a).unwrap();
+        let b = BitcoinAmount::from_satoshi(*b).unwrap();
+        let result = BitcoinAmount::from_satoshi(*result).unwrap();
+
+        assert_eq!(result, a.sub(b).unwrap());
+    }
+
     pub struct AmountDenominationTestCase {
         satoshi: i64,
         micro_bit: i64,
@@ -253,6 +270,30 @@ mod tests {
             TEST_AMOUNTS
                 .iter()
                 .for_each(|amounts| test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi)));
+        }
+    }
+
+    mod valid_arithmetic {
+        use super::*;
+
+        const TEST_VALUES: [(i64, i64, i64); 7] = [
+            (0, 0, 0),
+            (1, 2, 3),
+            (100000, 0, 100000),
+            (123456789, 987654321, 1111111110),
+            (100000000000000, 2000000000000000, 2100000000000000),
+            (-100000000000000, -2000000000000000, -2100000000000000),
+            (1000000, -1000000, 0),
+        ];
+
+        #[test]
+        fn test_valid_addition() {
+            TEST_VALUES.iter().for_each(|(a, b, c)| test_addition(a, b, c));
+        }
+
+        #[test]
+        fn test_valid_subtraction() {
+            TEST_VALUES.iter().for_each(|(a, b, c)| test_subtraction(c, b, a));
         }
     }
 
@@ -422,6 +463,33 @@ mod tests {
                 INVALID_TEST_AMOUNTS
                     .iter()
                     .for_each(|amounts| test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi)));
+            }
+        }
+
+        mod invalid_arithmetic {
+            use super::*;
+
+            const TEST_VALUES: [(i64, i64, i64); 8] = [
+                (0, 0, 1),
+                (1, 2, 5),
+                (100000, 1, 100000),
+                (123456789, 123456789, 123456789),
+                (-1000, -1000, 2000),
+                (2100000000000000, 1, 2100000000000001),
+                (2100000000000000, 2100000000000000, 4200000000000000),
+                (-2100000000000000, -2100000000000000, -4200000000000000),
+            ];
+
+            #[should_panic]
+            #[test]
+            fn test_invalid_addition() {
+                TEST_VALUES.iter().for_each(|(a, b, c)| test_addition(a, b, c));
+            }
+
+            #[should_panic]
+            #[test]
+            fn test_invalid_subtraction() {
+                TEST_VALUES.iter().for_each(|(a, b, c)| test_subtraction(a, b, c));
             }
         }
     }
