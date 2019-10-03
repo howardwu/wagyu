@@ -3,7 +3,7 @@ use wagyu_model::{Amount, AmountError};
 use serde::Serialize;
 use std::fmt;
 
-// Number of satoshis per BTC
+// Number of satoshis (base unit) per BTC
 const COIN: i64 = 1_0000_0000;
 
 // Maximum number of satoshis
@@ -81,31 +81,31 @@ impl BitcoinAmount {
     }
 
     pub fn from_ubtc(ubtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = ubtc_value * (10 as i64).pow(Denomination::MicroBit.precision());
+        let satoshis = ubtc_value * 10_i64.pow(Denomination::MicroBit.precision());
 
         BitcoinAmount::from_satoshi(satoshis)
     }
 
     pub fn from_mbtc(mbtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = mbtc_value * (10 as i64).pow(Denomination::MilliBit.precision());
+        let satoshis = mbtc_value * 10_i64.pow(Denomination::MilliBit.precision());
 
         BitcoinAmount::from_satoshi(satoshis)
     }
 
     pub fn from_cbtc(cbtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = cbtc_value * (10 as i64).pow(Denomination::CentiBit.precision());
+        let satoshis = cbtc_value * 10_i64.pow(Denomination::CentiBit.precision());
 
         BitcoinAmount::from_satoshi(satoshis)
     }
 
     pub fn from_dbtc(dbtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = dbtc_value * (10 as i64).pow(Denomination::DeciBit.precision());
+        let satoshis = dbtc_value * 10_i64.pow(Denomination::DeciBit.precision());
 
         BitcoinAmount::from_satoshi(satoshis)
     }
 
     pub fn from_btc(btc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = btc_value * (10 as i64).pow(Denomination::Bitcoin.precision());
+        let satoshis = btc_value * 10_i64.pow(Denomination::Bitcoin.precision());
 
         BitcoinAmount::from_satoshi(satoshis)
     }
