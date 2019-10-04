@@ -209,7 +209,6 @@ FLAGS:
 OPTIONS:
     -c, --count <count>              Generates a specified number of wallets
     -d, --derivation <"path">        Generates an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, "<custom path>"]
-    -f, --format <format>            Generates an HD wallet with a specified format [possible values: bech32, legacy, segwit]
     -l, --language <language>        Generates an HD wallet with a specified language [possible values: chinese_simplified, chinese_traditional, english, french, italian, japanese, korean, spanish]
     -n, --network <network>          Generates an HD wallet for a specified network [possible values: mainnet, testnet]
     -p, --password <password>        Generates an HD wallet with a specified password
@@ -378,7 +377,6 @@ OPTIONS:
     -d, --derivation <"path">                    Imports an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, "<custom path>"]
         --extended-private <extended private>    Imports a partial HD wallet for a specified extended private key
         --extended-public <extended public>      Imports a partial HD wallet for a specified extended public key
-    -f, --format <format>                        Imports an HD wallet with a specified format [possible values: bech32, legacy, segwit]
     -i, --index <index>                          Imports an HD wallet for a specified index
     -m, --mnemonic <"mnemonic">                  Imports an HD wallet for a specified mnemonic (in quotes)
     -n, --network <network>                      Imports an HD wallet for a specified network [possible values: mainnet, testnet]

@@ -111,6 +111,13 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
     }
 }
 
+impl<N: BitcoinNetwork> BitcoinExtendedPublicKey<N> {
+    /// Returns the format of the Bitcoin extended private key.
+    pub fn format(&self) -> BitcoinFormat {
+        self.format.clone()
+    }
+}
+
 impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
     type Err = ExtendedPublicKeyError;
 
