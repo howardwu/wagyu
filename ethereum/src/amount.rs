@@ -6,7 +6,7 @@ use std::fmt;
 
 /// Represents the amount of Ethereum in wei
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EthereumAmount(U256);
+pub struct EthereumAmount(pub U256);
 
 pub enum Denomination {
     Wei,
@@ -107,12 +107,12 @@ impl EthereumAmount {
         Ok(Self::from_u256(wei))
     }
 
-    pub fn add(self, b: EthereumAmount) -> Self {
-        EthereumAmount::from_u256(self.0 + b.0)
+    pub fn add(self, b: Self) -> Self {
+        Self::from_u256(self.0 + b.0)
     }
 
-    pub fn sub(self, b: EthereumAmount) -> Self {
-        EthereumAmount::from_u256(self.0 - b.0)
+    pub fn sub(self, b: Self) -> Self {
+        Self::from_u256(self.0 - b.0)
     }
 }
 

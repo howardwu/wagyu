@@ -11,7 +11,7 @@ const MAX_COINS: i64 = 21_000_000 * COIN;
 
 /// Represents the amount of ZEC in zatoshis
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ZcashAmount(i64);
+pub struct ZcashAmount(pub i64);
 
 impl Amount for ZcashAmount {}
 
@@ -37,21 +37,21 @@ impl ZcashAmount {
     pub fn from_zec(zec_value: i64) -> Result<Self, AmountError> {
         let zatoshis = zec_value * COIN;
 
-        ZcashAmount::from_zatoshi(zatoshis)
+        Self::from_zatoshi(zatoshis)
     }
 
-    pub fn add(self, b: ZcashAmount) -> Result<Self, AmountError> {
-        ZcashAmount::from_zatoshi(self.0 + b.0)
+    pub fn add(self, b: Self) -> Result<Self, AmountError> {
+        Self::from_zatoshi(self.0 + b.0)
     }
 
-    pub fn sub(self, b: ZcashAmount) -> Result<Self, AmountError> {
-        ZcashAmount::from_zatoshi(self.0 - b.0)
+    pub fn sub(self, b: Self) -> Result<Self, AmountError> {
+        Self::from_zatoshi(self.0 - b.0)
     }
 }
 
 impl fmt::Display for ZcashAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} zatoshis", self.0.to_string())
+        write!(f, "{}", self.0.to_string())
     }
 }
 

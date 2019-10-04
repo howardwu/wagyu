@@ -6,9 +6,9 @@ use std::fmt;
 // Number of piconeros (base unit) per Monero
 const COIN: i128 = 1_0000_0000_000;
 
-/// Represents the amount of Bitcoin in piconeros
+/// Represents the amount of Monero in piconeros
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MoneroAmount(i128);
+pub struct MoneroAmount(pub i128);
 
 pub enum Denomination {
     Piconero,
@@ -70,51 +70,51 @@ impl MoneroAmount {
     pub fn from_nanonero(nanonero_value: i128) -> Self {
         let piconeros = nanonero_value * 10_i128.pow(Denomination::Nanonero.precision());
 
-        MoneroAmount::from_piconero(piconeros)
+        Self::from_piconero(piconeros)
     }
 
     pub fn from_micronero(micronero_value: i128) -> Self {
         let piconeros = micronero_value * 10_i128.pow(Denomination::Micronero.precision());
 
-        MoneroAmount::from_piconero(piconeros)
+        Self::from_piconero(piconeros)
     }
 
     pub fn from_millinero(millinero_value: i128) -> Self {
         let piconeros = millinero_value * 10_i128.pow(Denomination::Millinero.precision());
 
-        MoneroAmount::from_piconero(piconeros)
+        Self::from_piconero(piconeros)
     }
 
     pub fn from_centinero(centinero_value: i128) -> Self {
         let piconeros = centinero_value * 10_i128.pow(Denomination::Centinero.precision());
 
-        MoneroAmount::from_piconero(piconeros)
+        Self::from_piconero(piconeros)
     }
 
     pub fn from_decinero(decinero_value: i128) -> Self {
         let piconeros = decinero_value * 10_i128.pow(Denomination::Decinero.precision());
 
-        MoneroAmount::from_piconero(piconeros)
+        Self::from_piconero(piconeros)
     }
 
     pub fn from_monero(monero_value: i128) -> Self {
         let piconeros = monero_value * 10_i128.pow(Denomination::Monero.precision());
 
-        MoneroAmount::from_piconero(piconeros)
+        Self::from_piconero(piconeros)
     }
 
-    pub fn add(self, b: MoneroAmount) -> Self {
-        MoneroAmount::from_piconero(self.0 + b.0)
+    pub fn add(self, b: Self) -> Self {
+        Self::from_piconero(self.0 + b.0)
     }
 
-    pub fn sub(self, b: MoneroAmount) -> Self {
-        MoneroAmount::from_piconero(self.0 - b.0)
+    pub fn sub(self, b: Self) -> Self {
+        Self::from_piconero(self.0 - b.0)
     }
 }
 
 impl fmt::Display for MoneroAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} piconeros", self.0.to_string())
+        write!(f, "{}", self.0.to_string())
     }
 }
 
