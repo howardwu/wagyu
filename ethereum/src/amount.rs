@@ -107,12 +107,12 @@ impl EthereumAmount {
         Ok(Self::from_u256(wei))
     }
 
-    pub fn add(self, b: EthereumAmount) -> Self {
-        EthereumAmount::from_u256(self.0 + b.0)
+    pub fn add(self, b: Self) -> Self {
+        Self::from_u256(self.0 + b.0)
     }
 
-    pub fn sub(self, b: EthereumAmount) -> Self {
-        EthereumAmount::from_u256(self.0 - b.0)
+    pub fn sub(self, b: Self) -> Self {
+        Self::from_u256(self.0 - b.0)
     }
 }
 

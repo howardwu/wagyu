@@ -71,7 +71,7 @@ impl BitcoinAmount {
 
     pub fn from_satoshi(satoshis: i64) -> Result<Self, AmountError> {
         if -MAX_COINS <= satoshis && satoshis <= MAX_COINS {
-            Ok(BitcoinAmount(satoshis))
+            Ok(Self(satoshis))
         } else {
             return Err(AmountError::AmountOutOfBounds(
                 satoshis.to_string(),
@@ -83,45 +83,45 @@ impl BitcoinAmount {
     pub fn from_ubtc(ubtc_value: i64) -> Result<Self, AmountError> {
         let satoshis = ubtc_value * 10_i64.pow(Denomination::MicroBit.precision());
 
-        BitcoinAmount::from_satoshi(satoshis)
+        Self::from_satoshi(satoshis)
     }
 
     pub fn from_mbtc(mbtc_value: i64) -> Result<Self, AmountError> {
         let satoshis = mbtc_value * 10_i64.pow(Denomination::MilliBit.precision());
 
-        BitcoinAmount::from_satoshi(satoshis)
+        Self::from_satoshi(satoshis)
     }
 
     pub fn from_cbtc(cbtc_value: i64) -> Result<Self, AmountError> {
         let satoshis = cbtc_value * 10_i64.pow(Denomination::CentiBit.precision());
 
-        BitcoinAmount::from_satoshi(satoshis)
+        Self::from_satoshi(satoshis)
     }
 
     pub fn from_dbtc(dbtc_value: i64) -> Result<Self, AmountError> {
         let satoshis = dbtc_value * 10_i64.pow(Denomination::DeciBit.precision());
 
-        BitcoinAmount::from_satoshi(satoshis)
+        Self::from_satoshi(satoshis)
     }
 
     pub fn from_btc(btc_value: i64) -> Result<Self, AmountError> {
         let satoshis = btc_value * 10_i64.pow(Denomination::Bitcoin.precision());
 
-        BitcoinAmount::from_satoshi(satoshis)
+        Self::from_satoshi(satoshis)
     }
 
-    pub fn add(self, b: BitcoinAmount) -> Result<Self, AmountError> {
-        BitcoinAmount::from_satoshi(self.0 + b.0)
+    pub fn add(self, b: Self) -> Result<Self, AmountError> {
+        Self::from_satoshi(self.0 + b.0)
     }
 
     pub fn sub(self, b: BitcoinAmount) -> Result<Self, AmountError> {
-        BitcoinAmount::from_satoshi(self.0 - b.0)
+        Self::from_satoshi(self.0 - b.0)
     }
 }
 
 impl fmt::Display for BitcoinAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} satoshis", self.0.to_string())
+        write!(f, "{}", self.0.to_string())
     }
 }
 
