@@ -3,11 +3,14 @@ use crate::format::EthereumFormat;
 use crate::network::EthereumNetwork;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use wagyu_model::{PrivateKey, PublicKey, Transaction, TransactionError};
+use wagyu_model::{PrivateKey, PublicKey, Transaction, TransactionError, TransactionId};
 
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
-use secp256k1::{self, recovery::{RecoverableSignature, RecoveryId}};
+use secp256k1::{
+    self,
+    recovery::{RecoverableSignature, RecoveryId},
+};
 use std::{fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
@@ -29,7 +32,9 @@ pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
         2 => Ok(u32::from_le_bytes([value[0], value[1], 0, 0])),
         3 => Ok(u32::from_le_bytes([value[0], value[1], value[2], 0])),
         4 => Ok(u32::from_le_bytes([value[0], value[1], value[2], value[3]])),
-        _ => Err(TransactionError::Message("invalid byte length for u32 value".to_string())),
+        _ => Err(TransactionError::Message(
+            "invalid byte length for u32 value".to_string(),
+        )),
     }
 }
 
@@ -61,14 +66,16 @@ struct EthereumTransactionSignature {
     s: Vec<u8>,
 }
 
-/// Represents an Ethereum transaction hash
+/// Represents an Ethereum transaction id
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EthereumTransactionHash {
+pub struct EthereumTransactionId {
     /// The transaction hash
-    pub bytes: Vec<u8>
+    pub bytes: Vec<u8>,
 }
 
-impl fmt::Display for EthereumTransactionHash {
+impl TransactionId for EthereumTransactionId {}
+
+impl fmt::Display for EthereumTransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "0x{}", &hex::encode(&self.bytes))
     }
@@ -84,7 +91,7 @@ pub struct EthereumTransaction<N: EthereumNetwork> {
     /// The transaction signature
     signature: Option<EthereumTransactionSignature>,
     /// PhantomData
-    _network: PhantomData<N>
+    _network: PhantomData<N>,
 }
 
 impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
@@ -92,7 +99,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
     type PublicKey = EthereumPublicKey;
-    type TransactionHash = EthereumTransactionHash;
+    type TransactionId = EthereumTransactionId;
     type TransactionParameters = EthereumTransactionParameters;
 
     /// Returns an unsigned transaction given the transaction parameters.
@@ -114,8 +121,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             (None, None) => {
                 let (v, signature) = secp256k1::Secp256k1::new()
                     .sign_recoverable(
-                        &secp256k1::Message::from_slice(&self.to_transaction_hash()?.bytes)?,
-                        &private_key.to_secp256k1_secret_key())
+                        &secp256k1::Message::from_slice(&self.to_transaction_id()?.bytes)?,
+                        &private_key.to_secp256k1_secret_key(),
+                    )
                     .serialize_compact();
 
                 let mut transaction = self.clone();
@@ -135,7 +143,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
         let list: Vec<Vec<u8>> = decode_list(&transaction);
         if list.len() != 9 {
-            return Err(TransactionError::InvalidRlpLength(list.len()))
+            return Err(TransactionError::InvalidRlpLength(list.len()));
         }
 
         let parameters = EthereumTransactionParameters {
@@ -156,7 +164,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 true => U256::zero(),
                 false => U256::from(list[0].as_slice()),
             },
-            data: list[5].clone()
+            data: list[5].clone(),
         };
 
         match list[7].is_empty() && list[8].is_empty() {
@@ -166,9 +174,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     sender: None,
                     parameters,
                     signature: None,
-                    _network: PhantomData
+                    _network: PhantomData,
                 })
-            },
+            }
             false => {
                 // Signed transaction
                 let v = from_bytes(&list[6])?;
@@ -180,12 +188,13 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     sender: None,
                     parameters: parameters.clone(),
                     signature: None,
-                    _network: PhantomData
+                    _network: PhantomData,
                 };
-                let message = secp256k1::Message::from_slice(&raw_transaction.to_transaction_hash()?.bytes)?;
+                let message = secp256k1::Message::from_slice(&raw_transaction.to_transaction_id()?.bytes)?;
                 let public_key = EthereumPublicKey::from_secp256k1_public_key(
-                    secp256k1::Secp256k1::new().recover(
-                        &message, &RecoverableSignature::from_compact(&signature, recovery_id)?)?);
+                    secp256k1::Secp256k1::new()
+                        .recover(&message, &RecoverableSignature::from_compact(&signature, recovery_id)?)?,
+                );
 
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),
@@ -195,7 +204,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                         r: list[7].clone(),
                         s: list[8].clone(),
                     }),
-                    _network: PhantomData
+                    _network: PhantomData,
                 })
             }
         }
@@ -208,7 +217,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         // https://github.com/ethereum/wiki/wiki/RLP
         fn encode_transaction(
             transaction_rlp: &mut RlpStream,
-            parameters: &EthereumTransactionParameters
+            parameters: &EthereumTransactionParameters,
         ) -> Result<(), TransactionError> {
             transaction_rlp.append(&parameters.nonce);
             transaction_rlp.append(&parameters.gas_price);
@@ -248,15 +257,15 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
         match &self.signature {
             Some(signature) => Ok(signed_transaction(&self.parameters, signature)?.out()),
-            None => Ok(raw_transaction::<N>( &self.parameters)?.out()),
+            None => Ok(raw_transaction::<N>(&self.parameters)?.out()),
         }
     }
 
     /// Returns the hash of the signed transaction, if the signature is present.
     /// Otherwise, returns the hash of the raw transaction.
-    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError> {
-        Ok(Self::TransactionHash {
-            bytes: keccak256(&self.to_transaction_bytes()?).into_iter().cloned().collect()
+    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
+        Ok(Self::TransactionId {
+            bytes: keccak256(&self.to_transaction_bytes()?).into_iter().cloned().collect(),
         })
     }
 }
@@ -271,10 +280,14 @@ impl<N: EthereumNetwork> FromStr for EthereumTransaction<N> {
 
 impl<N: EthereumNetwork> fmt::Display for EthereumTransaction<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", &hex::encode(match self.to_transaction_bytes() {
-            Ok(transaction) => transaction,
-            _ => return Err(fmt::Error)
-        }))
+        write!(
+            f,
+            "0x{}",
+            &hex::encode(match self.to_transaction_bytes() {
+                Ok(transaction) => transaction,
+                _ => return Err(fmt::Error),
+            })
+        )
     }
 }
 
@@ -308,13 +321,16 @@ mod tests {
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-            data: transaction.data.as_bytes().to_vec()
+            data: transaction.data.as_bytes().to_vec(),
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
-        assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash().unwrap().to_string());
+        assert_eq!(
+            expected_signed_transaction_hash,
+            signed_transaction.to_transaction_id().unwrap().to_string()
+        );
     }
 
     fn test_sign<N: EthereumNetwork>(transaction: &TransactionTestCase) {
@@ -326,14 +342,17 @@ mod tests {
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-            data: transaction.data.as_bytes().to_vec()
+            data: transaction.data.as_bytes().to_vec(),
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
 
         assert_eq!(None, transaction.sender);
-        assert_eq!(private_key.to_address(&EthereumFormat::Standard).unwrap(), signed_transaction.sender.clone().unwrap());
+        assert_eq!(
+            private_key.to_address(&EthereumFormat::Standard).unwrap(),
+            signed_transaction.sender.clone().unwrap()
+        );
 
         assert_eq!(parameters, transaction.parameters);
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
@@ -348,7 +367,7 @@ mod tests {
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-            data: transaction.data.as_bytes().to_vec()
+            data: transaction.data.as_bytes().to_vec(),
         };
         let signed_transaction_bytes = hex::decode(&transaction.signed_transaction[2..]).unwrap();
 
@@ -367,15 +386,18 @@ mod tests {
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-            data: transaction.data.as_bytes().to_vec()
+            data: transaction.data.as_bytes().to_vec(),
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
-        assert_eq!(expected_signed_transaction_bytes, signed_transaction.to_transaction_bytes().unwrap());
+        assert_eq!(
+            expected_signed_transaction_bytes,
+            signed_transaction.to_transaction_bytes().unwrap()
+        );
     }
 
-    fn test_to_transaction_hash<N: EthereumNetwork>(transaction: &TransactionTestCase) {
+    fn test_to_transaction_id<N: EthereumNetwork>(transaction: &TransactionTestCase) {
         let expected_signed_transaction_hash = transaction.signed_transaction_hash;
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let parameters = EthereumTransactionParameters {
@@ -384,12 +406,15 @@ mod tests {
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-            data: transaction.data.as_bytes().to_vec()
+            data: transaction.data.as_bytes().to_vec(),
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
-        assert_eq!(expected_signed_transaction_hash, signed_transaction.to_transaction_hash().unwrap().to_string());
+        assert_eq!(
+            expected_signed_transaction_hash,
+            signed_transaction.to_transaction_id().unwrap().to_string()
+        );
     }
 
     fn test_to_string<N: EthereumNetwork>(transaction: &TransactionTestCase) {
@@ -401,10 +426,10 @@ mod tests {
             gas: U256::from_dec_str(transaction.gas).unwrap(),
             gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
-            data: transaction.data.as_bytes().to_vec()
+            data: transaction.data.as_bytes().to_vec(),
         };
 
-        let transaction = EthereumTransaction::<N>::new( &parameters).unwrap();
+        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
     }
@@ -462,8 +487,8 @@ mod tests {
         }
 
         #[test]
-        fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().for_each(test_to_transaction_hash::<N>);
+        fn to_transaction_id() {
+            FAKE_TRANSACTIONS.iter().for_each(test_to_transaction_id::<N>);
         }
 
         #[test]
@@ -509,32 +534,56 @@ mod tests {
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
-        fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
+        fn to_transaction_id() {
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_id::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_string::<N>);
         }
     }
 
@@ -575,32 +624,56 @@ mod tests {
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
-        fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
+        fn to_transaction_id() {
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_id::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_string::<N>);
         }
     }
 
@@ -627,32 +700,56 @@ mod tests {
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
-        fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
+        fn to_transaction_id() {
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_id::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_string::<N>);
         }
     }
 
@@ -679,32 +776,56 @@ mod tests {
 
         #[test]
         fn new() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_new::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_new::<N>);
         }
 
         #[test]
         fn sign() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_sign::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_sign::<N>);
         }
 
         #[test]
         fn from_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_from_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_from_transaction_bytes::<N>);
         }
 
         #[test]
         fn to_transaction_bytes() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_bytes::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_bytes::<N>);
         }
 
         #[test]
-        fn to_transaction_hash() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_transaction_hash::<N>);
+        fn to_transaction_id() {
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_transaction_id::<N>);
         }
 
         #[test]
         fn to_string() {
-            FAKE_TRANSACTIONS.iter().chain(&REAL_TRANSACTIONS).into_iter().for_each(test_to_string::<N>);
+            FAKE_TRANSACTIONS
+                .iter()
+                .chain(&REAL_TRANSACTIONS)
+                .into_iter()
+                .for_each(test_to_string::<N>);
         }
     }
 }

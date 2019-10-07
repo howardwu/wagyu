@@ -8,13 +8,13 @@ use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 
 use libc::c_char;
-use serde::{Deserialize, Serialize};
-use serde::export::PhantomData;
+use serde::{export::PhantomData, Deserialize, Serialize};
 use serde_json;
-use std::ffi::CStr;
-use std::ffi::CString;
-use std::str;
-use wagyu_model::{TransactionError, Transaction};
+use std::{
+    ffi::{CStr, CString},
+    fmt, str,
+};
+use wagyu_model::{Transaction, TransactionError, TransactionId};
 
 /// Represents a Monero transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -27,14 +27,24 @@ pub struct MoneroTransaction<N: MoneroNetwork> {
     _network: PhantomData<N>,
 }
 
-pub struct MoneroTransactionHash(Vec<u8>);
+/// Represents an Monero transaction id
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MoneroTransactionId(Vec<u8>);
+
+impl TransactionId for MoneroTransactionId {}
+
+impl fmt::Display for MoneroTransactionId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &hex::encode(&self.0))
+    }
+}
 
 impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
     type Address = MoneroAddress<N>;
     type Format = MoneroFormat;
     type PrivateKey = MoneroPrivateKey<N>;
     type PublicKey = MoneroPublicKey<N>;
-    type TransactionHash = MoneroTransactionHash;
+    type TransactionId = MoneroTransactionId;
     type TransactionParameters = TransactionParameters;
 
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
@@ -53,7 +63,7 @@ impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
         unimplemented!();
     }
 
-    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError> {
+    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         unimplemented!();
     }
 }
@@ -202,10 +212,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             payment_id_string: payment_id_string.to_string(),
         };
 
-        let response = call_extern_function(
-            &serde_json::to_string(&args_value)?,
-            extern_send_step1,
-        );
+        let response = call_extern_function(&serde_json::to_string(&args_value)?, extern_send_step1);
 
         #[derive(Serialize, Deserialize)]
         struct Step1ResultString {
@@ -252,7 +259,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         })
     }
 
-    /// Returns Monero raw transaction, transaction hash, transaction id, transaction public key
+    /// Returns Monero raw transaction, transaction hash (transaction id), transaction public key
     /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L529
     pub fn create_transaction(
         change_amount: u64,
@@ -291,9 +298,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
             using_outs,
         };
 
-        let response = call_extern_function(
-            &serde_json::to_string(&args_value)?,
-            extern_send_step2);
+        let response = call_extern_function(&serde_json::to_string(&args_value)?, extern_send_step2);
 
         #[derive(Serialize, Deserialize)]
         struct Step2Result {
@@ -322,10 +327,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
 
 /// Make an unsafe external call to a C function
 /// the C function should take a character array argument and return a character array
-pub fn call_extern_function(
-    arg_str: &str,
-    function: unsafe extern "C" fn(*const c_char) -> *const c_char,
-) -> String {
+pub fn call_extern_function(arg_str: &str, function: unsafe extern "C" fn(*const c_char) -> *const c_char) -> String {
     // 1. create C string (ends with the zero byte and can't contain one inside)
     let str_arr: CString = CString::new(arg_str).unwrap();
 
@@ -341,7 +343,6 @@ pub fn call_extern_function(
 
     str_slice.into()
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -402,7 +403,7 @@ mod tests {
         for output in transaction.unspent_outs.to_vec() {
             let rct: Option<String> = match output.rct {
                 Some(rct) => Some(rct.into()),
-                None => None
+                None => None,
             };
 
             unspent_outs.push(UnspentOutput {
@@ -425,11 +426,15 @@ mod tests {
             transaction.payment_id_string.into(),
             transaction.priority,
             unspent_outs,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(transaction_parameters.mixin, transaction.mixin);
         assert_eq!(transaction_parameters.using_fee, transaction.fee_amount);
-        assert_eq!(transaction_parameters.final_total_wo_fee, transaction.final_total_wo_fee);
+        assert_eq!(
+            transaction_parameters.final_total_wo_fee,
+            transaction.final_total_wo_fee
+        );
         assert_eq!(transaction_parameters.change_amount, transaction.change_amount);
     }
 
@@ -438,7 +443,7 @@ mod tests {
         for output in transaction.using_outs.to_vec() {
             let rct: Option<String> = match output.rct {
                 Some(rct) => Some(rct.into()),
-                None => None
+                None => None,
             };
 
             using_outs.push(UnspentOutput {
@@ -457,7 +462,7 @@ mod tests {
             for output in amount_and_output.outputs.to_vec() {
                 let rct: Option<String> = match output.rct {
                     Some(rct) => Some(rct.into()),
-                    None => None
+                    None => None,
                 };
 
                 outputs.push(MixOut {
@@ -472,7 +477,6 @@ mod tests {
                 outputs,
             })
         }
-
 
         let transaction_result = MoneroTransaction::<N>::create_transaction(
             transaction.change_amount,
@@ -491,12 +495,12 @@ mod tests {
             transaction.to_address_string.into(),
             transaction.unlock_time,
             using_outs,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(transaction_result.tx_must_be_reconstructed, false);
         assert!(!transaction_result.serialized_signed_tx.is_empty());
     }
-
 
     mod mainnet {
         use super::*;

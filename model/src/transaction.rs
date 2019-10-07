@@ -5,6 +5,13 @@ use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 
 use rlp;
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+};
+
+/// The interface for a generic transaction id.
+pub trait TransactionId: Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
 
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {
@@ -12,7 +19,7 @@ pub trait Transaction: Clone + Send + Sync + 'static {
     type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;
-    type TransactionHash;
+    type TransactionId: TransactionId;
     type TransactionParameters;
 
     /// Returns an unsigned transaction given the transaction parameters.
@@ -27,8 +34,8 @@ pub trait Transaction: Clone + Send + Sync + 'static {
     /// Returns the transaction in bytes.
     fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError>;
 
-    /// Returns the transaction hash.
-    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError>;
+    /// Returns the transaction id.
+    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError>;
 }
 
 #[derive(Debug, Fail)]

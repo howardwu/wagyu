@@ -1,6 +1,5 @@
 use wagyu_model::{ChildIndex, Network};
 
-
 pub mod goerli;
 pub use self::goerli::*;
 

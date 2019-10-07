@@ -12,7 +12,7 @@ use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
 use std::{fmt, str::FromStr};
-use wagyu_model::{ExtendedPrivateKey, PrivateKey, Transaction, TransactionError};
+use wagyu_model::{ExtendedPrivateKey, PrivateKey, Transaction, TransactionError, TransactionId};
 
 // librustzcash crates
 use bellman::groth16::{Parameters, PreparedVerifyingKey, Proof};
@@ -141,7 +141,7 @@ impl fmt::Display for Opcodes {
 /// Represents a Zcash transparent transaction outpoint
 #[derive(Debug, Clone)]
 pub struct OutPoint<N: ZcashNetwork> {
-    /// Previous transaction hash (using Zcash RPC's reversed hash order) - 32 bytes
+    /// Previous transaction id (using Zcash RPC's reversed hash order) - 32 bytes
     pub reverse_transaction_id: Vec<u8>,
     /// Index of the transaction being used - 4 bytes
     pub index: u32,
@@ -190,7 +190,6 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
         // Reverse hash order - https://bitcoin.org/en/developer-reference#hash-byte-order
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
-
 
         /// Validate the address format with the given scripts (P2SH currently unsupported)
         pub fn validate_address_format(
@@ -260,20 +259,22 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
     }
 }
 
-
 /// Represents a Zcash transparent output
 #[derive(Debug, Clone)]
 pub struct TransparentOutput {
     /// The amount (in zatoshi)
     pub amount: u64,
     /// The public key script
-    pub script_pub_key: Vec<u8>
+    pub script_pub_key: Vec<u8>,
 }
 
 impl TransparentOutput {
     /// Returns a new Zcash transparent output.
     pub fn new<N: ZcashNetwork>(address: &ZcashAddress<N>, amount: u64) -> Result<Self, TransactionError> {
-        Ok(Self { amount, script_pub_key: create_script_pub_key::<N>(address)? })
+        Ok(Self {
+            amount,
+            script_pub_key: create_script_pub_key::<N>(address)?,
+        })
     }
 
     /// Returns the serialized transparent output.
@@ -487,17 +488,22 @@ pub struct SaplingOutput<N: ZcashNetwork> {
 }
 
 impl<N: ZcashNetwork> SaplingOutput<N> {
-    pub fn new(ovk: SaplingOutgoingViewingKey, address: &ZcashAddress<N>, value: u64) -> Result<Self, TransactionError> {
+    pub fn new(
+        ovk: SaplingOutgoingViewingKey,
+        address: &ZcashAddress<N>,
+        value: u64,
+    ) -> Result<Self, TransactionError> {
         let diversifier = match address.to_diversifier() {
             Some(d) => {
                 let mut diversifier = [0u8; 11];
                 diversifier.copy_from_slice(&hex::decode(d)?);
                 diversifier
-            },
+            }
             None => return Err(TransactionError::MissingDiversifier),
         };
 
-        let pk_d = edwards::Point::<Bls12, _>::read(&address.to_diversified_transmission_key()?[..], &JUBJUB)?.as_prime_order(&JUBJUB);
+        let pk_d = edwards::Point::<Bls12, _>::read(&address.to_diversified_transmission_key()?[..], &JUBJUB)?
+            .as_prime_order(&JUBJUB);
 
         match pk_d {
             None => return Err(TransactionError::InvalidOutputAddress(address.to_string())),
@@ -704,7 +710,9 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     /// Returns the transaction parameters with the given transparent output appended.
     pub fn add_transparent_output(&self, address: &ZcashAddress<N>, amount: u64) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
-        parameters.transparent_outputs.push(TransparentOutput::new::<N>(address, amount)?);
+        parameters
+            .transparent_outputs
+            .push(TransparentOutput::new::<N>(address, amount)?);
         Ok(parameters)
     }
 
@@ -753,6 +761,18 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     }
 }
 
+/// Represents an Zcash transaction id
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ZcashTransactionId(Vec<u8>);
+
+impl TransactionId for ZcashTransactionId {}
+
+impl fmt::Display for ZcashTransactionId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &hex::encode(&self.0))
+    }
+}
+
 /// Represents a Zcash transaction
 #[derive(Clone)]
 pub struct ZcashTransaction<N: ZcashNetwork> {
@@ -764,12 +784,14 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
     type Format = ZcashFormat;
     type PrivateKey = ZcashPrivateKey<N>;
     type PublicKey = ZcashPublicKey<N>;
-    type TransactionHash = Vec<u8>;
+    type TransactionId = ZcashTransactionId;
     type TransactionParameters = ZcashTransactionParameters<N>;
 
     /// Returns an unsigned transaction given the transaction parameters.
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        Ok(Self { parameters: parameters.clone() })
+        Ok(Self {
+            parameters: parameters.clone(),
+        })
     }
 
     /// Returns a signed transaction given the private key of the sender.
@@ -795,7 +817,9 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
             transaction.extend(input.serialize(false, false)?);
         }
 
-        transaction.extend(variable_length_integer(self.parameters.transparent_outputs.len() as u64)?);
+        transaction.extend(variable_length_integer(
+            self.parameters.transparent_outputs.len() as u64
+        )?);
         for output in &self.parameters.transparent_outputs {
             transaction.extend(output.serialize()?);
         }
@@ -838,8 +862,8 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
         Ok(transaction)
     }
 
-    /// Returns the transaction hash.
-    fn to_transaction_hash(&self) -> Result<Self::TransactionHash, TransactionError> {
+    /// Returns the transaction id.
+    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         unimplemented!()
     }
 }
@@ -861,7 +885,8 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
             ZcashPrivateKey::<N>::P2PKH(p2pkh_spending_key) => secp256k1::Secp256k1::signing_only()
                 .sign(
                     &secp256k1::Message::from_slice(&transaction_hash.as_bytes())?,
-                    &p2pkh_spending_key.to_secp256k1_secret_key())
+                    &p2pkh_spending_key.to_secp256k1_secret_key(),
+                )
                 .serialize_der()
                 .to_vec(),
             _ => unimplemented!(),
@@ -882,7 +907,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         let public_key: Vec<u8> = [vec![viewing_key.len() as u8], viewing_key].concat();
 
         match input.out_point.address.to_format() {
-            ZcashFormat::P2PKH => self.parameters.transparent_inputs[input_index].script = [signature.clone(), public_key].concat(),
+            ZcashFormat::P2PKH => {
+                self.parameters.transparent_inputs[input_index].script = [signature.clone(), public_key].concat()
+            }
             _ => unimplemented!(),
         };
 
@@ -901,15 +928,19 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     ) -> Result<(), TransactionError> {
         match &self.parameters.shielded_inputs.len() {
             0 => (),
-            _ => for spend in &mut self.parameters.shielded_inputs {
-                spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
+            _ => {
+                for spend in &mut self.parameters.shielded_inputs {
+                    spend.create_sapling_spend_description(proving_ctx, spend_params, spend_vk)?;
+                }
             }
         };
 
         match &self.parameters.shielded_outputs.len() {
             0 => (),
-            _ => for output in &mut self.parameters.shielded_outputs {
-                output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
+            _ => {
+                for output in &mut self.parameters.shielded_outputs {
+                    output.create_sapling_output_description(proving_ctx, verifying_ctx, output_params, output_vk)?;
+                }
             }
         };
 
@@ -1034,7 +1065,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         spend_descriptions.extend(description.serialize(true)?);
                     };
                 }
-                blake2_256_hash("ZcashSSpendsHash", spend_descriptions, None).as_bytes().to_vec()
+                blake2_256_hash("ZcashSSpendsHash", spend_descriptions, None)
+                    .as_bytes()
+                    .to_vec()
             }
         };
 
@@ -1047,7 +1080,9 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
                         output_descriptions.extend(description.serialize()?);
                     }
                 }
-                blake2_256_hash("ZcashSOutputHash", output_descriptions, None).as_bytes().to_vec()
+                blake2_256_hash("ZcashSOutputHash", output_descriptions, None)
+                    .as_bytes()
+                    .to_vec()
             }
         };
 
@@ -1126,7 +1161,7 @@ mod tests {
         pub address: &'static str,
         pub amount: u64,
     }
-    
+
     fn test_sapling_transaction<N: ZcashNetwork>(
         version: &str,
         lock_time: u32,
@@ -1156,7 +1191,8 @@ mod tests {
             let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
             let sequence = input.sequence.map(|seq| seq.to_vec());
 
-            transaction.parameters = transaction.parameters
+            transaction.parameters = transaction
+                .parameters
                 .add_transparent_input(
                     address,
                     transaction_id,
@@ -1174,7 +1210,8 @@ mod tests {
 
         for output in outputs {
             let address = ZcashAddress::<N>::from_str(output.address).unwrap();
-            transaction.parameters = transaction.parameters
+            transaction.parameters = transaction
+                .parameters
                 .add_transparent_output(&address, output.amount)
                 .unwrap();
         }
@@ -1206,7 +1243,8 @@ mod tests {
                 None => {
                     // Generate note witness for testing purposes only.
                     // Real transactions require a stateful client to fetch witnesses/anchors from sapling tree state.
-                    let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
+                    let extended_spend_key =
+                        ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
                     let full_viewing_key = extended_spend_key
                         .to_extended_public_key()
                         .to_extended_full_viewing_key()
@@ -1238,15 +1276,9 @@ mod tests {
             // Add Sapling Spend
 
             let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
-            transaction.parameters = transaction.parameters
-                .add_sapling_input(
-                    &extended_private_key,
-                    &cmu,
-                    &epk,
-                    input.enc_ciphertext,
-                    anchor,
-                    witness,
-                )
+            transaction.parameters = transaction
+                .parameters
+                .add_sapling_input(&extended_private_key, &cmu, &epk, input.enc_ciphertext, anchor, witness)
                 .unwrap();
 
             let extended_spend_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
@@ -1275,7 +1307,8 @@ mod tests {
 
         for output in sapling_outputs {
             let address = ZcashAddress::<N>::from_str(output.address).unwrap();
-            transaction.parameters = transaction.parameters
+            transaction.parameters = transaction
+                .parameters
                 .add_sapling_output(ovk, &address, output.amount)
                 .unwrap();
         }
@@ -1334,7 +1367,8 @@ mod tests {
             let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
             let sequence = input.sequence.map(|seq| seq.to_vec());
 
-            transaction.parameters = transaction.parameters
+            transaction.parameters = transaction
+                .parameters
                 .add_transparent_input(
                     address,
                     transaction_id,
@@ -1352,7 +1386,10 @@ mod tests {
 
         for output in outputs {
             let address = ZcashAddress::<N>::from_str(output.address).unwrap();
-            transaction.parameters = transaction.parameters.add_transparent_output(&address, output.amount).unwrap();
+            transaction.parameters = transaction
+                .parameters
+                .add_transparent_output(&address, output.amount)
+                .unwrap();
         }
 
         // Sign the raw transaction
@@ -2388,14 +2425,8 @@ mod tests {
                 };
 
                 let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(input.extended_private_key).unwrap();
-                let sapling_spend = SaplingSpend::<N>::new(
-                    &extended_private_key,
-                    &cmu,
-                    &epk,
-                    input.enc_ciphertext,
-                    anchor,
-                    witness,
-                );
+                let sapling_spend =
+                    SaplingSpend::<N>::new(&extended_private_key, &cmu, &epk, input.enc_ciphertext, anchor, witness);
 
                 assert!(sapling_spend.is_err());
             }
@@ -2480,7 +2511,7 @@ mod tests {
                     0 => {
                         assert!(status.is_ok());
                         transaction.parameters = status.unwrap();
-                    },
+                    }
                     _ => assert!(status.is_err()),
                 };
             }
@@ -2522,7 +2553,8 @@ mod tests {
             let mut transaction = ZcashTransaction::<N>::new(&parameters).unwrap();
 
             let address = ZcashAddress::<N>::from_str(output.address).unwrap();
-            transaction.parameters = transaction.parameters
+            transaction.parameters = transaction
+                .parameters
                 .add_transparent_output(&address, output.amount)
                 .unwrap();
 
@@ -2553,8 +2585,10 @@ mod tests {
 
             // Add Sapling Spend
 
-            let extended_private_key = ZcashExtendedPrivateKey::<N>::from_str(sapling_input.extended_private_key).unwrap();
-            transaction.parameters = transaction.parameters
+            let extended_private_key =
+                ZcashExtendedPrivateKey::<N>::from_str(sapling_input.extended_private_key).unwrap();
+            transaction.parameters = transaction
+                .parameters
                 .add_sapling_input(
                     &extended_private_key,
                     &cmu,
