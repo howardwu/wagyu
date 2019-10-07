@@ -21,21 +21,23 @@ use wagyu_model::{Transaction, TransactionError, TransactionId};
 pub struct MoneroTransaction<N: MoneroNetwork> {
     tx_must_be_reconstructed: bool,
     serialized_signed_tx: String,
-    tx_hash: String,
+    tx_hash: MoneroTransactionId,
     tx_key: String,
     tx_pub_key: String,
     _network: PhantomData<N>,
 }
 
 /// Represents an Monero transaction id
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MoneroTransactionId(Vec<u8>);
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct MoneroTransactionId {
+    tx_hash: String,
+}
 
 impl TransactionId for MoneroTransactionId {}
 
 impl fmt::Display for MoneroTransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &hex::encode(&self.0))
+        write!(f, "{}", &self.tx_hash)
     }
 }
 
@@ -317,7 +319,9 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
         Ok(Self {
             tx_must_be_reconstructed: result.tx_must_be_reconstructed.parse::<bool>()?,
             serialized_signed_tx: result.serialized_signed_tx.into(),
-            tx_hash: result.tx_hash.into(),
+            tx_hash: MoneroTransactionId {
+                tx_hash: result.tx_hash.into(),
+            },
             tx_key: result.tx_key.into(),
             tx_pub_key: result.tx_pub_key.into(),
             _network: PhantomData,
