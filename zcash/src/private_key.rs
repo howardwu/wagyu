@@ -972,7 +972,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &address.to_format(), &private_key);
+                test_to_address(&address, &address.format(), &private_key);
             });
         }
 
@@ -1055,7 +1055,7 @@ mod tests {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = ZcashAddress::<N>::from_str(address).unwrap();
                 let private_key = ZcashPrivateKey::<N>::from_str(&private_key).unwrap();
-                test_to_address(&address, &address.to_format(), &private_key);
+                test_to_address(&address, &address.format(), &private_key);
             });
         }
 

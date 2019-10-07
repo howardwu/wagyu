@@ -51,7 +51,7 @@ pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> 
 
 /// Generate the script_pub_key of a corresponding address
 pub fn create_script_pub_key<N: ZcashNetwork>(address: &ZcashAddress<N>) -> Result<Vec<u8>, TransactionError> {
-    match address.to_format() {
+    match address.format() {
         ZcashFormat::P2PKH => {
             let address_bytes = &address.to_string().from_base58()?;
             let pub_key_hash = address_bytes[2..(address_bytes.len() - 4)].to_vec();
@@ -141,7 +141,7 @@ impl fmt::Display for Opcodes {
 
 /// Represents a Zcash transparent transaction outpoint
 #[derive(Debug, Clone)]
-pub struct OutPoint<N: ZcashNetwork> {
+pub struct Outpoint<N: ZcashNetwork> {
     /// Previous transaction id (using Zcash RPC's reversed hash order) - 32 bytes
     pub reverse_transaction_id: Vec<u8>,
     /// Index of the transaction being used - 4 bytes
@@ -156,11 +156,11 @@ pub struct OutPoint<N: ZcashNetwork> {
     pub address: ZcashAddress<N>,
 }
 
-/// Represents a Zcash transaction input
+/// Represents a Zcash transaction transparent input
 #[derive(Debug, Clone)]
-pub struct ZcashTransactionInput<N: ZcashNetwork> {
-    /// OutPoint - transaction id and index - 36 bytes
-    pub out_point: OutPoint<N>,
+pub struct ZcashTransparentInput<N: ZcashNetwork> {
+    /// Outpoint - transaction id and index - 36 bytes
+    pub outpoint: Outpoint<N>,
     /// Tx-in script - Variable size
     pub script: Vec<u8>,
     /// Sequence number - 4 bytes (normally 0xFFFFFFFF, unless lock > 0)
@@ -168,9 +168,11 @@ pub struct ZcashTransactionInput<N: ZcashNetwork> {
     pub sequence: Vec<u8>,
     /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
     pub sig_hash_code: SignatureHash,
+    /// If true, the input has been signed
+    pub is_signed: bool,
 }
 
-impl<N: ZcashNetwork> ZcashTransactionInput<N> {
+impl<N: ZcashNetwork> ZcashTransparentInput<N> {
     const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
 
     /// Returns a new Zcash transparent input without the script.
@@ -212,9 +214,9 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
 
         let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
         let (amount, redeem_script) =
-            validate_address_format(&address.to_format(), &amount, &redeem_script, &script_pub_key)?;
+            validate_address_format(&address.format(), &amount, &redeem_script, &script_pub_key)?;
 
-        let out_point = OutPoint {
+        let outpoint = Outpoint {
             reverse_transaction_id,
             index,
             amount,
@@ -222,26 +224,27 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
             script_pub_key,
             address,
         };
-        let sequence = sequence.unwrap_or(ZcashTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec());
+        let sequence = sequence.unwrap_or(ZcashTransparentInput::<N>::DEFAULT_SEQUENCE.to_vec());
 
         Ok(Self {
-            out_point,
+            outpoint,
             script: Vec::new(),
             sequence,
             sig_hash_code,
+            is_signed: false,
         })
     }
 
     /// Returns the serialized transparent input.
     pub fn serialize(&self, raw: bool, hash_preimage: bool) -> Result<Vec<u8>, TransactionError> {
         let mut input = vec![];
-        input.extend(&self.out_point.reverse_transaction_id);
-        input.extend(&self.out_point.index.to_le_bytes());
+        input.extend(&self.outpoint.reverse_transaction_id);
+        input.extend(&self.outpoint.index.to_le_bytes());
 
         match (raw, self.script.len()) {
             (true, _) => input.extend(vec![0x00]),
             (false, 0) => {
-                let script_pub_key = &self.out_point.script_pub_key.clone();
+                let script_pub_key = &self.outpoint.script_pub_key.clone();
                 input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                 input.extend(script_pub_key);
             }
@@ -252,7 +255,7 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
         };
 
         if hash_preimage {
-            input.extend(&self.out_point.amount.to_le_bytes());
+            input.extend(&self.outpoint.amount.to_le_bytes());
         };
 
         input.extend(&self.sequence);
@@ -260,16 +263,16 @@ impl<N: ZcashNetwork> ZcashTransactionInput<N> {
     }
 }
 
-/// Represents a Zcash transparent output
+/// Represents a Zcash transaction transparent output
 #[derive(Debug, Clone)]
-pub struct TransparentOutput {
+pub struct ZcashTransparentOutput {
     /// The amount (in zatoshi)
     pub amount: u64,
     /// The public key script
     pub script_pub_key: Vec<u8>,
 }
 
-impl TransparentOutput {
+impl ZcashTransparentOutput {
     /// Returns a new Zcash transparent output.
     pub fn new<N: ZcashNetwork>(address: &ZcashAddress<N>, amount: u64) -> Result<Self, TransactionError> {
         Ok(Self {
@@ -627,9 +630,9 @@ pub struct ZcashTransactionParameters<N: ZcashNetwork> {
     /// The version group ID (0x892F2085 for Sapling)
     pub version_group_id: u32,
     /// The inputs for a transparent transaction, encoded as in Bitcoin.
-    pub transparent_inputs: Vec<ZcashTransactionInput<N>>,
+    pub transparent_inputs: Vec<ZcashTransparentInput<N>>,
     /// The outputs for a transparent transaction, encoded as in Bitcoin,
-    pub transparent_outputs: Vec<TransparentOutput>,
+    pub transparent_outputs: Vec<ZcashTransparentOutput>,
     /// The Unix epoch time (UTC) or block height, encoded as in Bitcoin. (4 bytes)
     pub lock_time: u32,
     /// The block height in the range {1 .. 499999999} after which the transaction will expire,
@@ -695,7 +698,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         sig_hash_code: SignatureHash,
     ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
-        parameters.transparent_inputs.push(ZcashTransactionInput::<N>::new(
+        parameters.transparent_inputs.push(ZcashTransparentInput::<N>::new(
             address,
             transaction_id,
             index,
@@ -713,7 +716,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         let mut parameters = self.clone();
         parameters
             .transparent_outputs
-            .push(TransparentOutput::new::<N>(address, amount)?);
+            .push(ZcashTransparentOutput::new::<N>(address, amount)?);
         Ok(parameters)
     }
 
@@ -765,7 +768,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
 /// Represents an Zcash transaction id
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZcashTransactionId {
-    txid: Vec<u8>
+    txid: Vec<u8>,
 }
 
 impl TransactionId for ZcashTransactionId {}
@@ -799,7 +802,56 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
 
     /// Returns a signed transaction given the private key of the sender.
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
-        unimplemented!()
+        let mut transaction = self.clone();
+        for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
+            let format = input.outpoint.address.format();
+            if input.outpoint.address == private_key.to_address(&format)?
+                && !transaction.parameters.transparent_inputs[vin].is_signed
+            {
+                // Transaction hash
+                let transaction_hash = match input.outpoint.address.format() {
+                    ZcashFormat::P2PKH => transaction.generate_sighash(Some(vin), input.sig_hash_code)?,
+                    _ => unimplemented!(),
+                };
+
+                // Signature
+                let mut signature = match &private_key {
+                    ZcashPrivateKey::<N>::P2PKH(p2pkh_spending_key) => secp256k1::Secp256k1::signing_only()
+                        .sign(
+                            &secp256k1::Message::from_slice(&transaction_hash.as_bytes())?,
+                            &p2pkh_spending_key.to_secp256k1_secret_key(),
+                        )
+                        .serialize_der()
+                        .to_vec(),
+                    _ => unimplemented!(),
+                };
+                signature.push((input.sig_hash_code as u32).to_le_bytes()[0]);
+                let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
+
+                // Public Viewing Key
+                let public_viewing_key = match private_key.to_public_key() {
+                    ZcashPublicKey::<N>::P2PKH(p2pkh_view_key) => match p2pkh_view_key.is_compressed() {
+                        true => p2pkh_view_key.to_secp256k1_public_key().serialize().to_vec(),
+                        false => p2pkh_view_key
+                            .to_secp256k1_public_key()
+                            .serialize_uncompressed()
+                            .to_vec(),
+                    },
+                    _ => unimplemented!(),
+                };
+                let public_viewing_key: Vec<u8> = [vec![public_viewing_key.len() as u8], public_viewing_key].concat();
+
+                match input.outpoint.address.format() {
+                    ZcashFormat::P2PKH => {
+                        transaction.parameters.transparent_inputs[vin].script =
+                            [signature.clone(), public_viewing_key].concat();
+                        transaction.parameters.transparent_inputs[vin].is_signed = true;
+                    }
+                    _ => unimplemented!(),
+                };
+            }
+        }
+        Ok(transaction)
     }
 
     /// Returns a transaction given the transaction bytes.
@@ -875,53 +927,6 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
 }
 
 impl<N: ZcashNetwork> ZcashTransaction<N> {
-    /// Signs the raw transaction, updates the transaction, and returns the signature - P2SH unimplemented
-    pub fn sign_raw_transaction(
-        &mut self,
-        private_key: <Self as Transaction>::PrivateKey,
-        input_index: usize,
-    ) -> Result<Vec<u8>, TransactionError> {
-        let input = &self.parameters.transparent_inputs[input_index];
-        let transaction_hash = match input.out_point.address.to_format() {
-            ZcashFormat::P2PKH => self.generate_sighash(Some(input_index), input.sig_hash_code)?,
-            _ => unimplemented!(),
-        };
-
-        let mut signature = match &private_key {
-            ZcashPrivateKey::<N>::P2PKH(p2pkh_spending_key) => secp256k1::Secp256k1::signing_only()
-                .sign(
-                    &secp256k1::Message::from_slice(&transaction_hash.as_bytes())?,
-                    &p2pkh_spending_key.to_secp256k1_secret_key(),
-                )
-                .serialize_der()
-                .to_vec(),
-            _ => unimplemented!(),
-        };
-        signature.push((input.sig_hash_code as u32).to_le_bytes()[0]);
-        let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
-
-        let viewing_key = match private_key.to_public_key() {
-            ZcashPublicKey::<N>::P2PKH(p2pkh_view_key) => match p2pkh_view_key.is_compressed() {
-                true => p2pkh_view_key.to_secp256k1_public_key().serialize().to_vec(),
-                false => p2pkh_view_key
-                    .to_secp256k1_public_key()
-                    .serialize_uncompressed()
-                    .to_vec(),
-            },
-            _ => unimplemented!(),
-        };
-        let public_key: Vec<u8> = [vec![viewing_key.len() as u8], viewing_key].concat();
-
-        match input.out_point.address.to_format() {
-            ZcashFormat::P2PKH => {
-                self.parameters.transparent_inputs[input_index].script = [signature.clone(), public_key].concat()
-            }
-            _ => unimplemented!(),
-        };
-
-        Ok(signature)
-    }
-
     /// Build the sapling spends and outputs in the transaction
     pub fn build_sapling_transaction(
         &mut self,
@@ -1048,8 +1053,8 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         let mut outputs = vec![];
 
         for input in &self.parameters.transparent_inputs {
-            prev_outputs.extend(&input.out_point.reverse_transaction_id);
-            prev_outputs.extend(&input.out_point.index.to_le_bytes());
+            prev_outputs.extend(&input.outpoint.reverse_transaction_id);
+            prev_outputs.extend(&input.outpoint.index.to_le_bytes());
             prev_sequences.extend(&input.sequence);
         }
 
@@ -1323,9 +1328,11 @@ mod tests {
         let mut proving_ctx = SaplingProvingContext::new();
         let mut verifying_ctx = SaplingVerificationContext::new();
 
-        for (index, input) in inputs.iter().enumerate() {
-            transaction
-                .sign_raw_transaction(ZcashPrivateKey::from_str(input.private_key).unwrap(), index)
+        // Sign the transparent transaction inputs
+
+        for input in inputs {
+            transaction = transaction
+                .sign(&ZcashPrivateKey::from_str(input.private_key).unwrap())
                 .unwrap();
         }
 
@@ -1400,11 +1407,11 @@ mod tests {
                 .unwrap();
         }
 
-        // Sign the raw transaction
+        // Sign the transparent transaction inputs
 
-        for (index, input) in inputs.iter().enumerate() {
-            transaction
-                .sign_raw_transaction(ZcashPrivateKey::<N>::from_str(input.private_key).unwrap(), index)
+        for input in inputs {
+            transaction = transaction
+                .sign(&ZcashPrivateKey::from_str(input.private_key).unwrap())
                 .unwrap();
         }
 
@@ -2388,7 +2395,7 @@ mod tests {
                 match private_key {
                     Ok(private_key) => {
                         let address = private_key.to_address(&input.address_format).unwrap();
-                        let invalid_input = ZcashTransactionInput::<N>::new(
+                        let invalid_input = ZcashTransparentInput::<N>::new(
                             address,
                             transaction_id,
                             input.index,

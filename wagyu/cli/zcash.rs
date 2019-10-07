@@ -66,7 +66,7 @@ impl ZcashWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
@@ -89,7 +89,7 @@ impl ZcashWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
         })
@@ -116,7 +116,7 @@ impl ZcashWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
@@ -140,7 +140,7 @@ impl ZcashWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
@@ -155,7 +155,7 @@ impl ZcashWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
@@ -168,7 +168,7 @@ impl ZcashWallet {
         Ok(Self {
             public_key: Some(public_key.to_string()),
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
             ..Default::default()
@@ -179,7 +179,7 @@ impl ZcashWallet {
         let address = ZcashAddress::<N>::from_str(address)?;
         Ok(Self {
             address: address.to_string(),
-            format: Some(address.to_format().to_string()),
+            format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
             ..Default::default()

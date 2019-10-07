@@ -162,7 +162,7 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
     }
 
     /// Returns the format of the Zcash address.
-    pub fn to_format(&self) -> ZcashFormat {
+    pub fn format(&self) -> ZcashFormat {
         self.format.clone()
     }
 }
