@@ -7,8 +7,8 @@ use wagyu_model::{PublicKeyError, TransactionError};
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
-use tiny_keccak::keccak256;
 use std::marker::PhantomData;
+use tiny_keccak::keccak256;
 
 #[derive(Debug, Fail)]
 pub enum OneTimeKeyError {
@@ -69,11 +69,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         };
         let mut concat = Vec::<u8>::new();
 
-        Self::generate_key_derivation(
-            &public_view_key,
-            &rand,
-            &mut concat,
-        )?;
+        Self::generate_key_derivation(&public_view_key, &rand, &mut concat)?;
 
         let hash = &Self::derivation_to_scalar(&mut concat, index);
         let key: EdwardsPoint = hash * G + public_spend_point;
@@ -95,7 +91,8 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         Self::generate_key_derivation(
             &self.to_transaction_public_key(),
             &private.to_private_view_key(),
-            &mut concat)?;
+            &mut concat,
+        )?;
 
         let hash = Self::derivation_to_scalar(&mut concat, index);
         let private_spend_scalar = Scalar::from_bits(private.to_private_spend_key());
@@ -138,10 +135,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let mut encoded_bytes = vec![];
         match res.split_last() {
             Some((last, arr)) => {
-                let _a: Vec<_> = arr
-                    .iter()
-                    .map(|bits| encoded_bytes.push(*bits | 0b1000_0000))
-                    .collect();
+                let _a: Vec<_> = arr.iter().map(|bits| encoded_bytes.push(*bits | 0b1000_0000)).collect();
                 encoded_bytes.push(*last);
             }
             None => encoded_bytes.push(0x00),
@@ -151,7 +145,11 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     }
 
     /// Returns scalar base multiplication of public and secret key then multiplies result by cofactor
-    fn generate_key_derivation(public: &[u8; 32], secret_key: &[u8; 32], dest: &mut Vec<u8>) -> Result<(), OneTimeKeyError> {
+    fn generate_key_derivation(
+        public: &[u8; 32],
+        secret_key: &[u8; 32],
+        dest: &mut Vec<u8>,
+    ) -> Result<(), OneTimeKeyError> {
         // r * A
         let r = Scalar::from_bits(*secret_key);
         let A = &match CompressedEdwardsY::from_slice(public).decompress() {
@@ -240,10 +238,7 @@ mod tests {
     ) {
         let one_time_key = OneTimeKey::new(receiver_public_key, random_bytes, output_index).unwrap();
 
-        assert_eq!(
-            hex::encode(one_time_key.to_destination_key()),
-            one_time_public_key
-        );
+        assert_eq!(hex::encode(one_time_key.to_destination_key()), one_time_public_key);
         assert_eq!(
             hex::encode(one_time_key.to_transaction_public_key()),
             transaction_public_key
@@ -258,23 +253,35 @@ mod tests {
 
     #[test]
     fn new() {
-        KEYPAIRS.iter().for_each(|(
-                                      sender_private_spend_key,
-                                      (receiver_public_spend_key, receiver_public_view_key),
-                                      random_str,
-                                      output_index,
-                                      (one_time_public_key, one_time_private_key),
-                                      transaction_public_key)| {
-            let public_key = MoneroPublicKey::<N>::from(receiver_public_spend_key, receiver_public_view_key, FORMAT).unwrap();
-            let private_key = MoneroPrivateKey::<N>::from_private_spend_key(sender_private_spend_key, FORMAT).unwrap();
+        KEYPAIRS.iter().for_each(
+            |(
+                sender_private_spend_key,
+                (receiver_public_spend_key, receiver_public_view_key),
+                random_str,
+                output_index,
+                (one_time_public_key, one_time_private_key),
+                transaction_public_key,
+            )| {
+                let public_key =
+                    MoneroPublicKey::<N>::from(receiver_public_spend_key, receiver_public_view_key, FORMAT).unwrap();
+                let private_key =
+                    MoneroPrivateKey::<N>::from_private_spend_key(sender_private_spend_key, FORMAT).unwrap();
 
-            let mut random_bytes: [u8; 32] = [0u8; 32];
-            random_bytes.copy_from_slice(hex::decode(random_str).unwrap().as_slice());
+                let mut random_bytes: [u8; 32] = [0u8; 32];
+                random_bytes.copy_from_slice(hex::decode(random_str).unwrap().as_slice());
 
-            let index: u64 = output_index.parse::<u64>().unwrap();
+                let index: u64 = output_index.parse::<u64>().unwrap();
 
-
-            test_new(&public_key, &private_key, &random_bytes, index, one_time_public_key, one_time_private_key, transaction_public_key);
-        });
+                test_new(
+                    &public_key,
+                    &private_key,
+                    &random_bytes,
+                    index,
+                    one_time_public_key,
+                    one_time_private_key,
+                    transaction_public_key,
+                );
+            },
+        );
     }
 }

@@ -127,7 +127,11 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
         let public_spend_key = hex::encode(&bytes[1..33]);
         let public_view_key = hex::encode(&bytes[33..65]);
 
-        Ok(MoneroPublicKey::<N>::from(&public_spend_key, &public_view_key, &format)?)
+        Ok(MoneroPublicKey::<N>::from(
+            &public_spend_key,
+            &public_view_key,
+            &format,
+        )?)
     }
 }
 

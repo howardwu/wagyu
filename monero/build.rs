@@ -1,7 +1,7 @@
-use::cmake::Config;
+use ::cmake::Config;
 
 fn main() {
-//  dynamically link to standard c++ lib so we can call boost functions in mymonero-core-cpp
+    //  dynamically link to standard c++ lib so we can call boost functions in mymonero-core-cpp
 
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
