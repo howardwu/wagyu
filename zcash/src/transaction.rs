@@ -1409,8 +1409,7 @@ mod tests {
         }
 
         let signed_transaction = hex::encode(transaction.to_transaction_bytes().unwrap());
-        let transaction_id = hex::encode(transaction.to_transaction_id().unwrap().txid);
-
+        let transaction_id = transaction.to_transaction_id().unwrap().to_string();
         assert_eq!(expected_signed_transaction, signed_transaction);
         assert_eq!(expected_transaction_id, transaction_id);
     }
@@ -1646,7 +1645,7 @@ mod tests {
             type N = Testnet;
 
             const REAL_TESTNET_TRANSACTIONS: [TransactionData; 5] = [
-                TransactionData { // txid: d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf
+                TransactionData {
                     version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
@@ -1676,9 +1675,9 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f89012dc108fdaca845cb51aa9807c90fcf25d73070bbf927b3e2ee841a784274a672000000006b483045022100a6255438be743890d53bf5a0818f58370361a0ff82f88dca30fba0aec1b2859b022055950c72f1111babcf01f58087300eb80e3acfff169d05338d8e2c7a0dd0b1fe012102386cb1f3211d689bcf9fd763381a4d7a9a0d719667c979ac485d6d2ec69a17e0ffffffff0200e40b54020000001976a9148af7ebff7dad3862258a44992915615bfd9e6d4388ac605d0a54020000001976a914d6fdb988e0ca149cb74eda244d8fc52481d6452088ac00000000ff64cd1d0000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "d74cf2f55f267dc4bacaacaa09e3317ac74265d860045a535a9e663fc99818bf",
                 },
-                TransactionData { // txid: 22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc
+                TransactionData {
                     version: "sapling",
                     lock_time: 0,
                     expiry_height: 576566,
@@ -1712,9 +1711,9 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f8901bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7010000006b4830450221009b69008f53a9970c2f5c771b76462773baf18a2937cbc70af4dad9d7987fd13e022038a3d14301c657172759885a5e2e65d5c10b3208e6120cb819d66f56fae3c09401210332d388288132f696b4a75b2d2f40ccbd9a463d32e3c6c335f671df33f1a05973ffffffff03eb9cadc6000000001976a914418574564a7c48387a6557c491d14da904a4306c88aceb9cadc6000000001976a91475caaa31ae391da8121fe8d9577c30710bafc7f988acea9cadc6000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac0000000036cc08000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "22da774bc331dad798ffdf1a18b1ad984ce4255ed5f687fcd44e6609624727fc",
                 },
-                TransactionData { // txid: 19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a
+                TransactionData {
                     version: "sapling",
                     lock_time: 0,
                     expiry_height: 576600,
@@ -1755,9 +1754,9 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f8902fc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22000000006b483045022100ea49efe4132ce18d039cb2abe99ea52163611c25a35a8640a4bb15a88c93b60402202f7d4334bccd8f961d1becfd08bccdc1c0669533810cbbbfa5837f99ba94a7fe0121024aed9637c78499154afc06af10b2344233b3c968f1e7b1cfd9905fc38e440c12fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22010000006a47304402203576c518c1f628469efcd182fa7d1d578cccdf7b51a41e44d119ca0c010747cc022069d9f390735567efff5e8f70afec6595060a79693540d6174b21681b21b4df70012102e49919f81e1fc11a65283e71dcce22dc65271f4ab6ef96f9e9b3d20fd62d1e87ffffffff02a0c55463000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac00f2052a010000001976a9140aab8113729e010d852820561dbee87459ad8dc888ac0000000058cc08000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a",
                 },
-                TransactionData { // txid: fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c
+                TransactionData {
                     version: "sapling",
                     lock_time: 0,
                     expiry_height: 576600,
@@ -1816,9 +1815,9 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f8904bf1898c93f669e5a535a0460d86542c77a31e309aaaccabac47d265ff5f24cd7000000006a47304402203f44fdfa0abb604a0b123fc95b4b0ad97bf535c9b2f9c2e37440a5627eabc6b902206c533152ba2efd78c16136f108847d8ea60e571f4dd7cbb47a5df582011cb3920121037517903ed1fafb50ab557970fc2d1948eaf88ad807308cc1fd50a63ca5f2d4d9fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22020000006b48304502210089fe440a2b97bd12ad09c21cf4b3c811cddd17917fb5f4b84ec3fafa3c8ce26b022029e1bc2385d291eef1591775a73a77c5891afcfcf020a58c4fa35fb7d2995d280121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719000000006b483045022100d3c08145d11226c24acba293943f649b6acced719eaba5eee168705faa060046022077a220546a4654ee8bf14217da8c5dae9c64160b424be83557b24b79fb7b22400121020ef8f4c3fe101f3f47900c30423aeabfda7d502050c7067292afa5d971205b40ffffffff8ac533a053433a298e40826dc124c6b031883eec834195ad60c1422ab885a719010000006b483045022100a2649c5a237ac25db15ada343ea331865b9544a5ac32752c7800d3296085665602206c1722f0a3b0533f047e06ec2931fbe9dc9f6c01f4f1391fa02421369f8e4952012103b485498fb0843a5a058f251d7094fe8d2878faba8c17e7b3bbf854adb855a377ffffffff01e02610a8040000001976a9143c314002f07cf5ff5c84da1d9b456671b915bf8588ac0000000058cc08000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "fb6b95e4b3f7d1125fe81f4235dd156b12fb1553fc204fd22b4db200e54ddb5c",
                 },
-                TransactionData { // txid: 35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea
+                TransactionData {
                     version: "sapling",
                     lock_time: 0,
                     expiry_height: 499999999,
@@ -1860,7 +1859,7 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f89015cdb4de500b24d2bd24f20fc5315fb126b15dd35421fe85f12d1f7b3e4956bfb000000006b483045022100e0095db90aca41ff28eea19d9e7e99a776e31b842d8bebf16856313153e2ac5c02205c4842046b790f45a3cdb12cc57e0a32539df8108f2f0849d19c037b69fce44101210324518c52cb40b86c8e8ed345c434af290835b18dc9ac6e1e060c86d040ee9a5cffffffff0510f19a3b000000001976a914ef6be120406ad9306214d50dca65604d20c6377c88ac10f19a3b000000001976a9143248a77a3b917a2aec9f9f2c4da147ec0abf61af88ac10f19a3b000000001976a9140d09f4b898d3f87efb7c17d20e48d78cdff9fd8288ac10f19a3b000000001976a914a1270cf4c1141c65312bcc4c0c1d681d389405be88ac903ba4b9030000001976a914337cc6354d31515f291b90a9a01b4911aecda5a788ac00000000ff64cd1d0000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "35562b33fe8d03e0dcd9a2dd62154f3abdfcd7d29d61dcff0a09c1eb18a8f7ea",
                 },
             ];
 
@@ -1902,7 +1901,7 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f89015510a014f306f99a3e5e48460425777f210e0bd2c02301ec93f1baffe1b29710000000006a47304402207c2e6d5ec25a8ab67229f23a581ee8898eb087c2aa6c8db8acf21c3b96bab5fb02202ff7689945891a20961de1b4e18b40995fe7f07cb6dd1c97607c65259adeb1bd012102a7b8361f36eee68b96cbc72bab73295494161b8e670a29c99819e2b793939d25ffffffff0100e1f505000000001976a91459fec7e62fcf3e580656bc1bc6c220dad37709ab88ac00000000000000000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "15315d7b5a852c7e3b8090fe08285a471bec73806b0c194538b61af2623c3c84",
                 },
                 TransactionData {
                     version: "sapling",
@@ -1942,7 +1941,7 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f8901394fc83a499e120c92269690c39e7507b34905ccd33d4e53f8c713835bd934f2000000006a473044022053637ac8ece0fd2c5cd2fa2c6abb6fec36317a7e60be6c5215ff83ab903409a502206cdcb354b7bca6a4aed08fc6409a6e0000ba263c47f6bb22ab74ad2fe270250501210325c97e86e09f91a9894b856c9b9ca6d7ea90754d66acc95fb57b46117492d3bdfeffffff0480f0fa02000000001976a914c4fafe5725a6ec3d2218458c00da884cd9a0507c88ac80f0fa02000000001976a9142a80f5573b12de286ecbe0f8d46acb9c2334375588ac80f0fa02000000001976a914167b3376103f458ea847ec6f5e763b0de2808f3e88ac80f0fa02000000001976a914473ce0a50b7a876fcba71973b49770b79cfb10b188ac55f80600c02709000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "1754446d92cb41fcf88c44ac7286d2b752904a7e38ee921b082bceaa98910d08",
                 },
                 TransactionData {
                     version: "sapling",
@@ -1992,7 +1991,7 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f890350b2ed017b6c60080d9f9a2c6a2b8039be56cd17839474bc31a4d69d9195b5ff010000006b483045022100adcab54a2e437df28eebf4c19f33061467d951a035f12125d3ba16dc3a7ed21c02204a13ba64160a5a11fb22ada860202995df5f51f05eb882fc197109fba298b96e012103f632eeb38fa2fcc7af1881f1b6c1f4fe6155ee6267d92657d9a95fdbb15c010effffffff74941a58fce3c9eed67cfc23e90743314283774f1901c5093c3db04f23516346020000006b483045022100a14d25f96742b6a06f201db6811ed1bbbeab80be29ea45ad8e54ce583337056502200e04272216609ca7cf38729156c860e59a1e88632697456fb0639efebc6509bd0121026fba2e786f9351532a8f93de404d0c44b54e01a7f10bf1a61f734bc4249b58f9ffffffff5d3090f7a591c1426b209d43dc546070fcddceba5b2c81c164aa95ed121ad72e030000006a473044022005e9df51bedd7f95d567ef472040fb295f7dc7d742e1a894d48f67f5239fd860022076d170cb5be8435628c738f0beecbeb85fc6fb1f8f74d5dd18db0fdc584df6650121020621d94a64caf7183bef70f89cfca4cd3d30a76ce0335f7f10eb787e266bb2cdffffffff0100ca9a3b000000001976a9149d92a791abc62a9ca93ced9086c2129d31757ee088ac55f80600000000000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "7cea93d9eb01f99c395648f3f10e814986d381c4ebd5e3a03562fe904c39c633",
                 },
                 TransactionData {
                     version: "sapling",
@@ -2048,7 +2047,7 @@ mod tests {
                     sapling_inputs: &[],
                     sapling_outputs: &[],
                     expected_signed_transaction: "0400008085202f89010d38af593932ea90e26aa03b45460ed77834ef86f1621e1cb15edf7b00244b0f010000006b4830450221008092fa7e36ee33d24e4325d94d2edc79094a2cc7ee9b5a9b927327eaedeba8b10220221452eab944f6c11ea7c3db4737acec9bc7db2a0bb0a3c90e2c96a5cae40bd00121026c6b54c8303dedb35591698afa9fbc5501763c5a18341d1e7c0a2b68148c69bcffffffff0880969800000000001976a91408b6e1325af5b5017f0dab34965540fac91d3b2788ac002d3101000000001976a9142bf2cfe165f273fbf3e323c4c694769ad24afc9388ac80c3c901000000001976a914d14312fbd36be1b32a1461634694cc7ebe81bb6288ac005a6202000000001976a914053acc6851cc71df9715c68b7ca93e1ad6007c5288ac80f0fa02000000001976a9142681247d3de732e1867edfc085cc4197334c785188ac00879303000000001976a914f2d0702165e099a7cde104b3e3a963b0f79c7b2e88ac801d2c04000000001976a914416d5a8d0daa988ebf0f415bc35a41d74751d95788ac00b4c404000000001976a91405cf42203276331ca0b5b121730c89273cb1e5fc88ac55ec080052d70a000000000000000000000000",
-                    expected_transaction_id: "",
+                    expected_transaction_id: "dcf9242265a11313839a73409d768784ef034d9788255a93abc39a7e6acd648b",
                 },
             ];
 
@@ -2679,22 +2678,6 @@ mod tests {
                 let pruned_expected_output = &expected_output[..variable_length_int.len()];
                 assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
             });
-        }
-
-        #[test]
-        fn test_hash() {
-            let tx = "0400008085202f8902fc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22000000006b483045022100ea49efe4132ce18d039cb2abe99ea52163611c25a35a8640a4bb15a88c93b60402202f7d4334bccd8f961d1becfd08bccdc1c0669533810cbbbfa5837f99ba94a7fe0121024aed9637c78499154afc06af10b2344233b3c968f1e7b1cfd9905fc38e440c12fffffffffc27476209664ed4fc87f6d55e25e44c98adb1181adfff98d7da31c34b77da22010000006a47304402203576c518c1f628469efcd182fa7d1d578cccdf7b51a41e44d119ca0c010747cc022069d9f390735567efff5e8f70afec6595060a79693540d6174b21681b21b4df70012102e49919f81e1fc11a65283e71dcce22dc65271f4ab6ef96f9e9b3d20fd62d1e87ffffffff02a0c55463000000001976a914793fbe8ff3bae86202ad600fd60b86f59981b0c988ac00f2052a010000001976a9140aab8113729e010d852820561dbee87459ad8dc888ac0000000058cc08000000000000000000000000";
-            let tx = hex::decode(tx).unwrap();
-
-            let mut y = Sha256::digest(&Sha256::digest(&tx)).to_vec();
-
-            y.reverse();
-
-            println!("txid is: {}", hex::encode(y));
-            assert_eq!(0,1);
-
-//            "19a785b82a42c160ad954183ec3e8831b0c624c16d82408e293a4353a033c58a"
-
         }
     }
 }
