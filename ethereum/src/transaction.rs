@@ -69,15 +69,14 @@ struct EthereumTransactionSignature {
 /// Represents an Ethereum transaction id
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransactionId {
-    /// The transaction hash
-    pub bytes: Vec<u8>,
+    pub txid: Vec<u8>,
 }
 
 impl TransactionId for EthereumTransactionId {}
 
 impl fmt::Display for EthereumTransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", &hex::encode(&self.bytes))
+        write!(f, "0x{}", &hex::encode(&self.txid))
     }
 }
 
@@ -121,7 +120,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             (None, None) => {
                 let (v, signature) = secp256k1::Secp256k1::new()
                     .sign_recoverable(
-                        &secp256k1::Message::from_slice(&self.to_transaction_id()?.bytes)?,
+                        &secp256k1::Message::from_slice(&self.to_transaction_id()?.txid)?,
                         &private_key.to_secp256k1_secret_key(),
                     )
                     .serialize_compact();
@@ -190,7 +189,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     signature: None,
                     _network: PhantomData,
                 };
-                let message = secp256k1::Message::from_slice(&raw_transaction.to_transaction_id()?.bytes)?;
+                let message = secp256k1::Message::from_slice(&raw_transaction.to_transaction_id()?.txid)?;
                 let public_key = EthereumPublicKey::from_secp256k1_public_key(
                     secp256k1::Secp256k1::new()
                         .recover(&message, &RecoverableSignature::from_compact(&signature, recovery_id)?)?,
@@ -265,7 +264,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     /// Otherwise, returns the hash of the raw transaction.
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         Ok(Self::TransactionId {
-            bytes: keccak256(&self.to_transaction_bytes()?).into_iter().cloned().collect(),
+            txid: keccak256(&self.to_transaction_bytes()?).into_iter().cloned().collect(),
         })
     }
 }
