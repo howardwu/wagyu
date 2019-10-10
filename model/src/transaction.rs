@@ -79,6 +79,9 @@ pub enum TransactionError {
     #[fail(display = "invalid script pub key for format: {}", _0)]
     InvalidScriptPubKey(String),
 
+    #[fail(display = "invalid segwit flag: {:?}", _0)]
+    InvalidSegwitFlag(usize),
+
     #[fail(display = "invalid spend description for address")]
     InvalidSpendDescription,
 
@@ -88,11 +91,23 @@ pub enum TransactionError {
     #[fail(display = "invalid transaction - either both sender and signature should be present, or neither")]
     InvalidTransactionState,
 
+    #[fail(display = "invalid variable size integer: {:?}", _0)]
+    InvalidVariableSizeInteger(usize),
+
     #[fail(display = "{}", _0)]
     Message(String),
 
     #[fail(display = "missing diversifier, check that the address is a Sapling address")]
     MissingDiversifier,
+
+    #[fail(display = "missing outpoint address")]
+    MissingOutpointAddress,
+
+    #[fail(display = "missing outpoint amount")]
+    MissingOutpointAmount,
+
+    #[fail(display = "missing outpoint script public key")]
+    MissingOutpointScriptPublicKey,
 
     #[fail(display = "missing spend description")]
     MissingSpendDescription,
