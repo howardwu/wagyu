@@ -63,9 +63,10 @@ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, Tra
     }
 }
 
-pub struct Vector;
+pub struct BitcoinVector;
 
-impl Vector {
+impl BitcoinVector {
+    /// Read and output a vector with a variable length integer
     pub fn read<R: Read, E, F>(mut reader: R, func: F) -> Result<Vec<E>, TransactionError>
     where
         F: Fn(&mut R) -> Result<E, TransactionError>,
@@ -74,6 +75,7 @@ impl Vector {
         (0..count).map(|_| func(&mut reader)).collect()
     }
 
+    /// Read and output a vector with a variable length integer and the integer itself
     pub fn read_witness<R: Read, E, F>(
         mut reader: R,
         func: F,
@@ -237,6 +239,7 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
+    /// Read and output a Bitcoin transaction input
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut transaction_hash = [0u8; 32];
         reader.read(&mut transaction_hash)?;
@@ -253,7 +256,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             address: None,
         };
 
-        let script_sig: Vec<u8> = Vector::read(&mut reader, |s| {
+        let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
             s.read(&mut byte)?;
             Ok(byte[0])
@@ -409,11 +412,12 @@ impl BitcoinTransactionOutput {
         Ok(output)
     }
 
+    /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut amount = [0u8; 8];
         reader.read(&mut amount)?;
 
-        let script_pub_key: Vec<u8> = Vector::read(&mut reader, |s| {
+        let script_pub_key: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
             s.read(&mut byte)?;
             Ok(byte[0])
@@ -458,11 +462,12 @@ pub struct BitcoinTransactionParameters<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
+    /// Read and output the Bitcoin transaction parameters
     pub fn read<R: Read>(mut reader: R) -> Result<Self, TransactionError> {
         let mut version = [0u8; 4];
         reader.read(&mut version)?;
 
-        let mut inputs = Vector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
+        let mut inputs = BitcoinVector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
 
         let segwit_flag = match inputs.is_empty() {
             true => {
@@ -470,7 +475,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
                 reader.read(&mut flag)?;
                 match flag[0] {
                     1 => {
-                        inputs = Vector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
+                        inputs = BitcoinVector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
                         true
                     }
                     _ => return Err(TransactionError::InvalidSegwitFlag(flag[0] as usize)),
@@ -479,12 +484,12 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
             false => false,
         };
 
-        let outputs = Vector::read(&mut reader, BitcoinTransactionOutput::read)?;
+        let outputs = BitcoinVector::read(&mut reader, BitcoinTransactionOutput::read)?;
 
         if segwit_flag {
             for input in &mut inputs {
-                let witnesses: Vec<Vec<u8>> = Vector::read(&mut reader, |s| {
-                    let (size, witness) = Vector::read_witness(s, |sr| {
+                let witnesses: Vec<Vec<u8>> = BitcoinVector::read(&mut reader, |s| {
+                    let (size, witness) = BitcoinVector::read_witness(s, |sr| {
                         let mut byte = [0u8; 1];
                         sr.read(&mut byte)?;
                         Ok(byte[0])
