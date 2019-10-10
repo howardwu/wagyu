@@ -231,7 +231,7 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// Also used in replace-by-fee (BIP 125)
     pub sequence: Vec<u8>,
     /// The signature hash (4 bytes) (used in signing raw transaction only)
-    pub sighash: SignatureHash,
+    pub sighash_code: SignatureHash,
     /// The witnesses in a SegWit transaction
     pub witnesses: Vec<Vec<u8>>,
     /// If true, the input has been signed
@@ -239,48 +239,6 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
-    /// Read and output a Bitcoin transaction input
-    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
-        let mut transaction_hash = [0u8; 32];
-        reader.read(&mut transaction_hash)?;
-
-        let mut vin = [0u8; 4];
-        reader.read(&mut vin)?;
-
-        let outpoint = Outpoint {
-            reverse_transaction_id: transaction_hash.to_vec(),
-            index: u32::from_le_bytes(vin),
-            amount: None,
-            script_pub_key: None,
-            redeem_script: None,
-            address: None,
-        };
-
-        let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
-            let mut byte = [0u8; 1];
-            s.read(&mut byte)?;
-            Ok(byte[0])
-        })?;
-
-        let mut sequence = [0u8; 4];
-        reader.read(&mut sequence)?;
-
-        let script_sig_len = read_variable_length_integer(&script_sig[..])?;
-        let sighash = SignatureHash::from_byte(&match script_sig_len {
-            0 => 0x01,
-            length => script_sig[length],
-        });
-
-        Ok(Self {
-            outpoint,
-            script_sig: script_sig.to_vec(),
-            sequence: sequence.to_vec(),
-            sighash,
-            witnesses: vec![],
-            is_signed: script_sig.len() > 0,
-        })
-    }
-
     const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
 
     /// Returns a new Bitcoin transaction input without the script (unlocking).
@@ -341,9 +299,51 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             },
             script_sig: vec![],
             sequence: sequence.unwrap_or(BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec()),
-            sighash,
+            sighash_code: sighash,
             witnesses: vec![],
             is_signed: false,
+        })
+    }
+
+    /// Read and output a Bitcoin transaction input
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let mut transaction_hash = [0u8; 32];
+        reader.read(&mut transaction_hash)?;
+
+        let mut vin = [0u8; 4];
+        reader.read(&mut vin)?;
+
+        let outpoint = Outpoint {
+            reverse_transaction_id: transaction_hash.to_vec(),
+            index: u32::from_le_bytes(vin),
+            amount: None,
+            script_pub_key: None,
+            redeem_script: None,
+            address: None,
+        };
+
+        let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
+            let mut byte = [0u8; 1];
+            s.read(&mut byte)?;
+            Ok(byte[0])
+        })?;
+
+        let mut sequence = [0u8; 4];
+        reader.read(&mut sequence)?;
+
+        let script_sig_len = read_variable_length_integer(&script_sig[..])?;
+        let sighash = SignatureHash::from_byte(&match script_sig_len {
+            0 => 0x01,
+            length => script_sig[length],
+        });
+
+        Ok(Self {
+            outpoint,
+            script_sig: script_sig.to_vec(),
+            sequence: sequence.to_vec(),
+            sighash_code: sighash,
+            witnesses: vec![],
+            is_signed: script_sig.len() > 0,
         })
     }
 
@@ -403,15 +403,6 @@ impl BitcoinTransactionOutput {
         })
     }
 
-    /// Returns the serialized transaction output.
-    pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
-        let mut output = vec![];
-        output.extend(&self.amount.to_le_bytes());
-        output.extend(variable_length_integer(self.script_pub_key.len() as u64)?);
-        output.extend(&self.script_pub_key);
-        Ok(output)
-    }
-
     /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut amount = [0u8; 8];
@@ -427,6 +418,15 @@ impl BitcoinTransactionOutput {
             amount: u64::from_le_bytes(amount),
             script_pub_key,
         })
+    }
+
+    /// Returns the serialized transaction output.
+    pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
+        let mut output = vec![];
+        output.extend(&self.amount.to_le_bytes());
+        output.extend(variable_length_integer(self.script_pub_key.len() as u64)?);
+        output.extend(&self.script_pub_key);
+        Ok(output)
     }
 }
 
@@ -499,7 +499,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
                 })?;
 
                 if witnesses.len() > 0 {
-                    input.sighash = SignatureHash::from_byte(&witnesses[0][&witnesses[0].len() - 1]);
+                    input.sighash_code = SignatureHash::from_byte(&witnesses[0][&witnesses[0].len() - 1]);
                 }
                 input.witnesses = witnesses;
             }
@@ -554,8 +554,8 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
             if address == &private_key.to_address(&address.format())? && !transaction.parameters.inputs[vin].is_signed {
                 // Transaction hash
                 let preimage = match &address.format() {
-                    BitcoinFormat::P2PKH => transaction.p2pkh_hash_preimage(vin, input.sighash)?,
-                    _ => transaction.segwit_hash_preimage(vin, input.sighash)?,
+                    BitcoinFormat::P2PKH => transaction.p2pkh_hash_preimage(vin, input.sighash_code)?,
+                    _ => transaction.segwit_hash_preimage(vin, input.sighash_code)?,
                 };
                 let transaction_hash = Sha256::digest(&Sha256::digest(&preimage));
 
@@ -567,7 +567,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                     )
                     .serialize_der()
                     .to_vec();
-                signature.push((input.sighash as u32).to_le_bytes()[0]);
+                signature.push((input.sighash_code as u32).to_le_bytes()[0]);
                 let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
 
                 // Public key
@@ -808,7 +808,7 @@ mod tests {
         pub script_pub_key: Option<&'static str>,
         pub utxo_amount: u64,
         pub sequence: Option<[u8; 4]>,
-        pub sig_hash_code: SignatureHash,
+        pub sighash_code: SignatureHash,
     }
 
     #[derive(Clone)]
@@ -851,7 +851,7 @@ mod tests {
                 redeem_script,
                 script_pub_key,
                 sequence,
-                input.sig_hash_code,
+                input.sighash_code,
             )
             .unwrap();
 
@@ -932,7 +932,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -957,7 +957,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 1000000000,
                         sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -986,7 +986,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 1000000000,
                         sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1015,7 +1015,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "KwcN2pT3wnRAurhy7qMczzbkpY5nXMW2ubh696UBc1bcwctTx26z",
@@ -1026,7 +1026,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     }
                 ],
                 outputs: &[
@@ -1055,7 +1055,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 2000000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1084,7 +1084,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "KzZtscUzkZS38CYqYfRZ8pUKfUr1JnAnwJLK25S8a6Pj6QgPYJkq",
@@ -1095,7 +1095,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 100000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1124,7 +1124,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1153,7 +1153,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 1500000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1182,7 +1182,7 @@ mod tests {
                         script_pub_key: Some("76a9148631bf621f7c6671f8d2d646327b636cbbe79f8c88ac"), // Manually specify script_pub_key
                         utxo_amount: 0,
                         sequence: Some([0xee, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "5JZGuGYM4vfKvpxaJg5g5D3uvVYVQ74UUdueCVvWCNacrAkkvGi",
@@ -1193,7 +1193,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 600000000,
                         sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1248,7 +1248,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 80000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1277,7 +1277,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1306,7 +1306,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 35000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1331,7 +1331,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 25000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
@@ -1342,7 +1342,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 12000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1371,7 +1371,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 15000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "5KRoKpnWWav74XDgz28opnJUsBozUg8STwEQPq354yUa3MiXySn",
@@ -1382,7 +1382,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 0,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                     Input {
                         private_key: "Kzs2rY8y9brmULJ3VK9gZHiZAhNJ2ttjn7ZuyJbG52pToZfCpQDr",
@@ -1393,7 +1393,7 @@ mod tests {
                         script_pub_key: None,
                         utxo_amount: 12000,
                         sequence: None,
-                        sig_hash_code: SignatureHash::SIGHASH_ALL
+                        sighash_code: SignatureHash::SIGHASH_ALL
                     },
                 ],
                 outputs: &[
@@ -1436,7 +1436,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: 0,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1447,7 +1447,7 @@ mod tests {
                 script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
                 utxo_amount: 10000,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1458,7 +1458,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: 10000,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1469,7 +1469,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: 10000,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1480,7 +1480,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: 10000,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "L5BsLN6keEWUuF1JxfG6w5U1FDHs29faMpr9QX2MMVuQt7ymTorX",
@@ -1491,7 +1491,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: 0,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "",
@@ -1502,7 +1502,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: 0,
                 sequence: None,
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
         ];
 
@@ -1526,7 +1526,7 @@ mod tests {
                             redeem_script,
                             script_pub_key,
                             sequence,
-                            input.sig_hash_code,
+                            input.sighash_code,
                         );
                         assert!(invalid_input.is_err());
                     }
