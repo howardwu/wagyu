@@ -109,8 +109,14 @@ pub enum TransactionError {
     #[fail(display = "missing outpoint script public key")]
     MissingOutpointScriptPublicKey,
 
+    #[fail(display = "missing output parameters")]
+    MissingOutputParameters,
+
     #[fail(display = "missing spend description")]
     MissingSpendDescription,
+
+    #[fail(display = "missing spend parameters")]
+    MissingSpendParameters,
 
     #[fail(display = "Null Error {:?}", _0)]
     NullError(()),

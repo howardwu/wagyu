@@ -443,7 +443,7 @@ impl SaplingSpendDescription {
     }
 
     /// Read and output a Zcash sapling spend description
-    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+    pub fn read<R: Read>(reader: &mut R) -> Result<Self, TransactionError> {
         let mut cv = [0u8; 32];
         let mut anchor = [0u8; 32];
         let mut nullifier = [0u8; 32];
@@ -552,7 +552,11 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         spend_params: &Parameters<Bls12>,
         spend_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        let spend_parameters = self.spend_parameters.clone().unwrap();
+        let spend_parameters = match &self.spend_parameters {
+            Some(spend_parameters) => spend_parameters,
+            None => return Err(TransactionError::MissingSpendParameters),
+        };
+
         let spending_key = spend_parameters.extended_private_key.to_extended_spending_key().expsk.to_bytes();
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.proof_generation_key(&JUBJUB);
 
@@ -644,7 +648,7 @@ impl SaplingOutputDescription {
     }
 
     /// Read and output a Zcash sapling spend description
-    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+    pub fn read<R: Read>(reader: &mut R) -> Result<Self, TransactionError> {
         let mut cv = [0u8; 32];
         let mut cmu = [0u8; 32];
         let mut ephemeral_key = [0u8; 32];
@@ -757,7 +761,10 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         output_params: &Parameters<Bls12>,
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        let output_parameters = self.output_parameters.clone().unwrap();
+        let output_parameters = match &self.output_parameters {
+            Some(output_parameters) => output_parameters,
+            None => return Err(TransactionError::MissingOutputParameters),
+        };
         let ovk = OutgoingViewingKey(output_parameters.ovk.0);
         let note_encryption = SaplingNoteEncryption::new(
             ovk,
@@ -963,7 +970,13 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
 
         let sapling_spend =
             SaplingSpend::<N>::new(extended_private_key, cmu, epk, enc_ciphertext, input_anchor, witness)?;
-        parameters.value_balance += sapling_spend.spend_parameters.clone().unwrap().note.value as i64;
+
+        let value = match &sapling_spend.spend_parameters {
+            Some(spend_parameters) => spend_parameters.note.value,
+            None => return Err(TransactionError::MissingSpendParameters),
+        };
+
+        parameters.value_balance += value as i64;
         parameters.shielded_inputs.push(sapling_spend);
         Ok(parameters)
     }
@@ -975,10 +988,16 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         address: &ZcashAddress<N>,
         amount: u64,
     ) -> Result<Self, TransactionError> {
-        let shielded_output = SaplingOutput::<N>::new(ovk, address, amount)?;
         let mut parameters = self.clone();
-        parameters.value_balance -= shielded_output.output_parameters.clone().unwrap().note.value as i64;
-        parameters.shielded_outputs.push(shielded_output);
+        let sapling_output = SaplingOutput::<N>::new(ovk, address, amount)?;
+
+        let value = match &sapling_output.output_parameters {
+            Some(output_parameters) => output_parameters.note.value,
+            None => return Err(TransactionError::MissingOutputParameters),
+        };
+
+        parameters.value_balance -= value as i64;
+        parameters.shielded_outputs.push(sapling_output);
         Ok(parameters)
     }
 
@@ -1241,7 +1260,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         sighash: &[u8; 32],
     ) -> Result<(), TransactionError> {
         for spend in &mut self.parameters.shielded_inputs {
-            let spend_parameters = spend.spend_parameters.clone().unwrap();
+            let spend_parameters = match &spend.spend_parameters {
+                Some(spend_parameters) => spend_parameters,
+                None => return Err(TransactionError::MissingSpendParameters),
+            };
+
             match &mut spend.spend_description {
                 Some(spend_description) => {
                     let spending_key = spend_parameters.extended_private_key.to_extended_spending_key().expsk.to_bytes();
