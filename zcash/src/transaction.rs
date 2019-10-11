@@ -12,7 +12,7 @@ use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{fmt, str::FromStr};
+use std::{fmt, io::Read, str::FromStr};
 use wagyu_model::{ExtendedPrivateKey, PrivateKey, Transaction, TransactionError, TransactionId};
 
 // librustzcash crates
@@ -46,6 +46,55 @@ pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> 
         65536..=4294967295 => Ok([vec![0xfe], (value as u32).to_le_bytes().to_vec()].concat()),
         // bounded by u64::max_value()
         _ => Ok([vec![0xff], value.to_le_bytes().to_vec()].concat()),
+    }
+}
+
+
+/// Decode the value of a variable length integer.
+/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, TransactionError> {
+    let mut flag = [0u8; 1];
+    reader.read(&mut flag)?;
+
+    match flag[0] {
+        0..=252 => Ok(flag[0] as usize),
+        0xfd => {
+            let mut size = [0u8; 2];
+            reader.read(&mut size)?;
+            match u16::from_le_bytes(size) {
+                s if s < 253 => return Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
+                s => Ok(s as usize),
+            }
+        }
+        0xfe => {
+            let mut size = [0u8; 4];
+            reader.read(&mut size)?;
+            match u32::from_le_bytes(size) {
+                s if s < 65536 => return Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
+                s => Ok(s as usize),
+            }
+        }
+        _ => {
+            let mut size = [0u8; 8];
+            reader.read(&mut size)?;
+            match u64::from_le_bytes(size) {
+                s if s < 4294967296 => return Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
+                s => Ok(s as usize),
+            }
+        }
+    }
+}
+
+pub struct ZcashVector;
+
+impl ZcashVector {
+    /// Read and output a vector with a variable length integer
+    pub fn read<R: Read, E, F>(mut reader: R, func: F) -> Result<Vec<E>, TransactionError>
+        where
+            F: Fn(&mut R) -> Result<E, TransactionError>,
+    {
+        let count = read_variable_length_integer(&mut reader)?;
+        (0..count).map(|_| func(&mut reader)).collect()
     }
 }
 
@@ -116,6 +165,18 @@ impl fmt::Display for SignatureHash {
     }
 }
 
+impl SignatureHash {
+    fn from_byte(byte: &u8) -> Self {
+        match byte {
+            1 => SignatureHash::SIGHASH_ALL,
+            2 => SignatureHash::SIGHASH_NONE,
+            3 => SignatureHash::SIGHASH_SINGLE,
+            128 => SignatureHash::SIGHASH_ANYONECANPAY,
+            _ => SignatureHash::SIGHASH_ALL,
+        }
+    }
+}
+
 /// Represents the commonly used script opcodes
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[allow(non_camel_case_types)]
@@ -153,7 +214,7 @@ pub struct Outpoint<N: ZcashNetwork> {
     /// Optional redeem script - for segwit transactions
     pub redeem_script: Vec<u8>,
     /// Address of the outpoint
-    pub address: ZcashAddress<N>,
+    pub address: Option<ZcashAddress<N>>,
 }
 
 /// Represents a Zcash transaction transparent input
@@ -167,7 +228,7 @@ pub struct ZcashTransparentInput<N: ZcashNetwork> {
     /// Also used in replace-by-fee - BIP 125.
     pub sequence: Vec<u8>,
     /// SIGHASH Code - 4 Bytes (used in signing raw transaction only)
-    pub sig_hash_code: SignatureHash,
+    pub sighash_code: SignatureHash,
     /// If true, the input has been signed
     pub is_signed: bool,
 }
@@ -184,7 +245,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
         sequence: Option<Vec<u8>>,
-        sig_hash_code: SignatureHash,
+        sighash_code: SignatureHash,
     ) -> Result<Self, TransactionError> {
         if transaction_id.len() != 32 {
             return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
@@ -222,7 +283,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
             amount,
             redeem_script,
             script_pub_key,
-            address,
+            address: Some(address),
         };
         let sequence = sequence.unwrap_or(ZcashTransparentInput::<N>::DEFAULT_SEQUENCE.to_vec());
 
@@ -230,8 +291,49 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
             outpoint,
             script: Vec::new(),
             sequence,
-            sig_hash_code,
+            sighash_code: sighash_code,
             is_signed: false,
+        })
+    }
+
+    /// Read and output a Zcash transaction transparent input
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let mut transaction_hash = [0u8; 32];
+        reader.read(&mut transaction_hash)?;
+
+        let mut vin = [0u8; 4];
+        reader.read(&mut vin)?;
+
+        let outpoint = Outpoint {
+            reverse_transaction_id: transaction_hash.to_vec(),
+            index: u32::from_le_bytes(vin),
+            amount: 0,
+            script_pub_key: vec![],
+            redeem_script: vec![],
+            address: None,
+        };
+
+        let script: Vec<u8> = ZcashVector::read(&mut reader, |s| {
+            let mut byte = [0u8; 1];
+            s.read(&mut byte)?;
+            Ok(byte[0])
+        })?;
+
+        let mut sequence = [0u8; 4];
+        reader.read(&mut sequence)?;
+
+        let script_len = read_variable_length_integer(&script[..])?;
+        let sighash_code = SignatureHash::from_byte(&match script_len {
+            0 => 0x01,
+            length => script[length],
+        });
+
+        Ok(Self {
+            outpoint,
+            script: script.to_vec(),
+            sequence: sequence.to_vec(),
+            sighash_code,
+            is_signed: script.len() > 0,
         })
     }
 
@@ -281,6 +383,23 @@ impl ZcashTransparentOutput {
         })
     }
 
+    /// Read and output a Zcash transaction output
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let mut amount = [0u8; 8];
+        reader.read(&mut amount)?;
+
+        let script_pub_key: Vec<u8> = ZcashVector::read(&mut reader, |s| {
+            let mut byte = [0u8; 1];
+            s.read(&mut byte)?;
+            Ok(byte[0])
+        })?;
+
+        Ok(Self {
+            amount: u64::from_le_bytes(amount),
+            script_pub_key,
+        })
+    }
+
     /// Returns the serialized transparent output.
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut output = vec![];
@@ -309,6 +428,7 @@ pub struct SaplingSpendDescription {
 }
 
 impl SaplingSpendDescription {
+    /// Returns the serialized sapling spend description
     pub fn serialize(&self, sighash: bool) -> Result<Vec<u8>, TransactionError> {
         let mut input = vec![];
         input.extend(&self.cv);
@@ -321,11 +441,37 @@ impl SaplingSpendDescription {
         };
         Ok(input)
     }
+
+    /// Read and output a Zcash sapling spend description
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let mut cv = [0u8; 32];
+        let mut anchor = [0u8; 32];
+        let mut nullifier = [0u8; 32];
+        let mut rk = [0u8; 32];
+        let mut zk_proof = [0u8; 192];
+        let mut spend_auth_sig = [0u8; 64];
+
+        reader.read(&mut cv)?;
+        reader.read(&mut anchor)?;
+        reader.read(&mut nullifier)?;
+        reader.read(&mut rk)?;
+        reader.read(&mut zk_proof)?;
+        reader.read(&mut spend_auth_sig)?;
+
+        Ok(Self {
+            cv,
+            anchor,
+            nullifier,
+            rk,
+            zk_proof: zk_proof.to_vec(),
+            spend_auth_sig: Some(spend_auth_sig.to_vec()),
+        })
+    }
 }
 
-/// Represents a Zcash transaction Shielded Spend
+/// Represents a Zcash transaction Shielded Spend parameters
 #[derive(Debug, Clone)]
-pub struct SaplingSpend<N: ZcashNetwork> {
+pub struct SaplingSpendParameters<N: ZcashNetwork> {
     /// The Sapling extended secret key
     pub extended_private_key: ZcashExtendedPrivateKey<N>,
     /// The Sapling address diversifier
@@ -338,11 +484,19 @@ pub struct SaplingSpend<N: ZcashNetwork> {
     pub anchor: Fr,
     /// The commitment witness
     pub witness: CommitmentTreeWitness<Node>,
+}
+
+/// Represents a Zcash transaction Shielded Spend
+#[derive(Debug, Clone)]
+pub struct SaplingSpend<N: ZcashNetwork> {
+    /// The Sapling spend parameters
+    pub spend_parameters: Option<SaplingSpendParameters<N>>,
     /// The spend description
     pub spend_description: Option<SaplingSpendDescription>,
 }
 
 impl<N: ZcashNetwork> SaplingSpend<N> {
+    /// Returns a new Zcash sapling spend
     pub fn new(
         extended_private_key: &ZcashExtendedPrivateKey<N>,
         cmu: &[u8; 32],
@@ -376,13 +530,17 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
                 Some((note, payment_address, memo)) => (note, payment_address, memo),
             };
 
-        Ok(SaplingSpend {
+        let spend_parameters = Some(SaplingSpendParameters {
             extended_private_key: extended_private_key.clone(),
             diversifier: payment_address.diversifier().0,
             note,
             alpha,
             anchor,
             witness,
+        });
+
+        Ok(Self {
+            spend_parameters,
             spend_description: None,
         })
     }
@@ -394,23 +552,24 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         spend_params: &Parameters<Bls12>,
         spend_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        let spending_key = self.extended_private_key.to_extended_spending_key().expsk.to_bytes();
+        let spend_parameters = self.spend_parameters.clone().unwrap();
+        let spending_key = spend_parameters.extended_private_key.to_extended_spending_key().expsk.to_bytes();
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.proof_generation_key(&JUBJUB);
 
-        let nf = &self.note.nf(
+        let nf = &spend_parameters.note.nf(
             &proof_generation_key.to_viewing_key(&JUBJUB),
-            self.witness.position,
+            spend_parameters.witness.position,
             &JUBJUB,
         );
 
         let (proof, value_commitment, public_key) = proving_ctx.spend_proof(
             proof_generation_key,
-            Diversifier(self.diversifier),
-            self.note.r,
-            self.alpha,
-            self.note.value,
-            self.anchor,
-            self.witness.clone(),
+            Diversifier(spend_parameters.diversifier),
+            spend_parameters.note.r,
+            spend_parameters.alpha,
+            spend_parameters.note.value,
+            spend_parameters.anchor,
+            spend_parameters.witness.clone(),
             spend_params,
             spend_vk,
             &JUBJUB,
@@ -423,7 +582,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         let mut zk_proof = [0u8; GROTH_PROOF_SIZE];
 
         value_commitment.write(&mut cv[..])?;
-        self.anchor.into_repr().write_le(&mut anchor[..])?;
+        spend_parameters.anchor.into_repr().write_le(&mut anchor[..])?;
         nullifier.copy_from_slice(nf);
         public_key.write(&mut rk[..])?;
         proof.write(&mut zk_proof[..])?;
@@ -441,7 +600,17 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
 
         Ok(())
     }
+
+    /// Read and output a Zcash sapling spend
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let spend_description = SaplingSpendDescription::read(&mut reader)?;
+        Ok(Self {
+            spend_parameters: None,
+            spend_description: Some(spend_description),
+        })
+    }
 }
+
 
 /// Represents a Zcash Sapling output description
 #[derive(Debug, Clone)]
@@ -462,6 +631,7 @@ pub struct SaplingOutputDescription {
 }
 
 impl SaplingOutputDescription {
+    /// Returns the serialized sapling output description
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut output = vec![];
         output.extend(&self.cv);
@@ -472,11 +642,37 @@ impl SaplingOutputDescription {
         output.extend(&self.zk_proof);
         Ok(output)
     }
+
+    /// Read and output a Zcash sapling spend description
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let mut cv = [0u8; 32];
+        let mut cmu = [0u8; 32];
+        let mut ephemeral_key = [0u8; 32];
+        let mut enc_ciphertext = [0u8; 580];
+        let mut out_ciphertext = [0u8; 80];
+        let mut zk_proof = [0u8; 192];
+
+        reader.read(&mut cv)?;
+        reader.read(&mut cmu)?;
+        reader.read(&mut ephemeral_key)?;
+        reader.read(&mut enc_ciphertext)?;
+        reader.read(&mut out_ciphertext)?;
+        reader.read(&mut zk_proof)?;
+
+        Ok(Self {
+            cv,
+            cmu,
+            ephemeral_key,
+            enc_ciphertext: enc_ciphertext.to_vec(),
+            out_ciphertext: out_ciphertext.to_vec(),
+            zk_proof: zk_proof.to_vec(),
+        })
+    }
 }
 
-/// Represents a Zcash Sapling output
+/// Represents a Zcash transaction Shielded Output parameters
 #[derive(Debug, Clone)]
-pub struct SaplingOutput<N: ZcashNetwork> {
+pub struct SaplingOutputParameters<N: ZcashNetwork> {
     /// The Sapling address
     pub address: ZcashAddress<N>,
     /// The outgoing view key
@@ -487,11 +683,19 @@ pub struct SaplingOutput<N: ZcashNetwork> {
     pub note: Note<Bls12>,
     /// An optional memo
     pub memo: Memo,
+}
+
+/// Represents a Zcash Sapling output
+#[derive(Debug, Clone)]
+pub struct SaplingOutput<N: ZcashNetwork> {
+    /// The Sapling output parameters
+    pub output_parameters: Option<SaplingOutputParameters<N>>,
     /// The output description
     pub output_description: Option<SaplingOutputDescription>,
 }
 
 impl<N: ZcashNetwork> SaplingOutput<N> {
+    /// Returns a new Zcash sapling output
     pub fn new(
         ovk: SaplingOutgoingViewingKey,
         address: &ZcashAddress<N>,
@@ -529,12 +733,16 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
                     r: Fs::random(&mut StdRng::from_entropy()),
                 };
 
-                Ok(Self {
+                let output_parameters = Some(SaplingOutputParameters {
                     address: address.clone(),
                     ovk,
                     to,
                     note,
                     memo: Memo::default(),
+                });
+
+                Ok(Self {
+                    output_parameters,
                     output_description: None,
                 })
             }
@@ -549,27 +757,28 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         output_params: &Parameters<Bls12>,
         output_vk: &PreparedVerifyingKey<Bls12>,
     ) -> Result<(), TransactionError> {
-        let ovk = OutgoingViewingKey(self.ovk.0);
+        let output_parameters = self.output_parameters.clone().unwrap();
+        let ovk = OutgoingViewingKey(output_parameters.ovk.0);
         let note_encryption = SaplingNoteEncryption::new(
             ovk,
-            self.note.clone(),
-            self.to.clone(),
-            self.memo.clone(),
+            output_parameters.note.clone(),
+            output_parameters.to.clone(),
+            output_parameters.memo.clone(),
             &mut StdRng::from_entropy(),
         );
 
         let (proof, value_commitment) = proving_ctx.output_proof(
             note_encryption.esk().clone(),
-            self.to.clone(),
-            self.note.r,
-            self.note.value,
+            output_parameters.to.clone(),
+            output_parameters.note.r,
+            output_parameters.note.value,
             &output_params,
             &JUBJUB,
         );
 
         // Generate the ciphertexts
 
-        let cm = self.note.cm(&JUBJUB);
+        let cm = output_parameters.note.cm(&JUBJUB);
         let enc_ciphertext = note_encryption.encrypt_note_plaintext();
         let out_ciphertext = note_encryption.encrypt_outgoing_plaintext(&value_commitment, &cm);
 
@@ -604,7 +813,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
             &JUBJUB,
         ) {
             true => {}
-            false => return Err(TransactionError::InvalidOutputDescription(self.address.to_string())),
+            false => return Err(TransactionError::InvalidOutputDescription(output_parameters.address.to_string())),
         };
 
         let output_description = SaplingOutputDescription {
@@ -619,6 +828,15 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
         self.output_description = Some(output_description);
 
         Ok(())
+    }
+
+    /// Read and output a Zcash sapling output
+    pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
+        let output_description = SaplingOutputDescription::read(&mut reader)?;
+        Ok(Self {
+            output_parameters: None,
+            output_description: Some(output_description),
+        })
     }
 }
 
@@ -667,6 +885,7 @@ pub struct ZcashTransactionParameters<N: ZcashNetwork> {
 }
 
 impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
+    /// Returns the Zcash transaction parameters
     pub fn new(version: &str, lock_time: u32, expiry_height: u32) -> Result<Self, TransactionError> {
         let (header, version_group_id) = fetch_header_and_version_group_id(version);
 
@@ -695,7 +914,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
         sequence: Option<Vec<u8>>,
-        sig_hash_code: SignatureHash,
+        sighash_code: SignatureHash,
     ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
         parameters.transparent_inputs.push(ZcashTransparentInput::<N>::new(
@@ -706,7 +925,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
             redeem_script,
             script_pub_key,
             sequence,
-            sig_hash_code,
+            sighash_code,
         )?);
         Ok(parameters)
     }
@@ -744,7 +963,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
 
         let sapling_spend =
             SaplingSpend::<N>::new(extended_private_key, cmu, epk, enc_ciphertext, input_anchor, witness)?;
-        parameters.value_balance += sapling_spend.note.value as i64;
+        parameters.value_balance += sapling_spend.spend_parameters.clone().unwrap().note.value as i64;
         parameters.shielded_inputs.push(sapling_spend);
         Ok(parameters)
     }
@@ -757,11 +976,56 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         amount: u64,
     ) -> Result<Self, TransactionError> {
         let shielded_output = SaplingOutput::<N>::new(ovk, address, amount)?;
-
         let mut parameters = self.clone();
-        parameters.value_balance -= shielded_output.note.value as i64;
+        parameters.value_balance -= shielded_output.output_parameters.clone().unwrap().note.value as i64;
         parameters.shielded_outputs.push(shielded_output);
         Ok(parameters)
+    }
+
+    /// Read and output the Zcash transaction parameters
+    pub fn read<R: Read>(mut reader: R) -> Result<Self, TransactionError> {
+        let mut header = [0u8; 4];
+        let mut version_group_id = [0u8; 4];
+        let mut lock_time = [0u8; 4];
+        let mut expiry_height = [0u8; 4];
+        let mut value_balance = [0u8; 8];
+        let mut binding_sig = [0u8; 64];
+
+        reader.read(&mut header)?;
+        reader.read(&mut version_group_id)?;
+
+        let transparent_inputs = ZcashVector::read(&mut reader, ZcashTransparentInput::<N>::read)?;
+        let transparent_outputs = ZcashVector::read(&mut reader, ZcashTransparentOutput::read)?;
+
+        reader.read(&mut lock_time)?;
+        reader.read(&mut expiry_height)?;
+        reader.read(&mut value_balance)?;
+
+        let shielded_inputs = ZcashVector::read(&mut reader, SaplingSpend::<N>::read)?;
+        let shielded_outputs = ZcashVector::read(&mut reader, SaplingOutput::<N>::read)?;
+
+        if read_variable_length_integer(&mut reader)? > 0 {
+            return Err(TransactionError::UnsupportedJoinsplits)
+        }
+
+        let binding_signature = match reader.read(&mut binding_sig)? {
+            0 => None,
+            _ => Some(binding_sig.to_vec()),
+        };
+
+        Ok(Self {
+            header: u32::from_le_bytes(header),
+            version_group_id: u32::from_le_bytes(version_group_id),
+            transparent_inputs,
+            transparent_outputs,
+            lock_time: u32::from_le_bytes(lock_time),
+            expiry_height: u32::from_le_bytes(expiry_height),
+            shielded_inputs,
+            shielded_outputs,
+            value_balance: i64::from_le_bytes(value_balance),
+            binding_signature,
+            anchor: None,
+        })
     }
 }
 
@@ -804,13 +1068,17 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
         let mut transaction = self.clone();
         for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
-            let format = input.outpoint.address.format();
-            if input.outpoint.address == private_key.to_address(&format)?
+            let address = match &input.outpoint.address {
+                Some(address) => address,
+                None => return Err(TransactionError::MissingOutpointAddress),
+            };
+
+            if address == &private_key.to_address(&address.format())?
                 && !transaction.parameters.transparent_inputs[vin].is_signed
             {
                 // Transaction hash
-                let transaction_hash = match input.outpoint.address.format() {
-                    ZcashFormat::P2PKH => transaction.generate_sighash(Some(vin), input.sig_hash_code)?,
+                let transaction_hash = match &address.format() {
+                    ZcashFormat::P2PKH => transaction.generate_sighash(Some(vin), input.sighash_code)?,
                     _ => unimplemented!(),
                 };
 
@@ -825,7 +1093,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
                         .to_vec(),
                     _ => unimplemented!(),
                 };
-                signature.push((input.sig_hash_code as u32).to_le_bytes()[0]);
+                signature.push((input.sighash_code as u32).to_le_bytes()[0]);
                 let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
 
                 // Public Viewing Key
@@ -841,7 +1109,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
                 };
                 let public_viewing_key: Vec<u8> = [vec![public_viewing_key.len() as u8], public_viewing_key].concat();
 
-                match input.outpoint.address.format() {
+                match &address.format() {
                     ZcashFormat::P2PKH => {
                         transaction.parameters.transparent_inputs[vin].script =
                             [signature.clone(), public_viewing_key].concat();
@@ -856,7 +1124,9 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
 
     /// Returns a transaction given the transaction bytes.
     fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
-        unimplemented!()
+        Ok(Self {
+            parameters: Self::TransactionParameters::read( &transaction[..])?,
+        })
     }
 
     /// Returns the transaction in bytes.
@@ -971,14 +1241,15 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         sighash: &[u8; 32],
     ) -> Result<(), TransactionError> {
         for spend in &mut self.parameters.shielded_inputs {
+            let spend_parameters = spend.spend_parameters.clone().unwrap();
             match &mut spend.spend_description {
                 Some(spend_description) => {
-                    let spending_key = spend.extended_private_key.to_extended_spending_key().expsk.to_bytes();
+                    let spending_key = spend_parameters.extended_private_key.to_extended_spending_key().expsk.to_bytes();
                     let ask = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.ask;
 
                     let sig = spend_sig(
                         jubjubPrivateKey(ask),
-                        spend.alpha,
+                        spend_parameters.alpha,
                         &sighash,
                         &mut StdRng::from_entropy(),
                         &JUBJUB,
@@ -1046,7 +1317,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     pub fn generate_sighash(
         &self,
         input_index: Option<usize>,
-        sig_hash_code: SignatureHash,
+        sighash_code: SignatureHash,
     ) -> Result<Hash, TransactionError> {
         let mut prev_outputs = vec![];
         let mut prev_sequences = vec![];
@@ -1109,13 +1380,21 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         preimage.extend(&self.parameters.lock_time.to_le_bytes());
         preimage.extend(&self.parameters.expiry_height.to_le_bytes());
         preimage.extend(&self.parameters.value_balance.to_le_bytes());
-        preimage.extend(&(sig_hash_code as u32).to_le_bytes());
+        preimage.extend(&(sighash_code as u32).to_le_bytes());
 
         if let Some(index) = input_index {
             preimage.extend(&self.parameters.transparent_inputs[index].serialize(false, true)?);
         };
 
         Ok(blake2_256_hash("ZcashSigHash", preimage, Some("sapling")))
+    }
+}
+
+impl<N: ZcashNetwork> FromStr for ZcashTransaction<N> {
+    type Err = TransactionError;
+
+    fn from_str(transaction: &str) -> Result<Self, Self::Err> {
+        Self::from_transaction_bytes(&hex::decode(transaction)?)
     }
 }
 
@@ -1155,7 +1434,7 @@ mod tests {
         pub script_pub_key: Option<&'static str>,
         pub utxo_amount: Option<u64>,
         pub sequence: Option<[u8; 4]>,
-        pub sig_hash_code: SignatureHash,
+        pub sighash_code: SignatureHash,
     }
 
     #[derive(Clone)]
@@ -1213,7 +1492,7 @@ mod tests {
                     redeem_script,
                     script_pub_key,
                     sequence,
-                    input.sig_hash_code,
+                    input.sighash_code,
                 )
                 .unwrap();
         }
@@ -1392,7 +1671,7 @@ mod tests {
                     redeem_script,
                     script_pub_key,
                     sequence,
-                    input.sig_hash_code,
+                    input.sighash_code,
                 )
                 .unwrap();
         }
@@ -1506,7 +1785,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(50000000),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         }
                     ],
                     outputs: &[
@@ -1538,7 +1817,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(1000000000),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         }
                     ],
                     outputs: &[
@@ -1574,7 +1853,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(100000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1602,7 +1881,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(100000000),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "cMefZsn9zKu7XPW6sGk6jXicgKQmT9DUE4Hj3wKLKQRfadSdDcWr",
@@ -1613,7 +1892,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(100000000),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1666,7 +1945,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(20000000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1698,7 +1977,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(9999900000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1734,7 +2013,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(3333266667),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "cT9pKXC1KMMG6g8dsCUGEHj3J4xnxwfBEhyv1ALs6Z6Ly9XH4qvj",
@@ -1745,7 +2024,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(3333266667),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1777,7 +2056,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(10000000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "cUSFcxAXwFkLVciaxm7Le3mZF3g1nX5MZsxwDs23sCwWgUekfd18",
@@ -1788,7 +2067,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(3333266666),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "cUSFcxAXwFkLVciaxm7Le3mZF3g1nX5MZsxwDs23sCwWgUekfd18",
@@ -1799,7 +2078,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(1666500000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "cMjLTdEgp48viTAL5eFXxaEpdj7jBJAg8ehw114BjBiZdUbCJLCr",
@@ -1810,7 +2089,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(5000000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1838,7 +2117,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(19999500000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1896,7 +2175,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(101000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1924,7 +2203,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(200010000),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -1964,7 +2243,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(500000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "KwY2f9ohrQoHv39dat6hdBnprxtD165dikuW21nExQVhY7KU2VHW",
@@ -1975,7 +2254,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(500000000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                         Input {
                             private_key: "L1CTbTh1npyZLjVdpfc2uYwW4mwRD549KGAY8d3RP2Fbk38Kryh4",
@@ -1986,7 +2265,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(10000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -2014,7 +2293,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(360100000), //3.601
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL
+                            sighash_code: SignatureHash::SIGHASH_ALL
                         },
                     ],
                     outputs: &[
@@ -2227,7 +2506,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(1000010000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL,
+                            sighash_code: SignatureHash::SIGHASH_ALL,
                         },
                     ],
                     outputs: &[],
@@ -2257,7 +2536,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(1000010000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL,
+                            sighash_code: SignatureHash::SIGHASH_ALL,
                         },
                         Input {
                             private_key: "cPZUjmuvdkcBMNyHn6wqXcVVqPbVrtxfcQc7UcrD2aD9mdrPBSf9",
@@ -2268,7 +2547,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(1000010000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL,
+                            sighash_code: SignatureHash::SIGHASH_ALL,
                         },
                     ],
                     outputs: &[],
@@ -2303,7 +2582,7 @@ mod tests {
                             script_pub_key: None,
                             utxo_amount: Some(1000010000),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                            sig_hash_code: SignatureHash::SIGHASH_ALL,
+                            sighash_code: SignatureHash::SIGHASH_ALL,
                         },
                     ],
                     outputs: &[
@@ -2346,7 +2625,7 @@ mod tests {
                 script_pub_key: Some("0000000000"),
                 utxo_amount: None,
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "KxyXFjrX9FjFX3HWWbRNxBrfZCRmD8A5kG31meyXtJDRPXrCXufK",
@@ -2357,7 +2636,7 @@ mod tests {
                 script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "KxyXFjrX9FjFX3HWWbRNxBrfZCRmD8A5kG31meyXtJDRPXrCXufK",
@@ -2368,7 +2647,7 @@ mod tests {
                 script_pub_key: Some("000014ff3e3ce0fc1febf95e0e0eac49a205ad04a7d47688ac"),
                 utxo_amount: Some(10000),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
             Input {
                 private_key: "",
@@ -2379,7 +2658,7 @@ mod tests {
                 script_pub_key: None,
                 utxo_amount: None,
                 sequence: None,
-                sig_hash_code: SignatureHash::SIGHASH_ALL,
+                sighash_code: SignatureHash::SIGHASH_ALL,
             },
         ];
 
@@ -2403,7 +2682,7 @@ mod tests {
                             redeem_script,
                             script_pub_key,
                             sequence,
-                            input.sig_hash_code,
+                            input.sighash_code,
                         );
                         assert!(invalid_input.is_err());
                     }
@@ -2685,6 +2964,20 @@ mod tests {
                 let pruned_expected_output = &expected_output[..variable_length_int.len()];
                 assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
             });
+        }
+
+        #[test]
+        fn test_read_bytes() {
+            let hex = "0400008085202f89000000000000ff64cd1d1027000000000000023d5da56d68dc73dc3a3101f1ba0d9d4df1ec62e5af8afd6df4a1117f7e0fc21ab14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c0681378cf36c1d450edb7c3fd6af75e2e61f04dab98a4d0e525b3b5fa3aea7a9e74b9cd36d096f97d6335967aa10973b9bca0106eade57ee859c97012e3cba848096cbcda3ea71a4cd4bda4fd0ca471b738bf43e488f4d76377716a6e9021fd8c1995599a5acf6c7351cbfb854b55befb690f2503a1ce09e3e19d197010a70e578cadc24038a020ec73ab35b2b9c18ac37bdfd88503e44fe083c1c5e19045b8b8f007ae2f8ae900c0fb3c25d9fe45e5f7995691396c1f820a101d875971a39b77c567ef0e7356a3acbbccda41e4989429cacdfff8410be44f2beb052375806ceecb8eee8b5f3c8ccfa6c2cf31e60f79baf8394a9bfa6d7cbe9da3050b2b2623c7dae8dc4bffd2e50fa07a9312b1f8139b74d12570bcc32e54cfac0f36367bb4da5725921b5983da4d47995f6340ef4846b40595b9005ff8de77ab96c7dd3c41001cb2fbee11437b3f7ad4b8df857670acc90be0276e5e2bb7497606d6c67f7d48cb14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06ab358c60840f5c87dd09a714b3a628e48e027ae90fda15008564104e75c0b838991b803ecd9c7b2f0d942cb7c00db929343baecf4103c95c822bf96230eff843a7b5a9ee0cd84b70a8ddb4c18e1519397c10f5c8092420a365fbcad07ae9002ffbee4b6b40324053b151e37d567f71b395c0d886fd3b6b6119054e2af4d8971274abeddf33eca51ce8d72fca3ed921cf7eba990981b454fc73bf23314c2f5f880188bf24ea1cc03e75fe9a7a20f8eb121db890b912b9879b944377717de01a167502ef203ae5b4148c4176ebe5e2966aa3fd73848c7618d782d56e0f2df7221f9994f49396a874a4ae6bcdec3967ecb22fb4eb8cbfeb80ce3c12679cbfb802287e014708e8acf42d986126d455553717384973f70df14d9617bfb758347db41d94aa83303e900811f0ebb5f2ee564b628fa97dffef3d51f7137115a67782350d017d8b53e6a099cfc7865b3d3c6230fb9c2f7d5d02e294cfe6b24a37a8543c59d098091d5a1b1222a4dd6917c79d35972aef8e8d5d4ef8f5528ec72292589a1f19bd33324ce792365963bdb82cccf248a4de0361e4da857ae9d046bf7fc13e2e3df0666e72d7442ec79c4631516708dbb15b1df288204b12b8b00a502ed15b0fabbf1f2b737813952a8c461c4ecc44e579330ebed52ac20d12bc53d827f795d3219fcf49acfbc62a3374d6dda00b5abc39bb403a5faa9740de68e1163411f9d4f0e4e47aab88c5646274c2e5feaf48d78006a34165f0d2e82789b6556b319f34ae2d8381cd8a5fa4ad307848b09195761050480436d2ed82f2623715f618713e388adf8195a3fe78f65f1183d21617457f9d5d4501c4046e659b439306538996cf76a569a79802eeb970a2f9b1cfca8643840de20225954162efdbf9c138e34112d8120d2042ed1e65213e28466959f51bd5c920612ffa386ace06c8b088399d05dabffed4059d47c6ef63894d8611943496f7d4378dea6266069fea08783495e5c079801002e4601b915f645030f6b849b25f6023099c3efceb076483f437130446fdfa3e36a22a29a8447da3fcbc163b8535f6b62e9da55d30e82bd37e1c886de7c705a9acec355ee33e6451d55ba220c0370a38ebd1e96ed767e2843519871f33db42d4ebe7d087db83167be48a3fbcfaf15b5213940da33a733052d0c3d8b6e09d928637aeaaca13deb16f95ec104c95e192c80c80d98e173ab45e5c75a7caf3eee52209e600fbd63b406b52c5b10da692f6fe1a4f5b84541916394689a0c8633679bed1c4b0ce7d86788b3dc2831d72482f2b3ffd39a9c3b321165c0395f9c988fab1e9468c46a76ce0145dbdd0dc9af86e5d5fdc576bfa2f5223825f4abaa2a919977d52898e6bab89f23e752a0c3f8d0e14da4429e0b502deb3becb50d78c3e1eab23a9f8ee8557fa7e272a4dba6572263f45d1ccc6177630079edb6ac9abf1d59118bee18d9904ca9921d66e6617df26082eec43eb77fdfd8ec7b655d957bb654b83408fe49f175af44aa37e2c3c27cd2185cecf337b4e1961608d9c4ddb1972b3fe74dd3d509c048d5838a566437c14d7326279422d5de31d3347cba78857e83e9559544d418ca0f8f3b94e7f0316e9d71c3d537d40ba67312ffe0ad126983379dc8233ca311c49ff6743b802c5d813f91154ef51f5c2b9e0442072dd5442c978a4f553a78007cffd2f2d96cc61264ab0c8715698c49916f418e817b76e8b421887e7f6f730ec97b6f8dee9619569c902518fb5215afa3bb6a9462c822389d0ffe92c600a53ecdd61f50c91e753ebdb67004dda5da1e12873f970d2f6cb32284ee070ae2b3f192674e1f34189e9eb3559ab127e4b75e2aeb6e709d44be50344a8ca69e5a58fd3a1b051896ddfecab582709";
+            let tx = ZcashTransaction::<Mainnet>::from_str(hex).unwrap();
+
+//            println!("tx is: {:?}", tx);
+            let bytes = tx.to_transaction_bytes().unwrap();
+            println!("tx_bytes is: {:?}", hex::encode(&bytes));
+            let id = tx.to_transaction_id().unwrap();
+            println!("tx id is: {:?}", &id.to_string());
+            assert_eq!(0,1);
+
         }
     }
 }

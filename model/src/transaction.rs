@@ -118,6 +118,9 @@ pub enum TransactionError {
     #[fail(display = "{}", _0)]
     PrivateKeyError(PrivateKeyError),
 
+    #[fail(display = "Joinsplits are not supported")]
+    UnsupportedJoinsplits,
+
     #[fail(display = "unsupported preimage operation on address format of {}", _0)]
     UnsupportedPreimage(String),
 }
