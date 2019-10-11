@@ -11,7 +11,7 @@ const MAX_COINS: i64 = 21_000_000 * COIN;
 
 /// Represents the amount of Bitcoin in satoshis
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BitcoinAmount(i64);
+pub struct BitcoinAmount(pub i64);
 
 pub enum Denomination {
     // sat

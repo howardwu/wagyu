@@ -11,7 +11,7 @@ const MAX_COINS: i64 = 21_000_000 * COIN;
 
 /// Represents the amount of ZEC in zatoshis
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ZcashAmount(i64);
+pub struct ZcashAmount(pub i64);
 
 impl Amount for ZcashAmount {}
 

@@ -6,7 +6,7 @@ use std::fmt;
 
 /// Represents the amount of Ethereum in wei
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EthereumAmount(U256);
+pub struct EthereumAmount(pub U256);
 
 pub enum Denomination {
     Wei,

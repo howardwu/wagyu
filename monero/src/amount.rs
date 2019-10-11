@@ -8,7 +8,7 @@ const COIN: i128 = 1_0000_0000_000;
 
 /// Represents the amount of Monero in piconeros
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MoneroAmount(i128);
+pub struct MoneroAmount(pub i128);
 
 pub enum Denomination {
     Piconero,
