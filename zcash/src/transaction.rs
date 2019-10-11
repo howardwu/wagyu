@@ -1,4 +1,5 @@
 use crate::address::ZcashAddress;
+use crate::amount::ZcashAmount;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
 use crate::format::ZcashFormat;
 use crate::network::ZcashNetwork;
@@ -207,7 +208,7 @@ pub struct Outpoint<N: ZcashNetwork> {
     /// Index of the transaction being used - 4 bytes
     pub index: u32,
     /// Amount associated with the UTXO - used for segwit transaction signatures
-    pub amount: u64,
+    pub amount: ZcashAmount,
     /// Script public key asssociated with claiming this particular input UTXO
     pub script_pub_key: Vec<u8>,
     /// Optional redeem script - for segwit transactions
@@ -240,7 +241,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         address: ZcashAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
-        amount: Option<u64>,
+        amount: Option<ZcashAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
         sequence: Option<Vec<u8>>,
@@ -257,10 +258,10 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         /// Validate the address format with the given scripts (P2SH currently unsupported)
         pub fn validate_address_format(
             address_format: &ZcashFormat,
-            amount: &Option<u64>,
+            amount: &Option<ZcashAmount>,
             redeem_script: &Option<Vec<u8>>,
             script_pub_key: &Vec<u8>,
-        ) -> Result<(u64, Vec<u8>), TransactionError> {
+        ) -> Result<(ZcashAmount, Vec<u8>), TransactionError> {
             if address_format == &ZcashFormat::P2PKH
                 && script_pub_key[0] != Opcodes::OP_DUP as u8
                 && script_pub_key[1] != Opcodes::OP_HASH160 as u8
@@ -269,7 +270,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
                 return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
             }
 
-            Ok((amount.unwrap_or(0), redeem_script.clone().unwrap_or(Vec::new())))
+            Ok((amount.unwrap_or(ZcashAmount::ZERO), redeem_script.clone().unwrap_or(Vec::new())))
         }
 
         let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
@@ -306,7 +307,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         let outpoint = Outpoint {
             reverse_transaction_id: transaction_hash.to_vec(),
             index: u32::from_le_bytes(vin),
-            amount: 0,
+            amount: ZcashAmount::ZERO,
             script_pub_key: vec![],
             redeem_script: vec![],
             address: None,
@@ -356,7 +357,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         };
 
         if hash_preimage {
-            input.extend(&self.outpoint.amount.to_le_bytes());
+            input.extend(&self.outpoint.amount.0.to_le_bytes());
         };
 
         input.extend(&self.sequence);
@@ -368,14 +369,14 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
 #[derive(Debug, Clone)]
 pub struct ZcashTransparentOutput {
     /// The amount (in zatoshi)
-    pub amount: u64,
+    pub amount: ZcashAmount,
     /// The public key script
     pub script_pub_key: Vec<u8>,
 }
 
 impl ZcashTransparentOutput {
     /// Returns a new Zcash transparent output.
-    pub fn new<N: ZcashNetwork>(address: &ZcashAddress<N>, amount: u64) -> Result<Self, TransactionError> {
+    pub fn new<N: ZcashNetwork>(address: &ZcashAddress<N>, amount: ZcashAmount) -> Result<Self, TransactionError> {
         Ok(Self {
             amount,
             script_pub_key: create_script_pub_key::<N>(address)?,
@@ -394,7 +395,7 @@ impl ZcashTransparentOutput {
         })?;
 
         Ok(Self {
-            amount: u64::from_le_bytes(amount),
+            amount: ZcashAmount::from_zatoshi(u64::from_le_bytes(amount) as i64)?,
             script_pub_key,
         })
     }
@@ -402,7 +403,7 @@ impl ZcashTransparentOutput {
     /// Returns the serialized transparent output.
     pub fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         let mut output = vec![];
-        output.extend(&self.amount.to_le_bytes());
+        output.extend(&self.amount.0.to_le_bytes());
         output.extend(variable_length_integer(self.script_pub_key.len() as u64)?);
         output.extend(&self.script_pub_key);
         Ok(output)
@@ -705,7 +706,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
     pub fn new(
         ovk: SaplingOutgoingViewingKey,
         address: &ZcashAddress<N>,
-        value: u64,
+        value: ZcashAmount,
     ) -> Result<Self, TransactionError> {
         let diversifier = match address.to_diversifier() {
             Some(d) => {
@@ -735,7 +736,7 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
                 let note = Note {
                     g_d,
                     pk_d,
-                    value,
+                    value: value.0 as u64,
                     r: Fs::random(&mut StdRng::from_entropy()),
                 };
 
@@ -880,7 +881,7 @@ pub struct ZcashTransactionParameters<N: ZcashNetwork> {
     /// and adds it to the transparent value pool.
     ///
     /// A negative balancing value does the reverse.
-    pub value_balance: i64,
+    pub value_balance: ZcashAmount,
     /// The binding signature enforces the consistency of the balancing value with
     /// the value commitments in spend descriptions and output descriptions.
     ///
@@ -910,7 +911,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
             shielded_inputs: vec![],
             shielded_outputs: vec![],
             expiry_height,
-            value_balance: 0,
+            value_balance: ZcashAmount::ZERO,
             binding_signature: None,
             anchor: None,
             lock_time,
@@ -923,7 +924,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         address: ZcashAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
-        amount: Option<u64>,
+        amount: Option<ZcashAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
         sequence: Option<Vec<u8>>,
@@ -944,7 +945,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     }
 
     /// Returns the transaction parameters with the given transparent output appended.
-    pub fn add_transparent_output(&self, address: &ZcashAddress<N>, amount: u64) -> Result<Self, TransactionError> {
+    pub fn add_transparent_output(&self, address: &ZcashAddress<N>, amount: ZcashAmount) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
         parameters
             .transparent_outputs
@@ -982,7 +983,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
             None => return Err(TransactionError::MissingSpendParameters),
         };
 
-        parameters.value_balance += value as i64;
+        parameters.value_balance = parameters.value_balance.add(ZcashAmount::from_zatoshi(value as i64)?)?;
         parameters.shielded_inputs.push(sapling_spend);
         Ok(parameters)
     }
@@ -992,7 +993,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         &self,
         ovk: SaplingOutgoingViewingKey,
         address: &ZcashAddress<N>,
-        amount: u64,
+        amount: ZcashAmount,
     ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
         let sapling_output = SaplingOutput::<N>::new(ovk, address, amount)?;
@@ -1002,7 +1003,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
             None => return Err(TransactionError::MissingOutputParameters),
         };
 
-        parameters.value_balance -= value as i64;
+        parameters.value_balance = parameters.value_balance.sub(ZcashAmount::from_zatoshi(value as i64)?)?;
         parameters.shielded_outputs.push(sapling_output);
         Ok(parameters)
     }
@@ -1047,7 +1048,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
             expiry_height: u32::from_le_bytes(expiry_height),
             shielded_inputs,
             shielded_outputs,
-            value_balance: i64::from_le_bytes(value_balance),
+            value_balance: ZcashAmount::from_zatoshi(i64::from_le_bytes(value_balance))?,
             binding_signature,
             anchor: None,
         })
@@ -1176,7 +1177,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
 
         transaction.extend(&self.parameters.lock_time.to_le_bytes());
         transaction.extend(&self.parameters.expiry_height.to_le_bytes());
-        transaction.extend(&self.parameters.value_balance.to_le_bytes());
+        transaction.extend(&self.parameters.value_balance.0.to_le_bytes());
 
         match &self.parameters.shielded_inputs.len() {
             0 => transaction.push(0u8),
@@ -1335,11 +1336,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         sighash: &[u8; 32],
     ) -> Result<(), TransactionError> {
         let mut binding_sig = [0u8; 64];
-        let sig = proving_ctx.binding_sig(Amount::from_i64(self.parameters.value_balance)?, &sighash, &JUBJUB)?;
+        let sig = proving_ctx.binding_sig(Amount::from_i64(self.parameters.value_balance.0)?, &sighash, &JUBJUB)?;
         sig.write(&mut binding_sig[..])?;
         self.parameters.binding_signature = Some(binding_sig.to_vec());
 
-        match verifying_ctx.final_check(Amount::from_i64(self.parameters.value_balance)?, &sighash, sig, &JUBJUB) {
+        match verifying_ctx.final_check(Amount::from_i64(self.parameters.value_balance.0)?, &sighash, sig, &JUBJUB) {
             true => Ok(()),
             false => Err(TransactionError::InvalidBindingSig()),
         }
@@ -1412,7 +1413,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         preimage.extend(&hash_shielded_outputs);
         preimage.extend(&self.parameters.lock_time.to_le_bytes());
         preimage.extend(&self.parameters.expiry_height.to_le_bytes());
-        preimage.extend(&self.parameters.value_balance.to_le_bytes());
+        preimage.extend(&self.parameters.value_balance.0.to_le_bytes());
         preimage.extend(&(sighash_code as u32).to_le_bytes());
 
         if let Some(index) = input_index {
@@ -1465,7 +1466,7 @@ mod tests {
         pub index: u32,
         pub redeem_script: Option<&'static str>,
         pub script_pub_key: Option<&'static str>,
-        pub utxo_amount: Option<u64>,
+        pub utxo_amount: Option<ZcashAmount>,
         pub sequence: Option<[u8; 4]>,
         pub sighash_code: SignatureHash,
     }
@@ -1483,7 +1484,7 @@ mod tests {
     #[derive(Clone)]
     pub struct Output {
         pub address: &'static str,
-        pub amount: u64,
+        pub amount: ZcashAmount,
     }
 
     fn test_sapling_transaction<N: ZcashNetwork>(
@@ -1832,7 +1833,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(50000000),
+                            utxo_amount: Some(ZcashAmount(50000000)),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         }
@@ -1840,11 +1841,11 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmMVUvhGDFmCAUsXdeGLhftcPJzB8LQ7VrV",
-                            amount: 40000000
+                            amount: ZcashAmount(40000000)
                         },
                         Output {
                             address: "tmHQEbDidJm3t6RDp4Y5F8inXd84CqHwTDA",
-                            amount: 9999755
+                            amount: ZcashAmount(9999755)
                         }
                     ],
                     sapling_inputs: &[],
@@ -1864,7 +1865,7 @@ mod tests {
                             index: 12,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(1000000000),
+                            utxo_amount: Some(ZcashAmount(1000000000)),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         }
@@ -1872,15 +1873,15 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmTyLLYAaPpK2nsqKArgchdXVGJ4zsB6CQZ",
-                            amount: 900000000,
+                            amount: ZcashAmount(900000000)
                         },
                         Output {
                             address: "tmBmPifMLsmRkNyBg2u1FHFWMXquWqGpQ8G",
-                            amount: 50000000
+                            amount: ZcashAmount(50000000)
                         },
                         Output {
                             address: "tmDrbFH5RELCJnMTEaWMo9VF3YaBgqTEgX6",
-                            amount: 49900000
+                            amount: ZcashAmount(49900000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -1900,7 +1901,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(100000000),
+                            utxo_amount: Some(ZcashAmount(100000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -1908,7 +1909,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmL1qkaq3yedV1kbGommnx7tVNXQVpq4cNy",
-                            amount: 99000000
+                            amount: ZcashAmount(99000000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -1928,7 +1929,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(100000000),
+                            utxo_amount: Some(ZcashAmount(100000000)),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -1939,7 +1940,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(100000000),
+                            utxo_amount: Some(ZcashAmount(100000000)),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -1947,19 +1948,19 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmP9PseY1RvxiLompZ6mUSM9CymBpEbvU6J",
-                            amount: 45000000
+                            amount: ZcashAmount(45000000)
                         },
                         Output {
                             address: "tmT1UteSdKa1jXBpsd7GLoaBy4RpSsNgcuQ",
-                            amount: 100000000
+                            amount: ZcashAmount(100000000)
                         },
                         Output {
                             address: "tmE63tsYgu7Yv2AFMKWJJTW737adHpxCk4q",
-                            amount: 23000000
+                            amount: ZcashAmount(23000000)
                         },
                         Output {
                             address: "tmKDzQrKDbPGeET81pM3v5y6M7CiijyoeEo",
-                            amount: 31000000
+                            amount: ZcashAmount(31000000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -1992,7 +1993,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(20000000000),
+                            utxo_amount: Some(ZcashAmount(20000000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2000,11 +2001,11 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmNP9aZHniVeXmsMQxrN2pDJt4aCd6MGcYE",
-                            amount: 10000000000
+                            amount: ZcashAmount(10000000000)
                         },
                         Output {
                             address: "tmVK7tKxTjnXdaEuDhyoAdZ1iViM2CrTQuV",
-                            amount: 9999900000
+                            amount: ZcashAmount(9999900000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2024,7 +2025,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(9999900000),
+                            utxo_amount: Some(ZcashAmount(9999900000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2032,15 +2033,15 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmFgo8Damu8M6fKF5rJzZnkFMERMvo97sjT",
-                            amount: 3333266667
+                            amount: ZcashAmount(3333266667)
                         },
                         Output {
                             address: "tmLTBB1na4qudp1TMDqzxr6dcE8dAQXJxrK",
-                            amount: 3333266667
+                            amount: ZcashAmount(3333266667)
                         },
                         Output {
                             address: "tmLmTTRLwYAsMWJgKWVW14echT89pYztU7u",
-                            amount: 3333266666
+                            amount: ZcashAmount(3333266666)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2060,7 +2061,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(3333266667),
+                            utxo_amount: Some(ZcashAmount(3333266667)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2071,7 +2072,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(3333266667),
+                            utxo_amount: Some(ZcashAmount(3333266667)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2079,11 +2080,11 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmLmTTRLwYAsMWJgKWVW14echT89pYztU7u",
-                            amount: 1666500000
+                            amount: ZcashAmount(1666500000)
                         },
                         Output {
                             address: "tmAgmYQnL7fnHvBHJExK2oZXrJBnkRfcq5f",
-                            amount: 5000000000
+                            amount: ZcashAmount(5000000000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2103,7 +2104,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(10000000000),
+                            utxo_amount: Some(ZcashAmount(10000000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2114,7 +2115,7 @@ mod tests {
                             index: 2,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(3333266666),
+                            utxo_amount: Some(ZcashAmount(3333266666)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2125,7 +2126,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(1666500000),
+                            utxo_amount: Some(ZcashAmount(1666500000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2136,7 +2137,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(5000000000),
+                            utxo_amount: Some(ZcashAmount(5000000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2144,7 +2145,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmFCcsdkr247okCfD61PBpzkP1GmkS7Zk6h",
-                            amount: 19999500000
+                            amount: ZcashAmount(19999500000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2164,7 +2165,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(19999500000),
+                            utxo_amount: Some(ZcashAmount(19999500000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2172,23 +2173,23 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmXYJ4cPwLTNYgs6y9tZxJJNC9sBiNDto7e",
-                            amount: 1000010000
+                            amount: ZcashAmount(1000010000)
                         },
                         Output {
                             address: "tmEJE9sBgQfm2g3qXk4tZoWbhLkJmfxf6y7",
-                            amount: 1000010000
+                            amount: ZcashAmount(1000010000)
                         },
                         Output {
                             address: "tmAuJ3R6tmb3mb8n1ps9DTNHatgYagaZpMd",
-                            amount: 1000010000
+                            amount: ZcashAmount(1000010000)
                         },
                         Output {
                             address: "tmQQSuLgnnymA1FEo81Z32ng8JDu9q7zEnh",
-                            amount: 1000010000
+                            amount: ZcashAmount(1000010000)
                         },
                         Output {
                             address: "tmEQbGRRVoFWFRqdPE7qCJXgeWBWV5vmcyF",
-                            amount: 15999450000
+                            amount: ZcashAmount(15999450000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2222,7 +2223,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(101000000),
+                            utxo_amount: Some(ZcashAmount(101000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2230,7 +2231,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "t1S5TMtjLu73QwjMkYDwa67B39qqneqq4yY",
-                            amount: 100000000
+                            amount: ZcashAmount(100000000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2250,7 +2251,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(200010000),
+                            utxo_amount: Some(ZcashAmount(200010000)),
                             sequence: Some([0xfe, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2258,19 +2259,19 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "t1bq98GbMv8wbjkEQqQkMxiHi7Qefb67jXr",
-                            amount: 50000000
+                            amount: ZcashAmount(50000000)
                         },
                         Output {
                             address: "t1MkLsaPmTuc8XQjLENxppkCFUkCtTRCsZZ",
-                            amount: 50000000
+                            amount: ZcashAmount(50000000)
                         },
                         Output {
                             address: "t1KvUTiJ8LJeFygnzNFigUCpiUqak7Yzbqq",
-                            amount: 50000000
+                            amount: ZcashAmount(50000000)
                         },
                         Output {
                             address: "t1QNGuoLLkYXDfCFJUGGajQugMCUGRxbAvn",
-                            amount: 50000000
+                            amount: ZcashAmount(50000000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2290,7 +2291,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(500000000),
+                            utxo_amount: Some(ZcashAmount(500000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2301,7 +2302,7 @@ mod tests {
                             index: 2,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(500000000),
+                            utxo_amount: Some(ZcashAmount(500000000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2312,7 +2313,7 @@ mod tests {
                             index: 3,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(10000),
+                            utxo_amount: Some(ZcashAmount(10000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2320,7 +2321,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "t1YEmnC2MMFnsAFQwiijeJYeEy4Hui8ZFju",
-                            amount: 1000000000
+                            amount: ZcashAmount(1000000000)
                         },
                     ],
                     sapling_inputs: &[],
@@ -2340,7 +2341,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(360100000), //3.601
+                            utxo_amount: Some(ZcashAmount(360100000)), //3.601
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL
                         },
@@ -2348,35 +2349,35 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "t1JfgVaB5JXx7dQ8gvJzoQH6ng975V1B25G",
-                            amount: 10000000
+                            amount: ZcashAmount(10000000)
                         },
                         Output {
                             address: "t1MsywTe4TT3QtLjV6CwS1Y4Q1WSBE6vaPS",
-                            amount: 20000000
+                            amount: ZcashAmount(20000000)
                         },
                         Output {
                             address: "t1cx5apduMvoVGYxPkkM3ygsZv8uVHxdn7C",
-                            amount: 30000000
+                            amount: ZcashAmount(30000000)
                         },
                         Output {
                             address: "t1JMFpgce1Tex6jHMmJcUHVWZB57KGezWby",
-                            amount: 40000000
+                            amount: ZcashAmount(40000000)
                         },
                         Output {
                             address: "t1MPCPc6KGbC2shZauK1J7wAitkeLK7SVYU",
-                            amount: 50000000
+                            amount: ZcashAmount(50000000)
                         },
                         Output {
                             address: "t1g1VEHW9Z69acSHwxcr2tQgmUnV8kX5Kat",
-                            amount: 60000000
+                            amount: ZcashAmount(60000000)
                         },
                         Output {
                             address: "t1PqYvqKND2ex5rB1BaVQ1MzWumxV9qzhLz",
-                            amount: 70000000
+                            amount: ZcashAmount(70000000)
                         },
                         Output {
                             address: "t1JQKfrVZtFVBw6vQ1sSxCp7AbHjBfRrVVc",
-                            amount: 80000000
+                            amount: ZcashAmount(80000000)
                         }
                     ],
                     sapling_inputs: &[],
@@ -2409,7 +2410,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmKXdkNCRxZ8Ha6voL4MVByBRkCPez5ak6Z",
-                            amount: 499960000,
+                            amount: ZcashAmount(499960000)
                         },
                     ],
                     sapling_inputs: &[
@@ -2447,7 +2448,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmEn21pZv4FTPfXinSNfdtQyDVhnkRz9T7q",
-                            amount: 999980000,
+                            amount: ZcashAmount(999980000)
                         },
                     ],
                     sapling_inputs: &[
@@ -2483,11 +2484,11 @@ mod tests {
                     sapling_outputs: &[
                         Output {
                             address: "ztestsapling1ml8v92nfl07t7tsncwf9x0upqgncljpcrs3c53esgjupkagfffk98ngwhdqcw5pc8v4r2wmx0lk",
-                            amount: 249980000,
+                            amount: ZcashAmount(249980000)
                         },
                         Output {
                             address: "ztestsapling1nnx9cu3u0jy2zwwru2u4mpffkdtkw5r2er399xwlpj5d340znfufdl0l8ec2ag94zgur54hlmn8",
-                            amount: 249980000,
+                            amount: ZcashAmount(249980000)
                         },
                     ],
                     expected_signed_transaction: "",
@@ -2520,7 +2521,7 @@ mod tests {
                     sapling_outputs: &[
                         Output {
                             address: "ztestsapling1vtt4em42w9qgt65x8hj55ua7m8dcxyvfm23a5zkw957v2xtk57jj0x06dnkamgp3tlz5g5053t5",
-                            amount: 499950000,
+                            amount: ZcashAmount(499950000)
                         },
                     ],
                     expected_signed_transaction: "",
@@ -2553,7 +2554,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(1000010000),
+                            utxo_amount: Some(ZcashAmount(1000010000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL,
                         },
@@ -2564,7 +2565,7 @@ mod tests {
                         Output {
                             address:
                             "ztestsapling1z9thqxgzavwxfr58x72784y8uasz2hvzfvvzu3dl9prk3kyym04nf5vzwgpf5ddz2cu3ytf9jmg",
-                            amount: 1000000000,
+                            amount: ZcashAmount(1000000000)
                         },
                     ],
                     expected_signed_transaction: "",
@@ -2583,7 +2584,7 @@ mod tests {
                             index: 0,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(1000010000),
+                            utxo_amount: Some(ZcashAmount(1000010000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL,
                         },
@@ -2594,7 +2595,7 @@ mod tests {
                             index: 1,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(1000010000),
+                            utxo_amount: Some(ZcashAmount(1000010000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL,
                         },
@@ -2605,12 +2606,12 @@ mod tests {
                         Output {
                             address:
                             "ztestsapling1w4q82skzstjkql5t9x96yl8pxkm0yaymlgp3z9w0z9nzgmqj20fz749wyc4j550gvp8uyauughk",
-                            amount: 1000000000,
+                            amount: ZcashAmount(1000000000)
                         },
                         Output {
                             address:
                             "ztestsapling18zxfnamtuvl0hapcmmturn47ttgjftmfpjmk4nvph0yjfywhyrmp97hnepw8gf9gka925apsj5d",
-                            amount: 1000000000,
+                            amount: ZcashAmount(1000000000)
                         },
                     ],
                     expected_signed_transaction: "",
@@ -2629,7 +2630,7 @@ mod tests {
                             index: 2,
                             redeem_script: None,
                             script_pub_key: None,
-                            utxo_amount: Some(1000010000),
+                            utxo_amount: Some(ZcashAmount(1000010000)),
                             sequence: Some([0xff, 0xff, 0xff, 0xff]),
                             sighash_code: SignatureHash::SIGHASH_ALL,
                         },
@@ -2637,7 +2638,7 @@ mod tests {
                     outputs: &[
                         Output {
                             address: "tmGZKXeeSu2sVS72Lg1KAuKKUxg2S4iGXZ7",
-                            amount: 500000000,
+                            amount: ZcashAmount(500000000),
                         },
                     ],
                     sapling_inputs: &[],
@@ -2645,7 +2646,7 @@ mod tests {
                         Output {
                             address:
                             "ztestsapling1j9kgn4sawrk8zdq63a6uarf8xggk9ugm9wfynlkg2z2lgh7p47tt69686xepn0t323dgs5ttaqn",
-                            amount: 500000000,
+                            amount: ZcashAmount(500000000),
                         },
                     ],
                     expected_signed_transaction: "",
@@ -2683,7 +2684,7 @@ mod tests {
                 index: 0,
                 redeem_script: None,
                 script_pub_key: Some("a914e39b100350d6896ad0f572c9fe452fcac549fe7b87"),
-                utxo_amount: Some(10000),
+                utxo_amount: Some(ZcashAmount(10000)),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sighash_code: SignatureHash::SIGHASH_ALL,
             },
@@ -2694,7 +2695,7 @@ mod tests {
                 index: 0,
                 redeem_script: None,
                 script_pub_key: Some("000014ff3e3ce0fc1febf95e0e0eac49a205ad04a7d47688ac"),
-                utxo_amount: Some(10000),
+                utxo_amount: Some(ZcashAmount(10000)),
                 sequence: Some([0xff, 0xff, 0xff, 0xff]),
                 sighash_code: SignatureHash::SIGHASH_ALL,
             },
@@ -2912,7 +2913,7 @@ mod tests {
 
             let output = Output {
                 address: "tmMVUvhGDFmCAUsXdeGLhftcPJzB8LQ7VrV",
-                amount: 40000000,
+                amount: ZcashAmount(40000000),
             };
 
             let parameters = ZcashTransactionParameters::<N>::new(version, lock_time, expiry_height).unwrap();
