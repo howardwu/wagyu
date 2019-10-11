@@ -308,9 +308,10 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
     /// Read and output a Bitcoin transaction input
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut transaction_hash = [0u8; 32];
-        reader.read(&mut transaction_hash)?;
-
         let mut vin = [0u8; 4];
+        let mut sequence = [0u8; 4];
+
+        reader.read(&mut transaction_hash)?;
         reader.read(&mut vin)?;
 
         let outpoint = Outpoint {
@@ -328,7 +329,6 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             Ok(byte[0])
         })?;
 
-        let mut sequence = [0u8; 4];
         reader.read(&mut sequence)?;
 
         let script_sig_len = read_variable_length_integer(&script_sig[..])?;
