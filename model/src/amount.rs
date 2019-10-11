@@ -4,7 +4,7 @@ use std::{
 };
 
 /// The interface for a generic amount.
-pub trait Amount: Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
+pub trait Amount: Copy + Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
 
 #[derive(Debug, Fail)]
 pub enum AmountError {

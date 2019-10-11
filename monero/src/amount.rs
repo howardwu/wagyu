@@ -7,7 +7,7 @@ use std::fmt;
 const COIN: i128 = 1_0000_0000_000;
 
 /// Represents the amount of Monero in piconeros
-#[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct MoneroAmount(pub i128);
 
 pub enum Denomination {

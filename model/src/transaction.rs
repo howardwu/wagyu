@@ -1,4 +1,5 @@
 use crate::address::{Address, AddressError};
+use crate::amount::AmountError;
 use crate::extended_private_key::ExtendedPrivateKeyError;
 use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
@@ -42,6 +43,9 @@ pub trait Transaction: Clone + Send + Sync + 'static {
 pub enum TransactionError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
+
+    #[fail(display = "{}", _0)]
+    AmountError(AmountError),
 
     #[fail(display = "witnesses have a conflicting anchor")]
     ConflictingWitnessAnchors(),
@@ -146,6 +150,12 @@ impl From<()> for TransactionError {
 impl From<AddressError> for TransactionError {
     fn from(error: AddressError) -> Self {
         TransactionError::AddressError(error)
+    }
+}
+
+impl From<AmountError> for TransactionError {
+    fn from(error: AmountError) -> Self {
+        TransactionError::AmountError(error)
     }
 }
 
