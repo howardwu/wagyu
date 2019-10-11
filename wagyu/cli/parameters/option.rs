@@ -205,12 +205,6 @@ pub const DIVERSIFIER_HD_ZCASH: OptionType = (
     &[],
     &[],
 );
-pub const FORMAT_HD_BITCOIN: OptionType = (
-    "[format] -f --format=[format] 'Generates an HD wallet with a specified format'",
-    &[],
-    &["bech32", "legacy", "segwit"],
-    &[],
-);
 pub const LANGUAGE_HD: OptionType = (
     "[language] -l --language=[language] 'Generates an HD wallet with a specified language'",
     &[],
@@ -301,12 +295,7 @@ pub const EXTENDED_PRIVATE: OptionType = (
     &[],
     &[],
 );
-pub const FORMAT_IMPORT_HD_BITCOIN: OptionType = (
-    "[format] -f --format=[format] 'Imports an HD wallet with a specified format'",
-    &[],
-    &["bech32", "legacy", "segwit"],
-    &[],
-);
+
 pub const NETWORK_IMPORT_HD_BITCOIN: OptionType = (
     "[network] -n --network=[network] 'Imports an HD wallet for a specified network'",
     &[],

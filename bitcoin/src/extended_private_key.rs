@@ -109,8 +109,13 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
             let mut parent_fingerprint = [0u8; 4];
             parent_fingerprint.copy_from_slice(&hash160(public_key)[0..4]);
 
+            let format = match path {
+                BitcoinDerivationPath::BIP49(_) => BitcoinFormat::P2SH_P2WPKH,
+                _ => extended_private_key.format.clone(),
+            };
+
             extended_private_key = Self {
-                format: extended_private_key.format.clone(),
+                format,
                 depth: extended_private_key.depth + 1,
                 parent_fingerprint,
                 child_index: index,
@@ -140,6 +145,13 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
     /// Returns the address of the corresponding extended private key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
         self.private_key.to_address(format)
+    }
+}
+
+impl<N: BitcoinNetwork> BitcoinExtendedPrivateKey<N> {
+    /// Returns the format of the Bitcoin extended private key.
+    pub fn format(&self) -> BitcoinFormat {
+        self.format.clone()
     }
 }
 
