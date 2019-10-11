@@ -892,7 +892,7 @@ mod tests {
         }
 
         let new_signed_transaction = hex::encode(new_transaction.to_transaction_bytes().unwrap());
-        let new_transaction_id = hex::encode(new_transaction.to_transaction_id().unwrap().txid);
+        let new_transaction_id = new_transaction.to_transaction_id().unwrap().to_string();
 
         assert_eq!(expected_signed_transaction, &new_signed_transaction);
         assert_eq!(expected_transaction_id, &new_transaction_id);
