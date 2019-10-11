@@ -49,7 +49,6 @@ pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> 
     }
 }
 
-
 /// Decode the value of a variable length integer.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, TransactionError> {
@@ -90,8 +89,8 @@ pub struct ZcashVector;
 impl ZcashVector {
     /// Read and output a vector with a variable length integer
     pub fn read<R: Read, E, F>(mut reader: R, func: F) -> Result<Vec<E>, TransactionError>
-        where
-            F: Fn(&mut R) -> Result<E, TransactionError>,
+    where
+        F: Fn(&mut R) -> Result<E, TransactionError>,
     {
         let count = read_variable_length_integer(&mut reader)?;
         (0..count).map(|_| func(&mut reader)).collect()
@@ -291,7 +290,7 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
             outpoint,
             script: Vec::new(),
             sequence,
-            sighash_code: sighash_code,
+            sighash_code,
             is_signed: false,
         })
     }
@@ -557,7 +556,11 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
             None => return Err(TransactionError::MissingSpendParameters),
         };
 
-        let spending_key = spend_parameters.extended_private_key.to_extended_spending_key().expsk.to_bytes();
+        let spending_key = spend_parameters
+            .extended_private_key
+            .to_extended_spending_key()
+            .expsk
+            .to_bytes();
         let proof_generation_key = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.proof_generation_key(&JUBJUB);
 
         let nf = &spend_parameters.note.nf(
@@ -614,7 +617,6 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         })
     }
 }
-
 
 /// Represents a Zcash Sapling output description
 #[derive(Debug, Clone)]
@@ -820,7 +822,11 @@ impl<N: ZcashNetwork> SaplingOutput<N> {
             &JUBJUB,
         ) {
             true => {}
-            false => return Err(TransactionError::InvalidOutputDescription(output_parameters.address.to_string())),
+            false => {
+                return Err(TransactionError::InvalidOutputDescription(
+                    output_parameters.address.to_string(),
+                ))
+            }
         };
 
         let output_description = SaplingOutputDescription {
@@ -1024,7 +1030,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         let shielded_outputs = ZcashVector::read(&mut reader, SaplingOutput::<N>::read)?;
 
         if read_variable_length_integer(&mut reader)? > 0 {
-            return Err(TransactionError::UnsupportedJoinsplits)
+            return Err(TransactionError::UnsupportedJoinsplits);
         }
 
         let binding_signature = match reader.read(&mut binding_sig)? {
@@ -1144,7 +1150,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
     /// Returns a transaction given the transaction bytes.
     fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
         Ok(Self {
-            parameters: Self::TransactionParameters::read( &transaction[..])?,
+            parameters: Self::TransactionParameters::read(&transaction[..])?,
         })
     }
 
@@ -1267,7 +1273,11 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
             match &mut spend.spend_description {
                 Some(spend_description) => {
-                    let spending_key = spend_parameters.extended_private_key.to_extended_spending_key().expsk.to_bytes();
+                    let spending_key = spend_parameters
+                        .extended_private_key
+                        .to_extended_spending_key()
+                        .expsk
+                        .to_bytes();
                     let ask = ExpandedSpendingKey::<Bls12>::read(&spending_key[..])?.ask;
 
                     let sig = spend_sig(
@@ -1652,8 +1662,16 @@ mod tests {
             .unwrap();
 
         let signed_transaction = hex::encode(transaction.to_transaction_bytes().unwrap());
-        println!("signed transaction: {}", signed_transaction);
+        let new_signed_transaction = hex::encode(
+            ZcashTransaction::<N>::from_str(&signed_transaction)
+                .unwrap()
+                .to_transaction_bytes()
+                .unwrap(),
+        );
 
+        assert_eq!(signed_transaction, new_signed_transaction);
+
+        println!("signed transaction: {}", signed_transaction);
         // Note:
         // No check for expected raw transaction because sapling transactions have randomness
         // All output/spend descriptions and proofs are verified upon creation.
@@ -1719,8 +1737,16 @@ mod tests {
 
         let signed_transaction = hex::encode(transaction.to_transaction_bytes().unwrap());
         let transaction_id = transaction.to_transaction_id().unwrap().to_string();
+
         assert_eq!(expected_signed_transaction, signed_transaction);
         assert_eq!(expected_transaction_id, transaction_id);
+
+        let new_transaction = ZcashTransaction::<N>::from_str(&signed_transaction).unwrap();
+        let new_signed_transaction = hex::encode(new_transaction.to_transaction_bytes().unwrap());
+        let new_transaction_id = new_transaction.to_transaction_id().unwrap().to_string();
+
+        assert_eq!(expected_signed_transaction, &new_signed_transaction);
+        assert_eq!(expected_transaction_id, &new_transaction_id);
     }
 
     fn test_transparent_transactions<N: ZcashNetwork>(transparent_transactions: Vec<TransactionData>) {
@@ -2987,20 +3013,6 @@ mod tests {
                 let pruned_expected_output = &expected_output[..variable_length_int.len()];
                 assert_eq!(hex::encode(pruned_expected_output), hex::encode(&variable_length_int));
             });
-        }
-
-        #[test]
-        fn test_read_bytes() {
-            let hex = "0400008085202f89000000000000ff64cd1d1027000000000000023d5da56d68dc73dc3a3101f1ba0d9d4df1ec62e5af8afd6df4a1117f7e0fc21ab14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c0681378cf36c1d450edb7c3fd6af75e2e61f04dab98a4d0e525b3b5fa3aea7a9e74b9cd36d096f97d6335967aa10973b9bca0106eade57ee859c97012e3cba848096cbcda3ea71a4cd4bda4fd0ca471b738bf43e488f4d76377716a6e9021fd8c1995599a5acf6c7351cbfb854b55befb690f2503a1ce09e3e19d197010a70e578cadc24038a020ec73ab35b2b9c18ac37bdfd88503e44fe083c1c5e19045b8b8f007ae2f8ae900c0fb3c25d9fe45e5f7995691396c1f820a101d875971a39b77c567ef0e7356a3acbbccda41e4989429cacdfff8410be44f2beb052375806ceecb8eee8b5f3c8ccfa6c2cf31e60f79baf8394a9bfa6d7cbe9da3050b2b2623c7dae8dc4bffd2e50fa07a9312b1f8139b74d12570bcc32e54cfac0f36367bb4da5725921b5983da4d47995f6340ef4846b40595b9005ff8de77ab96c7dd3c41001cb2fbee11437b3f7ad4b8df857670acc90be0276e5e2bb7497606d6c67f7d48cb14aacb3c78e036f924078f0231a211cc0c169fcea96af813fe059f975cc2c06ab358c60840f5c87dd09a714b3a628e48e027ae90fda15008564104e75c0b838991b803ecd9c7b2f0d942cb7c00db929343baecf4103c95c822bf96230eff843a7b5a9ee0cd84b70a8ddb4c18e1519397c10f5c8092420a365fbcad07ae9002ffbee4b6b40324053b151e37d567f71b395c0d886fd3b6b6119054e2af4d8971274abeddf33eca51ce8d72fca3ed921cf7eba990981b454fc73bf23314c2f5f880188bf24ea1cc03e75fe9a7a20f8eb121db890b912b9879b944377717de01a167502ef203ae5b4148c4176ebe5e2966aa3fd73848c7618d782d56e0f2df7221f9994f49396a874a4ae6bcdec3967ecb22fb4eb8cbfeb80ce3c12679cbfb802287e014708e8acf42d986126d455553717384973f70df14d9617bfb758347db41d94aa83303e900811f0ebb5f2ee564b628fa97dffef3d51f7137115a67782350d017d8b53e6a099cfc7865b3d3c6230fb9c2f7d5d02e294cfe6b24a37a8543c59d098091d5a1b1222a4dd6917c79d35972aef8e8d5d4ef8f5528ec72292589a1f19bd33324ce792365963bdb82cccf248a4de0361e4da857ae9d046bf7fc13e2e3df0666e72d7442ec79c4631516708dbb15b1df288204b12b8b00a502ed15b0fabbf1f2b737813952a8c461c4ecc44e579330ebed52ac20d12bc53d827f795d3219fcf49acfbc62a3374d6dda00b5abc39bb403a5faa9740de68e1163411f9d4f0e4e47aab88c5646274c2e5feaf48d78006a34165f0d2e82789b6556b319f34ae2d8381cd8a5fa4ad307848b09195761050480436d2ed82f2623715f618713e388adf8195a3fe78f65f1183d21617457f9d5d4501c4046e659b439306538996cf76a569a79802eeb970a2f9b1cfca8643840de20225954162efdbf9c138e34112d8120d2042ed1e65213e28466959f51bd5c920612ffa386ace06c8b088399d05dabffed4059d47c6ef63894d8611943496f7d4378dea6266069fea08783495e5c079801002e4601b915f645030f6b849b25f6023099c3efceb076483f437130446fdfa3e36a22a29a8447da3fcbc163b8535f6b62e9da55d30e82bd37e1c886de7c705a9acec355ee33e6451d55ba220c0370a38ebd1e96ed767e2843519871f33db42d4ebe7d087db83167be48a3fbcfaf15b5213940da33a733052d0c3d8b6e09d928637aeaaca13deb16f95ec104c95e192c80c80d98e173ab45e5c75a7caf3eee52209e600fbd63b406b52c5b10da692f6fe1a4f5b84541916394689a0c8633679bed1c4b0ce7d86788b3dc2831d72482f2b3ffd39a9c3b321165c0395f9c988fab1e9468c46a76ce0145dbdd0dc9af86e5d5fdc576bfa2f5223825f4abaa2a919977d52898e6bab89f23e752a0c3f8d0e14da4429e0b502deb3becb50d78c3e1eab23a9f8ee8557fa7e272a4dba6572263f45d1ccc6177630079edb6ac9abf1d59118bee18d9904ca9921d66e6617df26082eec43eb77fdfd8ec7b655d957bb654b83408fe49f175af44aa37e2c3c27cd2185cecf337b4e1961608d9c4ddb1972b3fe74dd3d509c048d5838a566437c14d7326279422d5de31d3347cba78857e83e9559544d418ca0f8f3b94e7f0316e9d71c3d537d40ba67312ffe0ad126983379dc8233ca311c49ff6743b802c5d813f91154ef51f5c2b9e0442072dd5442c978a4f553a78007cffd2f2d96cc61264ab0c8715698c49916f418e817b76e8b421887e7f6f730ec97b6f8dee9619569c902518fb5215afa3bb6a9462c822389d0ffe92c600a53ecdd61f50c91e753ebdb67004dda5da1e12873f970d2f6cb32284ee070ae2b3f192674e1f34189e9eb3559ab127e4b75e2aeb6e709d44be50344a8ca69e5a58fd3a1b051896ddfecab582709";
-            let tx = ZcashTransaction::<Mainnet>::from_str(hex).unwrap();
-
-//            println!("tx is: {:?}", tx);
-            let bytes = tx.to_transaction_bytes().unwrap();
-            println!("tx_bytes is: {:?}", hex::encode(&bytes));
-            let id = tx.to_transaction_id().unwrap();
-            println!("tx id is: {:?}", &id.to_string());
-            assert_eq!(0,1);
-
         }
     }
 }
