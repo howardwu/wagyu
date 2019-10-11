@@ -1,4 +1,5 @@
 use crate::address::EthereumAddress;
+use crate::amount::EthereumAmount;
 use crate::format::EthereumFormat;
 use crate::network::EthereumNetwork;
 use crate::private_key::EthereumPrivateKey;
@@ -44,11 +45,11 @@ pub struct EthereumTransactionParameters {
     /// The address of the receiver
     pub receiver: EthereumAddress,
     /// The amount (in wei)
-    pub amount: U256,
+    pub amount: EthereumAmount,
     /// The transaction gas limit
     pub gas: U256,
     /// The transaction gas price in wei
-    pub gas_price: U256,
+    pub gas_price: EthereumAmount,
     /// The nonce of the Ethereum account
     pub nonce: U256,
     /// The transaction data
@@ -148,16 +149,16 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         let parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(&hex::encode(&list[3]))?,
             amount: match list[4].is_empty() {
-                true => U256::zero(),
-                false => U256::from(list[4].as_slice()),
+                true => EthereumAmount::from_u256(U256::zero()),
+                false => EthereumAmount::from_u256(U256::from(list[4].as_slice())),
             },
             gas: match list[2].is_empty() {
                 true => U256::zero(),
                 false => U256::from(list[2].as_slice()),
             },
             gas_price: match list[1].is_empty() {
-                true => U256::zero(),
-                false => U256::from(list[1].as_slice()),
+                true => EthereumAmount::from_u256(U256::zero()),
+                false => EthereumAmount::from_u256(U256::from(list[1].as_slice())),
             },
             nonce: match list[0].is_empty() {
                 true => U256::zero(),
@@ -219,10 +220,10 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             parameters: &EthereumTransactionParameters,
         ) -> Result<(), TransactionError> {
             transaction_rlp.append(&parameters.nonce);
-            transaction_rlp.append(&parameters.gas_price);
+            transaction_rlp.append(&parameters.gas_price.0);
             transaction_rlp.append(&parameters.gas);
             transaction_rlp.append(&hex::decode(&parameters.receiver.to_string()[2..])?);
-            transaction_rlp.append(&parameters.amount);
+            transaction_rlp.append(&parameters.amount.0);
             transaction_rlp.append(&parameters.data);
             Ok(())
         }
@@ -316,9 +317,9 @@ mod tests {
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(transaction.to).unwrap(),
-            amount: U256::from_dec_str(transaction.value).unwrap(),
+            amount: EthereumAmount::from_wei(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
-            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            gas_price: EthereumAmount::from_wei(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec(),
         };
@@ -337,9 +338,9 @@ mod tests {
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(transaction.to).unwrap(),
-            amount: U256::from_dec_str(transaction.value).unwrap(),
+            amount: EthereumAmount::from_wei(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
-            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            gas_price: EthereumAmount::from_wei(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec(),
         };
@@ -362,9 +363,9 @@ mod tests {
         let expected_sender = Some(private_key.to_address(&EthereumFormat::Standard).unwrap());
         let expected_parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(transaction.to).unwrap(),
-            amount: U256::from_dec_str(transaction.value).unwrap(),
+            amount: EthereumAmount::from_wei(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
-            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            gas_price: EthereumAmount::from_wei(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec(),
         };
@@ -381,9 +382,9 @@ mod tests {
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(transaction.to).unwrap(),
-            amount: U256::from_dec_str(transaction.value).unwrap(),
+            amount: EthereumAmount::from_wei(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
-            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            gas_price: EthereumAmount::from_wei(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec(),
         };
@@ -401,9 +402,9 @@ mod tests {
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(transaction.to).unwrap(),
-            amount: U256::from_dec_str(transaction.value).unwrap(),
+            amount: EthereumAmount::from_wei(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
-            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            gas_price: EthereumAmount::from_wei(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec(),
         };
@@ -421,9 +422,9 @@ mod tests {
         let private_key = EthereumPrivateKey::from_str(transaction.private_key).unwrap();
         let parameters = EthereumTransactionParameters {
             receiver: EthereumAddress::from_str(transaction.to).unwrap(),
-            amount: U256::from_dec_str(transaction.value).unwrap(),
+            amount: EthereumAmount::from_wei(transaction.value).unwrap(),
             gas: U256::from_dec_str(transaction.gas).unwrap(),
-            gas_price: U256::from_dec_str(transaction.gas_price).unwrap(),
+            gas_price: EthereumAmount::from_wei(transaction.gas_price).unwrap(),
             nonce: U256::from_dec_str(transaction.nonce).unwrap(),
             data: transaction.data.as_bytes().to_vec(),
         };
