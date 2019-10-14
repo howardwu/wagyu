@@ -229,7 +229,7 @@ impl<N: BitcoinNetwork> Outpoint<N> {
         address: Option<BitcoinAddress<N>>,
         amount: Option<BitcoinAmount>,
         redeem_script: Option<Vec<u8>>,
-        script_pub_key: Option<Vec<u8>>
+        script_pub_key: Option<Vec<u8>>,
     ) -> Result<Self, TransactionError> {
         let (script_pub_key, redeem_script) = match address.clone() {
             Some(address) => {
@@ -240,18 +240,18 @@ impl<N: BitcoinNetwork> Outpoint<N> {
                         None => match script_pub_key[0] != Opcode::OP_DUP as u8
                             && script_pub_key[1] != Opcode::OP_HASH160 as u8
                             && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_CHECKSIG as u8
-                            {
-                                true => return Err(TransactionError::InvalidScriptPubKey("P2PKH".into())),
-                                false => None,
-                            },
+                        {
+                            true => return Err(TransactionError::InvalidScriptPubKey("P2PKH".into())),
+                            false => None,
+                        },
                     },
                     BitcoinFormat::P2SH_P2WPKH => match redeem_script {
                         Some(redeem_script) => match script_pub_key[0] != Opcode::OP_HASH160 as u8
                             && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_EQUAL as u8
-                            {
-                                true => return Err(TransactionError::InvalidScriptPubKey("P2SH_P2WPKH".into())),
-                                false => Some(redeem_script),
-                            },
+                        {
+                            true => return Err(TransactionError::InvalidScriptPubKey("P2SH_P2WPKH".into())),
+                            false => Some(redeem_script),
+                        },
                         None => return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into())),
                     },
                     BitcoinFormat::Bech32 => match redeem_script.is_some() {
@@ -261,7 +261,7 @@ impl<N: BitcoinNetwork> Outpoint<N> {
                 };
 
                 (Some(script_pub_key), redeem_script)
-            },
+            }
             None => (None, None),
         };
 
@@ -322,7 +322,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             index,
             Some(address.clone()),
             Some(amount),
-            redeem_script, script_pub_key
+            redeem_script,
+            script_pub_key,
         )?;
 
         Ok(Self {
@@ -387,17 +388,15 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             true => input.extend(vec![0x00]),
             false => match self.script_sig.len() {
                 0 => match &self.outpoint.address {
-                    Some(address) => {
-                        match address.format() {
-                            BitcoinFormat::Bech32 => input.extend(vec![0x00]),
-                            _ => {
-                                let script_pub_key = match &self.outpoint.script_pub_key {
-                                    Some(script) => script,
-                                    None => return Err(TransactionError::MissingOutpointScriptPublicKey),
-                                };
-                                input.extend(variable_length_integer(script_pub_key.len() as u64)?);
-                                input.extend(script_pub_key);
-                            }
+                    Some(address) => match address.format() {
+                        BitcoinFormat::Bech32 => input.extend(vec![0x00]),
+                        _ => {
+                            let script_pub_key = match &self.outpoint.script_pub_key {
+                                Some(script) => script,
+                                None => return Err(TransactionError::MissingOutpointScriptPublicKey),
+                            };
+                            input.extend(variable_length_integer(script_pub_key.len() as u64)?);
+                            input.extend(script_pub_key);
                         }
                     },
                     None => input.extend(vec![0x00]),
@@ -425,7 +424,10 @@ pub struct BitcoinTransactionOutput {
 
 impl BitcoinTransactionOutput {
     /// Returns a Bitcoin transaction output.
-    pub fn new<N: BitcoinNetwork>(address: &BitcoinAddress<N>, amount: BitcoinAmount) -> Result<Self, TransactionError> {
+    pub fn new<N: BitcoinNetwork>(
+        address: &BitcoinAddress<N>,
+        amount: BitcoinAmount,
+    ) -> Result<Self, TransactionError> {
         Ok(Self {
             amount,
             script_pub_key: create_script_pub_key::<N>(address)?,
@@ -897,7 +899,8 @@ mod tests {
                 script_pub_key,
                 sequence,
                 input.sighash_code,
-            ).unwrap();
+            )
+            .unwrap();
 
             input_vec.push(transaction_input);
         }
@@ -999,8 +1002,10 @@ mod tests {
 
             let mut reverse_transaction_id = hex::decode(input.transaction_id).unwrap();
             reverse_transaction_id.reverse();
-            let tx_input = input_vec.iter().cloned().find(|tx_input|
-                tx_input.outpoint.reverse_transaction_id == reverse_transaction_id && tx_input.outpoint.index == input.index);
+            let tx_input = input_vec.iter().cloned().find(|tx_input| {
+                tx_input.outpoint.reverse_transaction_id == reverse_transaction_id
+                    && tx_input.outpoint.index == input.index
+            });
 
             if let Some(tx_input) = tx_input {
                 new_transaction = new_transaction.update_outpoint(tx_input.outpoint);
