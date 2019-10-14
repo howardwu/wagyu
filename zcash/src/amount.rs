@@ -94,10 +94,7 @@ mod tests {
         use super::*;
 
         const TEST_AMOUNTS: [AmountDenominationTestCase; 5] = [
-            AmountDenominationTestCase {
-                zatoshi: 0,
-                zcash: 0,
-            },
+            AmountDenominationTestCase { zatoshi: 0, zcash: 0 },
             AmountDenominationTestCase {
                 zatoshi: 100000000,
                 zcash: 1,
@@ -201,10 +198,7 @@ mod tests {
             use super::*;
 
             const INVALID_TEST_AMOUNTS: [AmountDenominationTestCase; 4] = [
-                AmountDenominationTestCase {
-                    zatoshi: 1,
-                    zcash: 1,
-                },
+                AmountDenominationTestCase { zatoshi: 1, zcash: 1 },
                 AmountDenominationTestCase {
                     zatoshi: 1,
                     zcash: 100000000,

@@ -270,7 +270,10 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
                 return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
             }
 
-            Ok((amount.unwrap_or(ZcashAmount::ZERO), redeem_script.clone().unwrap_or(Vec::new())))
+            Ok((
+                amount.unwrap_or(ZcashAmount::ZERO),
+                redeem_script.clone().unwrap_or(Vec::new()),
+            ))
         }
 
         let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
@@ -945,7 +948,11 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     }
 
     /// Returns the transaction parameters with the given transparent output appended.
-    pub fn add_transparent_output(&self, address: &ZcashAddress<N>, amount: ZcashAmount) -> Result<Self, TransactionError> {
+    pub fn add_transparent_output(
+        &self,
+        address: &ZcashAddress<N>,
+        amount: ZcashAmount,
+    ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
         parameters
             .transparent_outputs
@@ -1340,7 +1347,12 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         sig.write(&mut binding_sig[..])?;
         self.parameters.binding_signature = Some(binding_sig.to_vec());
 
-        match verifying_ctx.final_check(Amount::from_i64(self.parameters.value_balance.0)?, &sighash, sig, &JUBJUB) {
+        match verifying_ctx.final_check(
+            Amount::from_i64(self.parameters.value_balance.0)?,
+            &sighash,
+            sig,
+            &JUBJUB,
+        ) {
             true => Ok(()),
             false => Err(TransactionError::InvalidBindingSig()),
         }
@@ -1424,6 +1436,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     }
 
     /// Update a transaction's input outpoint
+    #[allow(dead_code)]
     fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
         let mut new_transaction = self.clone();
         for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
@@ -1817,8 +1830,15 @@ mod tests {
 
             let mut reverse_transaction_id = hex::decode(input.transaction_id).unwrap();
             reverse_transaction_id.reverse();
-            let tx_input = transaction.parameters.transparent_inputs.iter().cloned().find(|tx_input|
-                tx_input.outpoint.reverse_transaction_id == reverse_transaction_id && tx_input.outpoint.index == input.index);
+            let tx_input = transaction
+                .parameters
+                .transparent_inputs
+                .iter()
+                .cloned()
+                .find(|tx_input| {
+                    tx_input.outpoint.reverse_transaction_id == reverse_transaction_id
+                        && tx_input.outpoint.index == input.index
+                });
 
             if let Some(tx_input) = tx_input {
                 new_transaction = new_transaction.update_outpoint(tx_input.outpoint);

@@ -809,6 +809,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     }
 
     /// Update a transaction's input outpoint
+    #[allow(dead_code)]
     fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
         let mut new_transaction = self.clone();
         for (vin, input) in self.parameters.inputs.iter().enumerate() {
