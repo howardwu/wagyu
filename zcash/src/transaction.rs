@@ -1096,7 +1096,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
         for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
             let address = match &input.outpoint.address {
                 Some(address) => address,
-                None => return Err(TransactionError::MissingOutpointAddress),
+                None => continue,
             };
 
             if address == &private_key.to_address(&address.format())?
@@ -1165,7 +1165,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
         transaction.extend(variable_length_integer(self.parameters.transparent_inputs.len() as u64)?);
         for input in &self.parameters.transparent_inputs {
             // TODO (howardwu): Implement "raw" bool for serializing the raw transaction.
-            transaction.extend(input.serialize(false, false)?);
+            transaction.extend(input.serialize(!input.is_signed, false)?);
         }
 
         transaction.extend(variable_length_integer(
@@ -1421,6 +1421,19 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
         };
 
         Ok(blake2_256_hash("ZcashSigHash", preimage, Some("sapling")))
+    }
+
+    /// Update a transaction's input outpoint
+    fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
+        let mut new_transaction = self.clone();
+        for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
+            if &outpoint.reverse_transaction_id == &input.outpoint.reverse_transaction_id
+                && &outpoint.index == &input.outpoint.index
+            {
+                new_transaction.parameters.transparent_inputs[vin].outpoint = outpoint.clone();
+            }
+        }
+        new_transaction
     }
 }
 
@@ -1741,8 +1754,80 @@ mod tests {
 
         assert_eq!(expected_signed_transaction, signed_transaction);
         assert_eq!(expected_transaction_id, transaction_id);
+    }
 
-        let new_transaction = ZcashTransaction::<N>::from_str(&signed_transaction).unwrap();
+    fn test_reconstructed_transaction<N: ZcashNetwork>(
+        version: &str,
+        lock_time: u32,
+        expiry_height: u32,
+        inputs: Vec<Input>,
+        outputs: Vec<Output>,
+        expected_signed_transaction: &str,
+        expected_transaction_id: &str,
+    ) {
+        // Build raw transaction
+
+        let parameters = ZcashTransactionParameters::<N>::new(version, lock_time, expiry_height).unwrap();
+        let mut transaction = ZcashTransaction::<N>::new(&parameters).unwrap();
+
+        // Add transparent inputs
+
+        for input in &inputs {
+            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let address = private_key.to_address(&input.address_format).unwrap();
+
+            let transaction_id = hex::decode(input.transaction_id).unwrap();
+            let redeem_script = input.redeem_script.map(|script| hex::decode(script).unwrap());
+            let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+            let sequence = input.sequence.map(|seq| seq.to_vec());
+
+            transaction.parameters = transaction
+                .parameters
+                .add_transparent_input(
+                    address,
+                    transaction_id,
+                    input.index,
+                    input.utxo_amount,
+                    redeem_script,
+                    script_pub_key,
+                    sequence,
+                    input.sighash_code,
+                )
+                .unwrap();
+        }
+
+        // Add transparent outputs
+
+        for output in outputs {
+            let address = ZcashAddress::<N>::from_str(output.address).unwrap();
+            transaction.parameters = transaction
+                .parameters
+                .add_transparent_output(&address, output.amount)
+                .unwrap();
+        }
+
+        let unsigned_raw_transaction = hex::encode(&transaction.to_transaction_bytes().unwrap());
+
+        let mut new_transaction = ZcashTransaction::<N>::from_str(&unsigned_raw_transaction).unwrap();
+
+        // Sign the transparent transaction inputs of the transaction reconstructed from hex
+        for input in inputs {
+            let partial_signed_transaction = hex::encode(&new_transaction.to_transaction_bytes().unwrap());
+            new_transaction = ZcashTransaction::<N>::from_str(&partial_signed_transaction).unwrap();
+
+            let mut reverse_transaction_id = hex::decode(input.transaction_id).unwrap();
+            reverse_transaction_id.reverse();
+            let tx_input = transaction.parameters.transparent_inputs.iter().cloned().find(|tx_input|
+                tx_input.outpoint.reverse_transaction_id == reverse_transaction_id && tx_input.outpoint.index == input.index);
+
+            if let Some(tx_input) = tx_input {
+                new_transaction = new_transaction.update_outpoint(tx_input.outpoint);
+                new_transaction = new_transaction
+                    .sign(&ZcashPrivateKey::from_str(input.private_key).unwrap())
+                    .unwrap();
+            }
+        }
+
         let new_signed_transaction = hex::encode(new_transaction.to_transaction_bytes().unwrap());
         let new_transaction_id = new_transaction.to_transaction_id().unwrap().to_string();
 
@@ -1759,6 +1844,26 @@ mod tests {
             pruned_outputs.retain(|output| output.address != "");
 
             test_transaction::<N>(
+                transaction.version,
+                transaction.lock_time,
+                transaction.expiry_height,
+                pruned_inputs,
+                pruned_outputs,
+                transaction.expected_signed_transaction,
+                transaction.expected_transaction_id,
+            );
+        });
+    }
+
+    fn test_reconstructed_transparent_transactions<N: ZcashNetwork>(transparent_transactions: Vec<TransactionData>) {
+        transparent_transactions.iter().for_each(|transaction| {
+            let mut pruned_inputs = transaction.inputs.to_vec();
+            pruned_inputs.retain(|input| input.transaction_id != "");
+
+            let mut pruned_outputs = transaction.outputs.to_vec();
+            pruned_outputs.retain(|output| output.address != "");
+
+            test_reconstructed_transaction::<N>(
                 transaction.version,
                 transaction.lock_time,
                 transaction.expiry_height,
@@ -1973,6 +2078,11 @@ mod tests {
             #[test]
             fn test_testnet_transactions() {
                 test_transparent_transactions::<N>(TESTNET_TRANSACTIONS.to_vec());
+            }
+
+            #[test]
+            fn test_reconstructed_testnet_transactions() {
+                test_reconstructed_transparent_transactions::<N>(TESTNET_TRANSACTIONS.to_vec());
             }
         }
 
@@ -2203,6 +2313,11 @@ mod tests {
             fn test_real_testnet_transactions() {
                 test_transparent_transactions::<N>(REAL_TESTNET_TRANSACTIONS.to_vec());
             }
+
+            #[test]
+            fn test_real_reconstructed_testnet_transactions() {
+                test_reconstructed_transparent_transactions::<N>(REAL_TESTNET_TRANSACTIONS.to_vec());
+            }
         }
 
         mod test_mainnet_transparent_transactions {
@@ -2390,6 +2505,11 @@ mod tests {
             #[test]
             fn test_mainnet_transactions() {
                 test_transparent_transactions::<N>(MAINNET_TRANSACTIONS.to_vec());
+            }
+
+            #[test]
+            fn test_reconstructed_mainnet_transactions() {
+                test_reconstructed_transparent_transactions::<N>(MAINNET_TRANSACTIONS.to_vec());
             }
         }
     }
