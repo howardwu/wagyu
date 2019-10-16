@@ -299,10 +299,10 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
     /// Returns a new Bitcoin transaction input without the script (unlocking).
     pub fn new(
-        address: &BitcoinAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
-        amount: BitcoinAmount,
+        address: Option<BitcoinAddress<N>>,
+        amount: Option<BitcoinAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
         sequence: Option<Vec<u8>>,
@@ -320,8 +320,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let outpoint = Outpoint::<N>::new(
             reverse_transaction_id,
             index,
-            Some(address.clone()),
-            Some(amount),
+            address,
+            amount,
             redeem_script,
             script_pub_key,
         )?;
@@ -578,10 +578,12 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
         let mut transaction = self.clone();
         for (vin, input) in self.parameters.inputs.iter().enumerate() {
+            println!("1");
             let address = match &input.outpoint.address {
                 Some(address) => address,
                 None => continue,
             };
+            println!("2");
 
             if address == &private_key.to_address(&address.format())? && !transaction.parameters.inputs[vin].is_signed {
                 // Transaction hash
@@ -810,7 +812,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
 
     /// Update a transaction's input outpoint
     #[allow(dead_code)]
-    fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
+    pub fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
         let mut new_transaction = self.clone();
         for (vin, input) in self.parameters.inputs.iter().enumerate() {
             if &outpoint.reverse_transaction_id == &input.outpoint.reverse_transaction_id
@@ -892,10 +894,10 @@ mod tests {
             let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
             let sequence = input.sequence.map(|seq| seq.to_vec());
             let transaction_input = BitcoinTransactionInput::<N>::new(
-                &address,
                 transaction_id,
                 input.index,
-                input.utxo_amount,
+                Some(address),
+                Some(input.utxo_amount),
                 redeem_script,
                 script_pub_key,
                 sequence,
@@ -922,8 +924,8 @@ mod tests {
 
         let mut transaction = BitcoinTransaction::<N>::new(&transaction_parameters).unwrap();
 
+        // Sign transaction
         for input in inputs {
-            // Sign transaction
             transaction = transaction
                 .sign(&BitcoinPrivateKey::from_str(input.private_key).unwrap())
                 .unwrap();
@@ -963,10 +965,10 @@ mod tests {
             let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
             let sequence = input.sequence.map(|seq| seq.to_vec());
             let transaction_input = BitcoinTransactionInput::<N>::new(
-                &address,
                 transaction_id,
                 input.index,
-                input.utxo_amount,
+                Some(address),
+                Some(input.utxo_amount),
                 redeem_script,
                 script_pub_key,
                 sequence,
@@ -1656,10 +1658,10 @@ mod tests {
                     Ok(private_key) => {
                         let address = private_key.to_address(&input.address_format).unwrap();
                         let invalid_input = BitcoinTransactionInput::<N>::new(
-                            &address,
                             transaction_id,
                             input.index,
-                            input.utxo_amount,
+                            Some(address),
+                            Some(input.utxo_amount),
                             redeem_script,
                             script_pub_key,
                             sequence,

@@ -1,18 +1,22 @@
 use crate::bitcoin::{
-    format::BitcoinFormat, wordlist::*, BitcoinAddress, BitcoinDerivationPath, BitcoinExtendedPrivateKey,
-    BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork, BitcoinPrivateKey, BitcoinPublicKey, BitcoinWordlist,
-    Mainnet as BitcoinMainnet, Testnet as BitcoinTestnet,
+    format::BitcoinFormat, wordlist::*, BitcoinAddress, BitcoinAmount, BitcoinDerivationPath,
+    BitcoinExtendedPrivateKey, BitcoinExtendedPublicKey, BitcoinMnemonic, BitcoinNetwork, BitcoinPrivateKey,
+    BitcoinPublicKey, BitcoinTransaction, BitcoinTransactionInput, BitcoinTransactionOutput,
+    BitcoinTransactionParameters, BitcoinWordlist, Mainnet as BitcoinMainnet, Outpoint, SignatureHash,
+    Testnet as BitcoinTestnet,
 };
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{
-    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey,
+    crypto::hash160, ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey,
+    PublicKey, Transaction,
 };
 
-use clap::ArgMatches;
+use clap::{ArgMatches, Values};
 use colored::*;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use serde_json::from_str;
 use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents a generic wallet to output
@@ -32,13 +36,15 @@ struct BitcoinWallet {
     pub private_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
-    pub address: String,
+    pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compressed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_hex: Option<String>,
 }
 
 impl BitcoinWallet {
@@ -49,7 +55,7 @@ impl BitcoinWallet {
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             network: Some(N::NAME.to_string()),
             format: Some(address.format().to_string()),
             compressed: private_key.is_compressed().into(),
@@ -80,10 +86,11 @@ impl BitcoinWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             network: Some(N::NAME.to_string()),
             compressed: Some(compressed),
+            ..Default::default()
         })
     }
 
@@ -109,10 +116,11 @@ impl BitcoinWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             network: Some(N::NAME.to_string()),
             compressed: Some(compressed),
+            ..Default::default()
         })
     }
 
@@ -136,7 +144,7 @@ impl BitcoinWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             network: Some(N::NAME.to_string()),
             compressed: Some(compressed),
@@ -160,7 +168,7 @@ impl BitcoinWallet {
             path: path.clone(),
             extended_public_key: Some(extended_public_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             network: Some(N::NAME.to_string()),
             compressed: Some(compressed),
@@ -175,7 +183,7 @@ impl BitcoinWallet {
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             network: Some(N::NAME.to_string()),
             format: Some(address.format().to_string()),
             compressed: private_key.is_compressed().into(),
@@ -188,7 +196,7 @@ impl BitcoinWallet {
         let address = public_key.to_address(format)?;
         Ok(Self {
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             network: Some(N::NAME.to_string()),
             format: Some(address.format().to_string()),
             compressed: public_key.is_compressed().into(),
@@ -199,9 +207,111 @@ impl BitcoinWallet {
     pub fn from_address<N: BitcoinNetwork>(address: &str) -> Result<Self, CLIError> {
         let address = BitcoinAddress::<N>::from_str(address)?;
         Ok(Self {
-            address: address.to_string(),
+            address: Some(address.to_string()),
             network: Some(N::NAME.to_string()),
             format: Some(address.format().to_string()),
+            ..Default::default()
+        })
+    }
+
+    pub fn to_raw_transaction<N: BitcoinNetwork>(
+        inputs: &Vec<BitcoinInput>,
+        outputs: &Vec<&str>,
+        version: u32,
+        lock_time: u32,
+    ) -> Result<Self, CLIError> {
+        let mut transaction_inputs = vec![];
+        for input in inputs {
+            let transaction_input = BitcoinTransactionInput::<N>::new(
+                hex::decode(&input.txid)?,
+                input.vout,
+                None,
+                None,
+                None,
+                None,
+                None,
+                SignatureHash::SIGHASH_ALL,
+            )?;
+            transaction_inputs.push(transaction_input);
+        }
+
+        let mut transaction_outputs = vec![];
+        for output in outputs {
+            let values: Vec<&str> = output.split(":").collect();
+            let address = BitcoinAddress::<N>::from_str(values[0])?;
+            transaction_outputs.push(BitcoinTransactionOutput::new(
+                &address,
+                BitcoinAmount::from_satoshi(i64::from_str(values[1])?)?,
+            )?);
+        }
+
+        let transaction_parameters = BitcoinTransactionParameters::<N> {
+            version,
+            inputs: transaction_inputs,
+            outputs: transaction_outputs,
+            lock_time,
+            segwit_flag: false,
+        };
+
+        let transaction = BitcoinTransaction::<N>::new(&transaction_parameters)?;
+        let raw_transaction_hex = hex::encode(&transaction.to_transaction_bytes()?);
+
+        Ok(Self {
+            transaction_hex: Some(raw_transaction_hex),
+            ..Default::default()
+        })
+    }
+
+    pub fn to_signed_transaction<N: BitcoinNetwork>(
+        transaction_hex: &str,
+        inputs: &Vec<BitcoinInput>,
+    ) -> Result<Self, CLIError> {
+        let mut transaction = BitcoinTransaction::<N>::from_transaction_bytes(&hex::decode(transaction_hex)?)?;
+
+        for input in inputs {
+            match (input.amount.clone(), input.address.clone(), input.private_key.clone()) {
+                (Some(amount), Some(address), Some(private_key)) => {
+                    let private_key = BitcoinPrivateKey::<N>::from_str(&private_key)?;
+                    let address = BitcoinAddress::<N>::from_str(&address)?;
+
+                    let redeem_script = match (input.redeem_script.clone(), address.format()) {
+                        (Some(script), _) => Some(hex::decode(script)?),
+                        (None, BitcoinFormat::P2SH_P2WPKH) => {
+                            let mut redeem_script = vec![0x00, 0x14];
+                            redeem_script.extend(&hash160(
+                                &private_key.to_public_key().to_secp256k1_public_key().serialize(),
+                            ));
+                            Some(redeem_script)
+                        }
+                        (None, _) => None,
+                    };
+
+                    let script_pub_key = match &input.script_pub_key {
+                        Some(script) => Some(hex::decode(script)?),
+                        None => None,
+                    };
+
+                    let mut reverse_transaction_id = hex::decode(&input.txid)?;
+                    reverse_transaction_id.reverse();
+
+                    let outpoint = Outpoint::<N>::new(
+                        reverse_transaction_id,
+                        input.vout,
+                        Some(address),
+                        Some(BitcoinAmount::from_satoshi(amount as i64)?),
+                        redeem_script,
+                        script_pub_key,
+                    )?;
+
+                    transaction = transaction.update_outpoint(outpoint);
+                    transaction = transaction.sign(&private_key)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Self {
+            transaction_hex: Some(hex::encode(&transaction.to_transaction_bytes()?)),
             ..Default::default()
         })
     }
@@ -247,7 +357,10 @@ impl Display for BitcoinWallet {
                 Some(public_key) => format!("      {}           {}\n", "Public Key".cyan().bold(), public_key),
                 _ => "".to_owned(),
             },
-            format!("      {}              {}\n", "Address".cyan().bold(), self.address),
+            match &self.address {
+                Some(address) => format!("      {}              {}\n", "Address".cyan().bold(), address),
+                _ => "".to_owned(),
+            },
             match &self.format {
                 Some(format) => format!("      {}               {}\n", "Format".cyan().bold(), format),
                 _ => "".to_owned(),
@@ -260,6 +373,14 @@ impl Display for BitcoinWallet {
                 Some(compressed) => format!("      {}           {}\n", "Compressed".cyan().bold(), compressed),
                 _ => "".to_owned(),
             },
+            match &self.transaction_hex {
+                Some(transaction_hex) => format!(
+                    "      {}          {}\n",
+                    "Transaction Hex".cyan().bold(),
+                    transaction_hex
+                ),
+                _ => "".to_owned(),
+            },
         ]
         .concat();
 
@@ -267,6 +388,20 @@ impl Display for BitcoinWallet {
         let output = output[..output.len() - 1].to_owned();
         write!(f, "\n{}", output)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BitcoinInput {
+    pub txid: String,
+    pub vout: u32,
+    pub amount: Option<u64>,
+    pub address: Option<String>,
+    #[serde(rename(deserialize = "privatekey"))]
+    pub private_key: Option<String>,
+    #[serde(rename(deserialize = "scriptPubKey"))]
+    pub script_pub_key: Option<String>,
+    #[serde(rename(deserialize = "redeemScript"))]
+    pub redeem_script: Option<String>,
 }
 
 /// Represents options for a Bitcoin wallet
@@ -294,6 +429,12 @@ pub struct BitcoinOptions {
     address: Option<String>,
     private: Option<String>,
     public: Option<String>,
+    // Transaction subcommand
+    transaction_inputs: Option<String>,
+    transaction_hex: Option<String>,
+    transaction_outputs: Option<String>,
+    lock_time: Option<u32>,
+    version: Option<u32>,
 }
 
 impl Default for BitcoinOptions {
@@ -321,6 +462,12 @@ impl Default for BitcoinOptions {
             address: None,
             private: None,
             public: None,
+            // Transaction subcommand
+            transaction_inputs: None,
+            transaction_hex: None,
+            transaction_outputs: None,
+            lock_time: None,
+            version: None,
         }
     }
 }
@@ -331,6 +478,7 @@ impl BitcoinOptions {
             "account" => self.account(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "address" => self.address(arguments.value_of(option)),
             "chain" => self.chain(clap::value_t!(arguments.value_of(*option), u32).ok()),
+            "createrawtransaction" => self.create_raw_transaction(arguments.values_of(option)),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
             "derivation" => self.derivation(arguments.value_of(option)),
             "extended private" => self.extended_private(arguments.value_of(option)),
@@ -339,12 +487,15 @@ impl BitcoinOptions {
             "json" => self.json(arguments.is_present(option)),
             "index" => self.index(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "language" => self.language(arguments.value_of(option)),
+            "lock time" => self.lock_time(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "mnemonic" => self.mnemonic(arguments.value_of(option)),
             "network" => self.network(arguments.value_of(option)),
             "password" => self.password(arguments.value_of(option)),
             "private" => self.private(arguments.value_of(option)),
             "public" => self.public(arguments.value_of(option)),
+            "signrawtransaction" => self.sign_raw_transaction(arguments.values_of(option)),
             "word count" => self.word_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
+            "version" => self.version(clap::value_t!(arguments.value_of(*option), u32).ok()),
             _ => (),
         });
     }
@@ -377,6 +528,16 @@ impl BitcoinOptions {
     fn count(&mut self, argument: Option<usize>) {
         if let Some(count) = argument {
             self.count = count;
+        }
+    }
+
+    /// Sets `transaction_inputs` and `transaction_outputs `to the specified transaction values, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn create_raw_transaction(&mut self, argument: Option<Values>) {
+        if let Some(transaction_parameters) = argument {
+            let params: Vec<&str> = transaction_parameters.collect();
+            self.transaction_inputs = Some(params[0].to_string());
+            self.transaction_outputs = Some(params[1].to_string())
         }
     }
 
@@ -452,6 +613,14 @@ impl BitcoinOptions {
         };
     }
 
+    /// Sets `lock_time` to the specified transaction lock time, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn lock_time(&mut self, argument: Option<u32>) {
+        if let Some(lock_time) = argument {
+            self.lock_time = Some(lock_time);
+        }
+    }
+
     /// Sets `mnemonic` to the specified mnemonic, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn mnemonic(&mut self, argument: Option<&str>) {
@@ -494,6 +663,16 @@ impl BitcoinOptions {
         }
     }
 
+    /// Sets `transaction_hex` and `transaction_inputs`to the specified transaction values, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn sign_raw_transaction(&mut self, argument: Option<Values>) {
+        if let Some(transaction_parameters) = argument {
+            let params: Vec<&str> = transaction_parameters.collect();
+            self.transaction_hex = Some(params[0].to_string());
+            self.transaction_inputs = Some(params[1].to_string());
+        }
+    }
+
     /// Sets `word_count` to the specified word count, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn word_count(&mut self, argument: Option<u8>) {
@@ -516,6 +695,14 @@ impl BitcoinOptions {
             },
         }
     }
+
+    /// Sets `version` to the specified transaction version, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn version(&mut self, argument: Option<u32>) {
+        if let Some(version) = argument {
+            self.version = Some(version);
+        }
+    }
 }
 
 pub struct BitcoinCLI;
@@ -531,6 +718,7 @@ impl CLI for BitcoinCLI {
         subcommand::HD_BITCOIN,
         subcommand::IMPORT_BITCOIN,
         subcommand::IMPORT_HD_BITCOIN,
+        subcommand::TRANSACTION_BITCOIN,
     ];
 
     /// Handle all CLI arguments and flags for Bitcoin
@@ -565,6 +753,13 @@ impl CLI for BitcoinCLI {
                         "mnemonic",
                         "password",
                     ],
+                );
+            }
+            ("transaction", Some(arguments)) => {
+                options.subcommand = Some("transaction".into());
+                options.parse(
+                    arguments,
+                    &["createrawtransaction", "lock time", "signrawtransaction", "version"],
                 );
             }
             _ => {}
@@ -639,6 +834,38 @@ impl CLI for BitcoinCLI {
 
                         vec![BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path)
                             .or(BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path))?]
+                    } else {
+                        vec![]
+                    }
+                }
+                Some("transaction") => {
+                    if let (Some(transaction_inputs), Some(transaction_outputs)) =
+                        (options.transaction_inputs.clone(), options.transaction_outputs.clone())
+                    {
+                        let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs).unwrap();
+
+                        let outputs = transaction_outputs.replace(&['{', '}', '"', ' '][..], "");
+                        let outputs: &Vec<&str> = &outputs.split(",").collect();
+
+                        let version = options.version.unwrap_or(1);
+                        let lock_time = options.lock_time.unwrap_or(0);
+
+                        vec![
+                            BitcoinWallet::to_raw_transaction::<BitcoinMainnet>(inputs, outputs, version, lock_time)
+                                .or(BitcoinWallet::to_raw_transaction::<BitcoinTestnet>(
+                                    inputs, outputs, version, lock_time,
+                                ))?,
+                        ]
+                    } else if let (Some(transaction_hex), Some(transaction_inputs)) =
+                        (options.transaction_hex.clone(), options.transaction_inputs.clone())
+                    {
+                        let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs).unwrap();
+
+                        vec![
+                            BitcoinWallet::to_signed_transaction::<BitcoinMainnet>(&transaction_hex, inputs).or(
+                                BitcoinWallet::to_signed_transaction::<BitcoinTestnet>(&transaction_hex, inputs),
+                            )?,
+                        ]
                     } else {
                         vec![]
                     }

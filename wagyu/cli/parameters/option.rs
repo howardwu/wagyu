@@ -320,3 +320,33 @@ pub const PASSWORD_IMPORT_HD: OptionType = (
     &[],
     &[],
 );
+
+// Transaction
+
+pub const CREATE_RAW_TRANSACTION_BITCOIN: OptionType = (
+    "[createrawtransaction] --createrawtransaction=['[{\"txid\":txid, \"vout\":index}, ...\'] ['{\"address\":amount,...}'] 'Creates a raw Bitcoin transaction'",
+    &["signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_BITCOIN: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] ['[{\"txid\":txid, \"vout\":index, \"amount\":amount\', \"address\":\"address\", \"privatekey\":\"private_key\"}...] 'Sign a raw Bitcoin transaction (Optional: manually specify scriptPubKey and redeemScript)'",
+    &["createrawtransaction", "lock time", "version"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_LOCK_TIME_BITCOIN: OptionType = (
+    "[lock time] --lock-time=[lock time] 'Specify a Bitcoin transaction lock time'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const TRANSACTION_VERSION_BITCOIN: OptionType = (
+    "[version] --version=[version] 'Specify a Bitcoin transaction version'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);

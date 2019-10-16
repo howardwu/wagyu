@@ -185,3 +185,19 @@ pub const IMPORT_HD_ZCASH: SubCommandType = (
         AppSettings::ArgRequiredElseHelp,
     ],
 );
+
+pub const TRANSACTION_BITCOIN: SubCommandType = (
+    "transaction",
+    "Generate a bitcoin transaction (include -h for more options)",
+    &[
+        option::CREATE_RAW_TRANSACTION_BITCOIN,
+        option::SIGN_RAW_TRANSACTION_BITCOIN,
+        option::TRANSACTION_LOCK_TIME_BITCOIN,
+        option::TRANSACTION_VERSION_BITCOIN,
+    ],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+    ],
+);
