@@ -374,11 +374,7 @@ impl Display for BitcoinWallet {
                 _ => "".to_owned(),
             },
             match &self.transaction_hex {
-                Some(transaction_hex) => format!(
-                    "      {}          {}\n",
-                    "Transaction Hex".cyan().bold(),
-                    transaction_hex
-                ),
+                Some(transaction_hex) => format!("      {}    {}\n", "Transaction Hex".cyan().bold(), transaction_hex),
                 _ => "".to_owned(),
             },
         ]
@@ -843,10 +839,8 @@ impl CLI for BitcoinCLI {
                         (options.transaction_inputs.clone(), options.transaction_outputs.clone())
                     {
                         let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs).unwrap();
-
                         let outputs = transaction_outputs.replace(&['{', '}', '"', ' '][..], "");
                         let outputs: &Vec<&str> = &outputs.split(",").collect();
-
                         let version = options.version.unwrap_or(1);
                         let lock_time = options.lock_time.unwrap_or(0);
 

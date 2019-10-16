@@ -324,14 +324,20 @@ pub const PASSWORD_IMPORT_HD: OptionType = (
 // Transaction
 
 pub const CREATE_RAW_TRANSACTION_BITCOIN: OptionType = (
-    "[createrawtransaction] --createrawtransaction=['[{\"txid\":txid, \"vout\":index}, ...\'] ['{\"address\":amount,...}'] 'Creates a raw Bitcoin transaction'",
+    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Creates a raw Bitcoin transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'
+    Outputs format: '{\"address\":amount,...}'
+    '",
     &["signrawtransaction"],
     &[],
     &[],
 );
 
 pub const SIGN_RAW_TRANSACTION_BITCOIN: OptionType = (
-    "[signrawtransaction] --signrawtransaction=[transaction hex] ['[{\"txid\":txid, \"vout\":index, \"amount\":amount\', \"address\":\"address\", \"privatekey\":\"private_key\"}...] 'Sign a raw Bitcoin transaction (Optional: manually specify scriptPubKey and redeemScript)'",
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [inputs] 'Sign a raw Bitcoin transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index, \"amount\":amount, \"address\":\"address\", \"privatekey\":\"private_key\"},...]'
+    (Optional: manually specify scriptPubKey and redeemScript)
+    '",
     &["createrawtransaction", "lock time", "version"],
     &[],
     &[],

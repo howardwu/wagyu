@@ -578,12 +578,10 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
         let mut transaction = self.clone();
         for (vin, input) in self.parameters.inputs.iter().enumerate() {
-            println!("1");
             let address = match &input.outpoint.address {
                 Some(address) => address,
                 None => continue,
             };
-            println!("2");
 
             if address == &private_key.to_address(&address.format())? && !transaction.parameters.inputs[vin].is_signed {
                 // Transaction hash
