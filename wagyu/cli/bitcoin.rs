@@ -45,6 +45,8 @@ struct BitcoinWallet {
     pub compressed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_hex: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
 }
 
 impl BitcoinWallet {
@@ -311,6 +313,7 @@ impl BitcoinWallet {
         }
 
         Ok(Self {
+            transaction_id: Some(transaction.to_transaction_id()?.to_string()),
             transaction_hex: Some(hex::encode(&transaction.to_transaction_bytes()?)),
             ..Default::default()
         })
@@ -373,8 +376,12 @@ impl Display for BitcoinWallet {
                 Some(compressed) => format!("      {}           {}\n", "Compressed".cyan().bold(), compressed),
                 _ => "".to_owned(),
             },
+            match &self.transaction_id {
+                Some(transaction_id) => format!("      {}       {}\n", "Transaction Id".cyan().bold(), transaction_id),
+                _ => "".to_owned(),
+            },
             match &self.transaction_hex {
-                Some(transaction_hex) => format!("      {}    {}\n", "Transaction Hex".cyan().bold(), transaction_hex),
+                Some(transaction_hex) => format!("      {}      {}\n", "Transaction Hex".cyan().bold(), transaction_hex),
                 _ => "".to_owned(),
             },
         ]
