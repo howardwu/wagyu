@@ -202,6 +202,21 @@ pub const TRANSACTION_BITCOIN: SubCommandType = (
     ],
 );
 
+pub const TRANSACTION_ETHEREUM: SubCommandType = (
+    "transaction",
+    "Generates a Ethereum transaction (include -h for more options)",
+    &[
+        option::CREATE_RAW_TRANSACTION_ETHEREUM,
+        option::SIGN_RAW_TRANSACTION_ETHEREUM,
+        option::TRANSACTION_NETWORK_ETHEREUM,
+    ],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+    ],
+);
+
 pub const TRANSACTION_ZCASH: SubCommandType = (
     "transaction",
     "Generates a Zcash transaction (include -h for more options)",

@@ -1,17 +1,21 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::ethereum::{
-    wordlist::*, EthereumAddress, EthereumDerivationPath, EthereumExtendedPrivateKey, EthereumExtendedPublicKey,
-    EthereumFormat, EthereumMnemonic, EthereumNetwork, EthereumPrivateKey, EthereumPublicKey, Mainnet,
+    wordlist::*, EthereumAddress, EthereumAmount, EthereumDerivationPath, EthereumExtendedPrivateKey,
+    EthereumExtendedPublicKey, EthereumFormat, EthereumMnemonic, EthereumNetwork, EthereumPrivateKey,
+    EthereumPublicKey, EthereumTransaction, EthereumTransactionParameters, Goerli, Kovan, Mainnet as EthereumMainnet,
+    Rinkeby, Ropsten,
 };
 use crate::model::{
-    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey, PublicKey,
+    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, Network, PrivateKey, PublicKey,
+    Transaction,
 };
 
-use clap::ArgMatches;
+use clap::{ArgMatches, Values};
 use colored::*;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use serde_json::from_str;
 use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents a generic wallet to output
@@ -31,7 +35,14 @@ struct EthereumWallet {
     pub private_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
-    pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_hex: Option<String>,
 }
 
 impl EthereumWallet {
@@ -42,7 +53,7 @@ impl EthereumWallet {
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             ..Default::default()
         })
     }
@@ -69,7 +80,8 @@ impl EthereumWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
+            ..Default::default()
         })
     }
 
@@ -94,7 +106,8 @@ impl EthereumWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
+            ..Default::default()
         })
     }
 
@@ -117,7 +130,7 @@ impl EthereumWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             ..Default::default()
         })
     }
@@ -137,7 +150,7 @@ impl EthereumWallet {
             path: path.clone(),
             extended_public_key: Some(extended_public_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             ..Default::default()
         })
     }
@@ -149,7 +162,7 @@ impl EthereumWallet {
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             ..Default::default()
         })
     }
@@ -159,7 +172,7 @@ impl EthereumWallet {
         let address = public_key.to_address(&EthereumFormat::Standard)?;
         Ok(Self {
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             ..Default::default()
         })
     }
@@ -167,7 +180,47 @@ impl EthereumWallet {
     pub fn from_address(address: &str) -> Result<Self, CLIError> {
         let address = EthereumAddress::from_str(address)?;
         Ok(Self {
-            address: address.to_string(),
+            address: Some(address.to_string()),
+            ..Default::default()
+        })
+    }
+
+    pub fn to_raw_transaction<N: EthereumNetwork>(parameters: EthereumInput) -> Result<Self, CLIError> {
+        let transaction_parameters = EthereumTransactionParameters {
+            receiver: EthereumAddress::from_str(&parameters.to)?,
+            amount: EthereumAmount::from_wei(&parameters.value)?,
+            gas: EthereumAmount::u256_from_str(&parameters.gas)?,
+            gas_price: EthereumAmount::from_wei(&parameters.gas_price)?,
+            nonce: EthereumAmount::u256_from_str(&parameters.nonce.to_string())?,
+            data: parameters.data.unwrap_or("".to_string()).as_bytes().to_vec(),
+        };
+
+        let raw_transaction = EthereumTransaction::<N>::new(&transaction_parameters)?;
+        let raw_transaction_hex = hex::encode(raw_transaction.to_transaction_bytes()?);
+
+        Ok(Self {
+            transaction_hex: Some(format!("0x{}", raw_transaction_hex)),
+            ..Default::default()
+        })
+    }
+
+    pub fn to_signed_transaction<N: EthereumNetwork>(
+        transaction_hex: String,
+        private_key: String,
+    ) -> Result<Self, CLIError> {
+        let transaction_bytes = match &transaction_hex[0..2] {
+            "0x" => hex::decode(&transaction_hex[2..])?,
+            _ => hex::decode(&transaction_hex)?,
+        };
+
+        let private_key = EthereumPrivateKey::from_str(&private_key)?;
+
+        let mut transaction = EthereumTransaction::<N>::from_transaction_bytes(&transaction_bytes)?;
+        transaction = transaction.sign(&private_key)?;
+
+        Ok(Self {
+            transaction_id: Some(transaction.to_transaction_id()?.to_string()),
+            transaction_hex: Some(format!("0x{}", hex::encode(&transaction.to_transaction_bytes()?))),
             ..Default::default()
         })
     }
@@ -213,7 +266,24 @@ impl Display for EthereumWallet {
                 Some(public_key) => format!("      {}           {}\n", "Public Key".cyan().bold(), public_key),
                 _ => "".to_owned(),
             },
-            format!("      {}              {}\n", "Address".cyan().bold(), self.address),
+            match &self.address {
+                Some(address) => format!("      {}              {}\n", "Address".cyan().bold(), address),
+                _ => "".to_owned(),
+            },
+            match &self.transaction_id {
+                Some(transaction_id) => format!("      {}       {}\n", "Transaction Id".cyan().bold(), transaction_id),
+                _ => "".to_owned(),
+            },
+            match &self.network {
+                Some(network) => format!("      {}              {}\n", "Network".cyan().bold(), network),
+                _ => "".to_owned(),
+            },
+            match &self.transaction_hex {
+                Some(transaction_hex) => {
+                    format!("      {}      {}\n", "Transaction Hex".cyan().bold(), transaction_hex)
+                }
+                _ => "".to_owned(),
+            },
         ]
         .concat();
 
@@ -221,6 +291,18 @@ impl Display for EthereumWallet {
         let output = output[..output.len() - 1].to_owned();
         write!(f, "\n{}", output)
     }
+}
+
+/// Represents parameters for an Ethereum transaction input
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EthereumInput {
+    pub to: String,
+    pub value: String,
+    pub gas: String,
+    #[serde(rename(deserialize = "gasPrice"))]
+    pub gas_price: String,
+    pub nonce: u64,
+    pub data: Option<String>,
 }
 
 /// Represents options for an Ethereum wallet
@@ -244,6 +326,11 @@ pub struct EthereumOptions {
     address: Option<String>,
     private: Option<String>,
     public: Option<String>,
+    // Transaction subcommand
+    transaction_hex: Option<String>,
+    transaction_parameters: Option<String>,
+    transaction_private_key: Option<String>,
+    network: Option<String>,
 }
 
 impl Default for EthereumOptions {
@@ -267,6 +354,11 @@ impl Default for EthereumOptions {
             address: None,
             private: None,
             public: None,
+            // Transaction subcommand
+            transaction_hex: None,
+            transaction_parameters: None,
+            transaction_private_key: None,
+            network: None,
         }
     }
 }
@@ -276,6 +368,7 @@ impl EthereumOptions {
         options.iter().for_each(|option| match *option {
             "address" => self.address(arguments.value_of(option)),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
+            "createrawtransaction" => self.create_raw_transaction(arguments.value_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
             "extended private" => self.extended_private(arguments.value_of(option)),
             "extended public" => self.extended_public(arguments.value_of(option)),
@@ -283,9 +376,11 @@ impl EthereumOptions {
             "index" => self.index(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "language" => self.language(arguments.value_of(option)),
             "mnemonic" => self.mnemonic(arguments.value_of(option)),
+            "network" => self.network(arguments.value_of(option)),
             "password" => self.password(arguments.value_of(option)),
             "private" => self.private(arguments.value_of(option)),
             "public" => self.public(arguments.value_of(option)),
+            "signrawtransaction" => self.sign_raw_transaction(arguments.values_of(option)),
             "word count" => self.word_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
             _ => (),
         });
@@ -303,6 +398,14 @@ impl EthereumOptions {
     fn count(&mut self, argument: Option<usize>) {
         if let Some(count) = argument {
             self.count = count;
+        }
+    }
+
+    /// Sets `transaction_parameters`to the specified transaction parameters, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn create_raw_transaction(&mut self, argument: Option<&str>) {
+        if let Some(transaction_parameters) = argument {
+            self.transaction_parameters = Some(transaction_parameters.to_string());
         }
     }
 
@@ -377,6 +480,14 @@ impl EthereumOptions {
         }
     }
 
+    /// Sets `network` to the specified network, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn network(&mut self, argument: Option<&str>) {
+        if let Some(network) = argument {
+            self.network = Some(network.to_string());
+        }
+    }
+
     /// Sets `password` to the specified password, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn password(&mut self, argument: Option<&str>) {
@@ -398,6 +509,16 @@ impl EthereumOptions {
     fn public(&mut self, argument: Option<&str>) {
         if let Some(public_key) = argument {
             self.public = Some(public_key.to_string())
+        }
+    }
+
+    /// Sets `transaction_hex` and `transaction_private_key` to the specified transaction values, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn sign_raw_transaction(&mut self, argument: Option<Values>) {
+        if let Some(transaction_parameters) = argument {
+            let params: Vec<&str> = transaction_parameters.collect();
+            self.transaction_hex = Some(params[0].to_string());
+            self.transaction_private_key = Some(params[1].to_string());
         }
     }
 
@@ -440,6 +561,7 @@ impl CLI for EthereumCLI {
         subcommand::HD_ETHEREUM,
         subcommand::IMPORT_ETHEREUM,
         subcommand::IMPORT_HD_ETHEREUM,
+        subcommand::TRANSACTION_ETHEREUM,
     ];
 
     /// Handle all CLI arguments and flags for Ethereum
@@ -475,6 +597,10 @@ impl CLI for EthereumCLI {
                         "password",
                     ],
                 );
+            }
+            ("transaction", Some(arguments)) => {
+                options.subcommand = Some("transaction".into());
+                options.parse(arguments, &["createrawtransaction", "network", "signrawtransaction"]);
             }
             _ => {}
         };
@@ -548,6 +674,46 @@ impl CLI for EthereumCLI {
                         vec![]
                     }
                 }
+                Some("transaction") => {
+                    if let Some(transaction_parameters) = options.transaction_parameters.clone() {
+                        let parameters: EthereumInput = from_str(&transaction_parameters)?;
+
+                        // Note: Raw Ethereum transactions are network agnostic
+                        vec![EthereumWallet::to_raw_transaction::<EthereumMainnet>(parameters)?]
+                    } else if let (Some(transaction_hex), Some(transaction_private_key)) =
+                        (options.transaction_hex.clone(), options.transaction_private_key.clone())
+                    {
+                        match options.network.as_ref().map(String::as_str) {
+                            Some(EthereumMainnet::NAME) => vec![EthereumWallet::to_signed_transaction::<
+                                EthereumMainnet,
+                            >(
+                                transaction_hex, transaction_private_key
+                            )?],
+                            Some(Goerli::NAME) => vec![EthereumWallet::to_signed_transaction::<Goerli>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            Some(Kovan::NAME) => vec![EthereumWallet::to_signed_transaction::<Kovan>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            Some(Rinkeby::NAME) => vec![EthereumWallet::to_signed_transaction::<Rinkeby>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            Some(Ropsten::NAME) => vec![EthereumWallet::to_signed_transaction::<Ropsten>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            _ => vec![EthereumWallet::to_signed_transaction::<EthereumMainnet>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                        }
+                    } else {
+                        vec![]
+                    }
+                }
                 _ => (0..options.count)
                     .flat_map(|_| match EthereumWallet::new::<_>(&mut StdRng::from_entropy()) {
                         Ok(wallet) => vec![wallet],
@@ -565,15 +731,15 @@ impl CLI for EthereumCLI {
         }
 
         match options.language.as_str() {
-            "chinese_simplified" => output::<Mainnet, ChineseSimplified>(options),
-            "chinese_traditional" => output::<Mainnet, ChineseTraditional>(options),
-            "english" => output::<Mainnet, English>(options),
-            "french" => output::<Mainnet, French>(options),
-            "italian" => output::<Mainnet, Italian>(options),
-            "japanese" => output::<Mainnet, Japanese>(options),
-            "korean" => output::<Mainnet, Korean>(options),
-            "spanish" => output::<Mainnet, Spanish>(options),
-            _ => output::<Mainnet, English>(options),
+            "chinese_simplified" => output::<EthereumMainnet, ChineseSimplified>(options),
+            "chinese_traditional" => output::<EthereumMainnet, ChineseTraditional>(options),
+            "english" => output::<EthereumMainnet, English>(options),
+            "french" => output::<EthereumMainnet, French>(options),
+            "italian" => output::<EthereumMainnet, Italian>(options),
+            "japanese" => output::<EthereumMainnet, Japanese>(options),
+            "korean" => output::<EthereumMainnet, Korean>(options),
+            "spanish" => output::<EthereumMainnet, Spanish>(options),
+            _ => output::<EthereumMainnet, English>(options),
         }
     }
 }

@@ -357,6 +357,28 @@ pub const TRANSACTION_VERSION_BITCOIN: OptionType = (
     &["createrawtransaction"],
 );
 
+pub const CREATE_RAW_TRANSACTION_ETHEREUM: OptionType = (
+    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Creates a raw Ethereum transaction
+    (Optional: Add a data field)'",
+    &["network", "signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_ETHEREUM: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [private key] 'Sign a raw Ethereum transaction'",
+    &["createrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_NETWORK_ETHEREUM: OptionType = (
+    "[network] --network=[network] 'Specify an Ethereum transaction network'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
 pub const CREATE_RAW_TRANSACTION_ZCASH: OptionType = (
     "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Creates a raw Zcash transaction
     Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'

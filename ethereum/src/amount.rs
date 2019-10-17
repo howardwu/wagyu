@@ -54,7 +54,7 @@ impl fmt::Display for Denomination {
 impl Amount for EthereumAmount {}
 
 impl EthereumAmount {
-    fn u256_from_str(val: &str) -> Result<U256, AmountError> {
+    pub fn u256_from_str(val: &str) -> Result<U256, AmountError> {
         match U256::from_dec_str(val) {
             Ok(wei) => Ok(wei),
             Err(error) => return Err(AmountError::Crate("uint", format!("{:?}", error))),
