@@ -381,7 +381,9 @@ impl Display for BitcoinWallet {
                 _ => "".to_owned(),
             },
             match &self.transaction_hex {
-                Some(transaction_hex) => format!("      {}      {}\n", "Transaction Hex".cyan().bold(), transaction_hex),
+                Some(transaction_hex) => {
+                    format!("      {}      {}\n", "Transaction Hex".cyan().bold(), transaction_hex)
+                }
                 _ => "".to_owned(),
             },
         ]
@@ -481,8 +483,8 @@ impl BitcoinOptions {
             "account" => self.account(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "address" => self.address(arguments.value_of(option)),
             "chain" => self.chain(clap::value_t!(arguments.value_of(*option), u32).ok()),
-            "createrawtransaction" => self.create_raw_transaction(arguments.values_of(option)),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
+            "createrawtransaction" => self.create_raw_transaction(arguments.values_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
             "extended private" => self.extended_private(arguments.value_of(option)),
             "extended public" => self.extended_public(arguments.value_of(option)),
@@ -775,111 +777,114 @@ impl CLI for BitcoinCLI {
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: BitcoinNetwork, W: BitcoinWordlist>(options: BitcoinOptions) -> Result<(), CLIError> {
-            let wallets = match options.subcommand.as_ref().map(String::as_str) {
-                Some("hd") => {
-                    let path = options.to_derivation_path(true).unwrap();
-                    (0..options.count)
-                        .flat_map(|_| {
-                            match BitcoinWallet::new_hd::<N, W, _>(
-                                &mut StdRng::from_entropy(),
-                                options.word_count,
-                                options.password.as_ref().map(String::as_str),
-                                &path,
-                            ) {
+            let wallets =
+                match options.subcommand.as_ref().map(String::as_str) {
+                    Some("hd") => match options.to_derivation_path(true) {
+                        Some(path) => (0..options.count)
+                            .flat_map(|_| {
+                                match BitcoinWallet::new_hd::<N, W, _>(
+                                    &mut StdRng::from_entropy(),
+                                    options.word_count,
+                                    options.password.as_ref().map(String::as_str),
+                                    &path,
+                                ) {
+                                    Ok(wallet) => vec![wallet],
+                                    _ => vec![],
+                                }
+                            })
+                            .collect(),
+                        None => vec![],
+                    },
+                    Some("import") => {
+                        if let Some(private_key) = options.private {
+                            vec![
+                                BitcoinWallet::from_private_key::<BitcoinMainnet>(&private_key, &options.format).or(
+                                    BitcoinWallet::from_private_key::<BitcoinTestnet>(&private_key, &options.format),
+                                )?,
+                            ]
+                        } else if let Some(public_key) = options.public {
+                            vec![BitcoinWallet::from_public_key::<N>(&public_key, &options.format)?]
+                        } else if let Some(address) = options.address {
+                            vec![BitcoinWallet::from_address::<BitcoinMainnet>(&address)
+                                .or(BitcoinWallet::from_address::<BitcoinTestnet>(&address))?]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    Some("import-hd") => {
+                        if let Some(mnemonic) = options.mnemonic.clone() {
+                            let password = &options.password.as_ref().map(String::as_str);
+
+                            match options.to_derivation_path(true) {
+                                Some(path) => vec![BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(
+                                    &mnemonic, password, &path,
+                                )
+                                .or(BitcoinWallet::from_mnemonic::<N, ChineseTraditional>(
+                                    &mnemonic, password, &path,
+                                ))
+                                .or(BitcoinWallet::from_mnemonic::<N, English>(&mnemonic, password, &path))
+                                .or(BitcoinWallet::from_mnemonic::<N, French>(&mnemonic, password, &path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(&mnemonic, password, &path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, &path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(&mnemonic, password, &path))
+                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, &path))?],
+                                None => vec![],
+                            }
+                        } else if let Some(extended_private_key) = options.extended_private_key.clone() {
+                            let key = &extended_private_key;
+                            let path = &options.to_derivation_path(false);
+
+                            vec![BitcoinWallet::from_extended_private_key::<BitcoinMainnet>(key, path)
+                                .or(BitcoinWallet::from_extended_private_key::<BitcoinTestnet>(key, path))?]
+                        } else if let Some(extended_public_key) = options.extended_public_key.clone() {
+                            let key = &extended_public_key;
+                            let path = &options.to_derivation_path(false);
+
+                            vec![BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path)
+                                .or(BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path))?]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    Some("transaction") => {
+                        if let (Some(transaction_inputs), Some(transaction_outputs)) =
+                            (options.transaction_inputs.clone(), options.transaction_outputs.clone())
+                        {
+                            let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs)?;
+                            let outputs = transaction_outputs.replace(&['{', '}', '"', ' '][..], "");
+                            let outputs: &Vec<&str> = &outputs.split(",").collect();
+                            let version = options.version.unwrap_or(1);
+                            let lock_time = options.lock_time.unwrap_or(0);
+
+                            vec![BitcoinWallet::to_raw_transaction::<BitcoinMainnet>(
+                                inputs, outputs, version, lock_time,
+                            )
+                            .or(BitcoinWallet::to_raw_transaction::<BitcoinTestnet>(
+                                inputs, outputs, version, lock_time,
+                            ))?]
+                        } else if let (Some(transaction_hex), Some(transaction_inputs)) =
+                            (options.transaction_hex.clone(), options.transaction_inputs.clone())
+                        {
+                            let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs)?;
+
+                            vec![
+                                BitcoinWallet::to_signed_transaction::<BitcoinMainnet>(&transaction_hex, inputs).or(
+                                    BitcoinWallet::to_signed_transaction::<BitcoinTestnet>(&transaction_hex, inputs),
+                                )?,
+                            ]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    _ => (0..options.count)
+                        .flat_map(
+                            |_| match BitcoinWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
-                            }
-                        })
-                        .collect()
-                }
-                Some("import") => {
-                    if let Some(private_key) = options.private {
-                        vec![
-                            BitcoinWallet::from_private_key::<BitcoinMainnet>(&private_key, &options.format).or(
-                                BitcoinWallet::from_private_key::<BitcoinTestnet>(&private_key, &options.format),
-                            )?,
-                        ]
-                    } else if let Some(public_key) = options.public {
-                        vec![BitcoinWallet::from_public_key::<N>(&public_key, &options.format)?]
-                    } else if let Some(address) = options.address {
-                        vec![BitcoinWallet::from_address::<BitcoinMainnet>(&address)
-                            .or(BitcoinWallet::from_address::<BitcoinTestnet>(&address))?]
-                    } else {
-                        vec![]
-                    }
-                }
-                Some("import-hd") => {
-                    if let Some(mnemonic) = options.mnemonic.clone() {
-                        let password = &options.password.as_ref().map(String::as_str);
-                        let path = &options.to_derivation_path(true).unwrap();
-
-                        vec![
-                            BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(&mnemonic, password, path)
-                                .or(BitcoinWallet::from_mnemonic::<N, ChineseTraditional>(
-                                    &mnemonic, password, path,
-                                ))
-                                .or(BitcoinWallet::from_mnemonic::<N, English>(&mnemonic, password, path))
-                                .or(BitcoinWallet::from_mnemonic::<N, French>(&mnemonic, password, path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(&mnemonic, password, path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(&mnemonic, password, path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, path))?,
-                        ]
-                    } else if let Some(extended_private_key) = options.extended_private_key.clone() {
-                        let key = &extended_private_key;
-                        let path = &options.to_derivation_path(false);
-
-                        vec![BitcoinWallet::from_extended_private_key::<BitcoinMainnet>(key, path)
-                            .or(BitcoinWallet::from_extended_private_key::<BitcoinTestnet>(key, path))?]
-                    } else if let Some(extended_public_key) = options.extended_public_key.clone() {
-                        let key = &extended_public_key;
-                        let path = &options.to_derivation_path(false);
-
-                        vec![BitcoinWallet::from_extended_public_key::<BitcoinMainnet>(key, path)
-                            .or(BitcoinWallet::from_extended_public_key::<BitcoinTestnet>(key, path))?]
-                    } else {
-                        vec![]
-                    }
-                }
-                Some("transaction") => {
-                    if let (Some(transaction_inputs), Some(transaction_outputs)) =
-                        (options.transaction_inputs.clone(), options.transaction_outputs.clone())
-                    {
-                        let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs).unwrap();
-                        let outputs = transaction_outputs.replace(&['{', '}', '"', ' '][..], "");
-                        let outputs: &Vec<&str> = &outputs.split(",").collect();
-                        let version = options.version.unwrap_or(1);
-                        let lock_time = options.lock_time.unwrap_or(0);
-
-                        vec![
-                            BitcoinWallet::to_raw_transaction::<BitcoinMainnet>(inputs, outputs, version, lock_time)
-                                .or(BitcoinWallet::to_raw_transaction::<BitcoinTestnet>(
-                                    inputs, outputs, version, lock_time,
-                                ))?,
-                        ]
-                    } else if let (Some(transaction_hex), Some(transaction_inputs)) =
-                        (options.transaction_hex.clone(), options.transaction_inputs.clone())
-                    {
-                        let inputs: &Vec<BitcoinInput> = &from_str(&transaction_inputs).unwrap();
-
-                        vec![
-                            BitcoinWallet::to_signed_transaction::<BitcoinMainnet>(&transaction_hex, inputs).or(
-                                BitcoinWallet::to_signed_transaction::<BitcoinTestnet>(&transaction_hex, inputs),
-                            )?,
-                        ]
-                    } else {
-                        vec![]
-                    }
-                }
-                _ => (0..options.count)
-                    .flat_map(
-                        |_| match BitcoinWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
-                            Ok(wallet) => vec![wallet],
-                            _ => vec![],
-                        },
-                    )
-                    .collect(),
-            };
+                            },
+                        )
+                        .collect(),
+                };
 
             match options.json {
                 true => println!("{}\n", serde_json::to_string_pretty(&wallets)?),
