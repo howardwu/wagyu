@@ -395,6 +395,7 @@ impl Display for BitcoinWallet {
     }
 }
 
+/// Represents parameters for a Bitcoin transaction input
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BitcoinInput {
     pub txid: String,
@@ -536,7 +537,7 @@ impl BitcoinOptions {
         }
     }
 
-    /// Sets `transaction_inputs` and `transaction_outputs `to the specified transaction values, overriding its previous state.
+    /// Sets `transaction_inputs` and `transaction_outputs` to the specified transaction values, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn create_raw_transaction(&mut self, argument: Option<Values>) {
         if let Some(transaction_parameters) = argument {
@@ -668,7 +669,7 @@ impl BitcoinOptions {
         }
     }
 
-    /// Sets `transaction_hex` and `transaction_inputs`to the specified transaction values, overriding its previous state.
+    /// Sets `transaction_hex` and `transaction_inputs` to the specified transaction values, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn sign_raw_transaction(&mut self, argument: Option<Values>) {
         if let Some(transaction_parameters) = argument {
