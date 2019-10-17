@@ -356,3 +356,44 @@ pub const TRANSACTION_VERSION_BITCOIN: OptionType = (
     &[],
     &["createrawtransaction"],
 );
+
+pub const CREATE_RAW_TRANSACTION_ZCASH: OptionType = (
+    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Creates a raw Zcash transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'
+    Outputs format: '{\"address\":amount,...}'
+    '",
+    &["signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_ZCASH: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [inputs] 'Sign a raw Zcash transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index, \"amount\":amount, \"address\":\"address\", \"privatekey\":\"private_key\"},...]'
+    (Optional: manually specify scriptPubKey and redeemScript)
+    '",
+    &["createrawtransaction", "expiry height", "lock time", "version"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_LOCK_TIME_ZCASH: OptionType = (
+    "[lock time] --lock-time=[lock time] 'Specify a Zcash transaction lock time'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const TRANSACTION_EXPIRY_HEIGHT_ZCASH: OptionType = (
+    "[expiry height] --expiry-height=[expiry height] 'Specify a Zcash transaction expiry height'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const TRANSACTION_VERSION_ZCASH: OptionType = (
+    "[version] --version=[version] 'Specify a Zcash transaction version'",
+    &["signrawtransaction"],
+    &["sapling"],
+    &["createrawtransaction"],
+);

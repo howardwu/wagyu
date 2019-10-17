@@ -1,15 +1,17 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
-use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey};
+use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey, Transaction};
 use crate::zcash::{
-    format::ZcashFormat, Mainnet as ZcashMainnet, Testnet as ZcashTestnet, ZcashAddress, ZcashDerivationPath,
-    ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey, ZcashPublicKey,
+    format::ZcashFormat, Mainnet as ZcashMainnet, Outpoint, SignatureHash, Testnet as ZcashTestnet, ZcashAddress,
+    ZcashAmount, ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
+    ZcashPublicKey, ZcashTransaction, ZcashTransactionParameters,
 };
 
-use clap::ArgMatches;
+use clap::{ArgMatches, Values};
 use colored::*;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use serde_json::from_str;
 use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents values to derive standard wallets
@@ -43,13 +45,18 @@ struct ZcashWallet {
     pub private_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
-    pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diversifier: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_hex: Option<String>,
 }
 
 impl ZcashWallet {
@@ -65,7 +72,7 @@ impl ZcashWallet {
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
@@ -88,10 +95,11 @@ impl ZcashWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
+            ..Default::default()
         })
     }
 
@@ -115,7 +123,7 @@ impl ZcashWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
@@ -139,7 +147,7 @@ impl ZcashWallet {
             path: path.clone(),
             extended_public_key: Some(extended_public_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
@@ -154,7 +162,7 @@ impl ZcashWallet {
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
@@ -167,7 +175,7 @@ impl ZcashWallet {
         let address = public_key.to_address(format)?;
         Ok(Self {
             public_key: Some(public_key.to_string()),
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
@@ -178,10 +186,103 @@ impl ZcashWallet {
     pub fn from_address<N: ZcashNetwork>(address: &str) -> Result<Self, CLIError> {
         let address = ZcashAddress::<N>::from_str(address)?;
         Ok(Self {
-            address: address.to_string(),
+            address: Some(address.to_string()),
             format: Some(address.format().to_string()),
             diversifier: address.to_diversifier(),
             network: Some(N::NAME.to_string()),
+            ..Default::default()
+        })
+    }
+
+    pub fn to_raw_transaction<N: ZcashNetwork>(
+        inputs: &Vec<ZcashInput>,
+        outputs: &Vec<&str>,
+        version: String,
+        lock_time: u32,
+        expiry_height: u32,
+    ) -> Result<Self, CLIError> {
+        let parameters = ZcashTransactionParameters::<N>::new(&version, lock_time, expiry_height)?;
+        let mut transaction = ZcashTransaction::<N>::new(&parameters)?;
+
+        for input in inputs {
+            transaction.parameters = transaction.parameters.add_transparent_input(
+                hex::decode(&input.txid)?,
+                input.vout,
+                None,
+                None,
+                None,
+                None,
+                None,
+                SignatureHash::SIGHASH_ALL,
+            )?;
+        }
+
+        for output in outputs {
+            let values: Vec<&str> = output.split(":").collect();
+            let address = ZcashAddress::<N>::from_str(values[0])?;
+
+            match &address.format() {
+                ZcashFormat::Sapling(_) => unimplemented!(),
+                _ => {
+                    transaction.parameters = transaction
+                        .parameters
+                        .add_transparent_output(&address, ZcashAmount::from_zatoshi(i64::from_str(values[1])?)?)?;
+                }
+            }
+        }
+
+        let raw_transaction_hex = hex::encode(transaction.to_transaction_bytes()?);
+
+        Ok(Self {
+            transaction_hex: Some(raw_transaction_hex),
+            ..Default::default()
+        })
+    }
+
+    pub fn to_signed_transaction<N: ZcashNetwork>(
+        transaction_hex: &str,
+        inputs: &Vec<ZcashInput>,
+    ) -> Result<Self, CLIError> {
+        let mut transaction = ZcashTransaction::<N>::from_transaction_bytes(&hex::decode(transaction_hex)?)?;
+
+        for input in inputs {
+            match (input.amount.clone(), input.address.clone(), input.private_key.clone()) {
+                (Some(amount), Some(address), Some(private_key)) => {
+                    let private_key = ZcashPrivateKey::<N>::from_str(&private_key)?;
+                    let address = ZcashAddress::<N>::from_str(&address)?;
+
+                    let mut reverse_transaction_id = hex::decode(&input.txid)?;
+                    reverse_transaction_id.reverse();
+
+                    let script_pub_key = match &input.script_pub_key {
+                        Some(script) => Some(hex::decode(script)?),
+                        None => None,
+                    };
+
+                    let redeem_script = match &input.redeem_script {
+                        Some(script) => Some(hex::decode(script)?),
+                        None => None,
+                    };
+
+                    let outpoint = Outpoint::<N>::new(
+                        reverse_transaction_id,
+                        input.vout,
+                        Some(address),
+                        Some(ZcashAmount::from_zatoshi(amount as i64)?),
+                        redeem_script,
+                        script_pub_key,
+                    )?;
+
+                    transaction = transaction.update_outpoint(outpoint);
+                    transaction = transaction.sign(&private_key)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Self {
+            transaction_id: Some(transaction.to_transaction_id()?.to_string()),
+            transaction_hex: Some(hex::encode(&transaction.to_transaction_bytes()?)),
             ..Default::default()
         })
     }
@@ -219,7 +320,10 @@ impl Display for ZcashWallet {
                 Some(public_key) => format!("      {}           {}\n", "Public Key".cyan().bold(), public_key),
                 _ => "".to_owned(),
             },
-            format!("      {}              {}\n", "Address".cyan().bold(), self.address),
+            match &self.address {
+                Some(address) => format!("      {}              {}\n", "Address".cyan().bold(), address),
+                _ => "".to_owned(),
+            },
             match &self.format {
                 Some(format) => format!("      {}               {}\n", "Format".cyan().bold(), format),
                 _ => "".to_owned(),
@@ -232,6 +336,16 @@ impl Display for ZcashWallet {
                 Some(network) => format!("      {}              {}\n", "Network".cyan().bold(), network),
                 _ => "".to_owned(),
             },
+            match &self.transaction_id {
+                Some(transaction_id) => format!("      {}       {}\n", "Transaction Id".cyan().bold(), transaction_id),
+                _ => "".to_owned(),
+            },
+            match &self.transaction_hex {
+                Some(transaction_hex) => {
+                    format!("      {}      {}\n", "Transaction Hex".cyan().bold(), transaction_hex)
+                }
+                _ => "".to_owned(),
+            },
         ]
         .concat();
 
@@ -239,6 +353,20 @@ impl Display for ZcashWallet {
         let output = output[..output.len() - 1].to_owned();
         write!(f, "\n{}", output)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZcashInput {
+    pub txid: String,
+    pub vout: u32,
+    pub amount: Option<u64>,
+    pub address: Option<String>,
+    #[serde(rename(deserialize = "privatekey"))]
+    pub private_key: Option<String>,
+    #[serde(rename(deserialize = "scriptPubKey"))]
+    pub script_pub_key: Option<String>,
+    #[serde(rename(deserialize = "redeemScript"))]
+    pub redeem_script: Option<String>,
 }
 
 /// Represents options for a Zcash wallet
@@ -267,6 +395,13 @@ pub struct ZcashOptions {
     address: Option<String>,
     private: Option<String>,
     public: Option<String>,
+    // Transaction subcommand
+    transaction_inputs: Option<String>,
+    transaction_hex: Option<String>,
+    transaction_outputs: Option<String>,
+    expiry_height: Option<u32>,
+    lock_time: Option<u32>,
+    version: Option<String>,
 }
 
 impl Default for ZcashOptions {
@@ -295,6 +430,13 @@ impl Default for ZcashOptions {
             address: None,
             private: None,
             public: None,
+            // Transaction subcommand
+            transaction_inputs: None,
+            transaction_hex: None,
+            transaction_outputs: None,
+            expiry_height: None,
+            lock_time: None,
+            version: None,
         }
     }
 }
@@ -305,16 +447,21 @@ impl ZcashOptions {
             "account" => self.account(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "address" => self.address(arguments.value_of(option)),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
+            "createrawtransaction" => self.create_raw_transaction(arguments.values_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
             "diversifier" => self.diversifier(arguments.value_of(option)),
+            "expiry height" => self.expiry_height(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "extended private" => self.extended_private(arguments.value_of(option)),
             "extended public" => self.extended_public(arguments.value_of(option)),
             "format" => self.format(arguments.value_of(option)),
             "index" => self.index(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "json" => self.json(arguments.is_present(option)),
+            "lock time" => self.lock_time(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "network" => self.network(arguments.value_of(option)),
             "private" => self.private(arguments.value_of(option)),
             "public" => self.public(arguments.value_of(option)),
+            "signrawtransaction" => self.sign_raw_transaction(arguments.values_of(option)),
+            "version" => self.version(arguments.value_of(option)),
             _ => (),
         });
     }
@@ -342,6 +489,16 @@ impl ZcashOptions {
         }
     }
 
+    /// Sets `transaction_inputs` and `transaction_outputs `to the specified transaction values, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn create_raw_transaction(&mut self, argument: Option<Values>) {
+        if let Some(transaction_parameters) = argument {
+            let params: Vec<&str> = transaction_parameters.collect();
+            self.transaction_inputs = Some(params[0].to_string());
+            self.transaction_outputs = Some(params[1].to_string())
+        }
+    }
+
     /// Sets `derivation` to the specified derivation, overriding its previous state.
     /// If `derivation` is `\"custom\"`, then `path` is set to the specified path.
     /// If the specified argument is `None`, then no change occurs.
@@ -366,6 +523,14 @@ impl ZcashOptions {
             let mut diversifier = [0u8; 11];
             diversifier.copy_from_slice(&hex::decode(data).unwrap());
             self.format = ZcashFormat::Sapling(Some(diversifier))
+        }
+    }
+
+    /// Sets `expiry_height` to the specified transaction lock time, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn expiry_height(&mut self, argument: Option<u32>) {
+        if let Some(expiry_height) = argument {
+            self.expiry_height = Some(expiry_height);
         }
     }
 
@@ -416,6 +581,14 @@ impl ZcashOptions {
         self.json = argument;
     }
 
+    /// Sets `lock_time` to the specified transaction lock time, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn lock_time(&mut self, argument: Option<u32>) {
+        if let Some(lock_time) = argument {
+            self.lock_time = Some(lock_time);
+        }
+    }
+
     /// Sets `network` to the specified network, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn network(&mut self, argument: Option<&str>) {
@@ -442,6 +615,16 @@ impl ZcashOptions {
         }
     }
 
+    /// Sets `transaction_hex` and `transaction_inputs`to the specified transaction values, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn sign_raw_transaction(&mut self, argument: Option<Values>) {
+        if let Some(transaction_parameters) = argument {
+            let params: Vec<&str> = transaction_parameters.collect();
+            self.transaction_hex = Some(params[0].to_string());
+            self.transaction_inputs = Some(params[1].to_string());
+        }
+    }
+
     /// Returns the derivation path with the specified account, index, and path.
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
@@ -460,6 +643,14 @@ impl ZcashOptions {
                 },
                 false => None,
             },
+        }
+    }
+
+    /// Sets `version` to the specified transaction version, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn version(&mut self, argument: Option<&str>) {
+        if let Some(version) = argument {
+            self.version = Some(version.to_string());
         }
     }
 }
@@ -482,6 +673,7 @@ impl CLI for ZcashCLI {
         subcommand::HD_ZCASH,
         subcommand::IMPORT_ZCASH,
         subcommand::IMPORT_HD_ZCASH,
+        subcommand::TRANSACTION_ZCASH,
     ];
 
     /// Handle all CLI arguments and flags for Zcash
@@ -509,6 +701,19 @@ impl CLI for ZcashCLI {
                     &["account", "derivation", "extended private", "extended public", "index"],
                 );
             }
+            ("transaction", Some(arguments)) => {
+                options.subcommand = Some("transaction".into());
+                options.parse(
+                    arguments,
+                    &[
+                        "createrawtransaction",
+                        "expiry height",
+                        "lock time",
+                        "signrawtransaction",
+                        "version",
+                    ],
+                );
+            }
             _ => {}
         };
 
@@ -521,17 +726,17 @@ impl CLI for ZcashCLI {
         fn output<N: ZcashNetwork>(options: ZcashOptions) -> Result<(), CLIError> {
             let wallets =
                 match options.subcommand.as_ref().map(String::as_str) {
-                    Some("hd") => {
-                        let path = options.to_derivation_path(true).unwrap();
-                        (0..options.count)
+                    Some("hd") => match options.to_derivation_path(true) {
+                        Some(path) => (0..options.count)
                             .flat_map(|_| {
                                 match ZcashWallet::new_hd::<N, _>(&mut StdRng::from_entropy(), &path, &options.format) {
                                     Ok(wallet) => vec![wallet],
                                     _ => vec![],
                                 }
                             })
-                            .collect()
-                    }
+                            .collect(),
+                        None => vec![],
+                    },
                     Some("import") => {
                         if let Some(private_key) = options.private {
                             vec![
@@ -570,6 +775,45 @@ impl CLI for ZcashCLI {
 
                             vec![ZcashWallet::from_extended_public_key::<ZcashMainnet>(key, path, format)
                                 .or(ZcashWallet::from_extended_public_key::<ZcashTestnet>(key, path, format))?]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    Some("transaction") => {
+                        if let (Some(transaction_inputs), Some(transaction_outputs)) =
+                            (options.transaction_inputs.clone(), options.transaction_outputs.clone())
+                        {
+                            let inputs: &Vec<ZcashInput> = &from_str(&transaction_inputs)?;
+                            let outputs = transaction_outputs.replace(&['{', '}', '"', ' '][..], "");
+                            let outputs: &Vec<&str> = &outputs.split(",").collect();
+                            let version = options.version.unwrap_or("sapling".to_string());
+                            let lock_time = options.lock_time.unwrap_or(0);
+                            let expiry_height = options.expiry_height.unwrap_or(0);
+
+                            vec![ZcashWallet::to_raw_transaction::<ZcashMainnet>(
+                                inputs,
+                                outputs,
+                                version.clone(),
+                                lock_time,
+                                expiry_height,
+                            )
+                            .or(ZcashWallet::to_raw_transaction::<ZcashTestnet>(
+                                inputs,
+                                outputs,
+                                version.clone(),
+                                lock_time,
+                                expiry_height,
+                            ))?]
+                        } else if let (Some(transaction_hex), Some(transaction_inputs)) =
+                            (options.transaction_hex.clone(), options.transaction_inputs.clone())
+                        {
+                            let inputs: &Vec<ZcashInput> = &from_str(&transaction_inputs)?;
+
+                            vec![
+                                ZcashWallet::to_signed_transaction::<ZcashMainnet>(&transaction_hex, inputs).or(
+                                    ZcashWallet::to_signed_transaction::<ZcashTestnet>(&transaction_hex, inputs),
+                                )?,
+                            ]
                         } else {
                             vec![]
                         }

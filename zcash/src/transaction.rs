@@ -106,12 +106,12 @@ pub fn create_script_pub_key<N: ZcashNetwork>(address: &ZcashAddress<N>) -> Resu
             let pub_key_hash = address_bytes[2..(address_bytes.len() - 4)].to_vec();
 
             let mut script = vec![];
-            script.push(Opcodes::OP_DUP as u8);
-            script.push(Opcodes::OP_HASH160 as u8);
+            script.push(Opcode::OP_DUP as u8);
+            script.push(Opcode::OP_HASH160 as u8);
             script.extend(variable_length_integer(pub_key_hash.len() as u64)?);
             script.extend(pub_key_hash);
-            script.push(Opcodes::OP_EQUALVERIFY as u8);
-            script.push(Opcodes::OP_CHECKSIG as u8);
+            script.push(Opcode::OP_EQUALVERIFY as u8);
+            script.push(Opcode::OP_CHECKSIG as u8);
             Ok(script)
         }
         _ => unreachable!(),
@@ -180,7 +180,7 @@ impl SignatureHash {
 /// Represents the commonly used script opcodes
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[allow(non_camel_case_types)]
-pub enum Opcodes {
+pub enum Opcode {
     OP_DUP = 0x76,
     OP_HASH160 = 0xa9,
     OP_CHECKSIG = 0xac,
@@ -188,14 +188,14 @@ pub enum Opcodes {
     OP_EQUALVERIFY = 0x88,
 }
 
-impl fmt::Display for Opcodes {
+impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Opcodes::OP_DUP => write!(f, "OP_DUP"),
-            Opcodes::OP_HASH160 => write!(f, "OP_HASH160"),
-            Opcodes::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
-            Opcodes::OP_EQUAL => write!(f, "OP_EQUAL"),
-            Opcodes::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
+            Opcode::OP_DUP => write!(f, "OP_DUP"),
+            Opcode::OP_HASH160 => write!(f, "OP_HASH160"),
+            Opcode::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
+            Opcode::OP_EQUAL => write!(f, "OP_EQUAL"),
+            Opcode::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
         }
     }
 }
@@ -208,13 +208,50 @@ pub struct Outpoint<N: ZcashNetwork> {
     /// Index of the transaction being used - 4 bytes
     pub index: u32,
     /// Amount associated with the UTXO - used for segwit transaction signatures
-    pub amount: ZcashAmount,
+    pub amount: Option<ZcashAmount>,
     /// Script public key asssociated with claiming this particular input UTXO
-    pub script_pub_key: Vec<u8>,
+    pub script_pub_key: Option<Vec<u8>>,
     /// Optional redeem script - for segwit transactions
-    pub redeem_script: Vec<u8>,
+    pub redeem_script: Option<Vec<u8>>,
     /// Address of the outpoint
     pub address: Option<ZcashAddress<N>>,
+}
+
+impl<N: ZcashNetwork> Outpoint<N> {
+    /// Returns a new Zcash transaction outpoint
+    pub fn new(
+        reverse_transaction_id: Vec<u8>,
+        index: u32,
+        address: Option<ZcashAddress<N>>,
+        amount: Option<ZcashAmount>,
+        redeem_script: Option<Vec<u8>>,
+        script_pub_key: Option<Vec<u8>>,
+    ) -> Result<Self, TransactionError> {
+        let script_pub_key = match address.clone() {
+            Some(address) => {
+                let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
+                if &address.format() == &ZcashFormat::P2PKH
+                    && script_pub_key[0] != Opcode::OP_DUP as u8
+                    && script_pub_key[1] != Opcode::OP_HASH160 as u8
+                    && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_CHECKSIG as u8
+                {
+                    return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
+                };
+
+                Some(script_pub_key)
+            }
+            None => None,
+        };
+
+        Ok(Self {
+            reverse_transaction_id,
+            index,
+            amount,
+            redeem_script,
+            script_pub_key,
+            address,
+        })
+    }
 }
 
 /// Represents a Zcash transaction transparent input
@@ -238,9 +275,9 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
 
     /// Returns a new Zcash transparent input without the script.
     pub fn new(
-        address: ZcashAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
+        address: Option<ZcashAddress<N>>,
         amount: Option<ZcashAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
@@ -255,39 +292,14 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        /// Validate the address format with the given scripts (P2SH currently unsupported)
-        pub fn validate_address_format(
-            address_format: &ZcashFormat,
-            amount: &Option<ZcashAmount>,
-            redeem_script: &Option<Vec<u8>>,
-            script_pub_key: &Vec<u8>,
-        ) -> Result<(ZcashAmount, Vec<u8>), TransactionError> {
-            if address_format == &ZcashFormat::P2PKH
-                && script_pub_key[0] != Opcodes::OP_DUP as u8
-                && script_pub_key[1] != Opcodes::OP_HASH160 as u8
-                && script_pub_key[script_pub_key.len() - 1] != Opcodes::OP_CHECKSIG as u8
-            {
-                return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
-            }
-
-            Ok((
-                amount.unwrap_or(ZcashAmount::ZERO),
-                redeem_script.clone().unwrap_or(Vec::new()),
-            ))
-        }
-
-        let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
-        let (amount, redeem_script) =
-            validate_address_format(&address.format(), &amount, &redeem_script, &script_pub_key)?;
-
-        let outpoint = Outpoint {
+        let outpoint = Outpoint::<N>::new(
             reverse_transaction_id,
             index,
+            address,
             amount,
             redeem_script,
             script_pub_key,
-            address: Some(address),
-        };
+        )?;
         let sequence = sequence.unwrap_or(ZcashTransparentInput::<N>::DEFAULT_SEQUENCE.to_vec());
 
         Ok(Self {
@@ -310,9 +322,9 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         let outpoint = Outpoint {
             reverse_transaction_id: transaction_hash.to_vec(),
             index: u32::from_le_bytes(vin),
-            amount: ZcashAmount::ZERO,
-            script_pub_key: vec![],
-            redeem_script: vec![],
+            amount: None,
+            script_pub_key: None,
+            redeem_script: None,
             address: None,
         };
 
@@ -349,7 +361,10 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         match (raw, self.script.len()) {
             (true, _) => input.extend(vec![0x00]),
             (false, 0) => {
-                let script_pub_key = &self.outpoint.script_pub_key.clone();
+                let script_pub_key = match &self.outpoint.script_pub_key {
+                    Some(script) => script,
+                    None => return Err(TransactionError::MissingOutpointScriptPublicKey),
+                };
                 input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                 input.extend(script_pub_key);
             }
@@ -359,8 +374,10 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
             }
         };
 
-        if hash_preimage {
-            input.extend(&self.outpoint.amount.0.to_le_bytes());
+        match (hash_preimage, &self.outpoint.amount) {
+            (true, Some(amount)) => input.extend(&amount.0.to_le_bytes()),
+            (true, None) => return Err(TransactionError::MissingOutpointAmount),
+            (false, _) => {}
         };
 
         input.extend(&self.sequence);
@@ -924,9 +941,9 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     /// Returns the transaction parameters with the given transparent input appended.
     pub fn add_transparent_input(
         &self,
-        address: ZcashAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
+        address: Option<ZcashAddress<N>>,
         amount: Option<ZcashAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
@@ -935,9 +952,9 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
         parameters.transparent_inputs.push(ZcashTransparentInput::<N>::new(
-            address,
             transaction_id,
             index,
+            address,
             amount,
             redeem_script,
             script_pub_key,
@@ -1437,7 +1454,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
     /// Update a transaction's input outpoint
     #[allow(dead_code)]
-    fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
+    pub fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
         let mut new_transaction = self.clone();
         for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
             if &outpoint.reverse_transaction_id == &input.outpoint.reverse_transaction_id
@@ -1534,7 +1551,7 @@ mod tests {
         // Add transparent inputs
 
         for input in &inputs {
-            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
 
             let transaction_id = hex::decode(input.transaction_id).unwrap();
@@ -1545,9 +1562,9 @@ mod tests {
             transaction.parameters = transaction
                 .parameters
                 .add_transparent_input(
-                    address,
                     transaction_id,
                     input.index,
+                    Some(address),
                     input.utxo_amount,
                     redeem_script,
                     script_pub_key,
@@ -1721,7 +1738,7 @@ mod tests {
         // Add transparent inputs
 
         for input in &inputs {
-            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
 
             let transaction_id = hex::decode(input.transaction_id).unwrap();
@@ -1732,9 +1749,9 @@ mod tests {
             transaction.parameters = transaction
                 .parameters
                 .add_transparent_input(
-                    address,
                     transaction_id,
                     input.index,
+                    Some(address),
                     input.utxo_amount,
                     redeem_script,
                     script_pub_key,
@@ -1786,7 +1803,7 @@ mod tests {
         // Add transparent inputs
 
         for input in &inputs {
-            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
 
             let transaction_id = hex::decode(input.transaction_id).unwrap();
@@ -1797,9 +1814,9 @@ mod tests {
             transaction.parameters = transaction
                 .parameters
                 .add_transparent_input(
-                    address,
                     transaction_id,
                     input.index,
+                    Some(address),
                     input.utxo_amount,
                     redeem_script,
                     script_pub_key,
@@ -2865,9 +2882,9 @@ mod tests {
                     Ok(private_key) => {
                         let address = private_key.to_address(&input.address_format).unwrap();
                         let invalid_input = ZcashTransparentInput::<N>::new(
-                            address,
                             transaction_id,
                             input.index,
+                            Some(address),
                             input.utxo_amount,
                             redeem_script,
                             script_pub_key,
