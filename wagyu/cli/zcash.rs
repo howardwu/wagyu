@@ -1,8 +1,9 @@
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::model::{ExtendedPrivateKey, ExtendedPublicKey, PrivateKey, PublicKey, Transaction};
 use crate::zcash::{
-    format::ZcashFormat, Mainnet as ZcashMainnet, Outpoint, SignatureHash, Testnet as ZcashTestnet, ZcashAddress,
-    ZcashAmount, ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
+    format::ZcashFormat, initialize_proving_context, initialize_verifying_context, load_sapling_parameters,
+    Mainnet as ZcashMainnet, Outpoint, SignatureHash, Testnet as ZcashTestnet, ZcashAddress, ZcashAmount,
+    ZcashDerivationPath, ZcashExtendedPrivateKey, ZcashExtendedPublicKey, ZcashNetwork, ZcashPrivateKey,
     ZcashPublicKey, ZcashTransaction, ZcashTransactionParameters,
 };
 
@@ -53,6 +54,8 @@ struct ZcashWallet {
     pub diversifier: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outgoing_view_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -217,23 +220,51 @@ impl ZcashWallet {
             )?;
         }
 
+        let mut sapling_outputs = false;
+
         for output in outputs {
             let values: Vec<&str> = output.split(":").collect();
             let address = ZcashAddress::<N>::from_str(values[0])?;
+            let amount = ZcashAmount::from_zatoshi(i64::from_str(values[1])?)?;
 
             match &address.format() {
-                ZcashFormat::Sapling(_) => unimplemented!(),
+                ZcashFormat::Sapling(_) => {
+                    transaction.parameters = transaction.parameters.add_sapling_output(None, &address, amount)?;
+                    sapling_outputs = true;
+                }
                 _ => {
-                    transaction.parameters = transaction
-                        .parameters
-                        .add_transparent_output(&address, ZcashAmount::from_zatoshi(i64::from_str(values[1])?)?)?;
+                    transaction.parameters = transaction.parameters.add_transparent_output(&address, amount)?;
                 }
             }
+        }
+
+        let mut outgoing_view_key = None;
+        if sapling_outputs {
+            outgoing_view_key = match &transaction.parameters.shielded_outputs[0].output_parameters {
+                Some(params) => Some(hex::encode(params.ovk.0)),
+                None => None,
+            };
+
+            let (spend_params, spend_vk, output_params, output_vk) = load_sapling_parameters(
+                "./zcash/src/librustzcash/params//sapling-spend.params",
+                "./zcash/src/librustzcash/params/sapling-output.params",
+            );
+            let mut proving_ctx = initialize_proving_context();
+            let mut verifying_ctx = initialize_verifying_context();
+            transaction.build_sapling_transaction(
+                &mut proving_ctx,
+                &mut verifying_ctx,
+                &spend_params,
+                &spend_vk,
+                &output_params,
+                &output_vk,
+            )?;
         }
 
         let raw_transaction_hex = hex::encode(transaction.to_transaction_bytes()?);
 
         Ok(Self {
+            outgoing_view_key,
             transaction_hex: Some(raw_transaction_hex),
             ..Default::default()
         })
@@ -334,6 +365,12 @@ impl Display for ZcashWallet {
             },
             match &self.network {
                 Some(network) => format!("      {}              {}\n", "Network".cyan().bold(), network),
+                _ => "".to_owned(),
+            },
+            match &self.outgoing_view_key {
+                Some(outgoing_view_key) => {
+                    format!("      {}    {}\n", "Outgoing View Key".cyan().bold(), outgoing_view_key)
+                }
                 _ => "".to_owned(),
             },
             match &self.transaction_id {
