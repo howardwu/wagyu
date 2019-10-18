@@ -1,6 +1,6 @@
 use crate::model::{
-    AddressError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError, PrivateKeyError,
-    PublicKeyError,
+    AddressError, AmountError, DerivationPathError, ExtendedPrivateKeyError, ExtendedPublicKeyError, MnemonicError,
+    PrivateKeyError, PublicKeyError, TransactionError,
 };
 
 pub mod bitcoin;
@@ -84,6 +84,9 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     AddressError(AddressError),
 
+    #[fail(display = "{}", _0)]
+    AmountError(AmountError),
+
     #[fail(display = "{}: {}", _0, _1)]
     Crate(&'static str, String),
 
@@ -108,6 +111,9 @@ pub enum CLIError {
     #[fail(display = "{}", _0)]
     MnemonicError(MnemonicError),
 
+    #[fail(display = "{}", _0)]
+    TransactionError(TransactionError),
+
     #[fail(display = "unsupported mnemonic language")]
     UnsupportedLanguage,
 }
@@ -115,6 +121,12 @@ pub enum CLIError {
 impl From<AddressError> for CLIError {
     fn from(error: AddressError) -> Self {
         CLIError::AddressError(error)
+    }
+}
+
+impl From<AmountError> for CLIError {
+    fn from(error: AmountError) -> Self {
+        CLIError::AmountError(error)
     }
 }
 
@@ -169,5 +181,11 @@ impl From<PublicKeyError> for CLIError {
 impl From<serde_json::error::Error> for CLIError {
     fn from(error: serde_json::error::Error) -> Self {
         CLIError::Crate("serde_json", format!("{:?}", error))
+    }
+}
+
+impl From<TransactionError> for CLIError {
+    fn from(error: TransactionError) -> Self {
+        CLIError::TransactionError(error)
     }
 }

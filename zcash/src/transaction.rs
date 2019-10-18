@@ -2,18 +2,19 @@ use crate::address::ZcashAddress;
 use crate::amount::ZcashAmount;
 use crate::extended_private_key::ZcashExtendedPrivateKey;
 use crate::format::ZcashFormat;
+use crate::librustzcash::zip32::prf_expand;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
 
 use base58::FromBase58;
 use blake2b_simd::{Hash, Params};
-use rand::rngs::StdRng;
+use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{fmt, io::Read, str::FromStr};
+use std::{fmt, io::Read, path::Path, str::FromStr};
 use wagyu_model::{ExtendedPrivateKey, PrivateKey, Transaction, TransactionError, TransactionId};
 
 // librustzcash crates
@@ -31,7 +32,10 @@ use zcash_primitives::{
     transaction::components::Amount,
     JUBJUB,
 };
-use zcash_proofs::sapling::{SaplingProvingContext, SaplingVerificationContext};
+use zcash_proofs::{
+    load_parameters,
+    sapling::{SaplingProvingContext, SaplingVerificationContext},
+};
 
 const GROTH_PROOF_SIZE: usize = 48 + 96 + 48; // π_A + π_B + π_C
 
@@ -85,6 +89,41 @@ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, Tra
     }
 }
 
+/// Initialize the sapling parameters and verifying keys
+pub fn load_sapling_parameters(
+    spend_path: &str,
+    output_path: &str,
+) -> (
+    Parameters<Bls12>,
+    PreparedVerifyingKey<Bls12>,
+    Parameters<Bls12>,
+    PreparedVerifyingKey<Bls12>,
+) {
+    let spend_path = Path::new(spend_path);
+    let output_path = Path::new(output_path);
+
+    let (spend_params, spend_vk, output_params, output_vk, _) = load_parameters(
+        spend_path,
+        "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
+        output_path,
+        "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
+        None,
+        None,
+    );
+
+    (spend_params, spend_vk, output_params, output_vk)
+}
+
+/// Initialize the sapling proving context
+pub fn initialize_proving_context() -> SaplingProvingContext {
+    SaplingProvingContext::new()
+}
+
+/// Initialize the sapling verifying context
+pub fn initialize_verifying_context() -> SaplingVerificationContext {
+    SaplingVerificationContext::new()
+}
+
 pub struct ZcashVector;
 
 impl ZcashVector {
@@ -106,12 +145,12 @@ pub fn create_script_pub_key<N: ZcashNetwork>(address: &ZcashAddress<N>) -> Resu
             let pub_key_hash = address_bytes[2..(address_bytes.len() - 4)].to_vec();
 
             let mut script = vec![];
-            script.push(Opcodes::OP_DUP as u8);
-            script.push(Opcodes::OP_HASH160 as u8);
+            script.push(Opcode::OP_DUP as u8);
+            script.push(Opcode::OP_HASH160 as u8);
             script.extend(variable_length_integer(pub_key_hash.len() as u64)?);
             script.extend(pub_key_hash);
-            script.push(Opcodes::OP_EQUALVERIFY as u8);
-            script.push(Opcodes::OP_CHECKSIG as u8);
+            script.push(Opcode::OP_EQUALVERIFY as u8);
+            script.push(Opcode::OP_CHECKSIG as u8);
             Ok(script)
         }
         _ => unreachable!(),
@@ -180,7 +219,7 @@ impl SignatureHash {
 /// Represents the commonly used script opcodes
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[allow(non_camel_case_types)]
-pub enum Opcodes {
+pub enum Opcode {
     OP_DUP = 0x76,
     OP_HASH160 = 0xa9,
     OP_CHECKSIG = 0xac,
@@ -188,14 +227,14 @@ pub enum Opcodes {
     OP_EQUALVERIFY = 0x88,
 }
 
-impl fmt::Display for Opcodes {
+impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Opcodes::OP_DUP => write!(f, "OP_DUP"),
-            Opcodes::OP_HASH160 => write!(f, "OP_HASH160"),
-            Opcodes::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
-            Opcodes::OP_EQUAL => write!(f, "OP_EQUAL"),
-            Opcodes::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
+            Opcode::OP_DUP => write!(f, "OP_DUP"),
+            Opcode::OP_HASH160 => write!(f, "OP_HASH160"),
+            Opcode::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
+            Opcode::OP_EQUAL => write!(f, "OP_EQUAL"),
+            Opcode::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
         }
     }
 }
@@ -208,13 +247,50 @@ pub struct Outpoint<N: ZcashNetwork> {
     /// Index of the transaction being used - 4 bytes
     pub index: u32,
     /// Amount associated with the UTXO - used for segwit transaction signatures
-    pub amount: ZcashAmount,
+    pub amount: Option<ZcashAmount>,
     /// Script public key asssociated with claiming this particular input UTXO
-    pub script_pub_key: Vec<u8>,
+    pub script_pub_key: Option<Vec<u8>>,
     /// Optional redeem script - for segwit transactions
-    pub redeem_script: Vec<u8>,
+    pub redeem_script: Option<Vec<u8>>,
     /// Address of the outpoint
     pub address: Option<ZcashAddress<N>>,
+}
+
+impl<N: ZcashNetwork> Outpoint<N> {
+    /// Returns a new Zcash transaction outpoint
+    pub fn new(
+        reverse_transaction_id: Vec<u8>,
+        index: u32,
+        address: Option<ZcashAddress<N>>,
+        amount: Option<ZcashAmount>,
+        redeem_script: Option<Vec<u8>>,
+        script_pub_key: Option<Vec<u8>>,
+    ) -> Result<Self, TransactionError> {
+        let script_pub_key = match address.clone() {
+            Some(address) => {
+                let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
+                if &address.format() == &ZcashFormat::P2PKH
+                    && script_pub_key[0] != Opcode::OP_DUP as u8
+                    && script_pub_key[1] != Opcode::OP_HASH160 as u8
+                    && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_CHECKSIG as u8
+                {
+                    return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
+                };
+
+                Some(script_pub_key)
+            }
+            None => None,
+        };
+
+        Ok(Self {
+            reverse_transaction_id,
+            index,
+            amount,
+            redeem_script,
+            script_pub_key,
+            address,
+        })
+    }
 }
 
 /// Represents a Zcash transaction transparent input
@@ -238,9 +314,9 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
 
     /// Returns a new Zcash transparent input without the script.
     pub fn new(
-        address: ZcashAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
+        address: Option<ZcashAddress<N>>,
         amount: Option<ZcashAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
@@ -255,39 +331,14 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        /// Validate the address format with the given scripts (P2SH currently unsupported)
-        pub fn validate_address_format(
-            address_format: &ZcashFormat,
-            amount: &Option<ZcashAmount>,
-            redeem_script: &Option<Vec<u8>>,
-            script_pub_key: &Vec<u8>,
-        ) -> Result<(ZcashAmount, Vec<u8>), TransactionError> {
-            if address_format == &ZcashFormat::P2PKH
-                && script_pub_key[0] != Opcodes::OP_DUP as u8
-                && script_pub_key[1] != Opcodes::OP_HASH160 as u8
-                && script_pub_key[script_pub_key.len() - 1] != Opcodes::OP_CHECKSIG as u8
-            {
-                return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
-            }
-
-            Ok((
-                amount.unwrap_or(ZcashAmount::ZERO),
-                redeem_script.clone().unwrap_or(Vec::new()),
-            ))
-        }
-
-        let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
-        let (amount, redeem_script) =
-            validate_address_format(&address.format(), &amount, &redeem_script, &script_pub_key)?;
-
-        let outpoint = Outpoint {
+        let outpoint = Outpoint::<N>::new(
             reverse_transaction_id,
             index,
+            address,
             amount,
             redeem_script,
             script_pub_key,
-            address: Some(address),
-        };
+        )?;
         let sequence = sequence.unwrap_or(ZcashTransparentInput::<N>::DEFAULT_SEQUENCE.to_vec());
 
         Ok(Self {
@@ -310,9 +361,9 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         let outpoint = Outpoint {
             reverse_transaction_id: transaction_hash.to_vec(),
             index: u32::from_le_bytes(vin),
-            amount: ZcashAmount::ZERO,
-            script_pub_key: vec![],
-            redeem_script: vec![],
+            amount: None,
+            script_pub_key: None,
+            redeem_script: None,
             address: None,
         };
 
@@ -349,7 +400,10 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
         match (raw, self.script.len()) {
             (true, _) => input.extend(vec![0x00]),
             (false, 0) => {
-                let script_pub_key = &self.outpoint.script_pub_key.clone();
+                let script_pub_key = match &self.outpoint.script_pub_key {
+                    Some(script) => script,
+                    None => return Err(TransactionError::MissingOutpointScriptPublicKey),
+                };
                 input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                 input.extend(script_pub_key);
             }
@@ -359,8 +413,10 @@ impl<N: ZcashNetwork> ZcashTransparentInput<N> {
             }
         };
 
-        if hash_preimage {
-            input.extend(&self.outpoint.amount.0.to_le_bytes());
+        match (hash_preimage, &self.outpoint.amount) {
+            (true, Some(amount)) => input.extend(&amount.0.to_le_bytes()),
+            (true, None) => return Err(TransactionError::MissingOutpointAmount),
+            (false, _) => {}
         };
 
         input.extend(&self.sequence);
@@ -924,9 +980,9 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     /// Returns the transaction parameters with the given transparent input appended.
     pub fn add_transparent_input(
         &self,
-        address: ZcashAddress<N>,
         transaction_id: Vec<u8>,
         index: u32,
+        address: Option<ZcashAddress<N>>,
         amount: Option<ZcashAmount>,
         redeem_script: Option<Vec<u8>>,
         script_pub_key: Option<Vec<u8>>,
@@ -935,9 +991,9 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
         parameters.transparent_inputs.push(ZcashTransparentInput::<N>::new(
-            address,
             transaction_id,
             index,
+            address,
             amount,
             redeem_script,
             script_pub_key,
@@ -998,10 +1054,25 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
     /// Add a sapling shielded output to the transaction
     pub fn add_sapling_output(
         &self,
-        ovk: SaplingOutgoingViewingKey,
+        ovk: Option<SaplingOutgoingViewingKey>,
         address: &ZcashAddress<N>,
         amount: ZcashAmount,
     ) -> Result<Self, TransactionError> {
+        let ovk = match ovk {
+            Some(ovk) => ovk,
+            None => {
+                // Generate a common ovk from rand HD seed
+                // (optionally pass in a seed for wallet management purposes)
+                let rng = &mut StdRng::from_entropy();
+                let seed: [u8; 32] = rng.gen();
+                let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
+                let mut ovk = [0u8; 32];
+                ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
+
+                SaplingOutgoingViewingKey(ovk)
+            }
+        };
+
         let mut parameters = self.clone();
         let sapling_output = SaplingOutput::<N>::new(ovk, address, amount)?;
 
@@ -1359,7 +1430,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
     }
 
     /// Generate the sighash
-    /// https://github.com/zcash/zips/blob/master/zip-0243.rs
+    /// https://github.com/zcash/zips/blob/master/zip-0243.rst
     pub fn generate_sighash(
         &self,
         input_index: Option<usize>,
@@ -1437,7 +1508,7 @@ impl<N: ZcashNetwork> ZcashTransaction<N> {
 
     /// Update a transaction's input outpoint
     #[allow(dead_code)]
-    fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
+    pub fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
         let mut new_transaction = self.clone();
         for (vin, input) in self.parameters.transparent_inputs.iter().enumerate() {
             if &outpoint.reverse_transaction_id == &input.outpoint.reverse_transaction_id
@@ -1461,15 +1532,11 @@ impl<N: ZcashNetwork> FromStr for ZcashTransaction<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::librustzcash::zip32::prf_expand;
     use crate::private_key::SaplingSpendingKey;
     use crate::{Mainnet, Testnet};
 
     use bellman::groth16::PreparedVerifyingKey;
-    use rand::Rng;
-    use std::path::Path;
     use zcash_primitives::merkle_tree::{CommitmentTree, IncrementalWitness};
-    use zcash_proofs::load_parameters;
 
     #[derive(Clone)]
     pub struct TransactionData<'a> {
@@ -1534,7 +1601,7 @@ mod tests {
         // Add transparent inputs
 
         for input in &inputs {
-            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
 
             let transaction_id = hex::decode(input.transaction_id).unwrap();
@@ -1545,9 +1612,9 @@ mod tests {
             transaction.parameters = transaction
                 .parameters
                 .add_transparent_input(
-                    address,
                     transaction_id,
                     input.index,
+                    Some(address),
                     input.utxo_amount,
                     redeem_script,
                     script_pub_key,
@@ -1639,19 +1706,9 @@ mod tests {
         // Select Output Viewing Key
 
         let ovk = match &sapling_spend_key {
-            // Generate a common ovk from HD seed
-            // (optionally pass in a seed for wallet management purposes)
-            None => {
-                let rng = &mut StdRng::from_entropy();
-                let seed: [u8; 32] = rng.gen();
-                let hash = blake2_256_hash("ZcTaddrToSapling", seed.to_vec(), None);
-                let mut ovk = [0u8; 32];
-                ovk.copy_from_slice(&prf_expand(hash.as_bytes(), &[0x01]).as_bytes()[0..32]);
-
-                SaplingOutgoingViewingKey(ovk)
-            }
+            None => None,
             // Get the ovk from the sapling extended spend key
-            Some(spend_key) => spend_key.ovk,
+            Some(spend_key) => Some(spend_key.ovk),
         };
 
         // Build Sapling outputs
@@ -1664,16 +1721,8 @@ mod tests {
                 .unwrap();
         }
 
-        let mut proving_ctx = SaplingProvingContext::new();
-        let mut verifying_ctx = SaplingVerificationContext::new();
-
-        // Sign the transparent transaction inputs
-
-        for input in inputs {
-            transaction = transaction
-                .sign(&ZcashPrivateKey::from_str(input.private_key).unwrap())
-                .unwrap();
-        }
+        let mut proving_ctx = initialize_proving_context();
+        let mut verifying_ctx = initialize_verifying_context();
 
         // Generate the sapling spends/outputs and do verification checks
 
@@ -1687,6 +1736,14 @@ mod tests {
                 output_vk,
             )
             .unwrap();
+
+        // Sign the transparent transaction inputs
+
+        for input in inputs {
+            transaction = transaction
+                .sign(&ZcashPrivateKey::from_str(input.private_key).unwrap())
+                .unwrap();
+        }
 
         let signed_transaction = hex::encode(transaction.to_transaction_bytes().unwrap());
         let new_signed_transaction = hex::encode(
@@ -1721,7 +1778,7 @@ mod tests {
         // Add transparent inputs
 
         for input in &inputs {
-            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
 
             let transaction_id = hex::decode(input.transaction_id).unwrap();
@@ -1732,9 +1789,9 @@ mod tests {
             transaction.parameters = transaction
                 .parameters
                 .add_transparent_input(
-                    address,
                     transaction_id,
                     input.index,
+                    Some(address),
                     input.utxo_amount,
                     redeem_script,
                     script_pub_key,
@@ -1786,7 +1843,7 @@ mod tests {
         // Add transparent inputs
 
         for input in &inputs {
-            let private_key = ZcashPrivateKey::from_str(input.private_key).unwrap();
+            let private_key = ZcashPrivateKey::<N>::from_str(input.private_key).unwrap();
             let address = private_key.to_address(&input.address_format).unwrap();
 
             let transaction_id = hex::decode(input.transaction_id).unwrap();
@@ -1797,9 +1854,9 @@ mod tests {
             transaction.parameters = transaction
                 .parameters
                 .add_transparent_input(
-                    address,
                     transaction_id,
                     input.index,
+                    Some(address),
                     input.utxo_amount,
                     redeem_script,
                     script_pub_key,
@@ -1896,16 +1953,9 @@ mod tests {
     }
 
     fn test_sapling_transactions<N: ZcashNetwork>(sapling_transactions: Vec<TransactionData>) {
-        let spend_path = Path::new("src/librustzcash/params/sapling-spend.params");
-        let output_path = Path::new("src/librustzcash/params/sapling-output.params");
-
-        let (spend_params, spend_vk, output_params, output_vk, _sprout_vk) = load_parameters(
-            spend_path,
-            "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
-            output_path,
-            "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
-            None,
-            None,
+        let (spend_params, spend_vk, output_params, output_vk) = load_sapling_parameters(
+            "src/librustzcash/params/sapling-spend.params",
+            "src/librustzcash/params/sapling-output.params",
         );
 
         sapling_transactions.iter().for_each(|transaction| {
@@ -2865,9 +2915,9 @@ mod tests {
                     Ok(private_key) => {
                         let address = private_key.to_address(&input.address_format).unwrap();
                         let invalid_input = ZcashTransparentInput::<N>::new(
-                            address,
                             transaction_id,
                             input.index,
+                            Some(address),
                             input.utxo_amount,
                             redeem_script,
                             script_pub_key,
@@ -3026,16 +3076,9 @@ mod tests {
 
         #[test]
         fn test_invalid_sapling_transactions_incorrect_build_order() {
-            let spend_path = Path::new("src/librustzcash/params/sapling-spend.params");
-            let output_path = Path::new("src/librustzcash/params/sapling-output.params");
-
-            let (_, mut spend_vk, _, _, _) = load_parameters(
-                spend_path,
-                "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
-                output_path,
-                "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
-                None,
-                None,
+            let (_, mut spend_vk, _, _) = load_sapling_parameters(
+                "src/librustzcash/params/sapling-spend.params",
+                "src/librustzcash/params/sapling-output.params",
             );
 
             let version = "sapling";
@@ -3106,7 +3149,7 @@ mod tests {
                 )
                 .unwrap();
 
-            let mut verifying_ctx = SaplingVerificationContext::new();
+            let mut verifying_ctx = initialize_verifying_context();
             let mut sighash = [0u8; 32];
             sighash.copy_from_slice(
                 transaction
