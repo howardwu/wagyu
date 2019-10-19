@@ -18,6 +18,12 @@ matrix:
             - gcc
             - binutils-dev
             - libiberty-dev
+            - build-essential
+            - libboost-dev
+            - libboost-all-dev
+            - gcc
+            - g++
+            - gcc-multilib
       after_success: |
         wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
         tar xzf master.tar.gz &&
@@ -59,7 +65,8 @@ before_install:
     git submodule foreach --recursive git fetch
     git submodule foreach --recursive git checkout master
     git submodule foreach --recursive 'git pull --ff-only origin master'
-    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev g++; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get update; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib; fi
 
 script:
   - cargo build --verbose
