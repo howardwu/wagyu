@@ -59,7 +59,7 @@ before_install:
     git submodule foreach --recursive git fetch
     git submodule foreach --recursive git checkout master
     git submodule foreach --recursive 'git pull --ff-only origin master'
-    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install libboost-all-dev g++; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev g++; fi
 
 script:
   - cargo build --verbose
