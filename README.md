@@ -67,7 +67,7 @@ We recommend installing Rust using [rustup](https://www.rustup.rs/). You can ins
   
   Download the [Windows 32-bit executable](https://win.rustup.rs/i686) and follow the on-screen instructions.
 
-### 2.2a Install from Homebrew
+### 2.2a Build from Homebrew
 
 The simplest way to install `wagyu` is via Homebrew as follows:
 
