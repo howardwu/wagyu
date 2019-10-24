@@ -17,10 +17,10 @@
 
 * [1. Overview](#1-overview)
 * [2. Build Guide](#2-build-guide)
-    * [2.1 Install from Homebrew](#21-install-from-homebrew)
-    * [2.2 Install Rust](#22-install-rust)
-    * [2.3a Build from Crates.io](#23a-build-from-cratesio)
-    * [2.3b Build from Source Code](#23b-build-from-source-code)
+    * [2.1 Install Rust](#22-install-rust)
+    * [2.2a Build from Homebrew](#22a-build-from-homebrew)
+    * [2.2b Build from Crates.io](#22b-build-from-cratesio)
+    * [2.2c Build from Source Code](#22c-build-from-source-code)
 * [3. Usage Guide](#3-usage-guide)
 	* [3.1 Generate a cryptocurrency wallet](#31-generate-a-cryptocurrency-wallet)
 	* [3.2 Generate an HD cryptocurrency wallet](#32-generate-an-hd-cryptocurrency-wallet)
@@ -50,15 +50,7 @@ Wagyu can support new cryptocurrencies by implementing the model as outlined in 
 
 ## 2. Build Guide
 
-### 2.1 Install from Homebrew
-
-The simplest way to install `wagyu` is via Homebrew as follows:
-
-```bash
-brew install wagyu
-```
-
-### 2.2 Install Rust
+### 2.1 Install Rust
 
 We recommend installing Rust using [rustup](https://www.rustup.rs/). You can install `rustup` as follows:
 
@@ -75,7 +67,15 @@ We recommend installing Rust using [rustup](https://www.rustup.rs/). You can ins
   
   Download the [Windows 32-bit executable](https://win.rustup.rs/i686) and follow the on-screen instructions.
 
-### 2.3a Build from Crates.io
+### 2.2a Install from Homebrew
+
+The simplest way to install `wagyu` is via Homebrew as follows:
+
+```bash
+brew install wagyu
+```
+
+### 2.2b Build from Crates.io
 
 We recommend installing `wagyu` this way. In your terminal, run:
 
@@ -88,7 +88,7 @@ Now to use `wagyu`, in your terminal, run:
 wagyu
 ```
  
-### 2.3b Build from Source Code
+### 2.2c Build from Source Code
 
 Alternatively, you can install `wagyu` by building from the source code as follows:
 
