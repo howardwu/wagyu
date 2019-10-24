@@ -17,7 +17,7 @@
 
 * [1. Overview](#1-overview)
 * [2. Build Guide](#2-build-guide)
-    * [2.1 Install Rust](#22-install-rust)
+    * [2.1 Install Rust](#21-install-rust)
     * [2.2a Build from Homebrew](#22a-build-from-homebrew)
     * [2.2b Build from Crates.io](#22b-build-from-cratesio)
     * [2.2c Build from Source Code](#22c-build-from-source-code)
