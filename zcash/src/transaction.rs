@@ -108,6 +108,9 @@ pub fn load_sapling_parameters(
     absolute_spend_path.push(spend_path);
     absolute_output_path.push(output_path);
 
+    let spend_fs = std::fs::File::open(absolute_spend_path.as_path()).expect(&format!("didnt open Sapling spend {}", absolute_spend_path.display()));
+    let output_fs = std::fs::File::open(absolute_output_path.as_path()).expect(&format!("didnt open Sapling output {}", absolute_output_path.display()));
+
     println!("spend path is: {}", absolute_spend_path.display());
 
     let (spend_params, spend_vk, output_params, output_vk, _) = load_parameters(
