@@ -47,17 +47,6 @@ matrix:
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
-    - rust: stable
-      env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
-      script:
-        - sudo ln -s /bin/g++ /bin/musl-g++;
-        - rustup target add x86_64-unknown-linux-musl
-        - cargo build --release --target $TARGET
-        - RUST_BACKTRACE=1 cargo test --all --verbose
-      addons:
-        apt:
-          packages:
-            - musl-tools
 
 before_install:
   - |
@@ -67,8 +56,7 @@ before_install:
     git submodule foreach --recursive git checkout master
     git submodule foreach --recursive 'git pull --ff-only origin master'
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get update; fi
-    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib musl-tools; fi
-    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo ln -s /bin/g++ /bin/musl-g++; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib; fi
 
 script:
   - cargo build --verbose
