@@ -43,7 +43,7 @@ matrix:
     # Deployments
     - rust: stable
       env: DEPLOY=1 TARGET=x86_64-apple-darwin
-      script: 
+      script:
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
@@ -67,6 +67,7 @@ before_install:
     git submodule foreach --recursive 'git pull --ff-only origin master'
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get update; fi
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo ln -s "/usr/bin/g++" "/usr/bin/musl-g++mu"; fi
 
 script:
   - cargo build --verbose

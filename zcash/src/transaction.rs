@@ -99,13 +99,19 @@ pub fn load_sapling_parameters(
     Parameters<Bls12>,
     PreparedVerifyingKey<Bls12>,
 ) {
-    let spend_path = Path::new(spend_path);
-    let output_path = Path::new(output_path);
+//    let spend_path = Path::new(spend_path);
+//    let output_path = Path::new(output_path);
+
+    let mut absolute_spend_path = std::env::current_dir().unwrap();
+    let mut absolute_output_path = std::env::current_dir().unwrap();
+
+    absolute_spend_path.push(spend_path);
+    absolute_output_path.push(output_path);
 
     let (spend_params, spend_vk, output_params, output_vk, _) = load_parameters(
-        spend_path,
+        absolute_spend_path.as_path(),
         "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
-        output_path,
+        absolute_output_path.as_path(),
         "657e3d38dbb5cb5e7dd2970e8b03d69b4787dd907285b5a7f0790dcc8072f60bf593b32cc2d1c030e00ff5ae64bf84c5c3beb84ddc841d48264b4a171744d028",
         None,
         None,
