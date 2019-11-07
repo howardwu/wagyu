@@ -71,7 +71,7 @@ impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
 }
 
 /// External C methods from mymonero-core-cpp library
-#[link(name = "mymonero-core-cpp", kind = "static")]
+#[cfg(not(target_os = "linux"))]
 extern "C" {
     fn extern_send_step1(arg_arr: *const c_char) -> *const c_char;
 
@@ -188,6 +188,7 @@ impl Default for CreateTransaction {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
 impl<N: MoneroNetwork> MoneroTransaction<N> {
     /// Returns Monero transaction cost details, required mixin, and unspent outputs that will be used
     /// calls https://github.com/mymonero/mymonero-core-cpp/blob/20b6cbabf230ae4ebe01d05c859aad397741cf8f/src/serial_bridge_index.cpp#L445
@@ -331,6 +332,7 @@ impl<N: MoneroNetwork> MoneroTransaction<N> {
 
 /// Make an unsafe external call to a C function
 /// the C function should take a character array argument and return a character array
+#[cfg(not(target_os = "linux"))]
 pub fn call_extern_function(arg_str: &str, function: unsafe extern "C" fn(*const c_char) -> *const c_char) -> String {
     // 1. create C string (ends with the zero byte and can't contain one inside)
     let str_arr: CString = CString::new(arg_str).unwrap();
@@ -349,6 +351,7 @@ pub fn call_extern_function(arg_str: &str, function: unsafe extern "C" fn(*const
 }
 
 #[cfg(test)]
+#[cfg(not(target_os = "linux"))]
 mod tests {
     use super::*;
 
