@@ -108,6 +108,8 @@ pub fn load_sapling_parameters(
     absolute_spend_path.push(spend_path);
     absolute_output_path.push(output_path);
 
+    println!("spend path is: {}", absolute_spend_path.display());
+
     let (spend_params, spend_vk, output_params, output_vk, _) = load_parameters(
         absolute_spend_path.as_path(),
         "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c",
