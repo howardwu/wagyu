@@ -25,6 +25,19 @@ matrix:
             - g++
             - gcc-multilib
       after_success: |
+#        wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+#        tar xzf master.tar.gz &&
+#        cd kcov-master &&
+#        mkdir build &&
+#        cd build &&
+#        cmake .. &&
+#        make &&
+#        sudo make install &&
+#        cd ../.. &&
+#        rm -rf kcov-master &&
+#        for file in target/debug/*-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+#        bash <(curl -s https://codecov.io/bash) &&
+#        echo "Uploaded code coverage"
         wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
         tar xzf master.tar.gz &&
         cd kcov-master &&
@@ -32,10 +45,10 @@ matrix:
         cd build &&
         cmake .. &&
         make &&
-        sudo make install &&
+        make install DESTDIR=../../kcov-build &&
         cd ../.. &&
         rm -rf kcov-master &&
-        for file in target/debug/*-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+        for file in target/debug/*-*; do [ -x "${file}" ] || continue; mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
         bash <(curl -s https://codecov.io/bash) &&
         echo "Uploaded code coverage"
     - rust: beta
@@ -50,7 +63,7 @@ matrix:
     - rust: stable
       env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
       script:
-        - sudo ln -s "/usr/bin/g++" "/usr/bin/musl-g++"
+        - sudo ln -s /bin/g++ /bin/musl-g++;
         - rustup target add x86_64-unknown-linux-musl
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
@@ -68,7 +81,7 @@ before_install:
     git submodule foreach --recursive 'git pull --ff-only origin master'
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get update; fi
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib musl-tools; fi
-    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo ln -s "/usr/bin/g++" "/usr/bin/musl-g++"; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo ln -s /bin/g++ /bin/musl-g++; fi
 
 script:
   - cargo build --verbose
