@@ -199,6 +199,7 @@ pub const TRANSACTION_BITCOIN: SubCommandType = (
         AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
     ],
 );
 
@@ -214,6 +215,7 @@ pub const TRANSACTION_ETHEREUM: SubCommandType = (
         AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
     ],
 );
 
@@ -231,5 +233,6 @@ pub const TRANSACTION_ZCASH: SubCommandType = (
         AppSettings::ColoredHelp,
         AppSettings::DisableHelpSubcommand,
         AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
     ],
 );

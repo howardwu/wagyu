@@ -360,7 +360,7 @@ wagyu [CRYPTOCURRENCY] import-hd [FLAGS] [OPTIONS]
 
 #### 3.4.1 Bitcoin
 
-To import an Bitcoin HD wallet, run:
+To import a Bitcoin HD wallet, run:
 ```
 wagyu bitcoin hd [FLAGS] [OPTIONS]
 ```
@@ -408,7 +408,7 @@ OPTIONS:
 
 #### 3.4.3 Zcash
 
-To import an Zcash HD wallet, run:
+To import a Zcash HD wallet, run:
 ```
 wagyu zcash hd [FLAGS] [OPTIONS]
 ```
@@ -428,6 +428,90 @@ OPTIONS:
         --extended-public <extended public>      Imports a partial HD wallet for a specified extended public key
     -i, --index <index>                          Imports an HD wallet for a specified index
 ```
+
+### 3.5 Generate a cryptocurrency transaction
+
+
+To import an HD cryptocurrency wallet, run:
+```
+wagyu [CRYPTOCURRENCY] transaction [FLAGS] [OPTIONS]
+```
+
+#### 3.5.1 Bitcoin
+
+To generate a Bitcoin transaction, run:
+```
+wagyu bitcoin transaction [FLAGS] [OPTIONS]
+```
+
+This command can be run with the following parameters:
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+        --createrawtransaction <inputs> <outputs>          Generates a raw Bitcoin transaction
+                                                               Inputs format: '[{"txid":"txid", "vout":index},...]'
+                                                               Outputs format: '{"address":amount,...}'                                           
+        --lock-time <lock time>                            Specify a Bitcoin transaction lock time
+        --signrawtransaction <transaction hex> <inputs>    Sign a raw Bitcoin transaction
+                                                               Inputs format: '[{"txid":"txid", "vout":index, "amount":amount, "address":"address", "privatekey":"private_key"},...]'
+                                                               (Optional: manually specify scriptPubKey and redeemScript)
+        --version <version>                                Specify a Bitcoin transaction version
+```
+
+#### 3.5.2 Ethereum
+
+To generate an Ethereum transaction, run:
+```
+wagyu ethereum transaction [FLAGS] [OPTIONS]
+```
+
+This command can be run with the following parameters:
+
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+        --createrawtransaction <'{"to":"address", "value":"value", "gas":"gas", "gasPrice":"gas_price", "nonce":nonce, "network":"network"}'>    Generates a raw Ethereum transaction
+        --network <network>                                                                                                                      Specify an Ethereum transaction network
+        --signrawtransaction <transaction hex> <private key>                                                                                     Sign a raw Ethereum transaction
+```
+
+#### 3.5.3 Zcash
+
+To generate a Zcash transaction, run:
+```
+wagyu zcash transaction [FLAGS] [OPTIONS]
+```
+
+This command can be run with the following parameters:
+
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+        --createrawtransaction <inputs> <outputs>          Generates a raw Zcash transaction
+                                                               Inputs format: '[{"txid":"txid", "vout":index},...]'
+                                                               Outputs format: '{"address":amount,...}'
+        --expiry-height <expiry height>                    Specify a Zcash transaction expiry height
+        --lock-time <lock time>                            Specify a Zcash transaction lock time
+        --signrawtransaction <transaction hex> <inputs>    Sign a raw Zcash transaction
+                                                               Inputs format: '[{"txid":"txid", "vout":index, "amount":amount, "address":"address", "privatekey":"private_key"},...]'
+                                                               (Optional: manually specify scriptPubKey and redeemScript)
+        --version <version>                                Specify a Zcash transaction version [possible values: sapling]
+```
+
+#### 3.5.4 Transaction Notes: 
+
+- The Wagyu CLI operates offline with no chain state, and thus does not support Monero transactions or Zcash Sapling spends.
+- Zcash Sapling outputs are supported.
+- 
 
 ## 4. License
 

@@ -324,7 +324,7 @@ pub const PASSWORD_IMPORT_HD: OptionType = (
 // Transaction
 
 pub const CREATE_RAW_TRANSACTION_BITCOIN: OptionType = (
-    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Creates a raw Bitcoin transaction
+    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Generates a raw Bitcoin transaction
     Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'
     Outputs format: '{\"address\":amount,...}'
     '",
@@ -358,7 +358,7 @@ pub const TRANSACTION_VERSION_BITCOIN: OptionType = (
 );
 
 pub const CREATE_RAW_TRANSACTION_ETHEREUM: OptionType = (
-    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Creates a raw Ethereum transaction
+    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Generates a raw Ethereum transaction
     (Optional: Add a data field)'",
     &["network", "signrawtransaction"],
     &[],
@@ -380,7 +380,7 @@ pub const TRANSACTION_NETWORK_ETHEREUM: OptionType = (
 );
 
 pub const CREATE_RAW_TRANSACTION_ZCASH: OptionType = (
-    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Creates a raw Zcash transaction
+    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Generates a raw Zcash transaction
     Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'
     Outputs format: '{\"address\":amount,...}'
     '",
