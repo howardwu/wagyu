@@ -14,7 +14,7 @@ use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{fmt, io::Read, path::Path, str::FromStr};
+use std::{fmt, io::Read, str::FromStr};
 use wagyu_model::{ExtendedPrivateKey, PrivateKey, Transaction, TransactionError, TransactionId};
 
 // librustzcash crates
@@ -99,19 +99,11 @@ pub fn load_sapling_parameters(
     Parameters<Bls12>,
     PreparedVerifyingKey<Bls12>,
 ) {
-//    let spend_path = Path::new(spend_path);
-//    let output_path = Path::new(output_path);
-
     let mut absolute_spend_path = std::env::current_dir().unwrap();
     let mut absolute_output_path = std::env::current_dir().unwrap();
 
     absolute_spend_path.push(spend_path);
     absolute_output_path.push(output_path);
-
-    let spend_fs = std::fs::File::open(absolute_spend_path.as_path()).expect(&format!("didnt open Sapling spend {}", absolute_spend_path.display()));
-    let output_fs = std::fs::File::open(absolute_output_path.as_path()).expect(&format!("didnt open Sapling output {}", absolute_output_path.display()));
-
-    println!("spend path is: {}", absolute_spend_path.display());
 
     let (spend_params, spend_vk, output_params, output_vk, _) = load_parameters(
         absolute_spend_path.as_path(),
