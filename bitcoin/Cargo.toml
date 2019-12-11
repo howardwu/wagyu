@@ -29,7 +29,7 @@ hmac = { version = "0.7.0" }
 pbkdf2 = { version = "0.3.0", features=["parallel"], default-features = false }
 rand = { version = "0.7" }
 ripemd160 = { version = "0.8" }
-secp256k1 = { version = "0.15.5" }
+secp256k1 = { version = "0.17.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.8" }
