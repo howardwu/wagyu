@@ -72,6 +72,23 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
+    // Returns a Bech32 segwit address from a script
+    pub fn p2wsh(redeem_script: &Vec<u8>) -> Result<Self, AddressError> {
+        let version = u5::try_from_u8(redeem_script[0])?;
+
+        let mut data = vec![version];
+        // get the SHA256 hash of the script
+        data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
+
+        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
+
+        Ok(Self {
+            address: bech32.to_string(),
+            format: BitcoinFormat::NATIVE_P2WSH,
+            _network: PhantomData,
+        })
+    }
+
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
     pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let mut address = [0u8; 25];
