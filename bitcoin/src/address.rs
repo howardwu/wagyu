@@ -33,6 +33,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
         let public_key = private_key.to_public_key();
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(&public_key),
+            BitcoinFormat::NATIVE_P2WSH => return Err(AddressError::IncompatibleFormats(String::from("private/public key"), String::from("p2wsh address"))),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key),
             BitcoinFormat::Bech32 => Self::bech32(&public_key),
         }
@@ -42,6 +43,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(public_key),
+            BitcoinFormat::NATIVE_P2WSH => return Err(AddressError::IncompatibleFormats(String::from("public key"), String::from("p2wsh address"))),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
             BitcoinFormat::Bech32 => Self::bech32(public_key),
         }
