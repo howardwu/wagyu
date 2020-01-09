@@ -106,12 +106,12 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(address: &BitcoinAddress<N>) -> 
             Ok(script)
         }
         BitcoinFormat::NATIVE_P2WSH => {
-            let script_bytes = &address.to_string().from_base58()?;
-            let script_hash = script_bytes[3..(script_bytes.len() - 4)].to_vec();
-
-            let mut script = vec![0x00, 0x20];
-            script.extend(script_hash);
-            Ok(script)
+            let bech32 = Bech32::from_str(&address.to_string())?;
+            let (v, script) = bech32.data().split_at(1);
+            let script = Vec::from_base32(script)?;
+            let mut script_bytes = vec![v[0].to_u8(), script.len() as u8];
+            script_bytes.extend(script);
+            Ok(script_bytes)
         }
         BitcoinFormat::P2SH_P2WPKH => {
             let script_bytes = &address.to_string().from_base58()?;

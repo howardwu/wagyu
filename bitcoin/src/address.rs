@@ -91,7 +91,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
         Ok(Self {
             address: bech32.to_string(),
-            format: BitcoinFormat::Bech32,
+            format: BitcoinFormat::NATIVE_P2WSH,
             _network: PhantomData,
         })
     }
@@ -852,7 +852,7 @@ mod tests {
                 let script_hex= hex::decode(script).unwrap();
                 let new_address = BitcoinAddress::<N>::p2wsh(&script_hex).unwrap();
                 assert_eq!(new_address.to_string(), address.to_string());
-                test_from_str::<N>(address, &BitcoinFormat::Bech32);
+                assert_eq!(new_address.format, BitcoinFormat::NATIVE_P2WSH);
             });
         }
 
