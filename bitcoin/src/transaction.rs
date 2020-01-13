@@ -661,11 +661,14 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                         transaction.parameters.inputs[vin].script_sig = vec![0x00]; // length of empty scriptSig
                         if !transaction.parameters.inputs[vin].is_signed {
                             transaction.parameters.inputs[vin].witnesses.clear(); // clear
+                            let num_inputs = vec![0x04]; // TODO: clean this up
+                            let checksig_bug = vec![0x00]; // TODO: only if it uses OP_CHECKSIG
                             transaction.parameters.inputs[vin]
                                 .witnesses
-                                .append(&mut vec![signature.clone()]);
+                                .append(&mut vec![num_inputs, checksig_bug, signature.clone()]);
                             transaction.parameters.inputs[vin].is_signed = true;
                         } else {
+                            // let's add 2 more witnesses
                             transaction.parameters.inputs[vin]
                                 .witnesses
                                 .append(&mut vec![signature.clone(), input_script.clone()]);
