@@ -600,7 +600,24 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                 None => continue,
             };
 
-            if address == &private_key.to_address(&address.format())? && !transaction.parameters.inputs[vin].is_signed {
+            let address_is_valid = match &address.format() {
+                BitcoinFormat::NATIVE_P2WSH => true,
+                _ => address == &private_key.to_address(&address.format())?
+            };
+
+            // TODO: adding code for properly checking P2WSH scripts
+            if address.format() == BitcoinFormat::NATIVE_P2WSH {
+                let input_script = match &input.outpoint.redeem_script {
+                    Some(redeem_script) => redeem_script.clone(),
+                    None => return Err(TransactionError::InvalidInputs("NATIVE_P2WSH".into())),
+                };
+
+                let c_address = BitcoinAddress::<N>::p2wsh(&input_script)?;
+                println!("specified address: {}", &c_address);
+                println!("computed address: {}", &address);
+            }
+
+            if address_is_valid && !transaction.parameters.inputs[vin].is_signed {
                 // Transaction hash
                 let preimage = match &address.format() {
                     BitcoinFormat::P2PKH => transaction.p2pkh_hash_preimage(vin, input.sighash_code)?,
