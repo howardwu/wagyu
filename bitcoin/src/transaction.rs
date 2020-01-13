@@ -658,7 +658,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                         };
 
                         transaction.parameters.segwit_flag = true;
-                        transaction.parameters.inputs[vin].script_sig = vec![0x00]; // length of empty scriptSig
+                        transaction.parameters.inputs[vin].script_sig = vec![]; // length of empty scriptSig
                         if !transaction.parameters.inputs[vin].is_signed {
                             transaction.parameters.inputs[vin].witnesses.clear(); // clear
                             let num_inputs = vec![0x04]; // TODO: clean this up
