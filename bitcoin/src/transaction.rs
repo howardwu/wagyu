@@ -612,7 +612,12 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                 _ => address == &private_key.to_address(&address.format())?
             };
 
-            if address_is_valid && !transaction.parameters.inputs[vin].is_signed {
+            let is_signed = match &address.format() {
+                BitcoinFormat::NATIVE_P2WSH => false, // in this case, we don't care if it's signed already
+                _ => transaction.parameters.inputs[vin].is_signed
+            };
+
+            if address_is_valid && !is_signed {
                 // Transaction hash
                 let preimage = match &address.format() {
                     BitcoinFormat::P2PKH => transaction.p2pkh_hash_preimage(vin, input.sighash_code)?,
