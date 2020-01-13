@@ -658,7 +658,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                         };
 
                         transaction.parameters.segwit_flag = true;
-                        transaction.parameters.inputs[vin].script_sig = vec![]; // length of empty scriptSig
+                        transaction.parameters.inputs[vin].script_sig.clear(); // length of empty scriptSig
                         if !transaction.parameters.inputs[vin].is_signed {
                             transaction.parameters.inputs[vin].witnesses.clear(); // clear
                             let num_inputs = vec![0x04]; // TODO: clean this up
@@ -1385,7 +1385,7 @@ mod tests {
                 ],
                 expected_signed_transaction: "01000000000102fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f000000006b4830450221009eed10e4b7cc9eb23efc36dc9b0907d0b4dd224ae5d0ee9c92d7912c9a9cde7e02203ede96d667901abfb9f3997aba8e08c6b9de218db920916203f2632c713cd99c012103f4edae249cb015280d48cae959d1823440eeab74f9fc9752a8a18cba76c892b6eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff030a0000000000000016001443b957dcac4c405e77dffce035152e8154fcce4763c55400000000001976a9146504e4b146b24898cf7881b0bdcd059dc35dd5a888aca71d8c000000000017a91463c110106d813c69514b3d97e1a1e6c94ad1b56a870002483045022100cfff608b18a97cc46cf8d22e97e78b22343cfcc19028918a5cd06fc9031f532302201b877de8872619a832387d7d0e15482521e449ce0d4daeb2d080995317883cd60121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635700000000",
                 expected_transaction_id: "62ee2045fa2e3ee0353fed70b39adac13cb4114dbafa3a60a12084104d14f1b0",
-            }
+            },
         ];
 
         #[test]
