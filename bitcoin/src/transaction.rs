@@ -639,17 +639,20 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                             Some(redeem_script) => redeem_script.clone(),
                             None => return Err(TransactionError::InvalidInputs("NATIVE_P2WSH".into())),
                         };
-                        // 1. check that input script is "empty"
+
                         transaction.parameters.segwit_flag = true;
-                        // script code = [witness script]
-                        transaction.parameters.inputs[vin].script_sig =
-                            [variable_length_integer(input_script.len() as u64)?, input_script].concat();
-                        // TODO: figure out how to append multiple signatures to the witness
-                        // witness = [input script of P2WSH embedded script] [witness script]
-                        transaction.parameters.inputs[vin]
-                            .witnesses
-                            .append(&mut vec![signature.clone(), public_key]);
-                        transaction.parameters.inputs[vin].is_signed = true;
+                        transaction.parameters.inputs[vin].script_sig = vec![0x00]; // length of empty scriptSig
+                        if !transaction.parameters.inputs[vin].is_signed {
+                            transaction.parameters.inputs[vin].witnesses.clear(); // clear
+                            transaction.parameters.inputs[vin]
+                                .witnesses
+                                .append(&mut vec![signature.clone()]);
+                            transaction.parameters.inputs[vin].is_signed = true;
+                        } else {
+                            transaction.parameters.inputs[vin]
+                                .witnesses
+                                .append(&mut vec![signature.clone(), input_script.clone()]);
+                        }
                     }
                     BitcoinFormat::P2SH_P2WPKH => {
                         let input_script = match &input.outpoint.redeem_script {
