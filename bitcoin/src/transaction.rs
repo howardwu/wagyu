@@ -652,11 +652,12 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                             None => return Err(TransactionError::InvalidInputs("NATIVE_P2WSH".into())),
                         };
 
+                        let ser_input_script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();
                         transaction.parameters.segwit_flag = true;
-                        transaction.parameters.inputs[vin].script_sig = vec![0x00]; // length of empty scriptSig
+                        transaction.parameters.inputs[vin].script_sig = vec![]; // length of empty scriptSig
                         transaction.parameters.inputs[vin]
                             .witnesses
-                            .append(&mut vec![signature.clone(), input_script.clone()]);
+                            .append(&mut vec![signature.clone(), ser_input_script.clone()]);
                         transaction.parameters.inputs[vin].is_signed = true;
                     }
                     BitcoinFormat::P2SH_P2WPKH => {
