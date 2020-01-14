@@ -407,6 +407,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
                 0 => match &self.outpoint.address {
                     Some(address) => match address.format() {
                         BitcoinFormat::Bech32 => input.extend(vec![0x00]),
+                        BitcoinFormat::NATIVE_P2WSH => input.extend(vec![0x00]),
                         _ => {
                             let script_pub_key = match &self.outpoint.script_pub_key {
                                 Some(script) => script,
