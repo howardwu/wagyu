@@ -612,12 +612,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                 _ => address == &private_key.to_address(&address.format())?
             };
 
-            let is_signed = match &address.format() {
-                BitcoinFormat::NATIVE_P2WSH => false, // in this case, we don't care if it's signed already
-                _ => transaction.parameters.inputs[vin].is_signed
-            };
-
-            if address_is_valid && !is_signed {
+            if address_is_valid && !transaction.parameters.inputs[vin].is_signed {
                 // Transaction hash
                 let preimage = match &address.format() {
                     BitcoinFormat::P2PKH => transaction.p2pkh_hash_preimage(vin, input.sighash_code)?,
@@ -659,19 +654,10 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
 
                         transaction.parameters.segwit_flag = true;
                         transaction.parameters.inputs[vin].script_sig = vec![0x00]; // length of empty scriptSig
-                        if !transaction.parameters.inputs[vin].is_signed {
-                            transaction.parameters.inputs[vin].witnesses.clear(); // clear
-                            let checksig_bug = vec![0x00]; // TODO: only if it uses OP_CHECKSIG
-                            transaction.parameters.inputs[vin]
-                                .witnesses
-                                .append(&mut vec![checksig_bug, signature.clone()]);
-                            transaction.parameters.inputs[vin].is_signed = true;
-                        } else {
-                            // let's add 2 more witnesses
-                            transaction.parameters.inputs[vin]
-                                .witnesses
-                                .append(&mut vec![signature.clone(), input_script.clone()]);
-                        }
+                        transaction.parameters.inputs[vin]
+                            .witnesses
+                            .append(&mut vec![signature.clone(), input_script.clone()]);
+                        transaction.parameters.inputs[vin].is_signed = true;
                     }
                     BitcoinFormat::P2SH_P2WPKH => {
                         let input_script = match &input.outpoint.redeem_script {
