@@ -10,8 +10,8 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use sha2::{Digest, Sha256};
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -34,7 +34,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
         let public_key = private_key.to_public_key();
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(&public_key),
-            BitcoinFormat::NATIVE_P2WSH => return Err(AddressError::IncompatibleFormats(String::from("non-script"), String::from("p2wsh address"))),
+            BitcoinFormat::P2WSH => return Err(AddressError::IncompatibleFormats(String::from("non-script"), String::from("p2wsh address"))),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key),
             BitcoinFormat::Bech32 => Self::bech32(&public_key),
         }
@@ -44,7 +44,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(public_key),
-            BitcoinFormat::NATIVE_P2WSH => return Err(AddressError::IncompatibleFormats(String::from("non-script"), String::from("p2wsh address"))),
+            BitcoinFormat::P2WSH => return Err(AddressError::IncompatibleFormats(String::from("non-script"), String::from("p2wsh address"))),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
             BitcoinFormat::Bech32 => Self::bech32(public_key),
         }
@@ -73,25 +73,25 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
-    // Computes hash and returns a Bech32 segwit address from a script
+    // Returns a P2WSH address in Bech32 format from a given Bitcoin script
     pub fn p2wsh(original_script: &Vec<u8>) -> Result<Self, AddressError> {
         let script2 = Sha256::digest(&original_script).to_vec();
 
-        // organize as a hash
+        // Organize as a hash
         let mut redeem_script = vec![0x00, 0x20];
         redeem_script.extend(script2.iter());
 
         let version = u5::try_from_u8(redeem_script[0])?;
 
         let mut data = vec![version];
-        // get the SHA256 hash of the script
+        // Get the SHA256 hash of the script
         data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
 
         let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
 
         Ok(Self {
             address: bech32.to_string(),
-            format: BitcoinFormat::NATIVE_P2WSH,
+            format: BitcoinFormat::P2WSH,
             _network: PhantomData,
         })
     }
@@ -852,7 +852,7 @@ mod tests {
                 let script_hex= hex::decode(script).unwrap();
                 let new_address = BitcoinAddress::<N>::p2wsh(&script_hex).unwrap();
                 assert_eq!(new_address.to_string(), address.to_string());
-                assert_eq!(new_address.format, BitcoinFormat::NATIVE_P2WSH);
+                assert_eq!(new_address.format, BitcoinFormat::P2WSH);
             });
         }
 

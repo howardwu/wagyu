@@ -10,8 +10,8 @@ use std::fmt;
 pub enum BitcoinFormat {
     /// Pay-to-Pubkey Hash, e.g. 1NoZQSmjYHUZMbqLerwmT4xfe8A6mAo8TT
     P2PKH,
-    /// Pay-to-Script Hash, e.g. 347N1Thc213QqfYCz3PZkjoJpNv5b14kBd
-    NATIVE_P2WSH,
+    /// Pay-to-Witness-Script Hash, e.g. 347N1Thc213QqfYCz3PZkjoJpNv5b14kBd
+    P2WSH,
     /// SegWit Pay-to-Witness-Public-Key Hash, e.g. 34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53
     P2SH_P2WPKH,
     /// Bech32, e.g. bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx
@@ -31,7 +31,6 @@ impl BitcoinFormat {
         if prefix.len() < 2 {
             return Err(AddressError::InvalidPrefix(prefix.to_vec()));
         }
-        // TODO: how to handle p2wsh here?
         match (prefix[0], prefix[1]) {
             (0x00, _) | (0x6F, _) => Ok(BitcoinFormat::P2PKH),
             (0x05, _) | (0xC4, _) => Ok(BitcoinFormat::P2SH_P2WPKH),
@@ -65,7 +64,7 @@ impl fmt::Display for BitcoinFormat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BitcoinFormat::P2PKH => write!(f, "p2pkh"),
-            BitcoinFormat::NATIVE_P2WSH => write!(f, "native_p2wsh"),
+            BitcoinFormat::P2WSH => write!(f, "p2wsh"),
             BitcoinFormat::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),
             BitcoinFormat::Bech32 => write!(f, "bech32"),
         }

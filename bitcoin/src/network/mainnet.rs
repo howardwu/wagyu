@@ -21,7 +21,7 @@ impl BitcoinNetwork for Mainnet {
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
             BitcoinFormat::P2PKH => vec![0x00],
-            BitcoinFormat::NATIVE_P2WSH => vec![0x05],
+            BitcoinFormat::P2WSH => vec![0x05],
             BitcoinFormat::P2SH_P2WPKH => vec![0x05],
             BitcoinFormat::Bech32 => vec![0x62, 0x63],
         }
