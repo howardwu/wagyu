@@ -6,6 +6,7 @@ use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
+use wagyu_model::{Transaction, TransactionError, TransactionId};
 
 use libc::c_char;
 use serde::{export::PhantomData, Deserialize, Serialize};
@@ -14,7 +15,6 @@ use std::{
     ffi::{CStr, CString},
     fmt, str,
 };
-use wagyu_model::{Transaction, TransactionError, TransactionId};
 
 /// Represents a Monero transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
