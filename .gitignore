@@ -2,7 +2,6 @@
 /target
 **/*.rs.bk
 .DS_Store
-Cargo.lock
 **/*.rs.fmt
 *.rs.fmt
 **/*.toml.fmt
