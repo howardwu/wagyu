@@ -320,3 +320,102 @@ pub const PASSWORD_IMPORT_HD: OptionType = (
     &[],
     &[],
 );
+
+// Transaction
+
+pub const CREATE_RAW_TRANSACTION_BITCOIN: OptionType = (
+    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Generates a raw Bitcoin transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'
+    Outputs format: '{\"address\":amount,...}'
+    '",
+    &["signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_BITCOIN: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [inputs] 'Sign a raw Bitcoin transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index, \"amount\":amount, \"address\":\"address\", \"privatekey\":\"private_key\"},...]'
+    (Optional: manually specify scriptPubKey and redeemScript)
+    '",
+    &["createrawtransaction", "lock time", "version"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_LOCK_TIME_BITCOIN: OptionType = (
+    "[lock time] --lock-time=[lock time] 'Specify a Bitcoin transaction lock time'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const TRANSACTION_VERSION_BITCOIN: OptionType = (
+    "[version] --version=[version] 'Specify a Bitcoin transaction version'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const CREATE_RAW_TRANSACTION_ETHEREUM: OptionType = (
+    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Generates a raw Ethereum transaction
+    (Optional: Add a data field)'",
+    &["network", "signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_ETHEREUM: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [private key] 'Sign a raw Ethereum transaction'",
+    &["createrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_NETWORK_ETHEREUM: OptionType = (
+    "[network] --network=[network] 'Specify an Ethereum transaction network'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const CREATE_RAW_TRANSACTION_ZCASH: OptionType = (
+    "[createrawtransaction] --createrawtransaction= [inputs] [outputs] 'Generates a raw Zcash transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index},...]'
+    Outputs format: '{\"address\":amount,...}'
+    '",
+    &["signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_ZCASH: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [inputs] 'Sign a raw Zcash transaction
+    Inputs format: '[{\"txid\":\"txid\", \"vout\":index, \"amount\":amount, \"address\":\"address\", \"privatekey\":\"private_key\"},...]'
+    (Optional: manually specify scriptPubKey and redeemScript)
+    '",
+    &["createrawtransaction", "expiry height", "lock time", "version"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_LOCK_TIME_ZCASH: OptionType = (
+    "[lock time] --lock-time=[lock time] 'Specify a Zcash transaction lock time'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const TRANSACTION_EXPIRY_HEIGHT_ZCASH: OptionType = (
+    "[expiry height] --expiry-height=[expiry height] 'Specify a Zcash transaction expiry height'",
+    &["signrawtransaction"],
+    &[],
+    &["createrawtransaction"],
+);
+
+pub const TRANSACTION_VERSION_ZCASH: OptionType = (
+    "[version] --version=[version] 'Specify a Zcash transaction version'",
+    &["signrawtransaction"],
+    &["sapling"],
+    &["createrawtransaction"],
+);

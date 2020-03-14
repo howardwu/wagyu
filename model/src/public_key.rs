@@ -33,6 +33,12 @@ pub enum PublicKeyError {
 
     #[fail(display = "invalid public key prefix: {:?}", _0)]
     InvalidPrefix(String),
+
+    #[fail(display = "no public spending key found")]
+    NoSpendingKey,
+
+    #[fail(display = "no public viewing key found")]
+    NoViewingKey,
 }
 
 impl From<base58::FromBase58Error> for PublicKeyError {

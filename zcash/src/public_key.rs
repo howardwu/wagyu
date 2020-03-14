@@ -43,6 +43,18 @@ pub struct SproutViewingKey {
     pub key_b: [u8; 32],
 }
 
+impl P2PKHViewingKey {
+    /// Returns the secp256k1 public key of the public key.
+    pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
+        self.public_key.clone()
+    }
+
+    /// Returns `true` if the public key is in compressed form.
+    pub fn is_compressed(&self) -> bool {
+        self.compressed
+    }
+}
+
 impl SproutViewingKey {
     /// Returns a sprout public key corresponding to a sprout private key
     pub fn from_sprout_spending_key(spending_key: &[u8; 32]) -> SproutViewingKey {

@@ -18,6 +18,12 @@ matrix:
             - gcc
             - binutils-dev
             - libiberty-dev
+            - build-essential
+            - libboost-dev
+            - libboost-all-dev
+            - gcc
+            - g++
+            - gcc-multilib
       after_success: |
         wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
         tar xzf master.tar.gz &&
@@ -26,10 +32,10 @@ matrix:
         cd build &&
         cmake .. &&
         make &&
-        sudo make install &&
+        make install DESTDIR=../../kcov-build &&
         cd ../.. &&
         rm -rf kcov-master &&
-        for file in target/debug/*-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+        for file in target/debug/*-*; do [ -x "${file}" ] || continue; mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
         bash <(curl -s https://codecov.io/bash) &&
         echo "Uploaded code coverage"
     - rust: beta
@@ -37,20 +43,20 @@ matrix:
     # Deployments
     - rust: stable
       env: DEPLOY=1 TARGET=x86_64-apple-darwin
-      script: 
+      script:
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose
       os: osx
-    - rust: stable
-      env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
-      script:
-        - rustup target add x86_64-unknown-linux-musl
-        - cargo build --release --target $TARGET
-        - RUST_BACKTRACE=1 cargo test --all --verbose
-      addons:
-        apt:
-          packages:
-            - musl-tools
+
+before_install:
+  - |
+    git submodule init && git submodule update
+    git submodule update --init --recursive
+    git submodule foreach --recursive git fetch
+    git submodule foreach --recursive git checkout master
+    git submodule foreach --recursive 'git pull --ff-only origin master'
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get update; fi
+    if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib; fi
 
 script:
   - cargo build --verbose
@@ -74,6 +80,6 @@ deploy:
   on:
     condition: $DEPLOY = 1
     tags: true
-    repo: ArgusHQ/wagyu
+    repo: AleoHQ/wagyu
   provider: releases
   skip_cleanup: true
