@@ -48,7 +48,7 @@ matrix:
             - g++
             - gcc-multilib
       script:
-        - RUST_BACKTRACE=1 cargo test --all --verbose
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
       after_success: |
         wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
         tar xzf master.tar.gz &&
@@ -65,12 +65,12 @@ matrix:
         echo "Uploaded code coverage"
     - rust: nightly
       script:
-        - RUST_BACKTRACE=1 cargo test --all --verbose
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
     - rust: stable
       env: DEPLOY=1 TARGET=x86_64-apple-darwin
       script:
-        - cargo build --release --target $TARGET
-        - RUST_BACKTRACE=1 cargo test --all --verbose
+        - cargo build --release --target $TARGET --features "wagyu-monero/transaction"
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
       os: osx
 
 install:
