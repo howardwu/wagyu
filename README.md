@@ -3,9 +3,9 @@
 </h1>
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
-    <a href="https://travis-ci.com/ArgusHQ/wagyu"><img src="https://img.shields.io/travis/com/ArgusHQ/wagyu/v0.6.1.svg"></a>
-    <a href="https://codecov.io/gh/ArgusHQ/wagyu"><img src="https://img.shields.io/codecov/c/github/ArgusHQ/wagyu.svg"></a>
-    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Argus-orange.svg"></a>
+    <a href="https://travis-ci.com/AleoHQ/wagyu"><img src="https://img.shields.io/travis/com/AleoHQ/wagyu/v0.6.2.svg"></a>
+    <a href="https://codecov.io/gh/AleoHQ/wagyu"><img src="https://img.shields.io/codecov/c/github/AleoHQ/wagyu.svg"></a>
+    <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Aleo-orange.svg"></a>
     <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
 </p>
 
@@ -85,7 +85,7 @@ Alternatively, you can install `wagyu` by building from the source code as follo
 
 ```bash
 # Download the source code
-git clone https://github.com/ArgusHQ/wagyu
+git clone https://github.com/AleoHQ/wagyu
 cd wagyu
 
 # Build in release mode
@@ -507,11 +507,9 @@ OPTIONS:
         --version <version>                                Specify a Zcash transaction version [possible values: sapling]
 ```
 
-#### 3.5.4 Transaction Notes: 
+#### 3.5.4 Transaction Remarks
 
-- The Wagyu CLI operates offline with no chain state, and thus does not support Monero transactions or Zcash Sapling spends.
-- Zcash Sapling outputs are supported.
-- 
+`wagyu` CLI operates offline without chain state, and thus cannot immediately craft Monero transactions or Zcash Sapling spends (Zcash Sapling outputs are supported).
 
 ## 4. License
 

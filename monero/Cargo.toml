@@ -1,6 +1,6 @@
 [package]
 name = "wagyu-monero"
-version = "0.6.1"
+version = "0.6.2"
 authors = [
     "Collin Chin",
     "Raymond Chu",
@@ -8,8 +8,8 @@ authors = [
     "Howard Wu"
 ]
 description = "A library for generating Monero wallets"
-homepage = "https://github.com/ArgusHQ/wagyu"
-repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.1/monero"
+homepage = "https://github.com/AleoHQ/wagyu"
+repository = "https://github.com/AleoHQ/wagyu/tree/v0.6.2/monero"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["blockchain", "crypto", "cryptocurrency", "monero", "wallet"]
 readme = "README.md"
@@ -18,7 +18,7 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-wagyu-model = { path = "../model", version = "0.6.1" }
+wagyu-model = { path = "../model", version = "0.6.2" }
 
 base58-monero = { version = "0.1.1" }
 crc = { version = "1.8.1" }
@@ -35,4 +35,4 @@ tiny-keccak = { version = "1.4" }
 cmake = { version = "0.1" }
 
 [badges]
-travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
+travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }

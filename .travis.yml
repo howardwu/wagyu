@@ -80,6 +80,6 @@ deploy:
   on:
     condition: $DEPLOY = 1
     tags: true
-    repo: ArgusHQ/wagyu
+    repo: AleoHQ/wagyu
   provider: releases
   skip_cleanup: true

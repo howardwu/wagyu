@@ -15,7 +15,7 @@ fn main() -> Result<(), CLIError> {
     let arguments = App::new("wagyu")
         .version("v0.6.0")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
-        .author("Argus <team@argus.dev>")
+        .author("Aleo <hello@aleo.org>")
         .settings(&[
             AppSettings::ColoredHelp,
             AppSettings::DisableHelpSubcommand,

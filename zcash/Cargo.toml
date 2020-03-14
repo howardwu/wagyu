@@ -1,6 +1,6 @@
 [package]
 name = "wagyu-zcash"
-version = "0.6.1"
+version = "0.6.2"
 authors = [
     "Collin Chin",
     "Raymond Chu",
@@ -8,8 +8,8 @@ authors = [
     "Howard Wu"
 ]
 description = "A library for generating Zcash wallets"
-homepage = "https://github.com/ArgusHQ/wagyu"
-repository = "https://github.com/ArgusHQ/wagyu/tree/v0.6.1/zcash"
+homepage = "https://github.com/AleoHQ/wagyu"
+repository = "https://github.com/AleoHQ/wagyu/tree/v0.6.2/zcash"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["blockchain", "crypto", "cryptocurrency", "wallet", "zcash"]
 readme = "README.md"
@@ -17,7 +17,7 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-wagyu-model = { path = "../model", version = "0.6.1" }
+wagyu-model = { path = "../model", version = "0.6.2" }
 
 bellman = { git = "https://github.com/zcash/librustzcash/", rev = "2b6fbfd" }
 ff = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
@@ -53,4 +53,4 @@ hex-literal = { version = "0.2" }
 rand_xorshift = { version = "0.2" }
 
 [badges]
-travis-ci = { repository = "ArgusHQ/wagyu", branch = "master" }
+travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }
