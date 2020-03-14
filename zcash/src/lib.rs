@@ -30,6 +30,7 @@ pub mod format;
 pub use self::format::*;
 
 #[cfg_attr(tarpaulin, skip)]
+#[allow(deprecated)]
 pub mod librustzcash;
 
 pub mod network;

@@ -49,15 +49,15 @@ impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
     type TransactionId = MoneroTransactionId;
     type TransactionParameters = TransactionParameters;
 
-    fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
+    fn new(_parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         unimplemented!();
     }
 
-    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
+    fn sign(&self, _private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
         unimplemented!();
     }
 
-    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+    fn from_transaction_bytes(_transaction: &Vec<u8>) -> Result<Self, TransactionError> {
         unimplemented!();
     }
 
