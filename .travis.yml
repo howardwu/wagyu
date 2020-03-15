@@ -7,8 +7,10 @@ before_install:
   - mkdir "$TRAVIS_HOME/.bin"
   - if [ "$TRAVIS_OS_NAME" != "osx" ]; then wget https://github.com/mozilla/sccache/releases/download/0.2.13/sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget https://github.com/mozilla/sccache/releases/download/0.2.13/sccache-0.2.13-x86_64-apple-darwin.tar.gz; fi
-  - tar -C "$TRAVIS_HOME/.bin" -xvf sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz
-  - mv $TRAVIS_HOME/.bin/sccache-0.2.13-x86_64-unknown-linux-musl/sccache $TRAVIS_HOME/.bin/sccache
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then tar -C "$TRAVIS_HOME/.bin" -xvf sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then tar -C "$TRAVIS_HOME/.bin" -xvf sccache-0.2.13-x86_64-apple-darwin.tar.gz; fi
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then mv $TRAVIS_HOME/.bin/sccache-0.2.13-x86_64-unknown-linux-musl/sccache $TRAVIS_HOME/.bin/sccache; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then mv $TRAVIS_HOME/.bin/sccache-0.2.13-x86_64-apple-darwin/sccache $TRAVIS_HOME/.bin/sccache; fi
   - export PATH="$PATH:$TRAVIS_HOME/.bin"
   - export RUSTC_WRAPPER="sccache"
 
