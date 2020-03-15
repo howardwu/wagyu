@@ -69,7 +69,7 @@ matrix:
     - rust: stable
       env: DEPLOY=1 TARGET=x86_64-apple-darwin
       script:
-        - cargo build --release --target $TARGET --features "wagyu-monero/transaction"
+        - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
       os: osx
 
