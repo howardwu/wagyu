@@ -1,5 +1,31 @@
-sudo: false
 language: rust
+
+before_install:
+  - set -e
+  - export SCCACHE_CACHE_SIZE=200M
+  - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
+  - mkdir "$TRAVIS_HOME/.bin"
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then wget https://github.com/mozilla/sccache/releases/download/0.2.13/sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget https://github.com/mozilla/sccache/releases/download/0.2.13/sccache-0.2.13-x86_64-apple-darwin.tar.gz; fi
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then tar -C "$TRAVIS_HOME/.bin" -xvf sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then tar -C "$TRAVIS_HOME/.bin" -xvf sccache-0.2.13-x86_64-apple-darwin.tar.gz; fi
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then mv $TRAVIS_HOME/.bin/sccache-0.2.13-x86_64-unknown-linux-musl/sccache $TRAVIS_HOME/.bin/sccache; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then mv $TRAVIS_HOME/.bin/sccache-0.2.13-x86_64-apple-darwin/sccache $TRAVIS_HOME/.bin/sccache; fi
+  - export PATH="$PATH:$TRAVIS_HOME/.bin"
+  - export RUSTC_WRAPPER="sccache"
+
+cache:
+  directories:
+    - $TRAVIS_HOME/.cache/sccache
+    - $TRAVIS_HOME/.cargo
+
+# See https://levans.fr/rust_travis_cache.html
+before_cache:
+  - rm -rf "$TRAVIS_HOME/.cargo/registry"
+
+after_script:
+  - (sccache -s||true)
+  - set +e
 
 env:
   global:
@@ -24,6 +50,8 @@ matrix:
             - gcc
             - g++
             - gcc-multilib
+      script:
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
       after_success: |
         wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
         tar xzf master.tar.gz &&
@@ -38,17 +66,27 @@ matrix:
         for file in target/debug/*-*; do [ -x "${file}" ] || continue; mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
         bash <(curl -s https://codecov.io/bash) &&
         echo "Uploaded code coverage"
-    - rust: beta
     - rust: nightly
-    # Deployments
+      script:
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
     - rust: stable
       env: DEPLOY=1 TARGET=x86_64-apple-darwin
       script:
         - cargo build --release --target $TARGET
-        - RUST_BACKTRACE=1 cargo test --all --verbose
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
       os: osx
+    - rust: stable
+      env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
+      script:
+        - rustup target add x86_64-unknown-linux-musl
+        - cargo build --release --target $TARGET
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
+      addons:
+        apt:
+          packages:
+            - musl-tools
 
-before_install:
+install:
   - |
     git submodule init && git submodule update
     git submodule update --init --recursive
@@ -57,10 +95,6 @@ before_install:
     git submodule foreach --recursive 'git pull --ff-only origin master'
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get update; fi
     if [ "$TRAVIS_OS_NAME" != "osx" ]; then sudo apt-get install build-essential libboost-dev libboost-all-dev gcc g++ gcc-multilib; fi
-
-script:
-  - cargo build --verbose
-  - RUST_BACKTRACE=1 cargo test --all --verbose
 
 before_deploy:
   - |

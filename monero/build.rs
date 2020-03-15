@@ -1,8 +1,11 @@
-use ::cmake::Config;
+#[cfg(not(transaction))]
+fn main() {}
 
+#[cfg(transaction)]
 fn main() {
-    //  dynamically link to standard c++ lib so we can call boost functions in mymonero-core-cpp
+    use ::cmake::Config;
 
+    //  dynamically link to standard c++ lib so we can call boost functions in mymonero-core-cpp
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
         println!("cargo:rustc-link-lib=boost_thread-mt");
@@ -21,5 +24,4 @@ fn main() {
 
     // link mymonero-core-cpp library
     println!("cargo:rustc-link-lib=mymonero-core-cpp");
-//    println!("cargo:rustc-link-lib=static=mymonero-core-cpp");
 }

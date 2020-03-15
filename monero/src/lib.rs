@@ -30,7 +30,9 @@ pub use self::private_key::*;
 pub mod public_key;
 pub use self::public_key::*;
 
+#[cfg(transaction)]
 pub mod transaction;
+#[cfg(transaction)]
 pub use self::transaction::*;
 
 pub mod wordlist;
