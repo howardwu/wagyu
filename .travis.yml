@@ -72,6 +72,16 @@ matrix:
         - cargo build --release --target $TARGET
         - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
       os: osx
+    - rust: stable
+      env: DEPLOY=1 TARGET=x86_64-unknown-linux-musl
+      script:
+        - rustup target add x86_64-unknown-linux-musl
+        - cargo build --release --target $TARGET
+        - RUST_BACKTRACE=1 cargo test --all --verbose --features "wagyu-monero/transaction"
+      addons:
+        apt:
+          packages:
+            - musl-tools
 
 install:
   - |
