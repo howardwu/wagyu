@@ -19,11 +19,11 @@ edition = "2018"
 [dependencies]
 wagyu-model = { path = "../model", version = "0.6.2" }
 
-bellman = { git = "https://github.com/zcash/librustzcash/", rev = "2b6fbfd" }
-ff = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
-pairing = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
-zcash_primitives = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
-zcash_proofs = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd" }
+bellman = { git = "https://github.com/zcash/librustzcash/", rev = "2b6fbfd", version = "0.4.0" }
+ff = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd", version = "0.4.0" }
+pairing = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd", version = "0.4.0" }
+zcash_primitives = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd", version = "0.4.0" }
+zcash_proofs = { git = "https://github.com/zcash/librustzcash", rev = "2b6fbfd", version = "0.4.0" }
 
 # librustzcash dependencies
 aes = { version = "0.2" }
