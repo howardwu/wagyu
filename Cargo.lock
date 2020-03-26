@@ -181,8 +181,9 @@ checksum = "58946044516aa9dc922182e0d6e9d124a31aafe6b421614654eb27cf90cec09c"
 
 [[package]]
 name = "bellman"
-version = "0.1.0"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2be536193834affcd8a6d362963e66dec8c6bca4d2009f5bac55ec9002776ff2"
 dependencies = [
  "bit-vec",
  "blake2s_simd",
@@ -386,9 +387,27 @@ dependencies = [
 
 [[package]]
 name = "crossbeam"
-version = "0.3.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24ce9782d4d5c53674646a6a4c1863a21a8fc0cb649b3c94dfc16e45071dea19"
+checksum = "69323bff1fb41c635347b8ead484a5ca6c3f11914d784170b158d8449ab07f8e"
+dependencies = [
+ "cfg-if",
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cced8691919c02aac3cb0a1bc2e9b73d89e832bf9a06fc579d4e71b68a2da061"
+dependencies = [
+ "crossbeam-utils",
+ "maybe-uninit",
+]
 
 [[package]]
 name = "crossbeam-deque"
@@ -572,8 +591,9 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
 name = "ff"
-version = "0.4.0"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4b967a3ee6ae993f0094174257d404a5818f58be79d67a1aea1ec8996d28906"
 dependencies = [
  "byteorder",
  "ff_derive",
@@ -582,15 +602,16 @@ dependencies = [
 
 [[package]]
 name = "ff_derive"
-version = "0.3.0"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3776aaf60a45037a9c3cabdd8542b38693acaa3e241ff957181b72579d29feb"
 dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "proc-macro2 0.4.30",
- "quote 0.6.13",
- "syn 0.14.9",
+ "proc-macro2 1.0.9",
+ "quote 1.0.3",
+ "syn 1.0.16",
 ]
 
 [[package]]
@@ -741,8 +762,9 @@ dependencies = [
 
 [[package]]
 name = "group"
-version = "0.1.0"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f15be54742789e36f03307c8fdf0621201e1345e94f1387282024178b5e9ec8c"
 dependencies = [
  "ff",
  "rand 0.7.3",
@@ -928,8 +950,9 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "pairing"
-version = "0.14.2"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8290dea210a712682cd65031dc2b34fd132cf2729def3df7ee08f0737ff5ed6"
 dependencies = [
  "byteorder",
  "ff",
@@ -1120,16 +1143,6 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
 dependencies = [
- "rand_core 0.5.1",
-]
-
-[[package]]
-name = "rand_os"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a788ae3edb696cfcba1c19bfd388cc4b8c21f8a408432b199c072825084da58a"
-dependencies = [
- "getrandom",
  "rand_core 0.5.1",
 ]
 
@@ -1711,8 +1724,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "zcash_primitives"
-version = "0.0.0"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f33b9e4f3b4db97234fc79ea67b12f2d5778bde8f3eab6dbba52eb54c596585"
 dependencies = [
  "aes 0.3.2",
  "blake2b_simd",
@@ -1727,14 +1741,14 @@ dependencies = [
  "pairing",
  "rand 0.7.3",
  "rand_core 0.5.1",
- "rand_os",
  "sha2",
 ]
 
 [[package]]
 name = "zcash_proofs"
-version = "0.0.0"
-source = "git+https://github.com/zcash/librustzcash?rev=2b6fbfd#2b6fbfd2d1bf48f736c769784fa5751db8a708a4"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2011f78f14d5121248d3b4f921434207b1d870fb3bf2efc7d784cae79b19bfbc"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -1742,7 +1756,7 @@ dependencies = [
  "directories",
  "ff",
  "pairing",
- "rand_os",
+ "rand_core 0.5.1",
  "zcash_primitives",
 ]
 

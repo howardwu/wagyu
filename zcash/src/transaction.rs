@@ -24,7 +24,7 @@ use pairing::bls12_381::{Bls12, Fr, FrRepr};
 use zcash_primitives::{
     jubjub::{edwards, fs::Fs},
     keys::{ExpandedSpendingKey, FullViewingKey, OutgoingViewingKey},
-    merkle_tree::CommitmentTreeWitness,
+    merkle_tree::MerklePath,
     note_encryption::{try_sapling_note_decryption, Memo, SaplingNoteEncryption},
     primitives::{Diversifier, Note, PaymentAddress},
     redjubjub::{PrivateKey as jubjubPrivateKey, PublicKey as jubjubPublicKey, Signature as jubjubSignature},
@@ -545,7 +545,7 @@ pub struct SaplingSpendParameters<N: ZcashNetwork> {
     /// The anchor
     pub anchor: Fr,
     /// The commitment witness
-    pub witness: CommitmentTreeWitness<Node>,
+    pub witness: MerklePath<Node>,
 }
 
 /// Represents a Zcash transaction Shielded Spend
@@ -565,7 +565,7 @@ impl<N: ZcashNetwork> SaplingSpend<N> {
         epk: &[u8; 32],
         enc_ciphertext: &str,
         anchor: Fr,
-        witness: CommitmentTreeWitness<Node>,
+        witness: MerklePath<Node>,
     ) -> Result<Self, TransactionError> {
         let full_viewing_key = extended_private_key
             .to_extended_public_key()
@@ -1027,7 +1027,7 @@ impl<N: ZcashNetwork> ZcashTransactionParameters<N> {
         epk: &[u8; 32],
         enc_ciphertext: &str,
         input_anchor: Fr,
-        witness: CommitmentTreeWitness<Node>,
+        witness: MerklePath<Node>,
     ) -> Result<Self, TransactionError> {
         let mut parameters = self.clone();
 
@@ -1539,7 +1539,7 @@ mod tests {
     use crate::{Mainnet, Testnet};
 
     use bellman::groth16::PreparedVerifyingKey;
-    use zcash_primitives::merkle_tree::{CommitmentTree, IncrementalWitness};
+    use zcash_primitives::merkle_tree::{CommitmentTree, MerklePath, IncrementalWitness};
 
     #[derive(Clone)]
     pub struct TransactionData<'a> {
@@ -1653,7 +1653,7 @@ mod tests {
             let (witness, anchor) = match input.witness {
                 Some(witness_str) => {
                     let witness_vec = hex::decode(&witness_str).unwrap();
-                    let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+                    let witness = MerklePath::<Node>::from_slice(&witness_vec[..]).unwrap();
 
                     let mut f = FrRepr::default();
                     f.read_le(&hex::decode(input.anchor.unwrap()).unwrap()[..]).unwrap();
@@ -2972,7 +2972,7 @@ mod tests {
                 let (witness, anchor) = match input.witness {
                     Some(witness_str) => {
                         let witness_vec = hex::decode(&witness_str).unwrap();
-                        let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+                        let witness = MerklePath::<Node>::from_slice(&witness_vec[..]).unwrap();
 
                         let mut f = FrRepr::default();
                         f.read_le(&hex::decode(input.anchor.unwrap()).unwrap()[..]).unwrap();
@@ -3044,7 +3044,7 @@ mod tests {
                 let (witness, anchor) = match input.witness {
                     Some(witness_str) => {
                         let witness_vec = hex::decode(&witness_str).unwrap();
-                        let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+                        let witness = MerklePath::<Node>::from_slice(&witness_vec[..]).unwrap();
 
                         let mut f = FrRepr::default();
                         f.read_le(&hex::decode(input.anchor.unwrap()).unwrap()[..]).unwrap();
@@ -3124,7 +3124,7 @@ mod tests {
             let (witness, anchor) = match sapling_input.witness {
                 Some(witness_str) => {
                     let witness_vec = hex::decode(&witness_str).unwrap();
-                    let witness = CommitmentTreeWitness::<Node>::from_slice(&witness_vec[..]).unwrap();
+                    let witness = MerklePath::<Node>::from_slice(&witness_vec[..]).unwrap();
 
                     let mut f = FrRepr::default();
                     f.read_le(&hex::decode(sapling_input.anchor.unwrap()).unwrap()[..])
