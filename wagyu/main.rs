@@ -13,7 +13,7 @@ use clap::{App, AppSettings};
 #[cfg_attr(tarpaulin, skip)]
 fn main() -> Result<(), CLIError> {
     let arguments = App::new("wagyu")
-        .version("v0.6.2")
+        .version("v0.6.3")
         .about("Generate a wallet for Bitcoin, Ethereum, Monero, and Zcash")
         .author("Aleo <hello@aleo.org>")
         .settings(&[

@@ -1,6 +1,6 @@
 [package]
 name = "wagyu-model"
-version = "0.6.2"
+version = "0.6.3"
 authors = [
     "Collin Chin",
     "Raymond Chu",
@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A generic model for cryptocurrency wallets"
 homepage = "https://github.com/AleoHQ/wagyu"
-repository = "https://github.com/AleoHQ/wagyu/tree/v0.6.2/model"
+repository = "https://github.com/AleoHQ/wagyu/tree/v0.6.3/model"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["bitcoin", "blockchain", "cryptocurrency", "ethereum", "wallet"]
 readme = "README.md"

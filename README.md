@@ -3,7 +3,7 @@
 </h1>
 <p align="center">
     <a href="https://crates.io/crates/wagyu"><img src="https://img.shields.io/crates/v/wagyu.svg?color=neon"></a>
-    <a href="https://travis-ci.com/AleoHQ/wagyu"><img src="https://img.shields.io/travis/com/AleoHQ/wagyu/v0.6.2.svg"></a>
+    <a href="https://travis-ci.com/AleoHQ/wagyu"><img src="https://img.shields.io/travis/com/AleoHQ/wagyu/v0.6.3.svg"></a>
     <a href="https://codecov.io/gh/AleoHQ/wagyu"><img src="https://img.shields.io/codecov/c/github/AleoHQ/wagyu.svg"></a>
     <a href="./AUTHORS"><img src="https://img.shields.io/badge/authors-Aleo-orange.svg"></a>
     <a href="./LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg"></a>
