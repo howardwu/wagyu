@@ -1957,8 +1957,8 @@ mod tests {
 
     fn test_sapling_transactions<N: ZcashNetwork>(sapling_transactions: Vec<TransactionData>) {
         let (spend_params, spend_vk, output_params, output_vk) = load_sapling_parameters(
-            "src/librustzcash/params/sapling-spend.params",
-            "src/librustzcash/params/sapling-output.params",
+            "src/parameters/sapling-spend.params",
+            "src/parameters/sapling-output.params",
         );
 
         sapling_transactions.iter().for_each(|transaction| {
@@ -3080,8 +3080,8 @@ mod tests {
         #[test]
         fn test_invalid_sapling_transactions_incorrect_build_order() {
             let (_, mut spend_vk, _, _) = load_sapling_parameters(
-                "src/librustzcash/params/sapling-spend.params",
-                "src/librustzcash/params/sapling-output.params",
+                "src/parameters/sapling-spend.params",
+                "src/parameters/sapling-output.params",
             );
 
             let version = "sapling";

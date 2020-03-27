@@ -246,8 +246,8 @@ impl ZcashWallet {
             };
 
             let (spend_params, spend_vk, output_params, output_vk) = load_sapling_parameters(
-                "./zcash/src/librustzcash/params//sapling-spend.params",
-                "./zcash/src/librustzcash/params/sapling-output.params",
+                "./zcash/src/parameters/sapling-spend.params",
+                "./zcash/src/parameters/sapling-output.params",
             );
             let mut proving_ctx = initialize_proving_context();
             let mut verifying_ctx = initialize_verifying_context();
