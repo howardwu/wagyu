@@ -8,7 +8,6 @@ use crate::public_key::BitcoinPublicKey;
 use crate::wordlist::BitcoinWordlist;
 use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicCount, MnemonicError, MnemonicExtended};
 
-use bitvec::cursor::BigEndian;
 use bitvec::prelude::*;
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
@@ -81,14 +80,14 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
             wc => return Err(MnemonicError::InvalidWordCount(wc as u8)),
         };
 
-        let mut entropy: BitVec<BigEndian> = BitVec::new();
+        let mut entropy: BitVec<Msb0, u8> = BitVec::new();
 
         for word in mnemonic {
             let index = W::get_index(word)?;
             let index_u8: [u8; 2] = (index as u16).to_be_bytes();
             let index_slice = &BitVec::from_slice(&index_u8)[5..];
 
-            entropy.append(&mut BitVec::<BigEndian, u8>::from_bitslice(index_slice));
+            entropy.append(&mut BitVec::<Msb0, u8>::from_bitslice(index_slice));
         }
 
         let mnemonic = Self {
@@ -120,11 +119,12 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
         sha256.input(self.entropy.as_slice());
 
         let hash = sha256.result();
-        let checksum = &hash[0].as_bitslice::<BigEndian>()[..length.div(3) as usize];
+        let hash_0 = BitVec::<Msb0, u8>::from_element(hash[0]);
+        let (checksum, _) = hash_0.split_at(length.div(3) as usize);
 
         // Convert the entropy bytes into bits and append the checksum
-        let mut encoding = BitVec::<BigEndian, u8>::from_vec(self.entropy.clone());
-        encoding.append(&mut BitVec::from_bitslice(checksum));
+        let mut encoding = BitVec::<Msb0, u8>::from_vec(self.entropy.clone());
+        encoding.append(&mut checksum.to_vec());
 
         // Compute the phrase in 11 bit chunks which encode an index into the word list
         let wordlist = W::get_all();
@@ -135,7 +135,7 @@ impl<N: BitcoinNetwork, W: BitcoinWordlist> Mnemonic for BitcoinMnemonic<N, W> {
                 let index = index
                     .iter()
                     .enumerate()
-                    .map(|(i, bit)| (bit as u16) * 2u16.pow(10 - i as u32))
+                    .map(|(i, &bit)| (bit as u16) * 2u16.pow(10 - i as u32))
                     .sum::<u16>();
 
                 wordlist[index as usize]
