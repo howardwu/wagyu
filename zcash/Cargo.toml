@@ -18,6 +18,7 @@ edition = "2018"
 
 [dependencies]
 wagyu-model = { path = "../model", version = "0.6.3" }
+wagyu-zcash-parameters = { version = "0.2.0" }
 
 # librustzcash dependencies
 bellman = { version = "0.6.0" }
