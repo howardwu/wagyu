@@ -1599,7 +1599,7 @@ version = "0.6.3"
 dependencies = [
  "base58",
  "bech32",
- "bitvec 0.15.2",
+ "bitvec 0.17.4",
  "digest 0.8.1",
  "failure",
  "hex 0.4.2",
