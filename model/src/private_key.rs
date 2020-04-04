@@ -52,6 +52,12 @@ pub enum PrivateKeyError {
     UnsupportedFormat,
 }
 
+impl From<crate::no_std::io::Error> for PrivateKeyError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        PrivateKeyError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
 impl From<&'static str> for PrivateKeyError {
     fn from(msg: &'static str) -> Self {
         PrivateKeyError::Message(msg.into())
@@ -86,12 +92,5 @@ impl From<rand_core::Error> for PrivateKeyError {
 impl From<secp256k1::Error> for PrivateKeyError {
     fn from(error: secp256k1::Error) -> Self {
         PrivateKeyError::Crate("secp256k1", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for PrivateKeyError {
-    fn from(error: std::io::Error) -> Self {
-        PrivateKeyError::Crate("std::io", format!("{:?}", error))
     }
 }

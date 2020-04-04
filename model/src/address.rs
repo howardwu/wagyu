@@ -64,6 +64,18 @@ pub enum AddressError {
     PublicKeyError(PublicKeyError),
 }
 
+impl From<crate::no_std::io::Error> for AddressError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        AddressError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
+impl From<crate::no_std::FromUtf8Error> for AddressError {
+    fn from(error: crate::no_std::FromUtf8Error) -> Self {
+        AddressError::Crate("crate::no_std", format!("{:?}", error))
+    }
+}
+
 impl From<&'static str> for AddressError {
     fn from(msg: &'static str) -> Self {
         AddressError::Message(msg.into())
@@ -115,19 +127,5 @@ impl From<hex::FromHexError> for AddressError {
 impl From<rand_core::Error> for AddressError {
     fn from(error: rand_core::Error) -> Self {
         AddressError::Crate("rand", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for AddressError {
-    fn from(error: std::io::Error) -> Self {
-        AddressError::Crate("std::io", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::string::FromUtf8Error> for AddressError {
-    fn from(error: std::string::FromUtf8Error) -> Self {
-        AddressError::Crate("std::string", format!("{:?}", error))
     }
 }

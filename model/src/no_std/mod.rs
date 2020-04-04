@@ -1,11 +1,14 @@
 #[cfg(not(feature = "std"))]
 #[doc(hidden)]
-pub mod io;
-
-#[cfg(not(feature = "std"))]
-#[doc(hidden)]
-pub use alloc::{format, string::String, string::ToString, vec, vec::Vec};
+pub use alloc::{format, string::FromUtf8Error, string::String, string::ToString, vec, vec::Vec};
 
 #[cfg(feature = "std")]
 #[doc(hidden)]
-pub use std::{format, string::String, string::ToString, vec, vec::Vec};
+pub use std::{format, string::FromUtf8Error, string::String, string::ToString, vec, vec::Vec};
+
+#[cfg(not(feature = "std"))]
+#[doc(hidden)]
+pub mod io;
+
+#[cfg(feature = "std")]
+pub use std::io;

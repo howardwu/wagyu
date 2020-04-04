@@ -71,6 +71,12 @@ pub enum ExtendedPublicKeyError {
     UnsupportedFormat(String),
 }
 
+impl From<crate::no_std::io::Error> for ExtendedPublicKeyError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        ExtendedPublicKeyError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
 impl From<DerivationPathError> for ExtendedPublicKeyError {
     fn from(error: DerivationPathError) -> Self {
         ExtendedPublicKeyError::DerivationPathError(error)
@@ -123,12 +129,5 @@ impl From<crypto_mac::InvalidKeyLength> for ExtendedPublicKeyError {
 impl From<secp256k1::Error> for ExtendedPublicKeyError {
     fn from(error: secp256k1::Error) -> Self {
         ExtendedPublicKeyError::Crate("secp256k1", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for ExtendedPublicKeyError {
-    fn from(error: std::io::Error) -> Self {
-        ExtendedPublicKeyError::Crate("std::io", format!("{:?}", error))
     }
 }

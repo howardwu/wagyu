@@ -42,6 +42,12 @@ pub enum PublicKeyError {
     NoViewingKey,
 }
 
+impl From<crate::no_std::io::Error> for PublicKeyError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        PublicKeyError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
 impl From<base58::FromBase58Error> for PublicKeyError {
     fn from(error: base58::FromBase58Error) -> Self {
         PublicKeyError::Crate("base58", format!("{:?}", error))
@@ -64,12 +70,5 @@ impl From<hex::FromHexError> for PublicKeyError {
 impl From<secp256k1::Error> for PublicKeyError {
     fn from(error: secp256k1::Error) -> Self {
         PublicKeyError::Crate("secp256k1", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for PublicKeyError {
-    fn from(error: std::io::Error) -> Self {
-        PublicKeyError::Crate("std::io", format!("{:?}", error))
     }
 }
