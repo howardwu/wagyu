@@ -36,8 +36,8 @@ sha2 = { version = "0.8", default-features = false }
 uint = { version = "0.8.2", default-features = false }
 
 [features]
-default = ["std"]
-std = ["ff", "secp256k1"]
+default = ["std", "secp256k1"]
+std = ["ff"]
 
 [badges]
 travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }
