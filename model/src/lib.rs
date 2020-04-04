@@ -1,11 +1,32 @@
 //! # Model
 //!
 //! A model for cryptocurrency wallets.
+
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+#[cfg(all(not(feature="std")))]
+#[macro_use]
+#[doc(hidden)]
+extern crate alloc;
+
 #[macro_use]
 extern crate failure;
+
+#[cfg(all(test, not(feature = "std")))]
+#[macro_use]
+extern crate std;
+
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+#[doc(hidden)]
+pub use alloc::{format, string::String, string::ToString, vec, vec::Vec};
+
+#[cfg(feature = "std")]
+#[allow(unused_imports)]
+#[doc(hidden)]
+pub use std::{format, string::String, string::ToString, vec, vec::Vec};
 
 pub mod address;
 pub use self::address::*;

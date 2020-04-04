@@ -6,11 +6,13 @@ use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::wordlist::WordlistError;
 
-use rand::Rng;
-use std::{
+#[cfg(not(feature = "std"))]
+use crate::String;
+use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
+use rand::Rng;
 
 /// The interface for a generic mnemonic.
 pub trait Mnemonic: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
@@ -131,6 +133,7 @@ impl From<rand_core::Error> for MnemonicError {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for MnemonicError {
     fn from(error: std::io::Error) -> Self {
         MnemonicError::Crate("std::io", format!("{:?}", error))

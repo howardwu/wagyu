@@ -2,7 +2,9 @@ use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::{PublicKey, PublicKeyError};
 
-use std::{
+#[cfg(not(feature = "std"))]
+use crate::{String, Vec};
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
     str::FromStr,
@@ -99,6 +101,12 @@ impl From<bech32::Error> for AddressError {
     }
 }
 
+impl From<core::str::Utf8Error> for AddressError {
+    fn from(error: core::str::Utf8Error) -> Self {
+        AddressError::Crate("core::str", format!("{:?}", error))
+    }
+}
+
 impl From<hex::FromHexError> for AddressError {
     fn from(error: hex::FromHexError) -> Self {
         AddressError::Crate("hex", format!("{:?}", error))
@@ -111,18 +119,14 @@ impl From<rand_core::Error> for AddressError {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for AddressError {
     fn from(error: std::io::Error) -> Self {
         AddressError::Crate("std::io", format!("{:?}", error))
     }
 }
 
-impl From<std::str::Utf8Error> for AddressError {
-    fn from(error: std::str::Utf8Error) -> Self {
-        AddressError::Crate("std::str", format!("{:?}", error))
-    }
-}
-
+#[cfg(feature = "std")]
 impl From<std::string::FromUtf8Error> for AddressError {
     fn from(error: std::string::FromUtf8Error) -> Self {
         AddressError::Crate("std::string", format!("{:?}", error))

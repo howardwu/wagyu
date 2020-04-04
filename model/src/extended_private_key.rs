@@ -6,11 +6,13 @@ use crate::network::NetworkError;
 use crate::private_key::PrivateKey;
 use crate::public_key::PublicKey;
 
-use crypto_mac;
-use std::{
+#[cfg(not(feature = "std"))]
+use crate::{String, Vec};
+use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
+use crypto_mac;
 
 /// The interface for a generic extended private key.
 pub trait ExtendedPrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
@@ -100,6 +102,18 @@ impl From<bech32::Error> for ExtendedPrivateKeyError {
     }
 }
 
+impl From<core::array::TryFromSliceError> for ExtendedPrivateKeyError {
+    fn from(error: core::array::TryFromSliceError) -> Self {
+        ExtendedPrivateKeyError::Crate("core::array", format!("{:?}", error))
+    }
+}
+
+impl From<core::num::ParseIntError> for ExtendedPrivateKeyError {
+    fn from(error: core::num::ParseIntError) -> Self {
+        ExtendedPrivateKeyError::Crate("core::num", format!("{:?}", error))
+    }
+}
+
 impl From<crypto_mac::InvalidKeyLength> for ExtendedPrivateKeyError {
     fn from(error: crypto_mac::InvalidKeyLength) -> Self {
         ExtendedPrivateKeyError::Crate("crypto-mac", format!("{:?}", error))
@@ -112,20 +126,9 @@ impl From<secp256k1::Error> for ExtendedPrivateKeyError {
     }
 }
 
-impl From<std::array::TryFromSliceError> for ExtendedPrivateKeyError {
-    fn from(error: std::array::TryFromSliceError) -> Self {
-        ExtendedPrivateKeyError::Crate("std::array", format!("{:?}", error))
-    }
-}
-
+#[cfg(feature = "std")]
 impl From<std::io::Error> for ExtendedPrivateKeyError {
     fn from(error: std::io::Error) -> Self {
         ExtendedPrivateKeyError::Crate("std::io", format!("{:?}", error))
-    }
-}
-
-impl From<std::num::ParseIntError> for ExtendedPrivateKeyError {
-    fn from(error: std::num::ParseIntError) -> Self {
-        ExtendedPrivateKeyError::Crate("std::num", format!("{:?}", error))
     }
 }

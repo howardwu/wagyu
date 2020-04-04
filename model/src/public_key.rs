@@ -2,7 +2,9 @@ use crate::address::{Address, AddressError};
 use crate::format::Format;
 use crate::private_key::PrivateKey;
 
-use std::{
+#[cfg(not(feature = "std"))]
+use crate::String;
+use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
@@ -65,6 +67,7 @@ impl From<secp256k1::Error> for PublicKeyError {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for PublicKeyError {
     fn from(error: std::io::Error) -> Self {
         PublicKeyError::Crate("std::io", format!("{:?}", error))

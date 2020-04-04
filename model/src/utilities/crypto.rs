@@ -1,3 +1,5 @@
+#[cfg(not(feature = "std"))]
+use crate::vec::Vec;
 use ripemd160::Ripemd160;
 use sha2::{Digest, Sha256};
 

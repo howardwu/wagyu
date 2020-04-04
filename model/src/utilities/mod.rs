@@ -1,5 +1,7 @@
+#[cfg(not(feature = "std"))]
+use crate::{String, Vec};
+
 #[cfg_attr(test, macro_use)]
-pub mod bytes;
 pub mod crypto;
 
 pub fn to_hex_string(bytes: &[u8]) -> String {
