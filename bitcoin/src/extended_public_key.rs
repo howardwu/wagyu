@@ -3,12 +3,12 @@ use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_private_key::BitcoinExtendedPrivateKey;
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
-use crate::no_std::*;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
     crypto::{checksum, hash160},
     AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPublicKey, ExtendedPublicKeyError, PublicKey,
 };
+use wagyu_model::no_std::*;
 
 use base58::{FromBase58, ToBase58};
 use core::{convert::TryFrom, fmt, str::FromStr};

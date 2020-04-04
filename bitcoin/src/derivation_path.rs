@@ -1,6 +1,6 @@
 use crate::network::BitcoinNetwork;
-use crate::no_std::*;
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
+use wagyu_model::no_std::*;
 
 use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 

@@ -1,9 +1,9 @@
 use crate::address::BitcoinAddress;
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
-use crate::no_std::*;
 use crate::private_key::BitcoinPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
+use wagyu_model::no_std::*;
 
 use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use secp256k1;

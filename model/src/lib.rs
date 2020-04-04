@@ -15,6 +15,8 @@ extern crate alloc;
 #[macro_use]
 extern crate failure;
 
+pub mod no_std;
+
 pub mod address;
 pub use self::address::*;
 
@@ -38,9 +40,6 @@ pub use self::mnemonic::*;
 
 pub mod network;
 pub use self::network::*;
-
-pub mod no_std;
-pub use self::no_std::*;
 
 pub mod private_key;
 pub use self::private_key::*;

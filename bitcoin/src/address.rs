@@ -1,6 +1,5 @@
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
-use crate::no_std::*;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
@@ -8,6 +7,7 @@ use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
 };
+use wagyu_model::no_std::*;
 
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
