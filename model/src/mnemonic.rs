@@ -6,7 +6,6 @@ use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 use crate::wordlist::WordlistError;
 
-#[cfg(not(feature = "std"))]
 use crate::String;
 use core::{
     fmt::{Debug, Display},

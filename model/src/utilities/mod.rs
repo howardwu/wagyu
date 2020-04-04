@@ -1,4 +1,3 @@
-#[cfg(not(feature = "std"))]
 use crate::{String, Vec};
 
 #[cfg_attr(test, macro_use)]

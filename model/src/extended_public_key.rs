@@ -5,7 +5,6 @@ use crate::format::Format;
 use crate::network::NetworkError;
 use crate::public_key::{PublicKey, PublicKeyError};
 
-#[cfg(not(feature = "std"))]
 use crate::{String, Vec};
 use core::{
     fmt::{Debug, Display},
@@ -120,6 +119,7 @@ impl From<crypto_mac::InvalidKeyLength> for ExtendedPublicKeyError {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for ExtendedPublicKeyError {
     fn from(error: secp256k1::Error) -> Self {
         ExtendedPublicKeyError::Crate("secp256k1", format!("{:?}", error))

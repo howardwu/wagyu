@@ -1,6 +1,5 @@
 use crate::derivation_path::DerivationPathError;
 
-#[cfg(not(feature = "std"))]
 use crate::{String, Vec};
 use core::{
     fmt::{Debug, Display},

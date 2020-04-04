@@ -1,4 +1,3 @@
-#[cfg(not(feature = "std"))]
 use crate::String;
 use core::{fmt::Debug, hash::Hash};
 

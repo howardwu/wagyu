@@ -1,4 +1,3 @@
-#[cfg(not(feature = "std"))]
 use crate::{String, Vec};
 use core::{
     fmt,
@@ -147,8 +146,6 @@ mod tests {
 
     mod child_index {
         use super::*;
-
-        #[cfg(not(feature = "std"))]
         use crate::ToString;
 
         #[test]

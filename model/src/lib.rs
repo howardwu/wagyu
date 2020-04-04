@@ -6,9 +6,10 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-#[cfg(all(not(feature="std")))]
-#[macro_use]
+#[cfg(not(feature="std"))]
+#[allow(unused_imports)]
 #[doc(hidden)]
+#[macro_use]
 extern crate alloc;
 
 #[macro_use]
