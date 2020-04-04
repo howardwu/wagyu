@@ -1,4 +1,4 @@
-use crate::{String, Vec};
+use crate::no_std::*;
 
 #[cfg_attr(test, macro_use)]
 pub mod crypto;

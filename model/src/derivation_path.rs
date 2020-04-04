@@ -1,4 +1,4 @@
-use crate::{String, Vec};
+use crate::no_std::*;
 use core::{
     fmt,
     fmt::{Debug, Display},
@@ -146,7 +146,6 @@ mod tests {
 
     mod child_index {
         use super::*;
-        use crate::ToString;
 
         #[test]
         fn normal() {

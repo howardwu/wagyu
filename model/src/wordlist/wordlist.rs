@@ -1,4 +1,4 @@
-use crate::String;
+use crate::no_std::*;
 use core::{fmt::Debug, hash::Hash};
 
 /// The interface for a generic network.

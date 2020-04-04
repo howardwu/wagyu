@@ -2,7 +2,7 @@ use crate::address::{Address, AddressError};
 use crate::format::Format;
 use crate::public_key::PublicKey;
 
-use crate::{String, Vec};
+use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
     str::FromStr,

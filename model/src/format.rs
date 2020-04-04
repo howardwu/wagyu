@@ -1,6 +1,6 @@
 use crate::derivation_path::DerivationPathError;
 
-use crate::{String, Vec};
+use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
     hash::Hash,

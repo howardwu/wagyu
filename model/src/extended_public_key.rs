@@ -5,7 +5,7 @@ use crate::format::Format;
 use crate::network::NetworkError;
 use crate::public_key::{PublicKey, PublicKeyError};
 
-use crate::{String, Vec};
+use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
     str::FromStr,

@@ -5,7 +5,7 @@ use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 
-use crate::{format, String, Vec};
+use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
     hash::Hash,
