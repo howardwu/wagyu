@@ -1,11 +1,12 @@
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
+use crate::no_std::*;
 use wagyu_model::{
     AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, NetworkError, PrivateKeyError,
 };
 
+use core::{fmt, str::FromStr};
 use serde::Serialize;
-use std::{fmt, str::FromStr};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Mainnet;

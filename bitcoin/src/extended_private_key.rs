@@ -3,6 +3,7 @@ use crate::derivation_path::BitcoinDerivationPath;
 use crate::extended_public_key::BitcoinExtendedPublicKey;
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
+use crate::no_std::*;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{
@@ -12,10 +13,10 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
+use core::{convert::TryFrom, fmt, fmt::Display, str::FromStr};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use sha2::Sha512;
-use std::{convert::TryFrom, fmt, fmt::Display, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -227,9 +228,8 @@ mod tests {
     use super::*;
     use crate::network::*;
 
+    use core::convert::TryInto;
     use hex;
-    use std::convert::TryInto;
-    use std::string::String;
 
     fn test_new<N: BitcoinNetwork>(
         expected_extended_private_key: &str,

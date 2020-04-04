@@ -1,4 +1,5 @@
 use crate::format::BitcoinFormat;
+use crate::no_std::*;
 use wagyu_model::{
     AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError,
 };

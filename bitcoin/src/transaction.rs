@@ -2,6 +2,7 @@ use crate::address::BitcoinAddress;
 use crate::amount::BitcoinAmount;
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
+use crate::no_std::*;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
@@ -9,10 +10,12 @@ use wagyu_model::{PrivateKey, Transaction, TransactionError, TransactionId};
 
 use base58::FromBase58;
 use bech32::{Bech32, FromBase32};
+use core::{fmt, str::FromStr};
 use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{fmt, io::Read, str::FromStr};
+
+use std::io::Read;
 
 /// Returns the variable length integer of the given value.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer

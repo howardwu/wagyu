@@ -17,13 +17,13 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-wagyu-model = { path = "../model", version = "0.6.3" }
+wagyu-model = { path = "../model", version = "0.6.3", default-features = false }
 
 base58 = { version = "0.1" }
 bech32 = { version = "0.6.0" }
 bitvec = { version = "0.17.4" }
 digest = { version = "0.8.1" }
-failure = { version = "0.1.5" }
+failure = { version = "0.1.5", default-features = false }
 hex = { version = "0.4.2" }
 hmac = { version = "0.7.0" }
 pbkdf2 = { version = "0.3.0", features=["parallel"], default-features = false }
@@ -34,6 +34,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.8" }
 tiny-keccak = { version = "1.4" }
+
+[features]
+default = ["std"]
+std = ["wagyu-model/std"]
 
 [badges]
 travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }

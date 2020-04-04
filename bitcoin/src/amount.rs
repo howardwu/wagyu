@@ -1,7 +1,8 @@
+use crate::no_std::*;
 use wagyu_model::{Amount, AmountError};
 
+use core::fmt;
 use serde::Serialize;
-use std::fmt;
 
 // Number of satoshis (base unit) per BTC
 const COIN: i64 = 1_0000_0000;

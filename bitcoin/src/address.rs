@@ -1,5 +1,6 @@
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
+use crate::no_std::*;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
@@ -10,8 +11,8 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
+use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use sha2::{Digest, Sha256};
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

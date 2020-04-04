@@ -1,3 +1,4 @@
+use crate::no_std::*;
 use wagyu_model::wordlist::{Wordlist, WordlistError};
 
 pub mod chinese_simplified;
