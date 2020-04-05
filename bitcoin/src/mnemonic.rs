@@ -222,9 +222,11 @@ mod tests {
     use crate::network::*;
     use crate::wordlist::*;
     use hex;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     fn test_new_with_count<N: BitcoinNetwork, W: BitcoinWordlist>(word_count: u8) {
-        let rng = &mut rand::thread_rng();
+        let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
         let mnemonic = BitcoinMnemonic::<N, W>::new_with_count(rng, word_count).unwrap();
         test_from_phrase::<N, W>(&mnemonic.entropy, &mnemonic.to_phrase().unwrap());
     }
@@ -520,7 +522,7 @@ mod tests {
         #[test]
         #[should_panic(expected = "InvalidWordCount(11)")]
         fn new_with_count_invalid_word_count() {
-            let rng = &mut rand::thread_rng();
+            let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
             let _mnemonic = BitcoinMnemonic::<N, W>::new_with_count(rng, INVALID_WORD_COUNT).unwrap();
         }
 

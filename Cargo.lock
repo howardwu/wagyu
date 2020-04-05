@@ -1634,6 +1634,7 @@ dependencies = [
  "libsecp256k1",
  "pbkdf2",
  "rand 0.7.3",
+ "rand_xorshift",
  "ripemd160 0.8.0",
  "serde",
  "serde_json",
