@@ -1,4 +1,5 @@
-use std::{fmt::Debug, hash::Hash};
+use crate::no_std::*;
+use core::{fmt::Debug, hash::Hash};
 
 /// The interface for a generic network.
 pub trait Wordlist: Copy + Clone + Debug + Send + Sync + 'static + Eq + Ord + Sized + Hash {}

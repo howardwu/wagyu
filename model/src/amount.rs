@@ -1,4 +1,5 @@
-use std::{
+use crate::no_std::*;
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
 };

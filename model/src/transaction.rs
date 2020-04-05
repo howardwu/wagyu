@@ -5,11 +5,12 @@ use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::PublicKey;
 
-use rlp;
-use std::{
+use crate::no_std::*;
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
 };
+use rlp;
 
 /// The interface for a generic transaction id.
 pub trait TransactionId: Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
@@ -159,6 +160,18 @@ impl From<AmountError> for TransactionError {
     }
 }
 
+impl From<ExtendedPrivateKeyError> for TransactionError {
+    fn from(error: ExtendedPrivateKeyError) -> Self {
+        TransactionError::ExtendedPrivateKeyError(error)
+    }
+}
+
+impl From<PrivateKeyError> for TransactionError {
+    fn from(error: PrivateKeyError) -> Self {
+        TransactionError::PrivateKeyError(error)
+    }
+}
+
 impl From<base58::FromBase58Error> for TransactionError {
     fn from(error: base58::FromBase58Error) -> Self {
         TransactionError::Crate("base58", format!("{:?}", error))
@@ -177,12 +190,19 @@ impl From<bech32::Error> for TransactionError {
     }
 }
 
-impl From<ExtendedPrivateKeyError> for TransactionError {
-    fn from(error: ExtendedPrivateKeyError) -> Self {
-        TransactionError::ExtendedPrivateKeyError(error)
+impl From<core::num::ParseIntError> for TransactionError {
+    fn from(error: core::num::ParseIntError) -> Self {
+        TransactionError::Crate("core::num", format!("{:?}", error))
     }
 }
 
+impl From<core::str::ParseBoolError> for TransactionError {
+    fn from(error: core::str::ParseBoolError) -> Self {
+        TransactionError::Crate("core::str", format!("{:?}", error))
+    }
+}
+
+#[cfg(feature = "ff")]
 impl From<ff::PrimeFieldDecodingError> for TransactionError {
     fn from(error: ff::PrimeFieldDecodingError) -> Self {
         TransactionError::Crate("ff", format!("{:?}", error))
@@ -195,18 +215,13 @@ impl From<hex::FromHexError> for TransactionError {
     }
 }
 
-impl From<PrivateKeyError> for TransactionError {
-    fn from(error: PrivateKeyError) -> Self {
-        TransactionError::PrivateKeyError(error)
-    }
-}
-
 impl From<rlp::DecoderError> for TransactionError {
     fn from(error: rlp::DecoderError) -> Self {
         TransactionError::Crate("rlp", format!("{:?}", error))
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for TransactionError {
     fn from(error: secp256k1::Error) -> Self {
         TransactionError::Crate("secp256k1", format!("{:?}", error))
@@ -219,21 +234,10 @@ impl From<serde_json::error::Error> for TransactionError {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for TransactionError {
     fn from(error: std::io::Error) -> Self {
         TransactionError::Crate("std::io", format!("{:?}", error))
-    }
-}
-
-impl From<std::str::ParseBoolError> for TransactionError {
-    fn from(error: std::str::ParseBoolError) -> Self {
-        TransactionError::Crate("std::str", format!("{:?}", error))
-    }
-}
-
-impl From<std::num::ParseIntError> for TransactionError {
-    fn from(error: std::num::ParseIntError) -> Self {
-        TransactionError::Crate("std::num", format!("{:?}", error))
     }
 }
 

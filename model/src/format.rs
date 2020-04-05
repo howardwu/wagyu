@@ -1,6 +1,7 @@
 use crate::derivation_path::DerivationPathError;
 
-use std::{
+use crate::no_std::*;
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
 };

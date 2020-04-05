@@ -1,4 +1,5 @@
-use std::{
+use crate::no_std::*;
+use core::{
     fmt,
     fmt::{Debug, Display},
     str::FromStr,
@@ -151,7 +152,7 @@ mod tests {
             for i in 0..1 << 31 {
                 assert_eq!(ChildIndex::Normal(i), ChildIndex::normal(i).unwrap());
             }
-            for i in 1 << 31..std::u32::MAX {
+            for i in 1 << 31..core::u32::MAX {
                 assert_eq!(Err(DerivationPathError::InvalidChildNumber(i)), ChildIndex::normal(i));
             }
         }
@@ -161,7 +162,7 @@ mod tests {
             for i in 0..1 << 31 {
                 assert_eq!(ChildIndex::Hardened(i), ChildIndex::hardened(i).unwrap());
             }
-            for i in 1 << 31..std::u32::MAX {
+            for i in 1 << 31..core::u32::MAX {
                 assert_eq!(Err(DerivationPathError::InvalidChildNumber(i)), ChildIndex::hardened(i));
             }
         }
@@ -193,7 +194,7 @@ mod tests {
         #[test]
         fn from() {
             const THRESHOLD: u32 = 1 << 31;
-            for i in 0..std::u32::MAX {
+            for i in 0..core::u32::MAX {
                 match i < THRESHOLD {
                     true => assert_eq!(ChildIndex::Normal(i), ChildIndex::from(i)),
                     false => assert_eq!(ChildIndex::Hardened(i ^ 1 << 31), ChildIndex::from(i)),

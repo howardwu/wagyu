@@ -5,7 +5,8 @@ use crate::format::Format;
 use crate::network::NetworkError;
 use crate::public_key::{PublicKey, PublicKeyError};
 
-use std::{
+use crate::no_std::*;
+use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
@@ -100,32 +101,34 @@ impl From<bech32::Error> for ExtendedPublicKeyError {
     }
 }
 
+impl From<core::array::TryFromSliceError> for ExtendedPublicKeyError {
+    fn from(error: core::array::TryFromSliceError) -> Self {
+        ExtendedPublicKeyError::Crate("core::array", format!("{:?}", error))
+    }
+}
+
+impl From<core::num::ParseIntError> for ExtendedPublicKeyError {
+    fn from(error: core::num::ParseIntError) -> Self {
+        ExtendedPublicKeyError::Crate("core::num", format!("{:?}", error))
+    }
+}
+
 impl From<crypto_mac::InvalidKeyLength> for ExtendedPublicKeyError {
     fn from(error: crypto_mac::InvalidKeyLength) -> Self {
         ExtendedPublicKeyError::Crate("crypto-mac", format!("{:?}", error))
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for ExtendedPublicKeyError {
     fn from(error: secp256k1::Error) -> Self {
         ExtendedPublicKeyError::Crate("secp256k1", format!("{:?}", error))
     }
 }
 
-impl From<std::array::TryFromSliceError> for ExtendedPublicKeyError {
-    fn from(error: std::array::TryFromSliceError) -> Self {
-        ExtendedPublicKeyError::Crate("std::array", format!("{:?}", error))
-    }
-}
-
+#[cfg(feature = "std")]
 impl From<std::io::Error> for ExtendedPublicKeyError {
     fn from(error: std::io::Error) -> Self {
         ExtendedPublicKeyError::Crate("std::io", format!("{:?}", error))
-    }
-}
-
-impl From<std::num::ParseIntError> for ExtendedPublicKeyError {
-    fn from(error: std::num::ParseIntError) -> Self {
-        ExtendedPublicKeyError::Crate("std::num", format!("{:?}", error))
     }
 }

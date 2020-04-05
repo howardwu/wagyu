@@ -2,11 +2,12 @@ use crate::address::{Address, AddressError};
 use crate::format::Format;
 use crate::public_key::PublicKey;
 
-use rand::Rng;
-use std::{
+use crate::no_std::*;
+use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
+use rand::Rng;
 
 /// The interface for a generic private key.
 pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
@@ -81,12 +82,14 @@ impl From<rand_core::Error> for PrivateKeyError {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for PrivateKeyError {
     fn from(error: secp256k1::Error) -> Self {
         PrivateKeyError::Crate("secp256k1", format!("{:?}", error))
     }
 }
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for PrivateKeyError {
     fn from(error: std::io::Error) -> Self {
         PrivateKeyError::Crate("std::io", format!("{:?}", error))
