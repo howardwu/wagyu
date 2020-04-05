@@ -8,7 +8,7 @@ use secp256k1;
 use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum private key
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EthereumPrivateKey(secp256k1::SecretKey);
 
 impl PrivateKey for EthereumPrivateKey {
@@ -19,7 +19,7 @@ impl PrivateKey for EthereumPrivateKey {
     /// Returns a randomly-generated Ethereum private key.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         let random: [u8; 32] = rng.gen();
-        Ok(Self(secp256k1::SecretKey::from_slice(&random)?))
+        Ok(Self(secp256k1::SecretKey::parse_slice(&random)?))
     }
 
     /// Returns the public key of the corresponding Ethereum private key.
@@ -35,8 +35,8 @@ impl PrivateKey for EthereumPrivateKey {
 
 impl EthereumPrivateKey {
     /// Returns a private key given a secp256k1 secret key.
-    pub fn from_secp256k1_secret_key(secret_key: secp256k1::SecretKey) -> Self {
-        Self(secret_key)
+    pub fn from_secp256k1_secret_key(secret_key: &secp256k1::SecretKey) -> Self {
+        Self(secret_key.clone())
     }
 
     /// Returns the secp256k1 secret key of the private key.
@@ -54,14 +54,14 @@ impl FromStr for EthereumPrivateKey {
         }
 
         let secret_key = hex::decode(private_key)?;
-        Ok(Self(secp256k1::SecretKey::from_slice(&secret_key)?))
+        Ok(Self(secp256k1::SecretKey::parse_slice(&secret_key)?))
     }
 }
 
 impl Display for EthereumPrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut private_key = [0u8; 32];
-        private_key.copy_from_slice(&self.0[..]);
+        private_key.copy_from_slice(&self.0.serialize());
         write!(f, "{}", hex::encode(private_key).to_string())
     }
 }
@@ -86,7 +86,7 @@ mod tests {
         expected_address: &str,
         secret_key: secp256k1::SecretKey,
     ) {
-        let private_key = EthereumPrivateKey::from_secp256k1_secret_key(secret_key);
+        let private_key = EthereumPrivateKey::from_secp256k1_secret_key(&secret_key);
         assert_eq!(secret_key, private_key.0);
         assert_eq!(expected_private_key, private_key.to_string());
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());

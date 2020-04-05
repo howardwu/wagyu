@@ -8,10 +8,7 @@ use wagyu_model::{PrivateKey, PublicKey, Transaction, TransactionError, Transact
 
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
-use secp256k1::{
-    self,
-    recovery::{RecoverableSignature, RecoveryId},
-};
+use secp256k1;
 use std::{fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
@@ -119,17 +116,16 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             (Some(_), Some(_)) => Ok(self.clone()),
             (Some(_), None) | (None, Some(_)) => Err(TransactionError::InvalidTransactionState),
             (None, None) => {
-                let (v, signature) = secp256k1::Secp256k1::new()
-                    .sign_recoverable(
-                        &secp256k1::Message::from_slice(&self.to_transaction_id()?.txid)?,
-                        &private_key.to_secp256k1_secret_key(),
-                    )
-                    .serialize_compact();
+                let (signature, v) = secp256k1::sign(
+                    &secp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)?,
+                    &private_key.to_secp256k1_secret_key(),
+                );
+                let signature = signature.serialize();
 
                 let mut transaction = self.clone();
                 transaction.sender = Some(private_key.to_address(&EthereumFormat::Standard)?);
                 transaction.signature = Some(EthereumTransactionSignature {
-                    v: to_bytes(v.to_i32() as u32 + N::CHAIN_ID * 2 + 35)?, // EIP155
+                    v: to_bytes(Into::<i32>::into(v) as u32 + N::CHAIN_ID * 2 + 35)?, // EIP155
                     r: signature[0..32].to_vec(),
                     s: signature[32..64].to_vec(),
                 });
@@ -180,7 +176,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             false => {
                 // Signed transaction
                 let v = from_bytes(&list[6])?;
-                let recovery_id = RecoveryId::from_i32((v - N::CHAIN_ID * 2 - 35) as i32)?;
+                let recovery_id = secp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)?;
                 let mut signature = list[7].clone();
                 signature.extend_from_slice(&list[8]);
 
@@ -190,10 +186,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     signature: None,
                     _network: PhantomData,
                 };
-                let message = secp256k1::Message::from_slice(&raw_transaction.to_transaction_id()?.txid)?;
+                let message = secp256k1::Message::parse_slice(&raw_transaction.to_transaction_id()?.txid)?;
                 let public_key = EthereumPublicKey::from_secp256k1_public_key(
-                    secp256k1::Secp256k1::new()
-                        .recover(&message, &RecoverableSignature::from_compact(&signature, recovery_id)?)?,
+                    secp256k1::recover(&message, &secp256k1::Signature::parse_slice(signature.as_slice())?, &recovery_id)?,
                 );
 
                 Ok(Self {

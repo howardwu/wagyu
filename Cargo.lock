@@ -212,12 +212,6 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "bitvec"
-version = "0.15.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a993f74b4c99c1908d156b8d2e0fb6277736b0ecbd833982fd1241d39b2766a6"
-
-[[package]]
-name = "bitvec"
 version = "0.17.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41262f11d771fd4a61aa3ce019fca363b4b6c282fca9da2a31186d3965a47a5c"
@@ -302,12 +296,6 @@ name = "build_const"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39092a32794787acd8525ee150305ff051b0aa6cc2abaf193924f5ab05425f39"
-
-[[package]]
-name = "byte-slice-cast"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0a5e3906bcbf133e33c1d4d95afc664ad37fbdb9f6568d8043e7ea8c27d93d3"
 
 [[package]]
 name = "byte-tools"
@@ -553,7 +541,6 @@ dependencies = [
  "crunchy",
  "fixed-hash",
  "impl-rlp",
- "impl-serde",
  "tiny-keccak 2.0.1",
 ]
 
@@ -566,7 +553,6 @@ dependencies = [
  "ethbloom",
  "fixed-hash",
  "impl-rlp",
- "impl-serde",
  "primitive-types",
  "uint",
 ]
@@ -643,7 +629,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32529fc42e86ec06e5047092082aab9ad459b070c5d2a76b14f4f5ce70bf2e84"
 dependencies = [
  "byteorder",
- "rand 0.7.3",
  "rustc-hex",
  "static_assertions",
 ]
@@ -843,30 +828,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "impl-codec"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1be51a921b067b0eaca2fad532d9400041561aa922221cc65f95a85641c6bf53"
-dependencies = [
- "parity-scale-codec",
-]
-
-[[package]]
 name = "impl-rlp"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f7a72f11830b52333f36e3b09a288333888bf54380fd0ac0790a3c31ab0f3c5"
 dependencies = [
  "rlp",
-]
-
-[[package]]
-name = "impl-serde"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bbe9ea9b182f0fb1cabbd61f4ff9b7b7b9197955e95a7e4c27de5055eb29ff8"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -998,18 +965,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parity-scale-codec"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f509c5e67ca0605ee17dcd3f91ef41cadd685c75a298fb6261b781a5acb3f910"
-dependencies = [
- "arrayvec",
- "bitvec 0.15.2",
- "byte-slice-cast",
- "serde",
-]
-
-[[package]]
 name = "pbkdf2"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,9 +1000,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5e4b9943a2da369aec5e96f7c10ebc74fcf434d39590d974b0a3460e6f67fbb"
 dependencies = [
  "fixed-hash",
- "impl-codec",
  "impl-rlp",
- "impl-serde",
  "uint",
 ]
 
@@ -1626,7 +1579,7 @@ version = "0.6.3"
 dependencies = [
  "base58",
  "bech32",
- "bitvec 0.17.4",
+ "bitvec",
  "digest 0.8.1",
  "failure",
  "hex 0.4.2",
@@ -1648,15 +1601,16 @@ name = "wagyu-ethereum"
 version = "0.6.3"
 dependencies = [
  "base58",
- "bitvec 0.17.4",
+ "bitvec",
  "ethereum-types",
  "hex 0.4.2",
  "hmac",
+ "libsecp256k1",
  "pbkdf2",
  "rand 0.7.3",
+ "rand_xorshift",
  "regex",
  "rlp",
- "secp256k1",
  "serde",
  "serde_json",
  "sha2",

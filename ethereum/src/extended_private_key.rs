@@ -13,14 +13,14 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use hmac::{Hmac, Mac};
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use secp256k1::{PublicKey, SecretKey};
 use sha2::Sha512;
 use std::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Ethereum Extended Private Key
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EthereumExtendedPrivateKey<N> {
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub(super) depth: u8,
@@ -54,7 +54,7 @@ impl<N: EthereumNetwork> ExtendedPrivateKey for EthereumExtendedPrivateKey<N> {
         let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?; // This is correct. Ethereum uses BIP32.
         mac.input(seed);
         let hmac = mac.result().code();
-        let private_key = Self::PrivateKey::from_secp256k1_secret_key(SecretKey::from_slice(&hmac[0..32])?);
+        let private_key = Self::PrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&hmac[0..32])?);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -79,10 +79,8 @@ impl<N: EthereumNetwork> ExtendedPrivateKey for EthereumExtendedPrivateKey<N> {
 
         for index in path.to_vec()?.into_iter() {
             let public_key = &PublicKey::from_secret_key(
-                &Secp256k1::new(),
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
-            )
-            .serialize()[..];
+            ).serialize_compressed();
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
@@ -92,16 +90,16 @@ impl<N: EthereumNetwork> ExtendedPrivateKey for EthereumExtendedPrivateKey<N> {
                 // (Note: The 0x00 pads the private key to make it 33 bytes long.)
                 ChildIndex::Hardened(_) => {
                     mac.input(&[0u8]);
-                    mac.input(&extended_private_key.private_key.to_secp256k1_secret_key()[..]);
+                    mac.input(&extended_private_key.private_key.to_secp256k1_secret_key().serialize());
                 }
             }
             // Append the child index in big-endian format
             mac.input(&u32::from(index).to_be_bytes());
             let hmac = mac.result().code();
 
-            let mut secret_key = SecretKey::from_slice(&hmac[0..32])?;
-            secret_key.add_assign(&extended_private_key.private_key.to_secp256k1_secret_key()[..])?;
-            let private_key = Self::PrivateKey::from_secp256k1_secret_key(secret_key);
+            let mut secret_key = SecretKey::parse_slice(&hmac[0..32])?;
+            secret_key.tweak_add_assign(&extended_private_key.private_key.to_secp256k1_secret_key())?;
+            let private_key = Self::PrivateKey::from_secp256k1_secret_key(&secret_key);
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -167,7 +165,7 @@ impl<N: EthereumNetwork> FromStr for EthereumExtendedPrivateKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let private_key = EthereumPrivateKey::from_secp256k1_secret_key(SecretKey::from_slice(&data[46..78])?);
+        let private_key = EthereumPrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&data[46..78])?);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -199,7 +197,7 @@ impl<N: EthereumNetwork> Display for EthereumExtendedPrivateKey<N> {
         result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
         result[45] = 0;
-        result[46..78].copy_from_slice(&self.private_key.to_secp256k1_secret_key()[..]);
+        result[46..78].copy_from_slice(&self.private_key.to_secp256k1_secret_key().serialize());
 
         let checksum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(&checksum);
@@ -237,7 +235,7 @@ mod tests {
         assert_eq!(expected_chain_code, hex::encode(extended_private_key.chain_code));
         assert_eq!(
             expected_secret_key,
-            extended_private_key.private_key.to_secp256k1_secret_key().to_string()
+            hex::encode(&extended_private_key.private_key.to_secp256k1_secret_key().serialize())
         );
     }
 
@@ -303,7 +301,7 @@ mod tests {
         assert_eq!(expected_chain_code, hex::encode(extended_private_key.chain_code));
         assert_eq!(
             expected_secret_key,
-            extended_private_key.private_key.to_secp256k1_secret_key().to_string()
+            hex::encode(&extended_private_key.private_key.to_secp256k1_secret_key().serialize())
         );
     }
 
@@ -606,7 +604,7 @@ mod tests {
         const VALID_EXTENDED_PRIVATE_KEY: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
         #[test]
-        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidSecretKey\")")]
+        #[should_panic(expected = "Crate(\"libsecp256k1\", \"InvalidSecretKey\")")]
         fn from_str_invalid_secret_key() {
             let _result =
                 EthereumExtendedPrivateKey::<N>::from_str(INVALID_EXTENDED_PRIVATE_KEY_SECP256K1_SECRET_KEY).unwrap();

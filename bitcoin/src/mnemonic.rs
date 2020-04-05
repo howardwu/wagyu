@@ -221,6 +221,7 @@ mod tests {
     use super::*;
     use crate::network::*;
     use crate::wordlist::*;
+
     use hex;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
