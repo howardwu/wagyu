@@ -23,7 +23,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct P2PKHSpendingKey<N: ZcashNetwork> {
     /// The ECDSA private key
     pub(super) secret_key: secp256k1::SecretKey,
@@ -59,7 +59,7 @@ impl<N: ZcashNetwork> Display for P2PKHSpendingKey<N> {
         fn to_wif<N: ZcashNetwork>(secret_key: &secp256k1::SecretKey, compressed: bool) -> String {
             let mut wif = [0u8; 38];
             wif[0] = N::to_wif_prefix();
-            wif[1..33].copy_from_slice(&secret_key[..]);
+            wif[1..33].copy_from_slice(&secret_key.serialize());
 
             if compressed {
                 wif[33] = 0x01;
@@ -271,7 +271,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
     /// Returns a randomly-generated Zcash P2PKH private key.
     pub fn new_p2pkh<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         let random: [u8; 32] = rng.gen();
-        let secret_key = secp256k1::SecretKey::from_slice(&random)?;
+        let secret_key = secp256k1::SecretKey::parse_slice(&random)?;
         Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
             secret_key, true,
         )))
@@ -305,7 +305,7 @@ impl<N: ZcashNetwork> ZcashPrivateKey<N> {
         }
 
         Ok(ZcashPrivateKey::<N>::P2PKH(P2PKHSpendingKey::<N>::new(
-            secp256k1::SecretKey::from_slice(&data[1..33])?,
+            secp256k1::SecretKey::parse_slice(&data[1..33])?,
             len == 38,
         )))
     }

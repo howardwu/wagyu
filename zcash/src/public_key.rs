@@ -26,7 +26,7 @@ static H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct P2PKHViewingKey {
     /// The ECDSA public key
     pub(super) public_key: secp256k1::PublicKey,
@@ -34,10 +34,10 @@ pub struct P2PKHViewingKey {
     pub(super) compressed: bool,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct P2SHViewingKey {}
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SproutViewingKey {
     pub key_a: [u8; 32],
     pub key_b: [u8; 32],
@@ -208,7 +208,6 @@ impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
             // Transparent Public Key
             ZcashPrivateKey::<N>::P2PKH(spending_key) => ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
                 public_key: secp256k1::PublicKey::from_secret_key(
-                    &secp256k1::Secp256k1::new(),
                     &spending_key.secret_key,
                 ),
                 compressed: spending_key.compressed,
@@ -238,7 +237,7 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         match public_key.len() {
             66 | 130 => Ok(ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
-                public_key: secp256k1::PublicKey::from_str(public_key)?,
+                public_key: secp256k1::PublicKey::parse_slice(&hex::decode(public_key)?, None)?,
                 compressed: public_key.len() == 66,
             })),
             97 => {
@@ -284,11 +283,11 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
         match &self {
             ZcashPublicKey::<N>::P2PKH(p2pkh) => {
                 if p2pkh.compressed {
-                    for s in &p2pkh.public_key.serialize()[..] {
+                    for s in &p2pkh.public_key.serialize_compressed()[..] {
                         write!(f, "{:02x}", s)?;
                     }
                 } else {
-                    for s in &p2pkh.public_key.serialize_uncompressed()[..] {
+                    for s in &p2pkh.public_key.serialize()[..] {
                         write!(f, "{:02x}", s)?;
                     }
                 }

@@ -1298,24 +1298,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
-name = "secp256k1"
-version = "0.17.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2932dc07acd2066ff2e3921a4419606b220ba6cd03a9935123856cc534877056"
-dependencies = [
- "secp256k1-sys",
-]
-
-[[package]]
-name = "secp256k1-sys"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ab2c26f0d3552a0f12e639ae8a64afc2e3db9c52fe32f5fc6c289d38519f220"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "semver"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1677,13 +1659,13 @@ dependencies = [
  "hex 0.4.2",
  "hex-literal",
  "lazy_static",
+ "libsecp256k1",
  "pairing",
  "rand 0.7.3",
  "rand_core 0.5.1",
  "rand_xorshift",
  "ripemd160 0.7.0",
  "rust-crypto",
- "secp256k1",
  "serde",
  "serde_json",
  "sha2",
