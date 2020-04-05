@@ -9,7 +9,7 @@ use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use secp256k1;
 
 /// Represents a Bitcoin public key
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinPublicKey<N: BitcoinNetwork> {
     /// The ECDSA public key
     public_key: secp256k1::PublicKey,
@@ -26,9 +26,8 @@ impl<N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        let secp = secp256k1::Secp256k1::new();
         Self {
-            public_key: secp256k1::PublicKey::from_secret_key(&secp, &private_key.to_secp256k1_secret_key()),
+            public_key: secp256k1::PublicKey::from_secret_key(&private_key.to_secp256k1_secret_key()),
             compressed: private_key.is_compressed(),
             _network: PhantomData,
         }
@@ -66,7 +65,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            public_key: secp256k1::PublicKey::from_str(public_key)?,
+            public_key: secp256k1::PublicKey::parse_slice(&hex::decode(public_key)?, None)?,
             compressed: public_key.len() == 66,
             _network: PhantomData,
         })
@@ -76,11 +75,11 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
 impl<N: BitcoinNetwork> Display for BitcoinPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.compressed {
-            for s in &self.public_key.serialize()[..] {
+            for s in &self.public_key.serialize_compressed()[..] {
                 write!(f, "{:02x}", s)?;
             }
         } else {
-            for s in &self.public_key.serialize_uncompressed()[..] {
+            for s in &self.public_key.serialize()[..] {
                 write!(f, "{:02x}", s)?;
             }
         }

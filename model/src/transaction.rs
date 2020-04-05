@@ -227,10 +227,9 @@ impl From<rlp::DecoderError> for TransactionError {
     }
 }
 
-#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for TransactionError {
     fn from(error: secp256k1::Error) -> Self {
-        TransactionError::Crate("secp256k1", format!("{:?}", error))
+        TransactionError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }
 

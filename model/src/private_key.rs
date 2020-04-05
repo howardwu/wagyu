@@ -88,9 +88,8 @@ impl From<rand_core::Error> for PrivateKeyError {
     }
 }
 
-#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for PrivateKeyError {
     fn from(error: secp256k1::Error) -> Self {
-        PrivateKeyError::Crate("secp256k1", format!("{:?}", error))
+        PrivateKeyError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

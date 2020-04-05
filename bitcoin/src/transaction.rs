@@ -623,13 +623,11 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                 let transaction_hash = Sha256::digest(&Sha256::digest(&preimage));
 
                 // Signature
-                let mut signature = secp256k1::Secp256k1::signing_only()
-                    .sign(
-                        &secp256k1::Message::from_slice(&transaction_hash)?,
+                let (signature, _) = secp256k1::sign(
+                        &secp256k1::Message::parse_slice(&transaction_hash)?,
                         &private_key.to_secp256k1_secret_key(),
-                    )
-                    .serialize_der()
-                    .to_vec();
+                    );
+                let mut signature = signature.serialize_der().as_ref().to_vec();
                 signature.push((input.sighash_code as u32).to_le_bytes()[0]);
                 let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
 
@@ -637,9 +635,9 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                 let public_key = private_key.to_public_key();
                 let public_key_bytes = match (&address.format(), public_key.is_compressed()) {
                     (BitcoinFormat::P2PKH, false) => {
-                        public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec()
+                        public_key.to_secp256k1_public_key().serialize().to_vec()
                     }
-                    _ => public_key.to_secp256k1_public_key().serialize().to_vec(),
+                    _ => public_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
                 };
                 let public_key = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
@@ -935,7 +933,7 @@ mod tests {
                 (None, BitcoinFormat::P2SH_P2WPKH) => {
                     let mut redeem_script = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
-                        &private_key.to_public_key().to_secp256k1_public_key().serialize(),
+                        &private_key.to_public_key().to_secp256k1_public_key().serialize_compressed(),
                     ));
                     Some(redeem_script)
                 }
@@ -1006,7 +1004,7 @@ mod tests {
                 (None, BitcoinFormat::P2SH_P2WPKH) => {
                     let mut redeem_script = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
-                        &private_key.to_public_key().to_secp256k1_public_key().serialize(),
+                        &private_key.to_public_key().to_secp256k1_public_key().serialize_compressed(),
                     ));
                     Some(redeem_script)
                 }

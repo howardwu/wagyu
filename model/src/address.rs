@@ -10,7 +10,7 @@ use core::{
 };
 
 /// The interface for a generic address.
-pub trait Address: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash {
+pub trait Address: 'static + Clone + Debug + Display + FromStr + Hash + PartialEq + Eq + Ord + Send + Sized + Sync {
     type Format: Format;
     type PrivateKey: PrivateKey;
     type PublicKey: PublicKey;

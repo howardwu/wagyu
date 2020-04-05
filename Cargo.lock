@@ -832,6 +832,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmac-drbg"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6e570451493f10f6581b48cdd530413b63ea9e780f544bfd3bdcaa0d89d1a7b"
+dependencies = [
+ "digest 0.8.1",
+ "generic-array 0.12.3",
+ "hmac",
+]
+
+[[package]]
 name = "impl-codec"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -875,6 +886,22 @@ name = "libc"
 version = "0.2.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea0c0405123bba743ee3f91f49b1c7cfb684eef0da0a50110f758ccf24cdff0"
+
+[[package]]
+name = "libsecp256k1"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fc1e2c808481a63dc6da2074752fdd4336a3c8fcc68b83db6f1fd5224ae7962"
+dependencies = [
+ "arrayref",
+ "crunchy",
+ "digest 0.8.1",
+ "hmac-drbg",
+ "rand 0.7.3",
+ "sha2",
+ "subtle 2.2.2",
+ "typenum",
+]
 
 [[package]]
 name = "log"
@@ -1604,10 +1631,10 @@ dependencies = [
  "failure",
  "hex 0.4.2",
  "hmac",
+ "libsecp256k1",
  "pbkdf2",
  "rand 0.7.3",
  "ripemd160 0.8.0",
- "secp256k1",
  "serde",
  "serde_json",
  "sha2",
@@ -1649,11 +1676,11 @@ dependencies = [
  "failure",
  "ff",
  "hex 0.4.2",
+ "libsecp256k1",
  "rand 0.7.3",
  "rand_core 0.5.1",
  "ripemd160 0.8.0",
  "rlp",
- "secp256k1",
  "serde_json",
  "sha2",
  "uint",

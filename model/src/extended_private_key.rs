@@ -11,7 +11,6 @@ use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
-use crypto_mac;
 
 /// The interface for a generic extended private key.
 pub trait ExtendedPrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
@@ -125,9 +124,8 @@ impl From<crypto_mac::InvalidKeyLength> for ExtendedPrivateKeyError {
     }
 }
 
-#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for ExtendedPrivateKeyError {
     fn from(error: secp256k1::Error) -> Self {
-        ExtendedPrivateKeyError::Crate("secp256k1", format!("{:?}", error))
+        ExtendedPrivateKeyError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

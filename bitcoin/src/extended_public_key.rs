@@ -13,13 +13,13 @@ use wagyu_model::no_std::*;
 use base58::{FromBase58, ToBase58};
 use core::{convert::TryFrom, fmt, str::FromStr};
 use hmac::{Hmac, Mac};
-use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
+use secp256k1::{PublicKey as Secp256k1_PublicKey, SecretKey};
 use sha2::Sha512;
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Bitcoin extended public key
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinExtendedPublicKey<N: BitcoinNetwork> {
     /// The address format
     format: BitcoinFormat,
@@ -63,7 +63,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
         let mut extended_public_key = self.clone();
 
         for index in path.to_vec()?.into_iter() {
-            let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize()[..];
+            let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize_compressed()[..];
 
             let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
             match index {
@@ -82,7 +82,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
             chain_code[0..32].copy_from_slice(&hmac[32..]);
 
             let mut public_key = self.public_key.to_secp256k1_public_key();
-            public_key.add_exp_assign(&Secp256k1::new(), &SecretKey::from_slice(&hmac[..32])?[..])?;
+            public_key.tweak_add_assign(&SecretKey::parse_slice(&hmac[..32])?)?;
             let public_key = Self::PublicKey::from_secp256k1_public_key(public_key, true);
 
             let mut parent_fingerprint = [0u8; 4];
@@ -103,7 +103,7 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey {
-        self.public_key
+        self.public_key.clone()
     }
 
     /// Returns the address of the corresponding extended public key.
@@ -145,8 +145,8 @@ impl<N: BitcoinNetwork> FromStr for BitcoinExtendedPublicKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let secp256k1_public_key = Secp256k1_PublicKey::from_slice(&data[45..78])?;
-        let public_key = BitcoinPublicKey::from_str(&secp256k1_public_key.to_string())?;
+        let secp256k1_public_key = Secp256k1_PublicKey::parse_slice(&data[45..78], None)?;
+        let public_key = BitcoinPublicKey::from_secp256k1_public_key(secp256k1_public_key, true);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -180,7 +180,7 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinExtendedPublicKey<N> {
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
         result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
-        result[45..78].copy_from_slice(&self.public_key.to_secp256k1_public_key().serialize()[..]);
+        result[45..78].copy_from_slice(&self.public_key.to_secp256k1_public_key().serialize_compressed()[..]);
 
         let sum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(sum);
@@ -211,7 +211,7 @@ mod tests {
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
         assert_eq!(
             expected_public_key,
-            extended_public_key.public_key.to_secp256k1_public_key().to_string()
+            extended_public_key.public_key.to_string()
         );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
@@ -266,7 +266,7 @@ mod tests {
         let extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(&extended_public_key).unwrap();
         assert_eq!(
             expected_public_key,
-            extended_public_key.public_key.to_secp256k1_public_key().to_string()
+            extended_public_key.public_key.to_string()
         );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
@@ -482,7 +482,7 @@ mod tests {
         const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
         #[test]
-        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
+        #[should_panic(expected = "Crate(\"libsecp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
             let _result =
                 BitcoinExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY).unwrap();
