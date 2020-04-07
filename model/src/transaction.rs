@@ -136,6 +136,12 @@ pub enum TransactionError {
     UnsupportedPreimage(String),
 }
 
+impl From<crate::no_std::io::Error> for TransactionError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        TransactionError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
 impl From<&'static str> for TransactionError {
     fn from(msg: &'static str) -> Self {
         TransactionError::Message(msg.into())
@@ -221,23 +227,15 @@ impl From<rlp::DecoderError> for TransactionError {
     }
 }
 
-#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for TransactionError {
     fn from(error: secp256k1::Error) -> Self {
-        TransactionError::Crate("secp256k1", format!("{:?}", error))
+        TransactionError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }
 
 impl From<serde_json::error::Error> for TransactionError {
     fn from(error: serde_json::error::Error) -> Self {
         TransactionError::Crate("serde_json", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for TransactionError {
-    fn from(error: std::io::Error) -> Self {
-        TransactionError::Crate("std::io", format!("{:?}", error))
     }
 }
 

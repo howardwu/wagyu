@@ -102,6 +102,12 @@ pub enum MnemonicError {
     WordlistError(WordlistError),
 }
 
+impl From<crate::no_std::io::Error> for MnemonicError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        MnemonicError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
 impl From<AddressError> for MnemonicError {
     fn from(error: AddressError) -> Self {
         MnemonicError::AddressError(error)
@@ -132,9 +138,3 @@ impl From<rand_core::Error> for MnemonicError {
     }
 }
 
-#[cfg(feature = "std")]
-impl From<std::io::Error> for MnemonicError {
-    fn from(error: std::io::Error) -> Self {
-        MnemonicError::Crate("std::io", format!("{:?}", error))
-    }
-}

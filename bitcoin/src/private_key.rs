@@ -3,14 +3,15 @@ use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use wagyu_model::no_std::*;
 
 use base58::{FromBase58, ToBase58};
+use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use rand::Rng;
 use secp256k1;
-use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin private key
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinPrivateKey<N: BitcoinNetwork> {
     /// The ECDSA private key
     secret_key: secp256k1::SecretKey,
@@ -27,9 +28,8 @@ impl<N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {
 
     /// Returns a randomly-generated compressed Bitcoin private key.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
-        let random: [u8; 32] = rng.gen();
         Ok(Self {
-            secret_key: secp256k1::SecretKey::from_slice(&random)?,
+            secret_key: secp256k1::SecretKey::random(rng),
             compressed: true,
             _network: PhantomData,
         })
@@ -48,9 +48,9 @@ impl<N: BitcoinNetwork> PrivateKey for BitcoinPrivateKey<N> {
 
 impl<N: BitcoinNetwork> BitcoinPrivateKey<N> {
     /// Returns a private key given a secp256k1 secret key.
-    pub fn from_secp256k1_secret_key(secret_key: secp256k1::SecretKey, compressed: bool) -> Self {
+    pub fn from_secp256k1_secret_key(secret_key: &secp256k1::SecretKey, compressed: bool) -> Self {
         Self {
-            secret_key,
+            secret_key: secret_key.clone(),
             compressed,
             _network: PhantomData,
         }
@@ -90,7 +90,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPrivateKey<N> {
         let _ = N::from_private_key_prefix(data[0])?;
 
         Ok(Self {
-            secret_key: secp256k1::SecretKey::from_slice(&data[1..33])?,
+            secret_key: secp256k1::SecretKey::parse_slice(&data[1..33])?,
             compressed: len == 38,
             _network: PhantomData,
         })
@@ -101,7 +101,7 @@ impl<N: BitcoinNetwork> Display for BitcoinPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut wif = [0u8; 38];
         wif[0] = N::to_private_key_prefix();
-        wif[1..33].copy_from_slice(&self.secret_key[..]);
+        wif[1..33].copy_from_slice(&self.secret_key.serialize());
 
         let output = if self.compressed {
             wif[33] = 0x01;
@@ -149,7 +149,7 @@ mod tests {
         secret_key: secp256k1::SecretKey,
         compressed: bool,
     ) {
-        let private_key = BitcoinPrivateKey::<N>::from_secp256k1_secret_key(secret_key, compressed);
+        let private_key = BitcoinPrivateKey::<N>::from_secp256k1_secret_key(&secret_key, compressed);
         assert_eq!(expected_wif, private_key.to_string());
         assert_eq!(secret_key, private_key.secret_key);
         assert_eq!(expected_compressed, private_key.compressed);

@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::fmt;
 
 /// Represents the amount of Ethereum in wei
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumAmount(pub U256);
 
 pub enum Denomination {

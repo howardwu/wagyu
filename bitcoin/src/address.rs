@@ -7,11 +7,12 @@ use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
 };
+use wagyu_model::no_std::*;
 
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
+use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use sha2::{Digest, Sha256};
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -55,8 +56,8 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let public_key = match public_key.is_compressed() {
-            true => public_key.to_secp256k1_public_key().serialize().to_vec(),
-            false => public_key.to_secp256k1_public_key().serialize_uncompressed().to_vec(),
+            true => public_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
+            false => public_key.to_secp256k1_public_key().serialize().to_vec(),
         };
 
         let mut address = [0u8; 25];
@@ -138,7 +139,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
         let mut redeem = [0u8; 22];
         redeem[1] = 0x14;
-        redeem[2..].copy_from_slice(&hash160(&public_key.to_secp256k1_public_key().serialize()));
+        redeem[2..].copy_from_slice(&hash160(&public_key.to_secp256k1_public_key().serialize_compressed()));
         redeem
     }
 }

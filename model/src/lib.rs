@@ -15,15 +15,7 @@ extern crate alloc;
 #[macro_use]
 extern crate failure;
 
-mod no_std {
-    #[cfg(not(feature = "std"))]
-    #[doc(hidden)]
-    pub use alloc::{format, string::String, string::ToString, vec, vec::Vec};
-
-    #[cfg(feature = "std")]
-    #[doc(hidden)]
-    pub use std::{format, string::String, string::ToString, vec, vec::Vec};
-}
+pub mod no_std;
 
 pub mod address;
 pub use self::address::*;

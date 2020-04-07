@@ -3,9 +3,10 @@ use crate::network::BitcoinNetwork;
 use wagyu_model::{
     AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, NetworkError, PrivateKeyError,
 };
+use wagyu_model::no_std::*;
 
+use core::{fmt, str::FromStr};
 use serde::Serialize;
-use std::{fmt, str::FromStr};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Testnet;

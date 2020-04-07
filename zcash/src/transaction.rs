@@ -1245,13 +1245,13 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
 
                 // Signature
                 let mut signature = match &private_key {
-                    ZcashPrivateKey::<N>::P2PKH(p2pkh_spending_key) => secp256k1::Secp256k1::signing_only()
-                        .sign(
-                            &secp256k1::Message::from_slice(&transaction_hash.as_bytes())?,
+                    ZcashPrivateKey::<N>::P2PKH(p2pkh_spending_key) => {
+                        let (signature, _) = secp256k1::sign(
+                            &secp256k1::Message::parse_slice(&transaction_hash.as_bytes())?,
                             &p2pkh_spending_key.to_secp256k1_secret_key(),
-                        )
-                        .serialize_der()
-                        .to_vec(),
+                        );
+                        signature.serialize_der().as_ref().to_vec()
+                    },
                     _ => unimplemented!(),
                 };
                 signature.push((input.sighash_code as u32).to_le_bytes()[0]);
@@ -1260,10 +1260,10 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
                 // Public Viewing Key
                 let public_viewing_key = match private_key.to_public_key() {
                     ZcashPublicKey::<N>::P2PKH(p2pkh_view_key) => match p2pkh_view_key.is_compressed() {
-                        true => p2pkh_view_key.to_secp256k1_public_key().serialize().to_vec(),
+                        true => p2pkh_view_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
                         false => p2pkh_view_key
                             .to_secp256k1_public_key()
-                            .serialize_uncompressed()
+                            .serialize()
                             .to_vec(),
                     },
                     _ => unimplemented!(),

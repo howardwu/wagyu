@@ -7,7 +7,7 @@ use secp256k1;
 use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum public key
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EthereumPublicKey(secp256k1::PublicKey);
 
 impl PublicKey for EthereumPublicKey {
@@ -17,10 +17,7 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        Self(secp256k1::PublicKey::from_secret_key(
-            &secp256k1::Secp256k1::new(),
-            &private_key.to_secp256k1_secret_key(),
-        ))
+        Self(secp256k1::PublicKey::from_secret_key(&private_key.to_secp256k1_secret_key()))
     }
 
     /// Returns the address of the corresponding private key.
@@ -45,15 +42,15 @@ impl FromStr for EthereumPublicKey {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(secp256k1::PublicKey::from_str(
-            format!("04{}", public_key).as_str(),
+        Ok(Self(secp256k1::PublicKey::parse_slice(
+            hex::decode(format!("04{}", public_key).as_str())?.as_slice(), None
         )?))
     }
 }
 
 impl Display for EthereumPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for s in &self.0.serialize_uncompressed()[1..] {
+        for s in &self.0.serialize()[1..] {
             write!(f, "{:02x}", s)?;
         }
         Ok(())

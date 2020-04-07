@@ -12,14 +12,14 @@ use wagyu_model::{
 use base58::{FromBase58, ToBase58};
 use hex;
 use hmac::{Hmac, Mac};
-use secp256k1::{PublicKey as Secp256k1_PublicKey, Secp256k1, SecretKey};
+use secp256k1::{PublicKey as Secp256k1_PublicKey, SecretKey};
 use sha2::Sha512;
 use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Ethereum extended public key
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EthereumExtendedPublicKey<N: EthereumNetwork> {
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
@@ -82,7 +82,7 @@ impl<N: EthereumNetwork> ExtendedPublicKey for EthereumExtendedPublicKey<N> {
             chain_code[0..32].copy_from_slice(&hmac[32..]);
 
             let mut public_key = self.public_key.to_secp256k1_public_key();
-            public_key.add_exp_assign(&Secp256k1::new(), &SecretKey::from_slice(&hmac[..32])?[..])?;
+            public_key.tweak_add_assign(&SecretKey::parse_slice(&hmac[..32])?)?;
             let public_key = Self::PublicKey::from_secp256k1_public_key(public_key);
 
             let mut parent_fingerprint = [0u8; 4];
@@ -103,7 +103,7 @@ impl<N: EthereumNetwork> ExtendedPublicKey for EthereumExtendedPublicKey<N> {
 
     /// Returns the public key of the corresponding extended public key.
     fn to_public_key(&self) -> Self::PublicKey {
-        self.public_key
+        self.public_key.clone()
     }
 
     /// Returns the address of the corresponding extended public key.
@@ -136,7 +136,7 @@ impl<N: EthereumNetwork> FromStr for EthereumExtendedPublicKey<N> {
         chain_code.copy_from_slice(&data[13..45]);
 
         let public_key = EthereumPublicKey::from_str(&hex::encode(
-            &Secp256k1_PublicKey::from_slice(&data[45..78])?.serialize_uncompressed()[1..],
+            &Secp256k1_PublicKey::parse_slice(&data[45..78], None)?.serialize()[1..],
         ))?;
 
         let expected = &data[78..82];
@@ -168,7 +168,7 @@ impl<N: EthereumNetwork> fmt::Display for EthereumExtendedPublicKey<N> {
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
         result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
-        result[45..78].copy_from_slice(&self.public_key.to_secp256k1_public_key().serialize()[..]);
+        result[45..78].copy_from_slice(&self.public_key.to_secp256k1_public_key().serialize_compressed());
 
         let sum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(sum);
@@ -198,8 +198,8 @@ mod tests {
         let extended_public_key = EthereumExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
         assert_eq!(
-            expected_public_key,
-            extended_public_key.public_key.to_secp256k1_public_key().to_string()
+            secp256k1::PublicKey::parse_slice(&hex::decode(expected_public_key).unwrap(), None).unwrap(),
+            extended_public_key.public_key.to_secp256k1_public_key()
         );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
@@ -253,8 +253,8 @@ mod tests {
     ) {
         let extended_public_key = EthereumExtendedPublicKey::<N>::from_str(&extended_public_key).unwrap();
         assert_eq!(
-            expected_public_key,
-            extended_public_key.public_key.to_secp256k1_public_key().to_string()
+            secp256k1::PublicKey::parse_slice(&hex::decode(expected_public_key).unwrap(), None).unwrap(),
+            extended_public_key.public_key.to_secp256k1_public_key()
         );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
@@ -470,7 +470,7 @@ mod tests {
         const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
         #[test]
-        #[should_panic(expected = "Crate(\"secp256k1\", \"InvalidPublicKey\")")]
+        #[should_panic(expected = "Crate(\"libsecp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
             let _result =
                 EthereumExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY__SECP256K1_PUBLIC_KEY).unwrap();

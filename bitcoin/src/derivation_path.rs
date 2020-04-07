@@ -1,7 +1,8 @@
 use crate::network::BitcoinNetwork;
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
+use wagyu_model::no_std::*;
 
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin derivation path
 #[derive(Clone, PartialEq, Eq)]
@@ -140,7 +141,7 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinDerivationPath<N> {
 mod tests {
     use crate::network::*;
 
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     #[test]
     fn bip32() {

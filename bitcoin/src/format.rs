@@ -1,8 +1,9 @@
 use crate::network::BitcoinNetwork;
 use wagyu_model::{AddressError, ExtendedPrivateKeyError, ExtendedPublicKeyError, Format};
+use wagyu_model::no_std::*;
 
+use core::fmt;
 use serde::Serialize;
-use std::fmt;
 
 /// Represents the format of a Bitcoin address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

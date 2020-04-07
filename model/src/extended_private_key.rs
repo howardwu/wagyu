@@ -11,7 +11,6 @@ use core::{
     fmt::{Debug, Display},
     str::FromStr,
 };
-use crypto_mac;
 
 /// The interface for a generic extended private key.
 pub trait ExtendedPrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
@@ -77,6 +76,12 @@ pub enum ExtendedPrivateKeyError {
     UnsupportedFormat(String),
 }
 
+impl From<crate::no_std::io::Error> for ExtendedPrivateKeyError {
+    fn from(error: crate::no_std::io::Error) -> Self {
+        ExtendedPrivateKeyError::Crate("crate::no_std::io", format!("{:?}", error))
+    }
+}
+
 impl From<DerivationPathError> for ExtendedPrivateKeyError {
     fn from(error: DerivationPathError) -> Self {
         ExtendedPrivateKeyError::DerivationPathError(error)
@@ -119,16 +124,8 @@ impl From<crypto_mac::InvalidKeyLength> for ExtendedPrivateKeyError {
     }
 }
 
-#[cfg(feature = "secp256k1")]
 impl From<secp256k1::Error> for ExtendedPrivateKeyError {
     fn from(error: secp256k1::Error) -> Self {
-        ExtendedPrivateKeyError::Crate("secp256k1", format!("{:?}", error))
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for ExtendedPrivateKeyError {
-    fn from(error: std::io::Error) -> Self {
-        ExtendedPrivateKeyError::Crate("std::io", format!("{:?}", error))
+        ExtendedPrivateKeyError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

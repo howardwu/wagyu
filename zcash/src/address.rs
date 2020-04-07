@@ -60,8 +60,8 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         let mut address = [0u8; 26];
         address[0..2].copy_from_slice(&N::to_address_prefix(&ZcashFormat::P2PKH));
         address[2..22].copy_from_slice(&hash160(&match public_key.compressed {
-            true => public_key.public_key.serialize().to_vec(),
-            false => public_key.public_key.serialize_uncompressed().to_vec(),
+            true => public_key.public_key.serialize_compressed().to_vec(),
+            false => public_key.public_key.serialize().to_vec(),
         }));
 
         let sum = &checksum(&address[0..22])[0..4];
