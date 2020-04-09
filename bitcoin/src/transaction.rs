@@ -940,29 +940,6 @@ mod tests {
         pub amount: BitcoinAmount,
     }
 
-    fn create_multisig_p2wsh_script_pub_key(merch_pubkey: &'static str, cust_pubkey: &'static str) -> Vec<u8> {
-        let merch_pk = hex::decode(merch_pubkey).unwrap();
-        let cust_pk = hex::decode(cust_pubkey).unwrap();
-        let mut script: Vec<u8> = Vec::new();
-        // OP_2 + OP_DATA (pk1 len)
-        script.extend(vec![0x52, 0x21]); 
-        script.extend(merch_pk.iter());
-        script.push(0x21); // OP_DATA (pk2 len)
-        script.extend(cust_pk.iter());
-        // OP_2 OP_CHECKMULTISIG
-        script.extend(vec![0x52, 0xae]); 
-
-        // compute SHA256 hash of script
-        let script_hash = Sha256::digest(&script); 
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&script_hash); 
-        let mut script_pubkey = Vec::new();
-        script_pubkey.extend(vec![0x00, script_hash.len() as u8]); // len of hash
-        script_pubkey.extend_from_slice(&hash);
-
-        return script_pubkey;
-    }
-
     fn test_multisig_transaction<N: BitcoinNetwork>(
         version: u32,
         lock_time: u32,
