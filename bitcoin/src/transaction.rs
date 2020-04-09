@@ -940,6 +940,117 @@ mod tests {
         pub amount: BitcoinAmount,
     }
 
+    fn create_multisig_p2wsh_script_pub_key(merch_pubkey: &'static str, cust_pubkey: &'static str) -> Vec<u8> {
+        let merch_pk = hex::decode(merch_pubkey).unwrap();
+        let cust_pk = hex::decode(cust_pubkey).unwrap();
+        let mut script: Vec<u8> = Vec::new();
+        // OP_2 + OP_DATA (pk1 len)
+        script.extend(vec![0x52, 0x21]); 
+        script.extend(merch_pk.iter());
+        script.push(0x21); // OP_DATA (pk2 len)
+        script.extend(cust_pk.iter());
+        // OP_2 OP_CHECKMULTISIG
+        script.extend(vec![0x52, 0xae]); 
+
+        // compute SHA256 hash of script
+        let script_hash = Sha256::digest(&script); 
+        let mut hash = [0u8; 32];
+        hash.copy_from_slice(&script_hash); 
+        let mut script_pubkey = Vec::new();
+        script_pubkey.extend(vec![0x00, script_hash.len() as u8]); // len of hash
+        script_pubkey.extend_from_slice(&hash);
+
+        return script_pubkey;
+    }
+
+    fn test_multisig_transaction<N: BitcoinNetwork>(
+        version: u32,
+        lock_time: u32,
+        inputs: Vec<Input>,
+        outputs: Vec<Output>,
+        expected_signed_transaction: &str,
+        expected_transaction_id: &str
+    ) {
+        let mut input_vec = vec![];
+        for input in &inputs {
+            let private_key = BitcoinPrivateKey::from_str(input.private_key).unwrap();            
+            let transaction_id = hex::decode(input.transaction_id).unwrap();
+            let redeem_script = match (input.redeem_script, input.address_format.clone()) {
+                (Some(script), BitcoinFormat::P2WSH) => Some(hex::decode(script).unwrap()),
+                (Some(script), _) => Some(hex::decode(script).unwrap()),
+                (None, BitcoinFormat::P2SH_P2WPKH) => {
+                    let mut redeem_script = vec![0x00, 0x14];
+                    redeem_script.extend(&hash160(
+                        &private_key.to_public_key().to_secp256k1_public_key().serialize_compressed(),
+                    ));
+                    Some(redeem_script)
+                }
+                (None, _) => None,
+            };    
+            let address = match &input.address_format {
+                BitcoinFormat::P2WSH => BitcoinAddress::<N>::p2wsh(redeem_script.as_ref().unwrap()).unwrap(),
+                _ => private_key.to_address(&input.address_format).unwrap()
+            };
+            let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
+            let sequence = input.sequence.map(|seq| seq.to_vec());
+            let mut transaction_input = BitcoinTransactionInput::<N>::new(
+                transaction_id,
+                input.index,
+                Some(address),
+                Some(input.utxo_amount),
+                redeem_script,
+                script_pub_key,
+                sequence,
+                input.sighash_code,
+            )
+            .unwrap();
+
+            // check if P2WSH input (include any additional witness)
+            transaction_input.additional_witness = Some((vec![0x00], false));
+            transaction_input.witness_script_data = None;
+
+            input_vec.push(transaction_input);
+        }
+
+        let mut output_vec = vec![];
+        for output in outputs {
+            let address = BitcoinAddress::<N>::from_str(output.address);
+            if address.is_ok() {
+                output_vec.push(BitcoinTransactionOutput::new(&address.unwrap(), output.amount).unwrap());
+            } else {    
+                let tx_output = BitcoinTransactionOutput {
+                    amount: output.amount,
+                    script_pub_key: hex::decode(output.address).unwrap()
+                };
+                output_vec.push(tx_output);
+            }            
+        }
+
+        let transaction_parameters = BitcoinTransactionParameters::<N> {
+            version,
+            inputs: input_vec,
+            outputs: output_vec,
+            lock_time,
+            segwit_flag: false,
+        };
+
+        let mut transaction = BitcoinTransaction::<N>::new(&transaction_parameters).unwrap();
+
+        // Sign transaction
+        for input in inputs {
+            transaction = transaction
+                .sign(&BitcoinPrivateKey::from_str(input.private_key).unwrap())
+                .unwrap();
+        }
+
+        let signed_transaction_without_witness = hex::encode(&transaction.to_transaction_bytes_without_witness().unwrap());
+        let transaction_id = hex::encode(&transaction.to_transaction_id().unwrap().txid);
+
+        assert_eq!(expected_signed_transaction, &signed_transaction_without_witness);
+        assert_eq!(expected_transaction_id, &transaction_id);
+    }
+
+
     fn test_transaction<N: BitcoinNetwork>(
         version: u32,
         lock_time: u32,
@@ -1746,6 +1857,96 @@ mod tests {
                 }
             }
         }
+    }
+
+    mod test_multisig_mainnet_transactions {
+        use super::*;
+        type N = Mainnet;
+
+        const TRANSACTIONS: [TransactionTestCase; 2] = [
+            TransactionTestCase { // Transaction 1 - p2sh_p2wsh to p2wsh (2-of-2 multisig) output
+                version: 2,
+                lock_time: 0,
+                inputs: &[
+                    Input {
+                        private_key: "Kxxkik2L9KgrGgvdkEvYSkgAxaY4qPGfvxe1M1KBVBB7Ls3xDD8o",
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
+                        transaction_id: "7c95424e4c86467eaea85b878985fa77d191bad2b9c5cac5a0cb98f760616afa",
+                        index: 55,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: BitcoinAmount(2000000),
+                        sequence: None,
+                        sighash_code: SignatureHash::SIGHASH_ALL
+                    },
+                ],
+                outputs: &[
+                    Output { // P2WSH output
+                        address: "0020c015c4a6be010e21657068fc2e6a9d02b27ebe4d490a25846f7237f104d1a3cd",
+                        amount: BitcoinAmount(2000000)
+                    },
+                ],
+                // Not including witness for now
+                expected_signed_transaction: "0200000001fa6a6160f798cba0c5cac5b9d2ba91d177fa8589875ba8ae7e46864c4e42957c37000000171600143d295b6276ff8e4579f3350873db3e839e230f41ffffffff0180841e0000000000220020c015c4a6be010e21657068fc2e6a9d02b27ebe4d490a25846f7237f104d1a3cd00000000",
+                expected_transaction_id: "d7f70088081d8c3bf45040f11789ee53868b4b00f900c86d32702f3497dec879",
+            },    
+            TransactionTestCase { // Transaction 2 -> P2WSH to Bech32(P2WPKH) and itself
+                version: 2,
+                lock_time: 0,
+                inputs: &[
+                    Input {
+                        private_key: "L5TmwLMEyEqMAYj1qd7Fx9YRhNJTCvNn4ofr98ErbgHA99GjLBXC",
+                        address_format: BitcoinFormat::P2SH_P2WPKH,
+                        transaction_id: "32464234781c37831398b5d2f1e1766f8dbb55ac3b41ed047e365c07e9b03429",
+                        index: 0,
+                        redeem_script: None,
+                        script_pub_key: None,
+                        utxo_amount: BitcoinAmount(25000),
+                        sequence: None,
+                        sighash_code: SignatureHash::SIGHASH_ALL
+                    },
+                    Input {
+                        private_key: "KzBP2LqGgt9jUmF11KB7h5dgFKw3fwYJPey3pbJPgSESvKa3Ngcv",
+                        address_format: BitcoinFormat::P2WSH,
+                        transaction_id: "76ef90fa70e4c10adc358432a979683a2cf1855ff545f88c5022dea8863ed5ab",
+                        index: 0,
+                        redeem_script: Some("522103af0530f244a154b278b34de709b84bb85bb39ff3f1302fc51ae275e5a45fb35321027160fb5e48252f02a00066dfa823d15844ad93e04f9c9b746e1f28ed4a1eaddb52ae"),
+                        script_pub_key: None,
+                        utxo_amount: BitcoinAmount(12000),
+                        sequence: None,
+                        sighash_code: SignatureHash::SIGHASH_ALL
+                    },
+                ],
+                outputs: &[
+                    Output {
+                        address: "bc1qzkuhp5jxuvwx90eg65wkxuw6y2pfe740yw6h5s",
+                        amount: BitcoinAmount(12000)
+                    },
+                    Output {
+                        address: "3QDTHVyuJrHixUhhsdZXQ7M8P9MQngmw1P",
+                        amount: BitcoinAmount(15000)
+                    },
+                ],
+                // not including witness for now
+                expected_signed_transaction: "02000000022934b0e9075c367e04ed413bac55bb8d6f76e1f1d2b5981383371c78344246320000000017160014354816a98500d7df9201d46e008c203dd5143b92ffffffffabd53e86a8de22508cf845f55f85f12c3a6879a9328435dc0ac1e470fa90ef760000000000ffffffff02e02e00000000000016001415b970d246e31c62bf28d51d6371da22829cfaaf983a00000000000017a914f7146aaa6f24a1012528c1d27cfe49d256d5a7018700000000",
+                expected_transaction_id: "adbb03a005ccf68c9af6bd94175669a02c8941884bf62fbb3f88d7609dafe39c",
+            },
+        ];
+
+        #[test]
+        fn test_mainnet_transactions() {
+            TRANSACTIONS.iter().for_each(|transaction| {
+                test_multisig_transaction::<N>(
+                    transaction.version,
+                    transaction.lock_time,
+                    transaction.inputs.to_vec(),
+                    transaction.outputs.to_vec(),
+                    transaction.expected_signed_transaction,
+                    transaction.expected_transaction_id,
+                );
+            });
+        }
+
     }
 
     mod test_helper_functions {
