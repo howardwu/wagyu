@@ -310,6 +310,10 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     pub witnesses: Vec<Vec<u8>>,
     /// If true, the input has been signed
     pub is_signed: bool,
+    /// Provide more flexibility for multiple signatures (for P2WSH)
+    pub additional_witness: Option<(Vec<u8>, bool)>,
+    /// Option for additional witness stack script args
+    pub witness_script_data: Option<Vec<u8>>
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
@@ -351,6 +355,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             sighash_code: sighash,
             witnesses: vec![],
             is_signed: false,
+            additional_witness: None,
+            witness_script_data: None,
         })
     }
 
@@ -393,6 +399,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             sighash_code,
             witnesses: vec![],
             is_signed: script_sig.len() > 0,
+            additional_witness: None,
+            witness_script_data: None
         })
     }
 
@@ -654,10 +662,27 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
 
                         let ser_input_script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();
                         transaction.parameters.segwit_flag = true;
-                        transaction.parameters.inputs[vin].script_sig = vec![]; // length of empty scriptSig
-                        transaction.parameters.inputs[vin]
-                            .witnesses
-                            .append(&mut vec![signature.clone(), ser_input_script.clone()]);
+                        transaction.parameters.inputs[vin].script_sig = vec![];
+                        // TODO: (jaakinyele) Generalize to a vec of additional witnesses
+                        let (other_signature, is_other_sig_first) = match transaction.parameters.inputs[vin].additional_witness.clone() {
+                            Some(n) => (n.0, n.1),
+                            None => return Err(TransactionError::InvalidInputs("P2WSH: missing additional witness input to complete multi-sig".into())),
+                        };
+                        // Determine whether to append or prepend other signature(s)
+                        let mut witness_field = match is_other_sig_first {
+                            true => vec![other_signature, signature.clone()],
+                            false => vec![signature.clone(), other_signature]
+                        };
+                        // Append witness stack script args (before witness script)
+                        if transaction.parameters.inputs[vin].witness_script_data.is_some() {
+                            let witness_script_data = transaction.parameters.inputs[vin].witness_script_data.clone().unwrap();
+                            let witness_script_data = [vec![witness_script_data.len() as u8], witness_script_data].concat();
+                            witness_field.append(&mut vec![witness_script_data]);
+                        }
+                        // Append the witness script last
+                        witness_field.append(&mut vec![ser_input_script.clone()]);
+                        transaction.parameters.inputs[vin].witnesses
+                            .append(&mut witness_field);
                         transaction.parameters.inputs[vin].is_signed = true;
                     }
                     BitcoinFormat::P2SH_P2WPKH => {
