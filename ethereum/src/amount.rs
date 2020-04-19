@@ -1,7 +1,6 @@
 use wagyu_model::{Amount, AmountError};
 
 use ethereum_types::U256;
-use serde::Serialize;
 use std::fmt;
 
 /// Represents the amount of Ethereum in wei

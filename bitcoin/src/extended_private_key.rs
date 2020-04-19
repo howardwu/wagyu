@@ -10,7 +10,6 @@ use wagyu_model::{
     AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey,
     PrivateKey,
 };
-use wagyu_model::no_std::*;
 
 use base58::{FromBase58, ToBase58};
 use core::{convert::TryFrom, fmt, fmt::Display, str::FromStr};
@@ -229,7 +228,6 @@ mod tests {
 
     use core::convert::TryInto;
     use hex;
-    use secp256k1::curve::Scalar;
 
     fn test_new<N: BitcoinNetwork>(
         expected_extended_private_key: &str,

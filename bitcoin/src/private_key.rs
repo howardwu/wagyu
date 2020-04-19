@@ -3,7 +3,6 @@ use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
-use wagyu_model::no_std::*;
 
 use base58::{FromBase58, ToBase58};
 use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
