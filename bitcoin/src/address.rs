@@ -76,17 +76,15 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     // Returns a P2WSH address in Bech32 format from a given Bitcoin script
     pub fn p2wsh(original_script: &Vec<u8>) -> Result<Self, AddressError> {
-        let script2 = Sha256::digest(&original_script).to_vec();
+        let script = Sha256::digest(&original_script).to_vec();
 
         // Organize as a hash
-        let mut redeem_script = vec![0x00, 0x20];
-        redeem_script.extend(script2.iter());
-
-        let version = u5::try_from_u8(redeem_script[0])?;
+        let v = N::to_address_prefix(&BitcoinFormat::P2WSH)[0];
+        let version = u5::try_from_u8(v)?;
 
         let mut data = vec![version];
         // Get the SHA256 hash of the script
-        data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
+        data.extend_from_slice(&script.to_vec().to_base32());
 
         let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
 
