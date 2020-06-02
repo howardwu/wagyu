@@ -47,13 +47,13 @@ hex = { version = "0.4.2" }
 lazy_static = { version = "1.4.0" }
 rand = { version = "0.7" }
 rand_core = { version = "0.5.1" }
+reqwest = { version = "0.10.6", features = ["json"] }
 safemem = { version = "0.3.3" }
+self_update = { version = "0.15.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 tiny-keccak = { version = "1.4" }
-reqwest = { version = "0.10.6", features = ["json"] }
 tokio = { version = "0.2.21" }
-self_update = { version = "0.15.0" }
 
 [profile.release]
 opt-level = 3

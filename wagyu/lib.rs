@@ -9,4 +9,3 @@ pub extern crate wagyu_zcash as zcash;
 
 #[cfg_attr(tarpaulin, skip)]
 pub mod cli;
-pub mod remote_update;

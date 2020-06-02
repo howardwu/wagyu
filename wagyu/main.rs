@@ -5,11 +5,11 @@
 use wagyu::cli::bitcoin::BitcoinCLI;
 use wagyu::cli::ethereum::EthereumCLI;
 use wagyu::cli::monero::MoneroCLI;
+use wagyu::cli::update::UpdateCLI;
 use wagyu::cli::zcash::ZcashCLI;
 use wagyu::cli::{CLIError, CLI};
-use wagyu::remote_update;
 
-use clap::{App, AppSettings, SubCommand, crate_version};
+use clap::{App, AppSettings, crate_version};
 
 const VAPP_VERSION: &str = concat!("v", crate_version!());
 
@@ -30,24 +30,19 @@ fn main() -> Result<(), CLIError> {
             EthereumCLI::new(),
             MoneroCLI::new(),
             ZcashCLI::new(),
-            SubCommand::with_name("update").about("Auto update to latest version"),
+            UpdateCLI::new(),
         ])
         .set_term_width(0)
         .get_matches();
 
-    let latest_version = remote_update::version_check();
+    UpdateCLI::version_check();
 
     match arguments.subcommand() {
         ("bitcoin", Some(arguments)) => BitcoinCLI::print(BitcoinCLI::parse(arguments)?),
         ("ethereum", Some(arguments)) => EthereumCLI::print(EthereumCLI::parse(arguments)?),
         ("monero", Some(arguments)) => MoneroCLI::print(MoneroCLI::parse(arguments)?),
         ("zcash", Some(arguments)) => ZcashCLI::print(ZcashCLI::parse(arguments)?),
-        ("update", Some(_)) => {
-            if latest_version != "" {
-                remote_update::run();
-            }
-            Ok(())
-        },
+        ("update", Some(arguments)) => UpdateCLI::print(UpdateCLI::parse(arguments)?),
         _ => unreachable!(),
     }
 }
