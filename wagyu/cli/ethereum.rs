@@ -541,7 +541,7 @@ impl EthereumOptions {
             "trezor" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "custom" => self.path.clone(),
             _ => match default {
-                true => Some(format!("m/44'/60'/0'/{}", self.index)),
+                true => Some(format!("m/44'/60'/0'/0/{}", self.index)),
                 false => None,
             },
         }
