@@ -38,7 +38,7 @@ wagyu-zcash = { path = "./zcash", version = "0.6.3" }
 
 arrayvec = { version = "0.5.1" }
 base58 = { version = "0.1" }
-clap = { version = "~2.33.0" }
+clap = { version = "~2.33.1" }
 colored = { version = "1.9" }
 digest = { version = "0.8.1" }
 either = { version = "1.5.3" }
