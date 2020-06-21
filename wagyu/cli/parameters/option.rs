@@ -181,6 +181,12 @@ pub const SUBADDRESS_IMPORT_MONERO: OptionType = (
 
 // HD
 
+pub const ADDRESS_COUNT: OptionType = (
+    "[address count] -a --address-count=[address count] 'Generates an HD wallet with a specified address count'",
+    &[],
+    &[],
+    &[],
+);
 pub const DERIVATION_BITCOIN: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],

@@ -58,6 +58,7 @@ impl EthereumWallet {
         })
     }
 
+    #[allow(dead_code)]
     pub fn new_hd<N: EthereumNetwork, W: EthereumWordlist, R: Rng>(
         rng: &mut R,
         word_count: u8,
@@ -313,6 +314,7 @@ pub struct EthereumOptions {
     json: bool,
     subcommand: Option<String>,
     // HD and Import HD subcommands
+    address_count: u8,
     derivation: String,
     extended_private_key: Option<String>,
     extended_public_key: Option<String>,
@@ -341,6 +343,7 @@ impl Default for EthereumOptions {
             json: false,
             subcommand: None,
             // HD and Import HD subcommands
+            address_count: 1,
             derivation: "ethereum".into(),
             extended_private_key: None,
             extended_public_key: None,
@@ -367,6 +370,7 @@ impl EthereumOptions {
     fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
         options.iter().for_each(|option| match *option {
             "address" => self.address(arguments.value_of(option)),
+            "address count" => self.address_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
             "createrawtransaction" => self.create_raw_transaction(arguments.value_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
@@ -391,6 +395,14 @@ impl EthereumOptions {
     fn address(&mut self, argument: Option<&str>) {
         if let Some(address) = argument {
             self.address = Some(address.to_string());
+        }
+    }
+
+    /// Sets `address_count` to the specified address count, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn address_count(&mut self, argument: Option<u8>) {
+        if let Some(address_count) = argument {
+            self.address_count = address_count;
         }
     }
 
@@ -534,11 +546,13 @@ impl EthereumOptions {
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
-            "ethereum" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "ethereum" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
+            "ethereum-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "keepkey" => Some(format!("m/44'/60'/{}'/0", self.index)),
             "ledger-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "ledger-live" => Some(format!("m/44'/60'/{}'/0/0", self.index)),
             "trezor" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "trezor-bip44" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
             "custom" => self.path.clone(),
             _ => match default {
                 true => Some(format!("m/44'/60'/0'/0/{}", self.index)),
@@ -574,7 +588,10 @@ impl CLI for EthereumCLI {
             ("hd", Some(arguments)) => {
                 options.subcommand = Some("hd".into());
                 options.parse(arguments, &["count", "json"]);
-                options.parse(arguments, &["derivation", "language", "password", "word count"]);
+                options.parse(
+                    arguments,
+                    &["derivation", "language", "password", "word count", "address count"],
+                );
             }
             ("import", Some(arguments)) => {
                 options.subcommand = Some("import".into());
@@ -613,22 +630,30 @@ impl CLI for EthereumCLI {
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: EthereumNetwork, W: EthereumWordlist>(options: EthereumOptions) -> Result<(), CLIError> {
             let wallets = match options.subcommand.as_ref().map(String::as_str) {
-                Some("hd") => {
-                    let path = options.to_derivation_path(true).unwrap();
-                    (0..options.count)
-                        .flat_map(|_| {
-                            match EthereumWallet::new_hd::<N, W, _>(
-                                &mut StdRng::from_entropy(),
-                                options.word_count,
-                                options.password.as_ref().map(String::as_str),
+                Some("hd") => (0..options.count)
+                    .flat_map(|_| {
+                        let mut rnd = StdRng::from_entropy();
+                        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(&mut rnd, options.word_count).unwrap();
+                        let password = options.password.as_ref().map(String::as_str);
+                        let mut opt = options.clone();
+                        let mut i = 0;
+
+                        (0..options.address_count).flat_map(move |_| {
+                            let path = opt.to_derivation_path(true).unwrap();
+                            i += 1;
+                            opt.index(Some(i));
+
+                            match EthereumWallet::from_mnemonic::<N, W>(
+                                &format!("{}", mnemonic),
+                                password,
                                 &path,
                             ) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
                             }
                         })
-                        .collect()
-                }
+                    })
+                    .collect(),
                 Some("import") => {
                     if let Some(private_key) = options.private {
                         vec![EthereumWallet::from_private_key(&private_key)?]
