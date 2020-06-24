@@ -636,12 +636,10 @@ impl CLI for EthereumCLI {
                         let mnemonic = EthereumMnemonic::<N, W>::new_with_count(&mut rnd, options.word_count).unwrap();
                         let password = options.password.as_ref().map(String::as_str);
                         let mut opt = options.clone();
-                        let mut i = 0;
 
-                        (0..options.address_count).flat_map(move |_| {
-                            let path = opt.to_derivation_path(true).unwrap();
-                            i += 1;
+                        (0..options.address_count).flat_map(move |i| {
                             opt.index(Some(i));
+                            let path = opt.to_derivation_path(true).unwrap();
 
                             match EthereumWallet::from_mnemonic::<N, W>(
                                 &format!("{}", mnemonic),
