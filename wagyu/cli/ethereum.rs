@@ -314,7 +314,7 @@ pub struct EthereumOptions {
     json: bool,
     subcommand: Option<String>,
     // HD and Import HD subcommands
-    address_count: u8,
+    address_count: u32,
     derivation: String,
     extended_private_key: Option<String>,
     extended_public_key: Option<String>,
@@ -370,7 +370,7 @@ impl EthereumOptions {
     fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
         options.iter().for_each(|option| match *option {
             "address" => self.address(arguments.value_of(option)),
-            "address count" => self.address_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
+            "address count" => self.address_count(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
             "createrawtransaction" => self.create_raw_transaction(arguments.value_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
@@ -400,7 +400,7 @@ impl EthereumOptions {
 
     /// Sets `address_count` to the specified address count, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
-    fn address_count(&mut self, argument: Option<u8>) {
+    fn address_count(&mut self, argument: Option<u32>) {
         if let Some(address_count) = argument {
             self.address_count = address_count;
         }
