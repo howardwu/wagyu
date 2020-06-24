@@ -314,11 +314,11 @@ pub struct EthereumOptions {
     json: bool,
     subcommand: Option<String>,
     // HD and Import HD subcommands
-    address_count: u32,
     derivation: String,
     extended_private_key: Option<String>,
     extended_public_key: Option<String>,
     index: u32,
+    indices: u32,
     language: String,
     mnemonic: Option<String>,
     password: Option<String>,
@@ -343,11 +343,11 @@ impl Default for EthereumOptions {
             json: false,
             subcommand: None,
             // HD and Import HD subcommands
-            address_count: 1,
             derivation: "ethereum".into(),
             extended_private_key: None,
             extended_public_key: None,
             index: 0,
+            indices: 1,
             language: "english".into(),
             mnemonic: None,
             password: None,
@@ -370,7 +370,6 @@ impl EthereumOptions {
     fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
         options.iter().for_each(|option| match *option {
             "address" => self.address(arguments.value_of(option)),
-            "address count" => self.address_count(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
             "createrawtransaction" => self.create_raw_transaction(arguments.value_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
@@ -378,6 +377,7 @@ impl EthereumOptions {
             "extended public" => self.extended_public(arguments.value_of(option)),
             "json" => self.json(arguments.is_present(option)),
             "index" => self.index(clap::value_t!(arguments.value_of(*option), u32).ok()),
+            "indices" => self.indices(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "language" => self.language(arguments.value_of(option)),
             "mnemonic" => self.mnemonic(arguments.value_of(option)),
             "network" => self.network(arguments.value_of(option)),
@@ -395,14 +395,6 @@ impl EthereumOptions {
     fn address(&mut self, argument: Option<&str>) {
         if let Some(address) = argument {
             self.address = Some(address.to_string());
-        }
-    }
-
-    /// Sets `address_count` to the specified address count, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
-    fn address_count(&mut self, argument: Option<u32>) {
-        if let Some(address_count) = argument {
-            self.address_count = address_count;
         }
     }
 
@@ -460,6 +452,14 @@ impl EthereumOptions {
     fn index(&mut self, argument: Option<u32>) {
         if let Some(index) = argument {
             self.index = index;
+        }
+    }
+
+    /// Sets `indices` to the specified indices, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn indices(&mut self, argument: Option<u32>) {
+        if let Some(indices) = argument {
+            self.indices = indices;
         }
     }
 
@@ -590,7 +590,7 @@ impl CLI for EthereumCLI {
                 options.parse(arguments, &["count", "json"]);
                 options.parse(
                     arguments,
-                    &["derivation", "language", "password", "word count", "address count"],
+                    &["derivation", "indices", "language", "password", "word count"],
                 );
             }
             ("import", Some(arguments)) => {
@@ -637,7 +637,7 @@ impl CLI for EthereumCLI {
                         let password = options.password.as_ref().map(String::as_str);
                         let mut opt = options.clone();
 
-                        (0..options.address_count).flat_map(move |i| {
+                        (0..options.indices).flat_map(move |i| {
                             opt.index(Some(i));
                             let path = opt.to_derivation_path(true).unwrap();
 

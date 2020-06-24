@@ -27,9 +27,9 @@ pub const HD_ETHEREUM: SubCommandType = (
     "hd",
     "Generates an HD wallet (include -h for more options)",
     &[
-        option::ADDRESS_COUNT,
         option::COUNT,
         option::DERIVATION_ETHEREUM,
+        option::INDICES,
         option::LANGUAGE_HD,
         option::PASSWORD_HD,
         option::WORD_COUNT,
