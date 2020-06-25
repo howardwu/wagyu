@@ -58,14 +58,11 @@ impl EthereumWallet {
         })
     }
 
-    #[allow(dead_code)]
-    pub fn new_hd<N: EthereumNetwork, W: EthereumWordlist, R: Rng>(
-        rng: &mut R,
-        word_count: u8,
+    pub fn new_hd<N: EthereumNetwork, W: EthereumWordlist>(
+        mnemonic: &EthereumMnemonic<N, W>,
         password: Option<&str>,
         path: &str,
     ) -> Result<Self, CLIError> {
-        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(rng, word_count)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = EthereumDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
@@ -632,8 +629,8 @@ impl CLI for EthereumCLI {
             let wallets = match options.subcommand.as_ref().map(String::as_str) {
                 Some("hd") => (0..options.count)
                     .flat_map(|_| {
-                        let mut rnd = StdRng::from_entropy();
-                        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(&mut rnd, options.word_count).unwrap();
+                        let mut rng = StdRng::from_entropy();
+                        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(&mut rng, options.word_count).unwrap();
                         let password = options.password.as_ref().map(String::as_str);
                         let mut opt = options.clone();
 
@@ -641,11 +638,7 @@ impl CLI for EthereumCLI {
                             opt.index(Some(i));
                             let path = opt.to_derivation_path(true).unwrap();
 
-                            match EthereumWallet::from_mnemonic::<N, W>(
-                                &format!("{}", mnemonic),
-                                password,
-                                &path,
-                            ) {
+                            match EthereumWallet::new_hd::<N, W>(&mnemonic, password, &path) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
                             }
