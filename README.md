@@ -240,6 +240,7 @@ FLAGS:
 OPTIONS:
     -c, --count <count>              Generates a specified number of wallets
     -d, --derivation <"path">        Generates an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, "<custom path>"]
+    -i, --indices <indices>          Generates an HD wallet with a specified indices
     -l, --language <language>        Generates an HD wallet with a specified language [possible values: chinese_simplified, chinese_traditional, english, french, italian, japanese, korean, spanish]
     -p, --password <password>        Generates an HD wallet with a specified password
     -w, --word-count <word count>    Generates an HD wallet with a specified word count [possible values: 12, 15, 18, 21, 24]
