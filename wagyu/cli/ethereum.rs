@@ -544,12 +544,10 @@ impl EthereumOptions {
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
             "ethereum" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
-            "ethereum-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "keepkey" => Some(format!("m/44'/60'/{}'/0", self.index)),
             "ledger-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "ledger-live" => Some(format!("m/44'/60'/{}'/0/0", self.index)),
-            "trezor" => Some(format!("m/44'/60'/0'/{}", self.index)),
-            "trezor-bip44" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
+            "trezor" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
             "custom" => self.path.clone(),
             _ => match default {
                 true => Some(format!("m/44'/60'/0'/0/{}", self.index)),
