@@ -350,9 +350,9 @@ dependencies = [
 
 [[package]]
 name = "cmake"
-version = "0.1.42"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81fb25b677f8bf1eb325017cb6bb8452f87969db0fedb4f757b297bee78a7c62"
+checksum = "0e56268c17a6248366d66d4a47a3381369d068cce8409bb1716ed77ea32163bb"
 dependencies = [
  "cc",
 ]
