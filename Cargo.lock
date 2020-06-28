@@ -169,7 +169,7 @@ checksum = "06753f02479480272d4ffc2c850174e2c2e84c887ffa357bc0d8f61ff38791fc"
 dependencies = [
  "async-stream",
  "futures-util",
- "tiny-keccak 2.0.1",
+ "tiny-keccak",
  "tokio",
 ]
 
@@ -541,7 +541,7 @@ dependencies = [
  "crunchy",
  "fixed-hash",
  "impl-rlp",
- "tiny-keccak 2.0.1",
+ "tiny-keccak",
 ]
 
 [[package]]
@@ -1459,15 +1459,6 @@ dependencies = [
 
 [[package]]
 name = "tiny-keccak"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d8a021c69bb74a44ccedb824a046447e2c84a01df9e5c20779750acb38e11b2"
-dependencies = [
- "crunchy",
-]
-
-[[package]]
-name = "tiny-keccak"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2953ca5148619bc99695c1274cb54c5275bbb913c6adad87e72eaf8db9787f69"
@@ -1547,7 +1538,7 @@ dependencies = [
  "safemem",
  "serde",
  "serde_json",
- "tiny-keccak 1.5.0",
+ "tiny-keccak",
  "wagyu-bitcoin",
  "wagyu-ethereum",
  "wagyu-model",
@@ -1574,7 +1565,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "tiny-keccak 1.5.0",
+ "tiny-keccak",
  "wagyu-model",
 ]
 
@@ -1596,7 +1587,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "tiny-keccak 1.5.0",
+ "tiny-keccak",
  "wagyu-model",
 ]
 
@@ -1637,7 +1628,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "tiny-keccak 1.5.0",
+ "tiny-keccak",
  "wagyu-model",
 ]
 
