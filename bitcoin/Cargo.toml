@@ -23,7 +23,7 @@ base58 = { version = "0.1" }
 bech32 = { version = "0.6.0" }
 bitvec = { version = "0.17.4" }
 digest = { version = "0.8.1" }
-failure = { version = "0.1.5", default-features = false }
+failure = { version = "0.1.8", default-features = false }
 hex = { version = "0.4.2", default-features = false }
 hmac = { version = "0.7.0" }
 libsecp256k1 = { version = "0.3.5", default-features = false, features = ["hmac"] }
