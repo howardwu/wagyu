@@ -636,7 +636,7 @@ impl CLI for EthereumCLI {
                             opt.index(Some(i));
                             let path = opt.to_derivation_path(true).unwrap();
 
-                            match EthereumWallet::new_hd::<N, W>(&mnemonic, password, &path) {
+                            match EthereumWallet::from_mnemonic::<N, W>(&format!("{}", mnemonic), password, &path) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
                             }
