@@ -58,11 +58,14 @@ impl EthereumWallet {
         })
     }
 
-    pub fn new_hd<N: EthereumNetwork, W: EthereumWordlist>(
-        mnemonic: &EthereumMnemonic<N, W>,
+    #[allow(dead_code)]
+    pub fn new_hd<N: EthereumNetwork, W: EthereumWordlist, R: Rng>(
+        rng: &mut R,
+        word_count: u8,
         password: Option<&str>,
         path: &str,
     ) -> Result<Self, CLIError> {
+        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(rng, word_count)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = EthereumDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
