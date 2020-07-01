@@ -588,7 +588,7 @@ impl CLI for EthereumCLI {
                 options.parse(arguments, &["count", "json"]);
                 options.parse(
                     arguments,
-                    &["derivation", "indices", "language", "password", "word count"],
+                    &["derivation", "index", "indices", "language", "password", "word count"],
                 );
             }
             ("import", Some(arguments)) => {
@@ -634,8 +634,7 @@ impl CLI for EthereumCLI {
                         let mnemonic = EthereumMnemonic::<N, W>::new_with_count(&mut rng, options.word_count).unwrap();
                         let password = options.password.as_ref().map(String::as_str);
                         let mut opt = options.clone();
-
-                        (0..options.indices).flat_map(move |i| {
+                        let hd_wallet_from_mnemonic = move |i| {
                             opt.index(Some(i));
                             let path = opt.to_derivation_path(true).unwrap();
 
@@ -643,7 +642,12 @@ impl CLI for EthereumCLI {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
                             }
-                        })
+                        };
+                        if options.index > 0 {
+                            (options.index..options.index + 1).flat_map(hd_wallet_from_mnemonic)
+                        } else {
+                            (0..options.indices).flat_map(hd_wallet_from_mnemonic)
+                        }
                     })
                     .collect(),
                 Some("import") => {

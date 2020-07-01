@@ -29,6 +29,7 @@ pub const HD_ETHEREUM: SubCommandType = (
     &[
         option::COUNT,
         option::DERIVATION_ETHEREUM,
+        option::INDEX,
         option::INDICES,
         option::LANGUAGE_HD,
         option::PASSWORD_HD,
