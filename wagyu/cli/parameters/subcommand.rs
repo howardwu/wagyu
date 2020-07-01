@@ -158,6 +158,7 @@ pub const IMPORT_HD_ETHEREUM: SubCommandType = (
         option::EXTENDED_PUBLIC,
         option::EXTENDED_PRIVATE,
         option::INDEX,
+        option::INDICES,
         option::MNEMONIC,
         option::PASSWORD_IMPORT_HD,
     ],

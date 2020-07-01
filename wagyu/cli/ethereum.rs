@@ -608,6 +608,7 @@ impl CLI for EthereumCLI {
                         "extended private",
                         "extended public",
                         "index",
+                        "indices",
                         "mnemonic",
                         "password",
                     ],
@@ -662,6 +663,19 @@ impl CLI for EthereumCLI {
                     }
                 }
                 Some("import-hd") => {
+                    let begin;
+                    let end;
+                    if options.index > 0 {
+                        begin = options.index;
+                        end = options.index + 1;
+                    } else if options.indices > 1 {
+                        begin = 0;
+                        end = options.indices;
+                    } else {
+                        begin = 0;
+                        end = 1;
+                    }
+                    let mut ops = options.clone();
                     if let Some(mnemonic) = options.mnemonic.clone() {
                         fn process_mnemonic<EN: EthereumNetwork, EW: EthereumWordlist>(
                             mnemonic: &String,
@@ -673,24 +687,42 @@ impl CLI for EthereumCLI {
                                 &options.to_derivation_path(true).unwrap(),
                             )
                         }
-                        vec![process_mnemonic::<N, ChineseSimplified>(&mnemonic, &options)
-                            .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, English>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, French>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Italian>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Japanese>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Korean>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Spanish>(&mnemonic, &options))?]
+                        (begin..end)
+                            .map(|i| {
+                                ops.index(Some(i));
+                                process_mnemonic::<N, ChineseSimplified>(&mnemonic, &ops)
+                                    .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &ops))
+                                    .or(process_mnemonic::<N, English>(&mnemonic, &ops))
+                                    .or(process_mnemonic::<N, French>(&mnemonic, &ops))
+                                    .or(process_mnemonic::<N, Italian>(&mnemonic, &ops))
+                                    .or(process_mnemonic::<N, Japanese>(&mnemonic, &ops))
+                                    .or(process_mnemonic::<N, Korean>(&mnemonic, &ops))
+                                    .or(process_mnemonic::<N, Spanish>(&mnemonic, &ops))
+                                    .unwrap()
+                            })
+                            .collect()
                     } else if let Some(extended_private_key) = options.extended_private_key.clone() {
-                        vec![EthereumWallet::from_extended_private_key::<N>(
-                            &extended_private_key,
-                            &options.to_derivation_path(false),
-                        )?]
+                        (begin..end)
+                            .map(|i| {
+                                ops.index(Some(i));
+                                EthereumWallet::from_extended_private_key::<N>(
+                                    &extended_private_key,
+                                    &ops.to_derivation_path(false),
+                                )
+                                .unwrap()
+                            })
+                            .collect()
                     } else if let Some(extended_public_key) = options.extended_public_key.clone() {
-                        vec![EthereumWallet::from_extended_public_key::<N>(
-                            &extended_public_key,
-                            &options.to_derivation_path(false),
-                        )?]
+                        (begin..end)
+                            .map(|i| {
+                                ops.index(Some(i));
+                                EthereumWallet::from_extended_public_key::<N>(
+                                    &extended_public_key,
+                                    &ops.to_derivation_path(false),
+                                )
+                                .unwrap()
+                            })
+                            .collect()
                     } else {
                         vec![]
                     }
