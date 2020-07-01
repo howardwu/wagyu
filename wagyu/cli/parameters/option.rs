@@ -206,8 +206,8 @@ pub const DIVERSIFIER_HD_ZCASH: OptionType = (
     &[],
 );
 pub const INDICES: OptionType = (
-    "[indices] -i --indices=[indices] 'Generates an HD wallet with a specified indices'",
-    &[],
+    "[indices] -s --indices=[indices] 'Generates an HD wallet with a specified indices'",
+    &["index"],
     &[],
     &[],
 );
