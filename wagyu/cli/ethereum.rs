@@ -545,11 +545,11 @@ impl EthereumOptions {
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
-            "ethereum" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
+            "ethereum" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "keepkey" => Some(format!("m/44'/60'/{}'/0", self.index)),
             "ledger-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "ledger-live" => Some(format!("m/44'/60'/{}'/0/0", self.index)),
-            "trezor" => Some(format!("m/44'/60'/0'/0/{}", self.index)),
+            "trezor" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "custom" => self.path.clone(),
             _ => match default {
                 true => Some(format!("m/44'/60'/0'/0/{}", self.index)),
