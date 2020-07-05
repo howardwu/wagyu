@@ -58,7 +58,6 @@ impl EthereumWallet {
         })
     }
 
-    #[allow(dead_code)]
     pub fn new_hd<N: EthereumNetwork, W: EthereumWordlist, R: Rng>(
         rng: &mut R,
         word_count: u8,
@@ -455,7 +454,7 @@ impl EthereumOptions {
         }
     }
 
-    /// Sets `indices` to the specified indices, overriding its previous state.
+    /// Sets `indices` to the specified number of indices, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn indices(&mut self, argument: Option<u32>) {
         if let Some(indices) = argument {
@@ -558,6 +557,20 @@ impl EthereumOptions {
             },
         }
     }
+
+    /// Returns the derivation paths with the specified account, chain, derivation, indices, and path.
+    /// If `default` is enabled, then return the default path if no derivation was provided.
+    fn to_derivation_paths(&self, default: bool) -> Vec<Option<String>> {
+        let start = self.index;
+        let end = start + self.indices;
+        let mut options = self.clone();
+        (start..end).map(|index| {
+            // Sets the index to the specified index
+            options.index(Some(index));
+            // Generates the derivation path for the specified information
+            options.to_derivation_path(default)
+        }).collect()
+    }
 }
 
 pub struct EthereumCLI;
@@ -565,9 +578,9 @@ pub struct EthereumCLI;
 impl CLI for EthereumCLI {
     type Options = EthereumOptions;
 
-    const NAME: NameType = "ethereum";
     const ABOUT: AboutType = "Generates a Ethereum wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
+    const NAME: NameType = "ethereum";
     const OPTIONS: &'static [OptionType] = &[option::COUNT];
     const SUBCOMMANDS: &'static [SubCommandType] = &[
         subcommand::HD_ETHEREUM,
@@ -586,10 +599,7 @@ impl CLI for EthereumCLI {
             ("hd", Some(arguments)) => {
                 options.subcommand = Some("hd".into());
                 options.parse(arguments, &["count", "json"]);
-                options.parse(
-                    arguments,
-                    &["derivation", "index", "indices", "language", "password", "word count"],
-                );
+                options.parse(arguments, &["derivation", "index", "indices", "language", "password", "word count"]);
             }
             ("import", Some(arguments)) => {
                 options.subcommand = Some("import".into());
@@ -629,28 +639,31 @@ impl CLI for EthereumCLI {
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: EthereumNetwork, W: EthereumWordlist>(options: EthereumOptions) -> Result<(), CLIError> {
             let wallets = match options.subcommand.as_ref().map(String::as_str) {
-                Some("hd") => (0..options.count)
-                    .flat_map(|_| {
-                        let mut rng = StdRng::from_entropy();
-                        let mnemonic = EthereumMnemonic::<N, W>::new_with_count(&mut rng, options.word_count).unwrap();
-                        let password = options.password.as_ref().map(String::as_str);
-                        let mut opt = options.clone();
-                        let hd_wallet_from_mnemonic = move |i| {
-                            opt.index(Some(i));
-                            let path = opt.to_derivation_path(true).unwrap();
+                Some("hd") => {
+                    let password = options.password.as_ref().map(String::as_str);
+                    (0..options.count)
+                        .flat_map(|_| {
+                            // Sample a new HD wallet
+                            let wallet = EthereumWallet::new_hd::<N, W, _>(
+                                &mut StdRng::from_entropy(),
+                                options.word_count,
+                                password,
+                                &options.to_derivation_path(true).unwrap(),
+                            )
+                                .unwrap();
+                            let mnemonic = &wallet.mnemonic.unwrap();
 
-                            match EthereumWallet::from_mnemonic::<N, W>(&format!("{}", mnemonic), password, &path) {
-                                Ok(wallet) => vec![wallet],
-                                _ => vec![],
-                            }
-                        };
-                        if options.index > 0 {
-                            (options.index..options.index + 1).flat_map(hd_wallet_from_mnemonic)
-                        } else {
-                            (0..options.indices).flat_map(hd_wallet_from_mnemonic)
-                        }
-                    })
-                    .collect(),
+                            // Generate the HD wallet, from `index` to a number of specified `indices`
+                            options.to_derivation_paths(true).iter().flat_map(|path| {
+                                match EthereumWallet::from_mnemonic::<N, W>(mnemonic, password, path.as_ref().unwrap()) {
+                                    Ok(wallet) => vec![wallet],
+                                    _ => vec![],
+                                }
+                            })
+                            .collect::<Vec<EthereumWallet>>()
+                        })
+                        .collect()
+                }
                 Some("import") => {
                     if let Some(private_key) = options.private {
                         vec![EthereumWallet::from_private_key(&private_key)?]
@@ -663,66 +676,46 @@ impl CLI for EthereumCLI {
                     }
                 }
                 Some("import-hd") => {
-                    let begin;
-                    let end;
-                    if options.index > 0 {
-                        begin = options.index;
-                        end = options.index + 1;
-                    } else if options.indices > 1 {
-                        begin = 0;
-                        end = options.indices;
-                    } else {
-                        begin = 0;
-                        end = 1;
-                    }
-                    let mut ops = options.clone();
                     if let Some(mnemonic) = options.mnemonic.clone() {
                         fn process_mnemonic<EN: EthereumNetwork, EW: EthereumWordlist>(
                             mnemonic: &String,
                             options: &EthereumOptions,
-                        ) -> Result<EthereumWallet, CLIError> {
-                            EthereumWallet::from_mnemonic::<EN, EW>(
-                                &mnemonic,
-                                options.password.as_ref().map(String::as_str),
-                                &options.to_derivation_path(true).unwrap(),
-                            )
+                        ) -> Result<Vec<EthereumWallet>, CLIError> {
+                            // Generate the mnemonic wallets, from `index` to a number of specified `indices`
+                            let mut wallets = vec![];
+                            let password = options.password.as_ref().map(String::as_str);
+                            for path in options.to_derivation_paths(true) {
+                                wallets.push(EthereumWallet::from_mnemonic::<EN, EW>(mnemonic, password, path.as_ref().unwrap())?);
+                            }
+                            Ok(wallets)
                         }
-                        (begin..end)
-                            .map(|i| {
-                                ops.index(Some(i));
-                                process_mnemonic::<N, ChineseSimplified>(&mnemonic, &ops)
-                                    .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &ops))
-                                    .or(process_mnemonic::<N, English>(&mnemonic, &ops))
-                                    .or(process_mnemonic::<N, French>(&mnemonic, &ops))
-                                    .or(process_mnemonic::<N, Italian>(&mnemonic, &ops))
-                                    .or(process_mnemonic::<N, Japanese>(&mnemonic, &ops))
-                                    .or(process_mnemonic::<N, Korean>(&mnemonic, &ops))
-                                    .or(process_mnemonic::<N, Spanish>(&mnemonic, &ops))
-                                    .unwrap()
-                            })
-                            .collect()
+
+                        process_mnemonic::<N, ChineseSimplified>(&mnemonic, &options)
+                            .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, English>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, French>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Italian>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Japanese>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Korean>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Spanish>(&mnemonic, &options))?
                     } else if let Some(extended_private_key) = options.extended_private_key.clone() {
-                        (begin..end)
-                            .map(|i| {
-                                ops.index(Some(i));
-                                EthereumWallet::from_extended_private_key::<N>(
-                                    &extended_private_key,
-                                    &ops.to_derivation_path(false),
-                                )
-                                .unwrap()
-                            })
-                            .collect()
+                        // Generate the extended private keys, from `index` to a number of specified `indices`
+                        options.to_derivation_paths(true).iter().flat_map(|path| {
+                            match EthereumWallet::from_extended_private_key::<N>(&extended_private_key, path) {
+                                Ok(wallet) => vec![wallet],
+                                _ => vec![],
+                            }
+                        })
+                        .collect::<Vec<EthereumWallet>>()
                     } else if let Some(extended_public_key) = options.extended_public_key.clone() {
-                        (begin..end)
-                            .map(|i| {
-                                ops.index(Some(i));
-                                EthereumWallet::from_extended_public_key::<N>(
-                                    &extended_public_key,
-                                    &ops.to_derivation_path(false),
-                                )
-                                .unwrap()
-                            })
-                            .collect()
+                        // Generate the extended public keys, from `index` to a number of specified `indices`
+                        options.to_derivation_paths(true).iter().flat_map(|path| {
+                            match EthereumWallet::from_extended_public_key::<N>(&extended_public_key, path) {
+                                Ok(wallet) => vec![wallet],
+                                _ => vec![],
+                            }
+                        })
+                        .collect::<Vec<EthereumWallet>>()
                     } else {
                         vec![]
                     }
