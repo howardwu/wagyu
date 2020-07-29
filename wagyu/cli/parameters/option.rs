@@ -205,6 +205,18 @@ pub const DIVERSIFIER_HD_ZCASH: OptionType = (
     &[],
     &[],
 );
+pub const INDEX_HD: OptionType = (
+    "[index] -i --index=[index] 'Generates an HD wallet with a specified index'",
+    &[],
+    &[],
+    &[],
+);
+pub const INDICES_HD: OptionType = (
+    "[indices] -k --indices=[num_indices] 'Generates an HD wallet with a specified number of indices'",
+    &[],
+    &[],
+    &[],
+);
 pub const LANGUAGE_HD: OptionType = (
     "[language] -l --language=[language] 'Generates an HD wallet with a specified language'",
     &[],
@@ -302,8 +314,14 @@ pub const NETWORK_IMPORT_HD_BITCOIN: OptionType = (
     &["mainnet", "testnet"],
     &[],
 );
-pub const INDEX: OptionType = (
-    "[index] -i --index=[index] 'Imports an HD wallet for a specified index'",
+pub const INDEX_IMPORT_HD: OptionType = (
+    "[index] -i --index=[index] 'Imports an HD wallet with a specified index'",
+    &[],
+    &[],
+    &[],
+);
+pub const INDICES_IMPORT_HD: OptionType = (
+    "[indices] -k --indices=[num_indices] 'Imports an HD wallet with a specified number of indices'",
     &[],
     &[],
     &[],

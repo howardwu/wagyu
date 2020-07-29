@@ -240,6 +240,8 @@ FLAGS:
 OPTIONS:
     -c, --count <count>              Generates a specified number of wallets
     -d, --derivation <"path">        Generates an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, "<custom path>"]
+    -i, --index <index>              Generates an HD wallet with a specified index
+    -k, --indices <num_indices>      Generates an HD wallet with a specified number of indices
     -l, --language <language>        Generates an HD wallet with a specified language [possible values: chinese_simplified, chinese_traditional, english, french, italian, japanese, korean, spanish]
     -p, --password <password>        Generates an HD wallet with a specified password
     -w, --word-count <word count>    Generates an HD wallet with a specified word count [possible values: 12, 15, 18, 21, 24]
@@ -371,7 +373,7 @@ wagyu [CRYPTOCURRENCY] import-hd [FLAGS] [OPTIONS]
 
 To import a Bitcoin HD wallet, run:
 ```
-wagyu bitcoin hd [FLAGS] [OPTIONS]
+wagyu bitcoin import-hd [FLAGS] [OPTIONS]
 ```
 
 This command can be run with the following parameters:
@@ -396,7 +398,7 @@ OPTIONS:
 
 To import an Ethereum HD wallet, run:
 ```
-wagyu ethereum hd [FLAGS] [OPTIONS]
+wagyu ethereum import-hd [FLAGS] [OPTIONS]
 ```
 
 This command can be run with the following parameters:
@@ -410,7 +412,8 @@ OPTIONS:
     -d, --derivation <"path">                    Imports an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, "<custom path>"]
         --extended-private <extended private>    Imports a partial HD wallet for a specified extended private key
         --extended-public <extended public>      Imports a partial HD wallet for a specified extended public key
-    -i, --index <index>                          Imports an HD wallet for a specified index
+    -i, --index <index>                          Imports an HD wallet with a specified index
+    -k, --indices <num_indices>                  Imports an HD wallet with a specified number of indices
     -m, --mnemonic <"mnemonic">                  Imports an HD wallet for a specified mnemonic (in quotes)
     -p, --password <password>                    Imports an HD wallet with a specified password
 ```
@@ -419,7 +422,7 @@ OPTIONS:
 
 To import a Zcash HD wallet, run:
 ```
-wagyu zcash hd [FLAGS] [OPTIONS]
+wagyu zcash import-hd [FLAGS] [OPTIONS]
 ```
 
 This command can be run with the following parameters:
