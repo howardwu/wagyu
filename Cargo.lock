@@ -471,6 +471,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-mac"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4857fd85a0c34b3c3297875b747c1e02e06b6a0ea32dd892d8192b9ce0813ea6"
+dependencies = [
+ "generic-array 0.14.2",
+ "subtle 2.2.2",
+]
+
+[[package]]
 name = "crypto_api"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -831,8 +841,18 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dcb5e64cda4c23119ab41ba960d1e170a774c8e4b9d9e6a9bc18aabf5e59695"
 dependencies = [
- "crypto-mac",
+ "crypto-mac 0.7.0",
  "digest 0.8.1",
+]
+
+[[package]]
+name = "hmac"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1441c6b1e930e2817404b5046f1f989899143a12bf92de603b69f4e0aee1e15"
+dependencies = [
+ "crypto-mac 0.10.0",
+ "digest 0.9.0",
 ]
 
 [[package]]
@@ -843,7 +863,7 @@ checksum = "c6e570451493f10f6581b48cdd530413b63ea9e780f544bfd3bdcaa0d89d1a7b"
 dependencies = [
  "digest 0.8.1",
  "generic-array 0.12.3",
- "hmac",
+ "hmac 0.7.1",
 ]
 
 [[package]]
@@ -990,7 +1010,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "006c038a43a45995a9670da19e67600114740e8511d4333bf97a56e66a7542d9"
 dependencies = [
  "byteorder",
- "crypto-mac",
+ "crypto-mac 0.7.0",
  "rayon",
 ]
 
@@ -1590,7 +1610,7 @@ dependencies = [
  "digest 0.9.0",
  "failure",
  "hex 0.4.2",
- "hmac",
+ "hmac 0.10.1",
  "libsecp256k1",
  "pbkdf2",
  "rand 0.7.3",
@@ -1611,7 +1631,7 @@ dependencies = [
  "bitvec",
  "ethereum-types",
  "hex 0.4.2",
- "hmac",
+ "hmac 0.10.1",
  "libsecp256k1",
  "pbkdf2",
  "rand 0.7.3",
@@ -1633,7 +1653,7 @@ dependencies = [
  "base58-monero",
  "bech32",
  "byteorder",
- "crypto-mac",
+ "crypto-mac 0.7.0",
  "ethereum-types",
  "failure",
  "ff",
