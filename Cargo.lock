@@ -471,6 +471,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-mac"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4857fd85a0c34b3c3297875b747c1e02e06b6a0ea32dd892d8192b9ce0813ea6"
+dependencies = [
+ "generic-array 0.14.2",
+ "subtle 2.2.2",
+]
+
+[[package]]
 name = "crypto_api"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -831,7 +841,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dcb5e64cda4c23119ab41ba960d1e170a774c8e4b9d9e6a9bc18aabf5e59695"
 dependencies = [
- "crypto-mac",
+ "crypto-mac 0.7.0",
  "digest 0.8.1",
 ]
 
@@ -985,12 +995,11 @@ dependencies = [
 
 [[package]]
 name = "pbkdf2"
-version = "0.3.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "006c038a43a45995a9670da19e67600114740e8511d4333bf97a56e66a7542d9"
+checksum = "ca5c74683c467276ba17c4bb16e219487dc8fd4465b24d2653386e40de37dab6"
 dependencies = [
- "byteorder",
- "crypto-mac",
+ "crypto-mac 0.10.0",
  "rayon",
 ]
 
@@ -1633,7 +1642,7 @@ dependencies = [
  "base58-monero",
  "bech32",
  "byteorder",
- "crypto-mac",
+ "crypto-mac 0.7.0",
  "ethereum-types",
  "failure",
  "ff",
