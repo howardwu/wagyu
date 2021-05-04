@@ -7,6 +7,7 @@ pub mod bitcoin;
 pub mod ethereum;
 pub mod monero;
 pub mod zcash;
+pub mod tron;
 
 pub mod parameters;
 pub use self::parameters::*;

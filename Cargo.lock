@@ -1577,6 +1577,7 @@ dependencies = [
  "wagyu-ethereum",
  "wagyu-model",
  "wagyu-monero",
+ "wagyu-tron",
  "wagyu-zcash",
 ]
 
@@ -1662,6 +1663,29 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
+ "tiny-keccak 1.5.0",
+ "wagyu-model",
+]
+
+[[package]]
+name = "wagyu-tron"
+version = "0.6.3"
+dependencies = [
+ "base58",
+ "bech32",
+ "bitvec",
+ "digest 0.9.0",
+ "failure",
+ "hex 0.4.2",
+ "hmac",
+ "libsecp256k1",
+ "pbkdf2",
+ "rand 0.7.3",
+ "rand_xorshift",
+ "ripemd160 0.8.0",
+ "serde",
+ "serde_json",
+ "sha2",
  "tiny-keccak 1.5.0",
  "wagyu-model",
 ]

@@ -6,6 +6,7 @@ use wagyu::cli::bitcoin::BitcoinCLI;
 use wagyu::cli::ethereum::EthereumCLI;
 use wagyu::cli::monero::MoneroCLI;
 use wagyu::cli::zcash::ZcashCLI;
+use wagyu::cli::tron::TronCLI;
 use wagyu::cli::{CLIError, CLI};
 
 use clap::{App, AppSettings};
@@ -27,6 +28,7 @@ fn main() -> Result<(), CLIError> {
             EthereumCLI::new(),
             MoneroCLI::new(),
             ZcashCLI::new(),
+            TronCLI::new(),
         ])
         .set_term_width(0)
         .get_matches();
@@ -36,6 +38,7 @@ fn main() -> Result<(), CLIError> {
         ("ethereum", Some(arguments)) => EthereumCLI::print(EthereumCLI::parse(arguments)?),
         ("monero", Some(arguments)) => MoneroCLI::print(MoneroCLI::parse(arguments)?),
         ("zcash", Some(arguments)) => ZcashCLI::print(ZcashCLI::parse(arguments)?),
+        ("tron", Some(arguments)) => TronCLI::print(TronCLI::parse(arguments)?),
         _ => unreachable!(),
     }
 }
