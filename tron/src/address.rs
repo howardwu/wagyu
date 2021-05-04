@@ -3,6 +3,7 @@ use crate::network::TronNetwork;
 use crate::private_key::TronPrivateKey;
 use crate::public_key::TronPublicKey;
 use crate::witness_program::WitnessProgram;
+use digest::Digest;
 use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
@@ -12,7 +13,8 @@ use wagyu_model::no_std::*;
 use base58::{FromBase58, ToBase58};
 use bech32::{u5, Bech32, FromBase32, ToBase32};
 use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
-use sha2::{Digest, Sha256};
+// use sha2::{Digest as DigestSha2, Sha256};
+use sha3::Keccak256;
 
 /// Represents a Tron address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -34,6 +36,7 @@ impl<N: TronNetwork> Address for TronAddress<N> {
     fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Result<Self, AddressError> {
         let public_key = private_key.to_public_key();
         match format {
+            TronFormat::Tron => Self::tron(&public_key),
             TronFormat::P2PKH => Self::p2pkh(&public_key),
             TronFormat::P2WSH => return Err(AddressError::IncompatibleFormats(String::from("non-script"), String::from("p2wsh address"))),
             TronFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key),
@@ -44,6 +47,7 @@ impl<N: TronNetwork> Address for TronAddress<N> {
     /// Returns the address corresponding to the given Tron public key.
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
         match format {
+            TronFormat::Tron => Self::tron(public_key),
             TronFormat::P2PKH => Self::p2pkh(public_key),
             TronFormat::P2WSH => return Err(AddressError::IncompatibleFormats(String::from("non-script"), String::from("p2wsh address"))),
             TronFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
@@ -53,6 +57,37 @@ impl<N: TronNetwork> Address for TronAddress<N> {
 }
 
 impl<N: TronNetwork> TronAddress<N> {
+    /// Returns a Tron address from a given Tron public key.
+    pub fn tron(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+        let public_key = match public_key.is_compressed() {
+            true => public_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
+            false => public_key.to_secp256k1_public_key().serialize().to_vec(),
+        };
+
+        // Ref: https://stackoverflow.com/questions/58782314/how-to-generate-trx-wallet-without-using-api
+        let mut hasher = Keccak256::new();
+        hasher.update(&public_key);
+        let digest = hasher.finalize();
+
+        let mut address = [0u8; 25];
+        address[0] = N::to_address_prefix(&TronFormat::Tron)[0];
+        address[1..21].copy_from_slice(&digest[digest.len() - 20..]);
+        let sum = &checksum(&address[0..21])[0..4];
+        address[21..25].copy_from_slice(sum);
+
+        println!("sum:{:?}", sum);
+        println!("public_key:{:?}", public_key);
+        println!("digest:{:?}", digest);
+        println!("address:{:?}", address);
+        println!("address_58: {}", address.to_base58());
+
+        Ok(Self {
+            address: address.to_base58(),
+            format: TronFormat::Tron,
+            _network: PhantomData,
+        })
+    }
+
     /// Returns a P2PKH address from a given Tron public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let public_key = match public_key.is_compressed() {
@@ -75,18 +110,18 @@ impl<N: TronNetwork> TronAddress<N> {
     }
 
     // Returns a P2WSH address in Bech32 format from a given Tron script
-    pub fn p2wsh(original_script: &Vec<u8>) -> Result<Self, AddressError> {
-        let script = Sha256::digest(&original_script).to_vec();
+    pub fn p2wsh(_original_script: &Vec<u8>) -> Result<Self, AddressError> {
+        // let script = Sha256::digest(&original_script).to_vec();
 
-        // Organize as a hash
-        let v = N::to_address_prefix(&TronFormat::P2WSH)[0];
-        let version = u5::try_from_u8(v)?;
+        // // Organize as a hash
+        // let v = N::to_address_prefix(&TronFormat::P2WSH)[0];
+        // let version = u5::try_from_u8(v)?;
 
-        let mut data = vec![version];
-        // Get the SHA256 hash of the script
-        data.extend_from_slice(&script.to_vec().to_base32());
+        // let mut data = vec![version];
+        // // Get the SHA256 hash of the script
+        // data.extend_from_slice(&script.to_vec().to_base32());
 
-        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&TronFormat::Bech32))?, data)?;
+        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&TronFormat::Bech32))?, vec![])?;
 
         Ok(Self {
             address: bech32.to_string(),

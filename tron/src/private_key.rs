@@ -29,7 +29,7 @@ impl<N: TronNetwork> PrivateKey for TronPrivateKey<N> {
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         Ok(Self {
             secret_key: secp256k1::SecretKey::random(rng),
-            compressed: true,
+            compressed: false,
             _network: PhantomData,
         })
     }

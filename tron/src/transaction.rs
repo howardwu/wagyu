@@ -93,6 +93,19 @@ impl TronVector {
 /// Generate the script_pub_key of a corresponding address
 pub fn create_script_pub_key<N: TronNetwork>(address: &TronAddress<N>) -> Result<Vec<u8>, TransactionError> {
     match address.format() {
+        TronFormat::Tron => {
+            let bytes = &address.to_string().from_base58()?;
+            let pub_key_hash = bytes[1..(bytes.len() - 4)].to_vec();
+
+            let mut script = vec![];
+            script.push(Opcode::OP_DUP as u8);
+            script.push(Opcode::OP_HASH160 as u8);
+            script.extend(variable_length_integer(pub_key_hash.len() as u64)?);
+            script.extend(pub_key_hash);
+            script.push(Opcode::OP_EQUALVERIFY as u8);
+            script.push(Opcode::OP_CHECKSIG as u8);
+            Ok(script)
+        }
         TronFormat::P2PKH => {
             let bytes = &address.to_string().from_base58()?;
             let pub_key_hash = bytes[1..(bytes.len() - 4)].to_vec();
@@ -244,6 +257,16 @@ impl<N: TronNetwork> Outpoint<N> {
             Some(address) => {
                 let script_pub_key = script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
                 let redeem_script = match address.format() {
+                    TronFormat::Tron => match redeem_script {
+                        Some(_) => return Err(TransactionError::InvalidInputs("Tron".into())),
+                        None => match script_pub_key[0] != Opcode::OP_DUP as u8
+                            && script_pub_key[1] != Opcode::OP_HASH160 as u8
+                            && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_CHECKSIG as u8
+                        {
+                            true => return Err(TransactionError::InvalidScriptPubKey("Tron".into())),
+                            false => None,
+                        },
+                    },
                     TronFormat::P2PKH => match redeem_script {
                         Some(_) => return Err(TransactionError::InvalidInputs("P2PKH".into())),
                         None => match script_pub_key[0] != Opcode::OP_DUP as u8
@@ -650,6 +673,10 @@ impl<N: TronNetwork> Transaction for TronTransaction<N> {
                 let public_key = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
 
                 match &address.format() {
+                    TronFormat::Tron => {
+                        transaction.parameters.inputs[vin].script_sig = [signature.clone(), public_key].concat();
+                        transaction.parameters.inputs[vin].is_signed = true;
+                    },
                     TronFormat::P2PKH => {
                         transaction.parameters.inputs[vin].script_sig = [signature.clone(), public_key].concat();
                         transaction.parameters.inputs[vin].is_signed = true;
@@ -814,6 +841,10 @@ impl<N: TronNetwork> TronTransaction<N> {
         };
 
         let script = match format {
+            TronFormat::Tron => match &input.outpoint.script_pub_key {
+                Some(script) => script[1..].to_vec(),
+                None => return Err(TransactionError::MissingOutpointScriptPublicKey),
+            },
             TronFormat::Bech32 => match &input.outpoint.script_pub_key {
                 Some(script) => script[1..].to_vec(),
                 None => return Err(TransactionError::MissingOutpointScriptPublicKey),

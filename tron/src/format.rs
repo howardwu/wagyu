@@ -9,6 +9,7 @@ use serde::Serialize;
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(non_camel_case_types)]
 pub enum TronFormat {
+    Tron,
     /// Pay-to-Pubkey Hash, e.g. 1NoZQSmjYHUZMbqLerwmT4xfe8A6mAo8TT
     P2PKH,
     /// Pay-to-Witness-Script Hash, e.g. 347N1Thc213QqfYCz3PZkjoJpNv5b14kBd
@@ -64,6 +65,7 @@ impl TronFormat {
 impl fmt::Display for TronFormat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            TronFormat::Tron => write!(f, "tron"),
             TronFormat::P2PKH => write!(f, "p2pkh"),
             TronFormat::P2WSH => write!(f, "p2wsh"),
             TronFormat::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),

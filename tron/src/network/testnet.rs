@@ -21,6 +21,7 @@ impl TronNetwork for Testnet {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &TronFormat) -> Vec<u8> {
         match format {
+            TronFormat::Tron => vec![0x40],
             TronFormat::P2PKH => vec![0x6F],
             TronFormat::P2WSH => vec![0x00],
             TronFormat::P2SH_P2WPKH => vec![0xC4],

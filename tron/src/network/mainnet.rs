@@ -16,11 +16,12 @@ impl Network for Mainnet {
 }
 
 impl TronNetwork for Mainnet {
-    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(0);
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(195);
 
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &TronFormat) -> Vec<u8> {
         match format {
+            TronFormat::Tron => vec![0x41],
             TronFormat::P2PKH => vec![0x00],
             TronFormat::P2WSH => vec![0x00],
             TronFormat::P2SH_P2WPKH => vec![0x05],

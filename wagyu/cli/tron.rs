@@ -448,7 +448,7 @@ impl Default for TronOptions {
         Self {
             // Standard command
             count: 1,
-            format: TronFormat::P2PKH,
+            format: TronFormat::Tron,
             json: false,
             network: "mainnet".into(),
             subcommand: None,
@@ -583,6 +583,7 @@ impl TronOptions {
     /// If the specified argument is `None`, then no change occurs.
     fn format(&mut self, argument: Option<&str>) {
         match argument {
+            Some("tron") => self.format = TronFormat::Tron,
             Some("legacy") => self.format = TronFormat::P2PKH,
             Some("segwit") => self.format = TronFormat::P2SH_P2WPKH,
             Some("bech32") => self.format = TronFormat::Bech32,
@@ -691,8 +692,8 @@ impl TronOptions {
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
-            "bip32" => Some(format!("m/0'/0'/{}'", self.index)),
-            "bip44" => Some(format!("m/44'/0'/{}'/{}/{}", self.account, self.chain, self.index)),
+            "bip32" => Some(format!("m/44'/195'/{}'", self.index)),
+            "bip44" => Some(format!("m/44'/195'/{}'/{}/{}", self.account, self.chain, self.index)),
             "bip49" => Some(format!("m/49'/0'/{}'/{}/{}", self.account, self.chain, self.index)),
             "custom" => self.path.clone(),
             _ => match default {

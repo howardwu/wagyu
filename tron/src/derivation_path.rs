@@ -243,35 +243,35 @@ mod tests {
 
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/0'/0/0").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/0'/0/0").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/0'/0/1").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/0'/0/1").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/0'/1/0").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/0'/1/0").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/0'/1/1").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/0'/1/1").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/1'/0/0").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/1'/0/0").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/1'/0/1").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/1'/0/1").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/1'/1/0").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/1'/1/0").unwrap()
         );
         assert_eq!(
             TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
-            TronDerivationPath::<N>::from_str("m/44'/0'/1'/1/1").unwrap()
+            TronDerivationPath::<N>::from_str("m/44'/195'/1'/1/1").unwrap()
         );
     }
 
