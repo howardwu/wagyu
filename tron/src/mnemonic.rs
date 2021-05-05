@@ -170,7 +170,7 @@ impl<N: TronNetwork, W: TronWordlist> MnemonicExtended for TronMnemonic<N, W> {
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
         Ok(Self::ExtendedPrivateKey::new_master(
             self.to_seed(password)?.as_slice(),
-            &TronFormat::P2PKH,
+            &TronFormat::Tron,
         )?)
     }
 

@@ -75,11 +75,11 @@ impl<N: TronNetwork> TronAddress<N> {
         let sum = &checksum(&address[0..21])[0..4];
         address[21..25].copy_from_slice(sum);
 
-        println!("sum:{:?}", sum);
-        println!("public_key:{:?}", public_key);
-        println!("digest:{:?}", digest);
-        println!("address:{:?}", address);
-        println!("address_58: {}", address.to_base58());
+        // println!("sum:{:?}", sum);
+        // println!("public_key:{:?}", public_key);
+        // println!("digest:{:?}", digest);
+        // println!("address:{:?}", address);
+        // println!("address_58: {}", address.to_base58());
 
         Ok(Self {
             address: address.to_base58(),

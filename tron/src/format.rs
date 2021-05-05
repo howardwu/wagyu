@@ -34,6 +34,7 @@ impl TronFormat {
             return Err(AddressError::InvalidPrefix(prefix.to_vec()));
         }
         match (prefix[0], prefix[1]) {
+            (0x41, _) => Ok(TronFormat::Tron),
             (0x00, _) | (0x6F, _) => Ok(TronFormat::P2PKH),
             (0x05, _) | (0xC4, _) => Ok(TronFormat::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(TronFormat::Bech32),

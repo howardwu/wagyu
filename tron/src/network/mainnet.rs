@@ -56,6 +56,7 @@ impl TronNetwork for Mainnet {
         match format {
             TronFormat::P2PKH => Ok(vec![0x04, 0x88, 0xAD, 0xE4]), // xprv
             TronFormat::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // yprv
+            TronFormat::Tron => Ok(vec![0x04, 0x9D, 0x78, 0x78]), // tronprv
             _ => Err(ExtendedPrivateKeyError::UnsupportedFormat(format.to_string())),
         }
     }
@@ -75,6 +76,7 @@ impl TronNetwork for Mainnet {
         match format {
             TronFormat::P2PKH => Ok(vec![0x04, 0x88, 0xB2, 0x1E]), // xpub
             TronFormat::P2SH_P2WPKH => Ok(vec![0x04, 0x9D, 0x7C, 0xB2]), // ypub
+            TronFormat::Tron => Ok(vec![0x04, 0x88, 0xB2, 0x1E]), // tronpub
             _ => Err(ExtendedPublicKeyError::UnsupportedFormat(format.to_string())),
         }
     }

@@ -54,7 +54,7 @@ impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
         let mut mac = HmacSha512::new_varkey(b"Tron seed")?;
         mac.input(seed);
         let hmac = mac.result().code();
-        let private_key = Self::PrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&hmac[0..32])?, true);
+        let private_key = Self::PrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&hmac[0..32])?, false);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -100,7 +100,7 @@ impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
 
             let mut secret_key = SecretKey::parse_slice(&hmac[0..32])?;
             secret_key.tweak_add_assign(&extended_private_key.private_key.to_secp256k1_secret_key())?;
-            let private_key = Self::PrivateKey::from_secp256k1_secret_key(&secret_key, true);
+            let private_key = Self::PrivateKey::from_secp256k1_secret_key(&secret_key, false);
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -177,7 +177,7 @@ impl<N: TronNetwork> FromStr for TronExtendedPrivateKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let private_key = TronPrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&data[46..78])?, true);
+        let private_key = TronPrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&data[46..78])?, false);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
