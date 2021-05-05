@@ -1,44 +1,33 @@
 use wagyu_model::{Amount, AmountError};
-use wagyu_model::no_std::*;
 
-use core::fmt;
-use serde::Serialize;
+use ethereum_types::U256;
+use std::fmt;
 
-// Number of satoshis (base unit) per BTC
-const COIN: i64 = 1_0000_0000;
-
-// Maximum number of satoshis
-const MAX_COINS: i64 = 21_000_000 * COIN;
-
-/// Represents the amount of Tron in satoshis
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct TronAmount(pub i64);
+/// Represents the amount of Tron in wei
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TronAmount(pub U256);
 
 pub enum Denomination {
-    // sat
-    Satoshi,
-    // uBTC (bit)
-    MicroBit,
-    // mBTC
-    MilliBit,
-    // cBTC
-    CentiBit,
-    // dBTC
-    DeciBit,
-    // BTC
-    Tron,
+    Wei,
+    Kwei,
+    Mwei,
+    Gwei,
+    Szabo,
+    Finney,
+    Ether,
 }
 
 impl Denomination {
-    /// The number of decimal places more than a satoshi.
+    /// The number of decimal places more than a wei.
     fn precision(self) -> u32 {
         match self {
-            Denomination::Satoshi => 0,
-            Denomination::MicroBit => 2,
-            Denomination::MilliBit => 5,
-            Denomination::CentiBit => 6,
-            Denomination::DeciBit => 7,
-            Denomination::Tron => 8,
+            Denomination::Wei => 0,
+            Denomination::Kwei => 3,
+            Denomination::Mwei => 6,
+            Denomination::Gwei => 9,
+            Denomination::Szabo => 12,
+            Denomination::Finney => 15,
+            Denomination::Ether => 18,
         }
     }
 }
@@ -49,12 +38,13 @@ impl fmt::Display for Denomination {
             f,
             "{}",
             match self {
-                Denomination::Satoshi => "satoshi",
-                Denomination::MicroBit => "uBTC",
-                Denomination::MilliBit => "mBTC",
-                Denomination::CentiBit => "cBTC",
-                Denomination::DeciBit => "dBTC",
-                Denomination::Tron => "BTC",
+                Denomination::Wei => "wei",
+                Denomination::Kwei => "kwei",
+                Denomination::Mwei => "mwei",
+                Denomination::Gwei => "gwei",
+                Denomination::Szabo => "szabo",
+                Denomination::Finney => "finney",
+                Denomination::Ether => "ETH",
             }
         )
     }
@@ -63,60 +53,65 @@ impl fmt::Display for Denomination {
 impl Amount for TronAmount {}
 
 impl TronAmount {
-    /// The zero amount.
-    pub const ZERO: TronAmount = TronAmount(0);
-    /// Exactly one satoshi.
-    pub const ONE_SAT: TronAmount = TronAmount(1);
-    /// Exactly one tron.
-    pub const ONE_BTC: TronAmount = TronAmount(COIN);
-
-    pub fn from_satoshi(satoshis: i64) -> Result<Self, AmountError> {
-        if -MAX_COINS <= satoshis && satoshis <= MAX_COINS {
-            Ok(Self(satoshis))
-        } else {
-            return Err(AmountError::AmountOutOfBounds(
-                satoshis.to_string(),
-                MAX_COINS.to_string(),
-            ));
+    pub fn u256_from_str(val: &str) -> Result<U256, AmountError> {
+        match U256::from_dec_str(val) {
+            Ok(wei) => Ok(wei),
+            Err(error) => return Err(AmountError::Crate("uint", format!("{:?}", error))),
         }
     }
 
-    pub fn from_ubtc(ubtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = ubtc_value * 10_i64.pow(Denomination::MicroBit.precision());
-
-        Self::from_satoshi(satoshis)
+    pub fn from_u256(wei: U256) -> Self {
+        Self(wei)
     }
 
-    pub fn from_mbtc(mbtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = mbtc_value * 10_i64.pow(Denomination::MilliBit.precision());
+    pub fn from_wei(wei_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(wei_value)?;
 
-        Self::from_satoshi(satoshis)
+        Ok(Self::from_u256(wei))
     }
 
-    pub fn from_cbtc(cbtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = cbtc_value * 10_i64.pow(Denomination::CentiBit.precision());
+    pub fn from_kwei(kwei_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(kwei_value)? * 10_i64.pow(Denomination::Kwei.precision());
 
-        Self::from_satoshi(satoshis)
+        Ok(Self::from_u256(wei))
     }
 
-    pub fn from_dbtc(dbtc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = dbtc_value * 10_i64.pow(Denomination::DeciBit.precision());
+    pub fn from_mwei(mwei_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(mwei_value)? * 10_i64.pow(Denomination::Mwei.precision());
 
-        Self::from_satoshi(satoshis)
+        Ok(Self::from_u256(wei))
     }
 
-    pub fn from_btc(btc_value: i64) -> Result<Self, AmountError> {
-        let satoshis = btc_value * 10_i64.pow(Denomination::Tron.precision());
+    pub fn from_gwei(gwei_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(gwei_value)? * 10_i64.pow(Denomination::Gwei.precision());
 
-        Self::from_satoshi(satoshis)
+        Ok(Self::from_u256(wei))
     }
 
-    pub fn add(self, b: Self) -> Result<Self, AmountError> {
-        Self::from_satoshi(self.0 + b.0)
+    pub fn from_szabo(szabo_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(szabo_value)? * 10_i64.pow(Denomination::Szabo.precision());
+
+        Ok(Self::from_u256(wei))
     }
 
-    pub fn sub(self, b: TronAmount) -> Result<Self, AmountError> {
-        Self::from_satoshi(self.0 - b.0)
+    pub fn from_finney(finney_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(finney_value)? * 10_i64.pow(Denomination::Finney.precision());
+
+        Ok(Self::from_u256(wei))
+    }
+
+    pub fn from_eth(eth_value: &str) -> Result<Self, AmountError> {
+        let wei = Self::u256_from_str(eth_value)? * 10_i64.pow(Denomination::Ether.precision());
+
+        Ok(Self::from_u256(wei))
+    }
+
+    pub fn add(self, b: Self) -> Self {
+        Self::from_u256(self.0 + b.0)
+    }
+
+    pub fn sub(self, b: Self) -> Self {
+        Self::from_u256(self.0 - b.0)
     }
 }
 
@@ -130,59 +125,65 @@ impl fmt::Display for TronAmount {
 mod tests {
     use super::*;
 
-    fn test_from_satoshi(sat_value: i64, expected_amount: TronAmount) {
-        let amount = TronAmount::from_satoshi(sat_value).unwrap();
-        assert_eq!(expected_amount, amount)
+    fn test_from_wei(wei_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_wei(wei_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_from_ubtc(ubtc_value: i64, expected_amount: TronAmount) {
-        let amount = TronAmount::from_ubtc(ubtc_value).unwrap();
-        assert_eq!(expected_amount, amount)
+    fn test_from_finney(finney_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_finney(finney_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_from_mbtc(mbtc_value: i64, expected_amount: TronAmount) {
-        let amount = TronAmount::from_mbtc(mbtc_value).unwrap();
-        assert_eq!(expected_amount, amount)
+    fn test_from_szabo(szabo_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_szabo(szabo_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_from_cbtc(cbtc_value: i64, expected_amount: TronAmount) {
-        let amount = TronAmount::from_cbtc(cbtc_value).unwrap();
-        assert_eq!(expected_amount, amount)
+    fn test_from_gwei(gwei_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_gwei(gwei_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_from_dbtc(dbtc_value: i64, expected_amount: TronAmount) {
-        let amount = TronAmount::from_dbtc(dbtc_value).unwrap();
-        assert_eq!(expected_amount, amount)
+    fn test_from_mwei(mwei_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_mwei(mwei_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_from_btc(btc_value: i64, expected_amount: TronAmount) {
-        let amount = TronAmount::from_btc(btc_value).unwrap();
-        assert_eq!(expected_amount, amount)
+    fn test_from_kwei(kwei_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_kwei(kwei_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_addition(a: &i64, b: &i64, result: &i64) {
-        let a = TronAmount::from_satoshi(*a).unwrap();
-        let b = TronAmount::from_satoshi(*b).unwrap();
-        let result = TronAmount::from_satoshi(*result).unwrap();
-
-        assert_eq!(result, a.add(b).unwrap());
+    fn test_from_eth(eth_value: &str, expected_amount: &str) {
+        let amount = TronAmount::from_eth(eth_value).unwrap();
+        assert_eq!(expected_amount, amount.to_string())
     }
 
-    fn test_subtraction(a: &i64, b: &i64, result: &i64) {
-        let a = TronAmount::from_satoshi(*a).unwrap();
-        let b = TronAmount::from_satoshi(*b).unwrap();
-        let result = TronAmount::from_satoshi(*result).unwrap();
+    fn test_addition(a: &str, b: &str, result: &str) {
+        let a = TronAmount::from_wei(a).unwrap();
+        let b = TronAmount::from_wei(b).unwrap();
+        let result = TronAmount::from_wei(result).unwrap();
 
-        assert_eq!(result, a.sub(b).unwrap());
+        assert_eq!(result, a.add(b));
+    }
+
+    fn test_subtraction(a: &str, b: &str, result: &str) {
+        let a = TronAmount::from_wei(a).unwrap();
+        let b = TronAmount::from_wei(b).unwrap();
+        let result = TronAmount::from_wei(result).unwrap();
+
+        assert_eq!(result, a.sub(b));
     }
 
     pub struct AmountDenominationTestCase {
-        satoshi: i64,
-        micro_bit: i64,
-        milli_bit: i64,
-        centi_bit: i64,
-        deci_bit: i64,
-        tron: i64,
+        wei: &'static str,
+        kwei: &'static str,
+        mwei: &'static str,
+        gwei: &'static str,
+        szabo: &'static str,
+        finney: &'static str,
+        ether: &'static str,
     }
 
     mod valid_conversions {
@@ -190,101 +191,121 @@ mod tests {
 
         const TEST_AMOUNTS: [AmountDenominationTestCase; 5] = [
             AmountDenominationTestCase {
-                satoshi: 0,
-                micro_bit: 0,
-                milli_bit: 0,
-                centi_bit: 0,
-                deci_bit: 0,
-                tron: 0,
+                wei: "0",
+                kwei: "0",
+                mwei: "0",
+                gwei: "0",
+                szabo: "0",
+                finney: "0",
+                ether: "0",
             },
             AmountDenominationTestCase {
-                satoshi: 100000000,
-                micro_bit: 1000000,
-                milli_bit: 1000,
-                centi_bit: 100,
-                deci_bit: 10,
-                tron: 1,
+                wei: "1000000000000000000",
+                kwei: "1000000000000000",
+                mwei: "1000000000000",
+                gwei: "1000000000",
+                szabo: "1000000",
+                finney: "1000",
+                ether: "1",
             },
             AmountDenominationTestCase {
-                satoshi: 100000000000,
-                micro_bit: 1000000000,
-                milli_bit: 1000000,
-                centi_bit: 100000,
-                deci_bit: 10000,
-                tron: 1000,
+                wei: "1000000000000000000000",
+                kwei: "1000000000000000000",
+                mwei: "1000000000000000",
+                gwei: "1000000000000",
+                szabo: "1000000000",
+                finney: "1000000",
+                ether: "1000",
             },
             AmountDenominationTestCase {
-                satoshi: 123456700000000,
-                micro_bit: 1234567000000,
-                milli_bit: 1234567000,
-                centi_bit: 123456700,
-                deci_bit: 12345670,
-                tron: 1234567,
+                wei: "1234567000000000000000000",
+                kwei: "1234567000000000000000",
+                mwei: "1234567000000000000",
+                gwei: "1234567000000000",
+                szabo: "1234567000000",
+                finney: "1234567000",
+                ether: "1234567",
             },
             AmountDenominationTestCase {
-                satoshi: 2100000000000000,
-                micro_bit: 21000000000000,
-                milli_bit: 21000000000,
-                centi_bit: 2100000000,
-                deci_bit: 210000000,
-                tron: 21000000,
+                wei: "100000000000000000000000000",
+                kwei: "100000000000000000000000",
+                mwei: "100000000000000000000",
+                gwei: "100000000000000000",
+                szabo: "100000000000000",
+                finney: "100000000000",
+                ether: "100000000",
             },
         ];
 
         #[test]
-        fn test_satoshi_conversion() {
+        fn test_wei_conversion() {
             TEST_AMOUNTS
                 .iter()
-                .for_each(|amounts| test_from_satoshi(amounts.satoshi, TronAmount(amounts.satoshi)));
+                .for_each(|amounts| test_from_wei(amounts.wei, amounts.wei));
         }
 
         #[test]
-        fn test_ubtc_conversion() {
+        fn test_finney_conversion() {
             TEST_AMOUNTS
                 .iter()
-                .for_each(|amounts| test_from_ubtc(amounts.micro_bit, TronAmount(amounts.satoshi)));
+                .for_each(|amounts| test_from_finney(amounts.finney, amounts.wei));
         }
 
         #[test]
-        fn test_mbtc_conversion() {
+        fn test_szabo_conversion() {
             TEST_AMOUNTS
                 .iter()
-                .for_each(|amounts| test_from_mbtc(amounts.milli_bit, TronAmount(amounts.satoshi)));
+                .for_each(|amounts| test_from_szabo(amounts.szabo, amounts.wei));
         }
 
         #[test]
-        fn test_cbtc_conversion() {
+        fn test_gwei_conversion() {
             TEST_AMOUNTS
                 .iter()
-                .for_each(|amounts| test_from_cbtc(amounts.centi_bit, TronAmount(amounts.satoshi)));
+                .for_each(|amounts| test_from_gwei(amounts.gwei, amounts.wei));
         }
 
         #[test]
-        fn test_dbtc_conversion() {
+        fn test_mwei_conversion() {
             TEST_AMOUNTS
                 .iter()
-                .for_each(|amounts| test_from_dbtc(amounts.deci_bit, TronAmount(amounts.satoshi)));
+                .for_each(|amounts| test_from_mwei(amounts.mwei, amounts.wei));
         }
 
         #[test]
-        fn test_btc_conversion() {
+        fn test_kwei_conversion() {
             TEST_AMOUNTS
                 .iter()
-                .for_each(|amounts| test_from_btc(amounts.tron, TronAmount(amounts.satoshi)));
+                .for_each(|amounts| test_from_kwei(amounts.kwei, amounts.wei));
+        }
+
+        #[test]
+        fn test_eth_conversion() {
+            TEST_AMOUNTS
+                .iter()
+                .for_each(|amounts| test_from_eth(amounts.ether, amounts.wei));
         }
     }
 
     mod valid_arithmetic {
         use super::*;
 
-        const TEST_VALUES: [(i64, i64, i64); 7] = [
-            (0, 0, 0),
-            (1, 2, 3),
-            (100000, 0, 100000),
-            (123456789, 987654321, 1111111110),
-            (100000000000000, 2000000000000000, 2100000000000000),
-            (-100000000000000, -2000000000000000, -2100000000000000),
-            (1000000, -1000000, 0),
+        const TEST_VALUES: [(&str, &str, &str); 7] = [
+            ("0", "0", "0"),
+            ("1", "2", "3"),
+            ("100000", "0", "100000"),
+            ("123456789", "987654321", "1111111110"),
+            ("1000000000000000", "2000000000000000", "3000000000000000"),
+            (
+                "10000000000000000000001",
+                "20000000000000000000002",
+                "30000000000000000000003",
+            ),
+            (
+                "1000000000000000000000000",
+                "1000000000000000000000000",
+                "2000000000000000000000000",
+            ),
         ];
 
         #[test]
@@ -301,196 +322,94 @@ mod tests {
     mod test_invalid {
         use super::*;
 
-        mod test_out_of_bounds {
-            use super::*;
-
-            const INVALID_TEST_AMOUNTS: [AmountDenominationTestCase; 4] = [
-                AmountDenominationTestCase {
-                    satoshi: 2100000100000000,
-                    micro_bit: 21000001000000,
-                    milli_bit: 21000001000,
-                    centi_bit: 2100000100,
-                    deci_bit: 210000010,
-                    tron: 21000001,
-                },
-                AmountDenominationTestCase {
-                    satoshi: -2100000100000000,
-                    micro_bit: -21000001000000,
-                    milli_bit: -21000001000,
-                    centi_bit: -2100000100,
-                    deci_bit: -210000010,
-                    tron: -21000001,
-                },
-                AmountDenominationTestCase {
-                    satoshi: 1000000000000000000,
-                    micro_bit: 10000000000000000,
-                    milli_bit: 10000000000000,
-                    centi_bit: 1000000000000,
-                    deci_bit: 100000000000,
-                    tron: 10000000000,
-                },
-                AmountDenominationTestCase {
-                    satoshi: -1000000000000000000,
-                    micro_bit: -10000000000000000,
-                    milli_bit: -10000000000000,
-                    centi_bit: -1000000000000,
-                    deci_bit: -100000000000,
-                    tron: -10000000000,
-                },
-            ];
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_satoshi_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_satoshi(amounts.satoshi, TronAmount(amounts.satoshi)));
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_ubtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_ubtc(amounts.micro_bit, TronAmount(amounts.satoshi)));
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_mbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_mbtc(amounts.milli_bit, TronAmount(amounts.satoshi)));
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_cbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_cbtc(amounts.centi_bit, TronAmount(amounts.satoshi)));
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_dbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_dbtc(amounts.deci_bit, TronAmount(amounts.satoshi)));
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_btc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_btc(amounts.tron, TronAmount(amounts.satoshi)));
-            }
-        }
-
         mod test_invalid_conversion {
             use super::*;
 
             const INVALID_TEST_AMOUNTS: [AmountDenominationTestCase; 4] = [
                 AmountDenominationTestCase {
-                    satoshi: 1,
-                    micro_bit: 1,
-                    milli_bit: 1,
-                    centi_bit: 1,
-                    deci_bit: 1,
-                    tron: 1,
+                    wei: "1",
+                    kwei: "1",
+                    mwei: "1",
+                    gwei: "1",
+                    szabo: "1",
+                    finney: "1",
+                    ether: "1",
                 },
                 AmountDenominationTestCase {
-                    satoshi: 1,
-                    micro_bit: 10,
-                    milli_bit: 100,
-                    centi_bit: 1000,
-                    deci_bit: 1000000,
-                    tron: 100000000,
+                    wei: "1",
+                    kwei: "1000",
+                    mwei: "1000000",
+                    gwei: "1000000000",
+                    szabo: "1000000000000",
+                    finney: "1000000000000000",
+                    ether: "1000000000000000000",
                 },
                 AmountDenominationTestCase {
-                    satoshi: 123456789,
-                    micro_bit: 1234567,
-                    milli_bit: 1234,
-                    centi_bit: 123,
-                    deci_bit: 12,
-                    tron: 1,
+                    wei: "1234567891234567891",
+                    kwei: "1234567891234567",
+                    mwei: "1234567891234",
+                    gwei: "1234567891",
+                    szabo: "1234567",
+                    finney: "1234",
+                    ether: "1",
                 },
                 AmountDenominationTestCase {
-                    satoshi: 2100000000000000,
-                    micro_bit: 21000000000000,
-                    milli_bit: 21000000000,
-                    centi_bit: 2100000000,
-                    deci_bit: 210000000,
-                    tron: 20999999,
+                    wei: "1000000000000000000000000",
+                    kwei: "1000000000000000000000",
+                    mwei: "1000000000000000000",
+                    gwei: "1000000000000000",
+                    szabo: "1000000000000",
+                    finney: "1000000000",
+                    ether: "1000001",
                 },
             ];
 
             #[should_panic]
             #[test]
-            fn test_invalid_ubtc_conversion() {
+            fn test_invalid_finney_conversion() {
                 INVALID_TEST_AMOUNTS
                     .iter()
-                    .for_each(|amounts| test_from_ubtc(amounts.micro_bit, TronAmount(amounts.satoshi)));
+                    .for_each(|amounts| test_from_finney(amounts.finney, amounts.wei));
             }
 
             #[should_panic]
             #[test]
-            fn test_invalid_mbtc_conversion() {
+            fn test_invalid_szabo_conversion() {
                 INVALID_TEST_AMOUNTS
                     .iter()
-                    .for_each(|amounts| test_from_mbtc(amounts.milli_bit, TronAmount(amounts.satoshi)));
+                    .for_each(|amounts| test_from_szabo(amounts.szabo, amounts.wei));
             }
 
             #[should_panic]
             #[test]
-            fn test_invalid_cbtc_conversion() {
+            fn test_invalid_gwei_conversion() {
                 INVALID_TEST_AMOUNTS
                     .iter()
-                    .for_each(|amounts| test_from_cbtc(amounts.centi_bit, TronAmount(amounts.satoshi)));
+                    .for_each(|amounts| test_from_gwei(amounts.gwei, amounts.wei));
             }
 
             #[should_panic]
             #[test]
-            fn test_invalid_dbtc_conversion() {
+            fn test_invalid_mwei_conversion() {
                 INVALID_TEST_AMOUNTS
                     .iter()
-                    .for_each(|amounts| test_from_dbtc(amounts.deci_bit, TronAmount(amounts.satoshi)));
+                    .for_each(|amounts| test_from_mwei(amounts.mwei, amounts.wei));
             }
 
             #[should_panic]
             #[test]
-            fn test_invalid_btc_conversion() {
+            fn test_invalid_kwei_conversion() {
                 INVALID_TEST_AMOUNTS
                     .iter()
-                    .for_each(|amounts| test_from_btc(amounts.tron, TronAmount(amounts.satoshi)));
-            }
-        }
-
-        mod invalid_arithmetic {
-            use super::*;
-
-            const TEST_VALUES: [(i64, i64, i64); 8] = [
-                (0, 0, 1),
-                (1, 2, 5),
-                (100000, 1, 100000),
-                (123456789, 123456789, 123456789),
-                (-1000, -1000, 2000),
-                (2100000000000000, 1, 2100000000000001),
-                (2100000000000000, 2100000000000000, 4200000000000000),
-                (-2100000000000000, -2100000000000000, -4200000000000000),
-            ];
-
-            #[should_panic]
-            #[test]
-            fn test_invalid_addition() {
-                TEST_VALUES.iter().for_each(|(a, b, c)| test_addition(a, b, c));
+                    .for_each(|amounts| test_from_kwei(amounts.kwei, amounts.wei));
             }
 
             #[should_panic]
             #[test]
-            fn test_invalid_subtraction() {
-                TEST_VALUES.iter().for_each(|(a, b, c)| test_subtraction(a, b, c));
+            fn test_invalid_eth_conversion() {
+                INVALID_TEST_AMOUNTS
+                    .iter()
+                    .for_each(|amounts| test_from_eth(amounts.ether, amounts.wei));
             }
         }
     }

@@ -1,40 +1,24 @@
-use crate::format::TronFormat;
-use wagyu_model::{
-    AddressError, ChildIndex, ExtendedPrivateKeyError, ExtendedPublicKeyError, Network, PrivateKeyError,
-};
-use wagyu_model::no_std::*;
+use wagyu_model::{ChildIndex, Network};
+
+pub mod goerli;
+pub use self::goerli::*;
+
+pub mod kovan;
+pub use self::kovan::*;
 
 pub mod mainnet;
 pub use self::mainnet::*;
 
-pub mod testnet;
-pub use self::testnet::*;
+pub mod rinkeby;
+pub use self::rinkeby::*;
 
-/// The interface for a Tron network.
+pub mod ropsten;
+pub use self::ropsten::*;
+
+/// The interface for an Tron network.
 pub trait TronNetwork: Network {
+    const CHAIN_ID: u32;
+    const NETWORK_ID: u32;
+    const HD_PURPOSE: ChildIndex = ChildIndex::Hardened(44);
     const HD_COIN_TYPE: ChildIndex;
-
-    /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &TronFormat) -> Vec<u8>;
-
-    /// Returns the network of the given address prefix.
-    fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError>;
-
-    /// Returns the wif prefix of the given network.
-    fn to_private_key_prefix() -> u8;
-
-    /// Returns the network of the given wif prefix.
-    fn from_private_key_prefix(prefix: u8) -> Result<Self, PrivateKeyError>;
-
-    /// Returns the extended private key version bytes of the given network.
-    fn to_extended_private_key_version_bytes(format: &TronFormat) -> Result<Vec<u8>, ExtendedPrivateKeyError>;
-
-    /// Returns the network of the given extended private key version bytes.
-    fn from_extended_private_key_version_bytes(prefix: &[u8]) -> Result<Self, ExtendedPrivateKeyError>;
-
-    /// Returns the extended public key version bytes of the given network.
-    fn to_extended_public_key_version_bytes(format: &TronFormat) -> Result<Vec<u8>, ExtendedPublicKeyError>;
-
-    /// Returns the network of the given extended public key version bytes.
-    fn from_extended_public_key_version_bytes(prefix: &[u8]) -> Result<Self, ExtendedPublicKeyError>;
 }

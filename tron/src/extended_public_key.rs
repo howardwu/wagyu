@@ -10,18 +10,17 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
-use core::{convert::TryFrom, fmt, str::FromStr};
+use hex;
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey as Secp256k1_PublicKey, SecretKey};
 use sha2::Sha512;
+use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Tron extended public key
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TronExtendedPublicKey<N: TronNetwork> {
-    /// The address format
-    format: TronFormat,
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -31,25 +30,27 @@ pub struct TronExtendedPublicKey<N: TronNetwork> {
     /// The chain code from the extended private key
     chain_code: [u8; 32],
     /// The Tron public key
-    public_key: TronPublicKey<N>,
+    public_key: TronPublicKey,
+    /// PhantomData
+    _network: PhantomData<N>,
 }
 
 impl<N: TronNetwork> ExtendedPublicKey for TronExtendedPublicKey<N> {
-    type Address = TronAddress<N>;
+    type Address = TronAddress;
     type DerivationPath = TronDerivationPath<N>;
     type ExtendedPrivateKey = TronExtendedPrivateKey<N>;
     type Format = TronFormat;
-    type PublicKey = TronPublicKey<N>;
+    type PublicKey = TronPublicKey;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {
         Self {
-            format: extended_private_key.format.clone(),
             depth: extended_private_key.depth,
             parent_fingerprint: extended_private_key.parent_fingerprint,
             child_index: extended_private_key.child_index,
             chain_code: extended_private_key.chain_code,
             public_key: extended_private_key.to_public_key(),
+            _network: PhantomData,
         }
     }
 
@@ -62,7 +63,7 @@ impl<N: TronNetwork> ExtendedPublicKey for TronExtendedPublicKey<N> {
         let mut extended_public_key = self.clone();
 
         for index in path.to_vec()?.into_iter() {
-            let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize_compressed()[..];
+            let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize()[..];
 
             let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
             match index {
@@ -82,18 +83,18 @@ impl<N: TronNetwork> ExtendedPublicKey for TronExtendedPublicKey<N> {
 
             let mut public_key = self.public_key.to_secp256k1_public_key();
             public_key.tweak_add_assign(&SecretKey::parse_slice(&hmac[..32])?)?;
-            let public_key = Self::PublicKey::from_secp256k1_public_key(public_key, true);
+            let public_key = Self::PublicKey::from_secp256k1_public_key(public_key);
 
             let mut parent_fingerprint = [0u8; 4];
             parent_fingerprint.copy_from_slice(&hash160(public_key_serialized)[0..4]);
 
             extended_public_key = Self {
-                format: extended_public_key.format.clone(),
                 depth: extended_public_key.depth + 1,
                 parent_fingerprint,
                 child_index: index,
                 chain_code,
                 public_key,
+                _network: PhantomData,
             };
         }
 
@@ -106,15 +107,8 @@ impl<N: TronNetwork> ExtendedPublicKey for TronExtendedPublicKey<N> {
     }
 
     /// Returns the address of the corresponding extended public key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.public_key.to_address(format)
-    }
-}
-
-impl<N: TronNetwork> TronExtendedPublicKey<N> {
-    /// Returns the format of the Tron extended private key.
-    pub fn format(&self) -> TronFormat {
-        self.format.clone()
+    fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
+        self.public_key.to_address(_format)
     }
 }
 
@@ -127,14 +121,11 @@ impl<N: TronNetwork> FromStr for TronExtendedPublicKey<N> {
             return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()));
         }
 
-        // Check that the version bytes correspond with the correct network.
-        let _ = N::from_extended_public_key_version_bytes(&data[0..4])?;
-        let format = TronFormat::from_extended_public_key_version_bytes(&data[0..4])?;
+        if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
+            return Err(ExtendedPublicKeyError::InvalidVersionBytes(data[0..4].to_vec()));
+        };
 
-        let mut version = [0u8; 4];
-        version.copy_from_slice(&data[0..4]);
-
-        let depth = data[4];
+        let depth = data[4] as u8;
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
@@ -144,8 +135,9 @@ impl<N: TronNetwork> FromStr for TronExtendedPublicKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let secp256k1_public_key = Secp256k1_PublicKey::parse_slice(&data[45..78], None)?;
-        let public_key = TronPublicKey::from_secp256k1_public_key(secp256k1_public_key, true);
+        let public_key = TronPublicKey::from_str(&hex::encode(
+            &Secp256k1_PublicKey::parse_slice(&data[45..78], None)?.serialize()[1..],
+        ))?;
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -156,30 +148,27 @@ impl<N: TronNetwork> FromStr for TronExtendedPublicKey<N> {
         }
 
         Ok(Self {
-            format,
             depth,
             parent_fingerprint,
             child_index,
             chain_code,
             public_key,
+            _network: PhantomData,
         })
     }
 }
 
 impl<N: TronNetwork> fmt::Display for TronExtendedPublicKey<N> {
     /// BIP32 serialization format
-    /// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
+    /// https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
-        result[0..4].copy_from_slice(match &N::to_extended_public_key_version_bytes(&self.format) {
-            Ok(version) => version,
-            Err(_) => return Err(fmt::Error),
-        });
-        result[4] = self.depth;
+        result[0..4].copy_from_slice(&[0x04u8, 0x88, 0xB2, 0x1E][..]);
+        result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
         result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
-        result[45..78].copy_from_slice(&self.public_key.to_secp256k1_public_key().serialize_compressed()[..]);
+        result[45..78].copy_from_slice(&self.public_key.to_secp256k1_public_key().serialize_compressed());
 
         let sum = &checksum(&result[0..78])[0..4];
         result[78..82].copy_from_slice(sum);
@@ -194,8 +183,8 @@ mod tests {
     use crate::network::*;
     use wagyu_model::extended_private_key::ExtendedPrivateKey;
 
-    use core::convert::TryInto;
     use hex;
+    use std::convert::TryInto;
 
     fn test_from_extended_private_key<N: TronNetwork>(
         expected_extended_public_key: &str,
@@ -209,8 +198,8 @@ mod tests {
         let extended_public_key = TronExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
         assert_eq!(
-            expected_public_key,
-            extended_public_key.public_key.to_string()
+            secp256k1::PublicKey::parse_slice(&hex::decode(expected_public_key).unwrap(), None).unwrap(),
+            extended_public_key.public_key.to_secp256k1_public_key()
         );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
@@ -264,8 +253,8 @@ mod tests {
     ) {
         let extended_public_key = TronExtendedPublicKey::<N>::from_str(&extended_public_key).unwrap();
         assert_eq!(
-            expected_public_key,
-            extended_public_key.public_key.to_string()
+            secp256k1::PublicKey::parse_slice(&hex::decode(expected_public_key).unwrap(), None).unwrap(),
+            extended_public_key.public_key.to_secp256k1_public_key()
         );
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
@@ -475,7 +464,7 @@ mod tests {
 
         type N = Mainnet;
 
-        const INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        const INVALID_EXTENDED_PUBLIC_KEY__SECP256K1_PUBLIC_KEY: &str = "xpub661MyMwAqRbcftXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         const INVALID_EXTENDED_PUBLIC_KEY_NETWORK: &str = "xpub561MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         const INVALID_EXTENDED_PUBLIC_KEY_CHECKSUM: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet7";
         const VALID_EXTENDED_PUBLIC_KEY: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
@@ -484,7 +473,7 @@ mod tests {
         #[should_panic(expected = "Crate(\"libsecp256k1\", \"InvalidPublicKey\")")]
         fn from_str_invalid_secret_key() {
             let _result =
-                TronExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY_SECP256K1_PUBLIC_KEY).unwrap();
+                TronExtendedPublicKey::<N>::from_str(INVALID_EXTENDED_PUBLIC_KEY__SECP256K1_PUBLIC_KEY).unwrap();
         }
 
         #[test]

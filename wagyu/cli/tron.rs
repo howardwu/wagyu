@@ -1,14 +1,13 @@
-use crate::tron::{
-    format::TronFormat, wordlist::*, TronAddress, TronAmount, TronDerivationPath,
-    TronExtendedPrivateKey, TronExtendedPublicKey, TronMnemonic, TronNetwork, TronPrivateKey,
-    TronPublicKey, TronTransaction, TronTransactionInput, TronTransactionOutput,
-    TronTransactionParameters, TronWordlist, Mainnet as TronMainnet, Outpoint, SignatureHash,
-    Testnet as TronTestnet,
-};
 use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
+use crate::tron::{
+    wordlist::*, TronAddress, TronAmount, TronDerivationPath, TronExtendedPrivateKey,
+    TronExtendedPublicKey, TronFormat, TronMnemonic, TronNetwork, TronPrivateKey,
+    TronPublicKey, TronTransaction, TronTransactionParameters, Goerli, Kovan, Mainnet as TronMainnet,
+    Rinkeby, Ropsten,
+};
 use crate::model::{
-    crypto::hash160, ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, PrivateKey,
-    PublicKey, Transaction,
+    ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, Network, PrivateKey, PublicKey,
+    Transaction,
 };
 
 use clap::{ArgMatches, Values};
@@ -36,31 +35,25 @@ struct TronWallet {
     pub private_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<String>,
+    pub transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub compressed: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_hex: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transaction_id: Option<String>,
 }
 
 impl TronWallet {
-    pub fn new<N: TronNetwork, R: Rng>(rng: &mut R, format: &TronFormat) -> Result<Self, CLIError> {
-        let private_key = TronPrivateKey::<N>::new(rng)?;
+    pub fn new<R: Rng>(rng: &mut R) -> Result<Self, CLIError> {
+        let private_key = TronPrivateKey::new(rng)?;
         let public_key = private_key.to_public_key();
-        let address = public_key.to_address(format)?;
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            network: Some(N::NAME.to_string()),
-            format: Some(address.format().to_string()),
-            compressed: private_key.is_compressed().into(),
             ..Default::default()
         })
     }
@@ -78,8 +71,7 @@ impl TronWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&extended_private_key.format())?;
-        let compressed = private_key.is_compressed();
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             path: Some(path.to_string()),
             password: password.map(String::from),
@@ -89,27 +81,23 @@ impl TronWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            format: Some(address.format().to_string()),
-            network: Some(N::NAME.to_string()),
-            compressed: Some(compressed),
             ..Default::default()
         })
     }
 
     pub fn from_mnemonic<N: TronNetwork, W: TronWordlist>(
         mnemonic: &str,
-        password: &Option<&str>,
+        password: Option<&str>,
         path: &str,
     ) -> Result<Self, CLIError> {
         let mnemonic = TronMnemonic::<N, W>::from_phrase(&mnemonic)?;
-        let master_extended_private_key = mnemonic.to_extended_private_key(password.clone())?;
+        let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = TronDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&extended_private_key.format())?;
-        let compressed = private_key.is_compressed();
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             path: Some(path.to_string()),
             password: password.map(String::from),
@@ -119,9 +107,6 @@ impl TronWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            format: Some(address.format().to_string()),
-            network: Some(N::NAME.to_string()),
-            compressed: Some(compressed),
             ..Default::default()
         })
     }
@@ -138,8 +123,7 @@ impl TronWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&extended_private_key.format())?;
-        let compressed = private_key.is_compressed();
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             path: path.clone(),
             extended_private_key: Some(extended_private_key.to_string()),
@@ -147,9 +131,6 @@ impl TronWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            format: Some(address.format().to_string()),
-            network: Some(N::NAME.to_string()),
-            compressed: Some(compressed),
             ..Default::default()
         })
     }
@@ -164,157 +145,82 @@ impl TronWallet {
             extended_public_key = extended_public_key.derive(&derivation_path)?;
         }
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&extended_public_key.format())?;
-        let compressed = public_key.is_compressed();
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             path: path.clone(),
             extended_public_key: Some(extended_public_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            format: Some(address.format().to_string()),
-            network: Some(N::NAME.to_string()),
-            compressed: Some(compressed),
             ..Default::default()
         })
     }
 
-    pub fn from_private_key<N: TronNetwork>(private_key: &str, format: &TronFormat) -> Result<Self, CLIError> {
-        let private_key = TronPrivateKey::<N>::from_str(private_key)?;
+    pub fn from_private_key(private_key: &str) -> Result<Self, CLIError> {
+        let private_key = TronPrivateKey::from_str(private_key)?;
         let public_key = private_key.to_public_key();
-        let address = public_key.to_address(format)?;
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            network: Some(N::NAME.to_string()),
-            format: Some(address.format().to_string()),
-            compressed: private_key.is_compressed().into(),
             ..Default::default()
         })
     }
 
-    pub fn from_public_key<N: TronNetwork>(public_key: &str, format: &TronFormat) -> Result<Self, CLIError> {
-        let public_key = TronPublicKey::<N>::from_str(public_key)?;
-        let address = public_key.to_address(format)?;
+    pub fn from_public_key(public_key: &str) -> Result<Self, CLIError> {
+        let public_key = TronPublicKey::from_str(public_key)?;
+        let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
-            network: Some(N::NAME.to_string()),
-            format: Some(address.format().to_string()),
-            compressed: public_key.is_compressed().into(),
             ..Default::default()
         })
     }
 
-    pub fn from_address<N: TronNetwork>(address: &str) -> Result<Self, CLIError> {
-        let address = TronAddress::<N>::from_str(address)?;
+    pub fn from_address(address: &str) -> Result<Self, CLIError> {
+        let address = TronAddress::from_str(address)?;
         Ok(Self {
             address: Some(address.to_string()),
-            network: Some(N::NAME.to_string()),
-            format: Some(address.format().to_string()),
             ..Default::default()
         })
     }
 
-    pub fn to_raw_transaction<N: TronNetwork>(
-        inputs: &Vec<TronInput>,
-        outputs: &Vec<&str>,
-        version: u32,
-        lock_time: u32,
-    ) -> Result<Self, CLIError> {
-        let mut transaction_inputs = vec![];
-        for input in inputs {
-            let transaction_input = TronTransactionInput::<N>::new(
-                hex::decode(&input.txid)?,
-                input.vout,
-                None,
-                None,
-                None,
-                None,
-                None,
-                SignatureHash::SIGHASH_ALL,
-            )?;
-            transaction_inputs.push(transaction_input);
-        }
-
-        let mut transaction_outputs = vec![];
-        for output in outputs {
-            let values: Vec<&str> = output.split(":").collect();
-            let address = TronAddress::<N>::from_str(values[0])?;
-            transaction_outputs.push(TronTransactionOutput::new(
-                &address,
-                TronAmount::from_satoshi(i64::from_str(values[1])?)?,
-            )?);
-        }
-
-        let transaction_parameters = TronTransactionParameters::<N> {
-            version,
-            inputs: transaction_inputs,
-            outputs: transaction_outputs,
-            lock_time,
-            segwit_flag: false,
+    pub fn to_raw_transaction<N: TronNetwork>(parameters: TronInput) -> Result<Self, CLIError> {
+        let transaction_parameters = TronTransactionParameters {
+            receiver: TronAddress::from_str(&parameters.to)?,
+            amount: TronAmount::from_wei(&parameters.value)?,
+            gas: TronAmount::u256_from_str(&parameters.gas)?,
+            gas_price: TronAmount::from_wei(&parameters.gas_price)?,
+            nonce: TronAmount::u256_from_str(&parameters.nonce.to_string())?,
+            data: parameters.data.unwrap_or("".to_string()).as_bytes().to_vec(),
         };
 
-        let transaction = TronTransaction::<N>::new(&transaction_parameters)?;
-        let raw_transaction_hex = hex::encode(&transaction.to_transaction_bytes()?);
+        let raw_transaction = TronTransaction::<N>::new(&transaction_parameters)?;
+        let raw_transaction_hex = hex::encode(raw_transaction.to_transaction_bytes()?);
 
         Ok(Self {
-            transaction_hex: Some(raw_transaction_hex),
+            transaction_hex: Some(format!("0x{}", raw_transaction_hex)),
             ..Default::default()
         })
     }
 
     pub fn to_signed_transaction<N: TronNetwork>(
-        transaction_hex: &str,
-        inputs: &Vec<TronInput>,
+        transaction_hex: String,
+        private_key: String,
     ) -> Result<Self, CLIError> {
-        let mut transaction = TronTransaction::<N>::from_transaction_bytes(&hex::decode(transaction_hex)?)?;
+        let transaction_bytes = match &transaction_hex[0..2] {
+            "0x" => hex::decode(&transaction_hex[2..])?,
+            _ => hex::decode(&transaction_hex)?,
+        };
 
-        for input in inputs {
-            match (input.amount.clone(), input.address.clone(), input.private_key.clone()) {
-                (Some(amount), Some(address), Some(private_key)) => {
-                    let private_key = TronPrivateKey::<N>::from_str(&private_key)?;
-                    let address = TronAddress::<N>::from_str(&address)?;
+        let private_key = TronPrivateKey::from_str(&private_key)?;
 
-                    let redeem_script = match (input.redeem_script.clone(), address.format()) {
-                        (Some(script), _) => Some(hex::decode(script)?),
-                        (None, TronFormat::P2SH_P2WPKH) => {
-                            let mut redeem_script = vec![0x00, 0x14];
-                            redeem_script.extend(&hash160(
-                                &private_key.to_public_key().to_secp256k1_public_key().serialize(),
-                            ));
-                            Some(redeem_script)
-                        }
-                        (None, _) => None,
-                    };
-
-                    let script_pub_key = match &input.script_pub_key {
-                        Some(script) => Some(hex::decode(script)?),
-                        None => None,
-                    };
-
-                    let mut reverse_transaction_id = hex::decode(&input.txid)?;
-                    reverse_transaction_id.reverse();
-
-                    let outpoint = Outpoint::<N>::new(
-                        reverse_transaction_id,
-                        input.vout,
-                        Some(address),
-                        Some(TronAmount::from_satoshi(amount as i64)?),
-                        redeem_script,
-                        script_pub_key,
-                    )?;
-
-                    transaction = transaction.update_outpoint(outpoint);
-                    transaction = transaction.sign(&private_key)?;
-                }
-                _ => {}
-            }
-        }
+        let mut transaction = TronTransaction::<N>::from_transaction_bytes(&transaction_bytes)?;
+        transaction = transaction.sign(&private_key)?;
 
         Ok(Self {
             transaction_id: Some(transaction.to_transaction_id()?.to_string()),
-            transaction_hex: Some(hex::encode(&transaction.to_transaction_bytes()?)),
+            transaction_hex: Some(format!("0x{}", hex::encode(&transaction.to_transaction_bytes()?))),
             ..Default::default()
         })
     }
@@ -364,20 +270,12 @@ impl Display for TronWallet {
                 Some(address) => format!("      {}              {}\n", "Address".cyan().bold(), address),
                 _ => "".to_owned(),
             },
-            match &self.format {
-                Some(format) => format!("      {}               {}\n", "Format".cyan().bold(), format),
+            match &self.transaction_id {
+                Some(transaction_id) => format!("      {}       {}\n", "Transaction Id".cyan().bold(), transaction_id),
                 _ => "".to_owned(),
             },
             match &self.network {
                 Some(network) => format!("      {}              {}\n", "Network".cyan().bold(), network),
-                _ => "".to_owned(),
-            },
-            match &self.compressed {
-                Some(compressed) => format!("      {}           {}\n", "Compressed".cyan().bold(), compressed),
-                _ => "".to_owned(),
-            },
-            match &self.transaction_id {
-                Some(transaction_id) => format!("      {}       {}\n", "Transaction Id".cyan().bold(), transaction_id),
                 _ => "".to_owned(),
             },
             match &self.transaction_hex {
@@ -395,37 +293,31 @@ impl Display for TronWallet {
     }
 }
 
-/// Represents parameters for a Tron transaction input
+/// Represents parameters for an Tron transaction input
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TronInput {
-    pub txid: String,
-    pub vout: u32,
-    pub amount: Option<u64>,
-    pub address: Option<String>,
-    #[serde(rename(deserialize = "privatekey"))]
-    pub private_key: Option<String>,
-    #[serde(rename(deserialize = "scriptPubKey"))]
-    pub script_pub_key: Option<String>,
-    #[serde(rename(deserialize = "redeemScript"))]
-    pub redeem_script: Option<String>,
+    pub to: String,
+    pub value: String,
+    pub gas: String,
+    #[serde(rename(deserialize = "gasPrice"))]
+    pub gas_price: String,
+    pub nonce: u64,
+    pub data: Option<String>,
 }
 
-/// Represents options for a Tron wallet
+/// Represents options for an Tron wallet
 #[derive(Clone, Debug, Serialize)]
 pub struct TronOptions {
     // Standard command
     count: usize,
-    format: TronFormat,
     json: bool,
-    network: String,
     subcommand: Option<String>,
     // HD and Import HD subcommands
-    account: u32,
-    chain: u32,
     derivation: String,
     extended_private_key: Option<String>,
     extended_public_key: Option<String>,
     index: u32,
+    indices: u32,
     language: String,
     mnemonic: Option<String>,
     password: Option<String>,
@@ -436,11 +328,10 @@ pub struct TronOptions {
     private: Option<String>,
     public: Option<String>,
     // Transaction subcommand
-    transaction_inputs: Option<String>,
     transaction_hex: Option<String>,
-    transaction_outputs: Option<String>,
-    lock_time: Option<u32>,
-    version: Option<u32>,
+    transaction_parameters: Option<String>,
+    transaction_private_key: Option<String>,
+    network: Option<String>,
 }
 
 impl Default for TronOptions {
@@ -448,17 +339,14 @@ impl Default for TronOptions {
         Self {
             // Standard command
             count: 1,
-            format: TronFormat::Tron,
             json: false,
-            network: "mainnet".into(),
             subcommand: None,
             // HD and Import HD subcommands
-            account: 0,
-            chain: 0,
-            derivation: "bip32".into(),
+            derivation: "tron".into(),
             extended_private_key: None,
             extended_public_key: None,
             index: 0,
+            indices: 1,
             language: "english".into(),
             mnemonic: None,
             password: None,
@@ -469,11 +357,10 @@ impl Default for TronOptions {
             private: None,
             public: None,
             // Transaction subcommand
-            transaction_inputs: None,
             transaction_hex: None,
-            transaction_outputs: None,
-            lock_time: None,
-            version: None,
+            transaction_parameters: None,
+            transaction_private_key: None,
+            network: None,
         }
     }
 }
@@ -481,19 +368,16 @@ impl Default for TronOptions {
 impl TronOptions {
     fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
         options.iter().for_each(|option| match *option {
-            "account" => self.account(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "address" => self.address(arguments.value_of(option)),
-            "chain" => self.chain(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
-            "createrawtransaction" => self.create_raw_transaction(arguments.values_of(option)),
+            "createrawtransaction" => self.create_raw_transaction(arguments.value_of(option)),
             "derivation" => self.derivation(arguments.value_of(option)),
             "extended private" => self.extended_private(arguments.value_of(option)),
             "extended public" => self.extended_public(arguments.value_of(option)),
-            "format" => self.format(arguments.value_of(option)),
             "json" => self.json(arguments.is_present(option)),
             "index" => self.index(clap::value_t!(arguments.value_of(*option), u32).ok()),
+            "indices" => self.indices(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "language" => self.language(arguments.value_of(option)),
-            "lock time" => self.lock_time(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "mnemonic" => self.mnemonic(arguments.value_of(option)),
             "network" => self.network(arguments.value_of(option)),
             "password" => self.password(arguments.value_of(option)),
@@ -501,17 +385,8 @@ impl TronOptions {
             "public" => self.public(arguments.value_of(option)),
             "signrawtransaction" => self.sign_raw_transaction(arguments.values_of(option)),
             "word count" => self.word_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
-            "version" => self.version(clap::value_t!(arguments.value_of(*option), u32).ok()),
             _ => (),
         });
-    }
-
-    /// Sets `account` to the specified account index, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
-    fn account(&mut self, argument: Option<u32>) {
-        if let Some(account) = argument {
-            self.account = account;
-        }
     }
 
     /// Imports a wallet for the specified address, overriding its previous state.
@@ -522,14 +397,6 @@ impl TronOptions {
         }
     }
 
-    /// Sets `chain` to the specified chain index, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
-    fn chain(&mut self, argument: Option<u32>) {
-        if let Some(chain) = argument {
-            self.chain = chain;
-        }
-    }
-
     /// Sets `count` to the specified count, overriding its previous state.
     fn count(&mut self, argument: Option<usize>) {
         if let Some(count) = argument {
@@ -537,13 +404,11 @@ impl TronOptions {
         }
     }
 
-    /// Sets `transaction_inputs` and `transaction_outputs` to the specified transaction values, overriding its previous state.
+    /// Sets `transaction_parameters`to the specified transaction parameters, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
-    fn create_raw_transaction(&mut self, argument: Option<Values>) {
+    fn create_raw_transaction(&mut self, argument: Option<&str>) {
         if let Some(transaction_parameters) = argument {
-            let params: Vec<&str> = transaction_parameters.collect();
-            self.transaction_inputs = Some(params[0].to_string());
-            self.transaction_outputs = Some(params[1].to_string())
+            self.transaction_parameters = Some(transaction_parameters.to_string());
         }
     }
 
@@ -552,9 +417,11 @@ impl TronOptions {
     /// If the specified argument is `None`, then no change occurs.
     fn derivation(&mut self, argument: Option<&str>) {
         match argument {
-            Some("bip32") => self.derivation = "bip32".into(),
-            Some("bip44") => self.derivation = "bip44".into(),
-            Some("bip49") => self.derivation = "bip49".into(),
+            Some("tron") => self.derivation = "tron".into(),
+            Some("keepkey") => self.derivation = "keepkey".into(),
+            Some("ledger-legacy") => self.derivation = "ledger-legacy".into(),
+            Some("ledger-live") => self.derivation = "ledger-legacy".into(),
+            Some("trezor") => self.derivation = "trezor".into(),
             Some(custom) => {
                 self.derivation = "custom".into();
                 self.path = Some(custom.to_string());
@@ -579,23 +446,19 @@ impl TronOptions {
         }
     }
 
-    /// Sets `format` to the specified format, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
-    fn format(&mut self, argument: Option<&str>) {
-        match argument {
-            Some("tron") => self.format = TronFormat::Tron,
-            Some("legacy") => self.format = TronFormat::P2PKH,
-            Some("segwit") => self.format = TronFormat::P2SH_P2WPKH,
-            Some("bech32") => self.format = TronFormat::Bech32,
-            _ => (),
-        };
-    }
-
     /// Sets `index` to the specified index, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn index(&mut self, argument: Option<u32>) {
         if let Some(index) = argument {
             self.index = index;
+        }
+    }
+
+    /// Sets `indices` to the specified number of indices, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn indices(&mut self, argument: Option<u32>) {
+        if let Some(indices) = argument {
+            self.indices = indices;
         }
     }
 
@@ -620,14 +483,6 @@ impl TronOptions {
         };
     }
 
-    /// Sets `lock_time` to the specified transaction lock time, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
-    fn lock_time(&mut self, argument: Option<u32>) {
-        if let Some(lock_time) = argument {
-            self.lock_time = Some(lock_time);
-        }
-    }
-
     /// Sets `mnemonic` to the specified mnemonic, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn mnemonic(&mut self, argument: Option<&str>) {
@@ -639,11 +494,9 @@ impl TronOptions {
     /// Sets `network` to the specified network, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn network(&mut self, argument: Option<&str>) {
-        match argument {
-            Some("mainnet") => self.network = "mainnet".into(),
-            Some("testnet") => self.network = "testnet".into(),
-            _ => (),
-        };
+        if let Some(network) = argument {
+            self.network = Some(network.to_string());
+        }
     }
 
     /// Sets `password` to the specified password, overriding its previous state.
@@ -670,13 +523,13 @@ impl TronOptions {
         }
     }
 
-    /// Sets `transaction_hex` and `transaction_inputs` to the specified transaction values, overriding its previous state.
+    /// Sets `transaction_hex` and `transaction_private_key` to the specified transaction values, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn sign_raw_transaction(&mut self, argument: Option<Values>) {
         if let Some(transaction_parameters) = argument {
             let params: Vec<&str> = transaction_parameters.collect();
             self.transaction_hex = Some(params[0].to_string());
-            self.transaction_inputs = Some(params[1].to_string());
+            self.transaction_private_key = Some(params[1].to_string());
         }
     }
 
@@ -692,23 +545,31 @@ impl TronOptions {
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
-            "bip32" => Some(format!("m/44'/195'/{}'", self.index)),
-            "bip44" => Some(format!("m/44'/195'/{}'/{}/{}", self.account, self.chain, self.index)),
-            "bip49" => Some(format!("m/49'/195'/{}'/{}/{}", self.account, self.chain, self.index)),
+            "tron" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "keepkey" => Some(format!("m/44'/60'/{}'/0", self.index)),
+            "ledger-legacy" => Some(format!("m/44'/60'/0'/{}", self.index)),
+            "ledger-live" => Some(format!("m/44'/60'/{}'/0/0", self.index)),
+            "trezor" => Some(format!("m/44'/60'/0'/{}", self.index)),
             "custom" => self.path.clone(),
             _ => match default {
-                true => Some(format!("m/0'/0'/{}'", self.index)),
+                true => Some(format!("m/44'/60'/0'/0/{}", self.index)),
                 false => None,
             },
         }
     }
 
-    /// Sets `version` to the specified transaction version, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
-    fn version(&mut self, argument: Option<u32>) {
-        if let Some(version) = argument {
-            self.version = Some(version);
-        }
+    /// Returns the derivation paths with the specified account, chain, derivation, indices, and path.
+    /// If `default` is enabled, then return the default path if no derivation was provided.
+    fn to_derivation_paths(&self, default: bool) -> Vec<Option<String>> {
+        let start = self.index;
+        let end = start + self.indices;
+        let mut options = self.clone();
+        (start..end).map(|index| {
+            // Sets the index to the specified index
+            options.index(Some(index));
+            // Generates the derivation path for the specified information
+            options.to_derivation_path(default)
+        }).collect()
     }
 }
 
@@ -717,37 +578,37 @@ pub struct TronCLI;
 impl CLI for TronCLI {
     type Options = TronOptions;
 
-    const NAME: NameType = "tron";
     const ABOUT: AboutType = "Generates a Tron wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
-    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::FORMAT_BITCOIN, option::NETWORK_BITCOIN];
+    const NAME: NameType = "tron";
+    const OPTIONS: &'static [OptionType] = &[option::COUNT];
     const SUBCOMMANDS: &'static [SubCommandType] = &[
-        subcommand::HD_BITCOIN,
-        subcommand::IMPORT_BITCOIN,
-        subcommand::IMPORT_HD_BITCOIN,
-        subcommand::TRANSACTION_BITCOIN,
+        subcommand::HD_ETHEREUM,
+        subcommand::IMPORT_ETHEREUM,
+        subcommand::IMPORT_HD_ETHEREUM,
+        subcommand::TRANSACTION_ETHEREUM,
     ];
 
     /// Handle all CLI arguments and flags for Tron
     #[cfg_attr(tarpaulin, skip)]
     fn parse(arguments: &ArgMatches) -> Result<Self::Options, CLIError> {
         let mut options = TronOptions::default();
-        options.parse(arguments, &["count", "format", "json", "network"]);
+        options.parse(arguments, &["count", "json"]);
 
         match arguments.subcommand() {
             ("hd", Some(arguments)) => {
                 options.subcommand = Some("hd".into());
-                options.parse(arguments, &["count", "json", "network"]);
-                options.parse(arguments, &["derivation", "language", "password", "word count"]);
+                options.parse(arguments, &["count", "json"]);
+                options.parse(arguments, &["derivation", "index", "indices", "language", "password", "word count"]);
             }
             ("import", Some(arguments)) => {
                 options.subcommand = Some("import".into());
-                options.parse(arguments, &["format", "json", "network"]);
+                options.parse(arguments, &["json"]);
                 options.parse(arguments, &["address", "private", "public"]);
             }
             ("import-hd", Some(arguments)) => {
                 options.subcommand = Some("import-hd".into());
-                options.parse(arguments, &["json", "network"]);
+                options.parse(arguments, &["json"]);
                 options.parse(
                     arguments,
                     &[
@@ -757,6 +618,7 @@ impl CLI for TronCLI {
                         "extended private",
                         "extended public",
                         "index",
+                        "indices",
                         "mnemonic",
                         "password",
                     ],
@@ -764,10 +626,7 @@ impl CLI for TronCLI {
             }
             ("transaction", Some(arguments)) => {
                 options.subcommand = Some("transaction".into());
-                options.parse(
-                    arguments,
-                    &["createrawtransaction", "lock time", "signrawtransaction", "version"],
-                );
+                options.parse(arguments, &["createrawtransaction", "network", "signrawtransaction"]);
             }
             _ => {}
         };
@@ -779,114 +638,135 @@ impl CLI for TronCLI {
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: TronNetwork, W: TronWordlist>(options: TronOptions) -> Result<(), CLIError> {
-            let wallets =
-                match options.subcommand.as_ref().map(String::as_str) {
-                    Some("hd") => match options.to_derivation_path(true) {
-                        Some(path) => (0..options.count)
-                            .flat_map(|_| {
-                                match TronWallet::new_hd::<N, W, _>(
-                                    &mut StdRng::from_entropy(),
-                                    options.word_count,
-                                    options.password.as_ref().map(String::as_str),
-                                    &path,
-                                ) {
+            let wallets = match options.subcommand.as_ref().map(String::as_str) {
+                Some("hd") => {
+                    let password = options.password.as_ref().map(String::as_str);
+                    (0..options.count)
+                        .flat_map(|_| {
+                            // Sample a new HD wallet
+                            let wallet = TronWallet::new_hd::<N, W, _>(
+                                &mut StdRng::from_entropy(),
+                                options.word_count,
+                                password,
+                                &options.to_derivation_path(true).unwrap(),
+                            )
+                                .unwrap();
+                            let mnemonic = &wallet.mnemonic.unwrap();
+
+                            // Generate the HD wallet, from `index` to a number of specified `indices`
+                            options.to_derivation_paths(true).iter().flat_map(|path| {
+                                match TronWallet::from_mnemonic::<N, W>(mnemonic, password, path.as_ref().unwrap()) {
                                     Ok(wallet) => vec![wallet],
                                     _ => vec![],
                                 }
                             })
-                            .collect(),
-                        None => vec![],
-                    },
-                    Some("import") => {
-                        if let Some(private_key) = options.private {
-                            vec![
-                                TronWallet::from_private_key::<TronMainnet>(&private_key, &options.format).or(
-                                    TronWallet::from_private_key::<TronTestnet>(&private_key, &options.format),
-                                )?,
-                            ]
-                        } else if let Some(public_key) = options.public {
-                            vec![TronWallet::from_public_key::<N>(&public_key, &options.format)?]
-                        } else if let Some(address) = options.address {
-                            vec![TronWallet::from_address::<TronMainnet>(&address)
-                                .or(TronWallet::from_address::<TronTestnet>(&address))?]
-                        } else {
-                            vec![]
-                        }
+                            .collect::<Vec<TronWallet>>()
+                        })
+                        .collect()
+                }
+                Some("import") => {
+                    if let Some(private_key) = options.private {
+                        vec![TronWallet::from_private_key(&private_key)?]
+                    } else if let Some(public_key) = options.public {
+                        vec![TronWallet::from_public_key(&public_key)?]
+                    } else if let Some(address) = options.address {
+                        vec![TronWallet::from_address(&address)?]
+                    } else {
+                        vec![]
                     }
-                    Some("import-hd") => {
-                        if let Some(mnemonic) = options.mnemonic.clone() {
-                            let password = &options.password.as_ref().map(String::as_str);
-
-                            match options.to_derivation_path(true) {
-                                Some(path) => vec![TronWallet::from_mnemonic::<N, ChineseSimplified>(
-                                    &mnemonic, password, &path,
-                                )
-                                .or(TronWallet::from_mnemonic::<N, ChineseTraditional>(
-                                    &mnemonic, password, &path,
-                                ))
-                                .or(TronWallet::from_mnemonic::<N, English>(&mnemonic, password, &path))
-                                .or(TronWallet::from_mnemonic::<N, French>(&mnemonic, password, &path))
-                                .or(TronWallet::from_mnemonic::<N, Italian>(&mnemonic, password, &path))
-                                .or(TronWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, &path))
-                                .or(TronWallet::from_mnemonic::<N, Korean>(&mnemonic, password, &path))
-                                .or(TronWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, &path))?],
-                                None => vec![],
+                }
+                Some("import-hd") => {
+                    if let Some(mnemonic) = options.mnemonic.clone() {
+                        fn process_mnemonic<EN: TronNetwork, EW: TronWordlist>(
+                            mnemonic: &String,
+                            options: &TronOptions,
+                        ) -> Result<Vec<TronWallet>, CLIError> {
+                            // Generate the mnemonic wallets, from `index` to a number of specified `indices`
+                            let mut wallets = vec![];
+                            let password = options.password.as_ref().map(String::as_str);
+                            for path in options.to_derivation_paths(true) {
+                                wallets.push(TronWallet::from_mnemonic::<EN, EW>(mnemonic, password, path.as_ref().unwrap())?);
                             }
-                        } else if let Some(extended_private_key) = options.extended_private_key.clone() {
-                            let key = &extended_private_key;
-                            let path = &options.to_derivation_path(false);
-
-                            vec![TronWallet::from_extended_private_key::<TronMainnet>(key, path)
-                                .or(TronWallet::from_extended_private_key::<TronTestnet>(key, path))?]
-                        } else if let Some(extended_public_key) = options.extended_public_key.clone() {
-                            let key = &extended_public_key;
-                            let path = &options.to_derivation_path(false);
-
-                            vec![TronWallet::from_extended_public_key::<TronMainnet>(key, path)
-                                .or(TronWallet::from_extended_public_key::<TronTestnet>(key, path))?]
-                        } else {
-                            vec![]
+                            Ok(wallets)
                         }
-                    }
-                    Some("transaction") => {
-                        if let (Some(transaction_inputs), Some(transaction_outputs)) =
-                            (options.transaction_inputs.clone(), options.transaction_outputs.clone())
-                        {
-                            let inputs: &Vec<TronInput> = &from_str(&transaction_inputs)?;
-                            let outputs = transaction_outputs.replace(&['{', '}', '"', ' '][..], "");
-                            let outputs: &Vec<&str> = &outputs.split(",").collect();
-                            let version = options.version.unwrap_or(1);
-                            let lock_time = options.lock_time.unwrap_or(0);
 
-                            vec![TronWallet::to_raw_transaction::<TronMainnet>(
-                                inputs, outputs, version, lock_time,
-                            )
-                            .or(TronWallet::to_raw_transaction::<TronTestnet>(
-                                inputs, outputs, version, lock_time,
-                            ))?]
-                        } else if let (Some(transaction_hex), Some(transaction_inputs)) =
-                            (options.transaction_hex.clone(), options.transaction_inputs.clone())
-                        {
-                            let inputs: &Vec<TronInput> = &from_str(&transaction_inputs)?;
-
-                            vec![
-                                TronWallet::to_signed_transaction::<TronMainnet>(&transaction_hex, inputs).or(
-                                    TronWallet::to_signed_transaction::<TronTestnet>(&transaction_hex, inputs),
-                                )?,
-                            ]
-                        } else {
-                            vec![]
-                        }
-                    }
-                    _ => (0..options.count)
-                        .flat_map(
-                            |_| match TronWallet::new::<N, _>(&mut StdRng::from_entropy(), &options.format) {
+                        process_mnemonic::<N, ChineseSimplified>(&mnemonic, &options)
+                            .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, English>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, French>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Italian>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Japanese>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Korean>(&mnemonic, &options))
+                            .or(process_mnemonic::<N, Spanish>(&mnemonic, &options))?
+                    } else if let Some(extended_private_key) = options.extended_private_key.clone() {
+                        // Generate the extended private keys, from `index` to a number of specified `indices`
+                        options.to_derivation_paths(true).iter().flat_map(|path| {
+                            match TronWallet::from_extended_private_key::<N>(&extended_private_key, path) {
                                 Ok(wallet) => vec![wallet],
                                 _ => vec![],
-                            },
-                        )
-                        .collect(),
-                };
+                            }
+                        })
+                        .collect::<Vec<TronWallet>>()
+                    } else if let Some(extended_public_key) = options.extended_public_key.clone() {
+                        // Generate the extended public keys, from `index` to a number of specified `indices`
+                        options.to_derivation_paths(true).iter().flat_map(|path| {
+                            match TronWallet::from_extended_public_key::<N>(&extended_public_key, path) {
+                                Ok(wallet) => vec![wallet],
+                                _ => vec![],
+                            }
+                        })
+                        .collect::<Vec<TronWallet>>()
+                    } else {
+                        vec![]
+                    }
+                }
+                Some("transaction") => {
+                    if let Some(transaction_parameters) = options.transaction_parameters.clone() {
+                        let parameters: TronInput = from_str(&transaction_parameters)?;
+
+                        // Note: Raw Tron transactions are network agnostic
+                        vec![TronWallet::to_raw_transaction::<TronMainnet>(parameters)?]
+                    } else if let (Some(transaction_hex), Some(transaction_private_key)) =
+                        (options.transaction_hex.clone(), options.transaction_private_key.clone())
+                    {
+                        match options.network.as_ref().map(String::as_str) {
+                            Some(TronMainnet::NAME) => vec![TronWallet::to_signed_transaction::<
+                                TronMainnet,
+                            >(
+                                transaction_hex, transaction_private_key
+                            )?],
+                            Some(Goerli::NAME) => vec![TronWallet::to_signed_transaction::<Goerli>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            Some(Kovan::NAME) => vec![TronWallet::to_signed_transaction::<Kovan>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            Some(Rinkeby::NAME) => vec![TronWallet::to_signed_transaction::<Rinkeby>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            Some(Ropsten::NAME) => vec![TronWallet::to_signed_transaction::<Ropsten>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                            _ => vec![TronWallet::to_signed_transaction::<TronMainnet>(
+                                transaction_hex,
+                                transaction_private_key,
+                            )?],
+                        }
+                    } else {
+                        vec![]
+                    }
+                }
+                _ => (0..options.count)
+                    .flat_map(|_| match TronWallet::new::<_>(&mut StdRng::from_entropy()) {
+                        Ok(wallet) => vec![wallet],
+                        _ => vec![],
+                    })
+                    .collect(),
+            };
 
             match options.json {
                 true => println!("{}\n", serde_json::to_string_pretty(&wallets)?),
@@ -897,42 +777,15 @@ impl CLI for TronCLI {
         }
 
         match options.language.as_str() {
-            "chinese_simplified" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, ChineseSimplified>(options),
-                _ => output::<TronMainnet, ChineseSimplified>(options),
-            },
-            "chinese_traditional" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, ChineseTraditional>(options),
-                _ => output::<TronMainnet, ChineseTraditional>(options),
-            },
-            "english" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, English>(options),
-                _ => output::<TronMainnet, English>(options),
-            },
-            "french" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, French>(options),
-                _ => output::<TronMainnet, French>(options),
-            },
-            "italian" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, Italian>(options),
-                _ => output::<TronMainnet, Italian>(options),
-            },
-            "japanese" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, Japanese>(options),
-                _ => output::<TronMainnet, Japanese>(options),
-            },
-            "korean" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, Korean>(options),
-                _ => output::<TronMainnet, Korean>(options),
-            },
-            "spanish" => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, Spanish>(options),
-                _ => output::<TronMainnet, Spanish>(options),
-            },
-            _ => match options.network.as_str() {
-                "testnet" => output::<TronTestnet, English>(options),
-                _ => output::<TronMainnet, English>(options),
-            },
+            "chinese_simplified" => output::<TronMainnet, ChineseSimplified>(options),
+            "chinese_traditional" => output::<TronMainnet, ChineseTraditional>(options),
+            "english" => output::<TronMainnet, English>(options),
+            "french" => output::<TronMainnet, French>(options),
+            "italian" => output::<TronMainnet, Italian>(options),
+            "japanese" => output::<TronMainnet, Japanese>(options),
+            "korean" => output::<TronMainnet, Korean>(options),
+            "spanish" => output::<TronMainnet, Spanish>(options),
+            _ => output::<TronMainnet, English>(options),
         }
     }
 }

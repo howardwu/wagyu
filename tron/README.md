@@ -1,6 +1,6 @@
-# wagyu-tron
+# wagyu-ethereum
 
-[![Crates.io](https://img.shields.io/crates/v/wagyu-tron.svg?color=neon)](https://crates.io/crates/wagyu-tron)
+[![Crates.io](https://img.shields.io/crates/v/wagyu-ethereum.svg?color=neon)](https://crates.io/crates/wagyu-ethereum)
 [![Authors](https://img.shields.io/badge/authors-Aleo-orange.svg)](../AUTHORS)
 [![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
 

@@ -1,13 +1,8 @@
 //! # Tron
 //!
 //! A library for generating Tron wallets.
-
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(unused_extern_crates, dead_code)]
+#![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
-
-#[macro_use]
-extern crate failure;
 
 pub mod address;
 pub use self::address::*;
@@ -41,8 +36,6 @@ pub use self::public_key::*;
 
 pub mod transaction;
 pub use self::transaction::*;
-
-mod witness_program;
 
 pub mod wordlist;
 pub use self::wordlist::*;

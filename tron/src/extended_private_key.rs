@@ -12,18 +12,16 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
-use core::{convert::TryFrom, fmt, fmt::Display, str::FromStr};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, SecretKey};
 use sha2::Sha512;
+use std::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
-/// Represents a Tron extended private key
+/// Represents a Tron Extended Private Key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TronExtendedPrivateKey<N: TronNetwork> {
-    /// The address format
-    pub(super) format: TronFormat,
+pub struct TronExtendedPrivateKey<N> {
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub(super) depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -33,39 +31,41 @@ pub struct TronExtendedPrivateKey<N: TronNetwork> {
     /// The chain code for this extended private key
     pub(super) chain_code: [u8; 32],
     /// The Tron private key
-    private_key: TronPrivateKey<N>,
+    private_key: TronPrivateKey,
+    /// PhantomData
+    _network: PhantomData<N>,
 }
 
 impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
-    type Address = TronAddress<N>;
+    type Address = TronAddress;
     type DerivationPath = TronDerivationPath<N>;
     type ExtendedPublicKey = TronExtendedPublicKey<N>;
     type Format = TronFormat;
-    type PrivateKey = TronPrivateKey<N>;
-    type PublicKey = TronPublicKey<N>;
+    type PrivateKey = TronPrivateKey;
+    type PublicKey = TronPublicKey;
 
     /// Returns a new Tron extended private key.
-    fn new(seed: &[u8], format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
-        Ok(Self::new_master(seed, format)?.derive(path)?)
+    fn new(seed: &[u8], _format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {
+        Ok(Self::new_master(seed, _format)?.derive(path)?)
     }
 
     /// Returns a new Tron extended private key.
-    fn new_master(seed: &[u8], format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
-        let mut mac = HmacSha512::new_varkey(b"Tron seed")?;
+    fn new_master(seed: &[u8], _format: &Self::Format) -> Result<Self, ExtendedPrivateKeyError> {
+        let mut mac = HmacSha512::new_varkey(b"Bitcoin seed")?; // This is correct. Tron uses BIP32.
         mac.input(seed);
         let hmac = mac.result().code();
-        let private_key = Self::PrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&hmac[0..32])?, false);
+        let private_key = Self::PrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&hmac[0..32])?);
 
         let mut chain_code = [0u8; 32];
         chain_code[0..32].copy_from_slice(&hmac[32..]);
 
         Ok(Self {
-            format: format.clone(),
             depth: 0,
             parent_fingerprint: [0u8; 4],
             child_index: ChildIndex::Normal(0),
             chain_code,
             private_key,
+            _network: PhantomData,
         })
     }
 
@@ -80,8 +80,7 @@ impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
         for index in path.to_vec()?.into_iter() {
             let public_key = &PublicKey::from_secret_key(
                 &extended_private_key.private_key.to_secp256k1_secret_key(),
-            )
-            .serialize_compressed()[..];
+            ).serialize_compressed();
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {
@@ -100,7 +99,7 @@ impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
 
             let mut secret_key = SecretKey::parse_slice(&hmac[0..32])?;
             secret_key.tweak_add_assign(&extended_private_key.private_key.to_secp256k1_secret_key())?;
-            let private_key = Self::PrivateKey::from_secp256k1_secret_key(&secret_key, false);
+            let private_key = Self::PrivateKey::from_secp256k1_secret_key(&secret_key);
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -108,18 +107,13 @@ impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
             let mut parent_fingerprint = [0u8; 4];
             parent_fingerprint.copy_from_slice(&hash160(public_key)[0..4]);
 
-            let format = match path {
-                TronDerivationPath::BIP49(_) => TronFormat::P2SH_P2WPKH,
-                _ => extended_private_key.format.clone(),
-            };
-
             extended_private_key = Self {
-                format,
                 depth: extended_private_key.depth + 1,
                 parent_fingerprint,
                 child_index: index,
                 chain_code,
                 private_key,
+                _network: PhantomData,
             }
         }
 
@@ -142,15 +136,8 @@ impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
     }
 
     /// Returns the address of the corresponding extended private key.
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        self.private_key.to_address(format)
-    }
-}
-
-impl<N: TronNetwork> TronExtendedPrivateKey<N> {
-    /// Returns the format of the Tron extended private key.
-    pub fn format(&self) -> TronFormat {
-        self.format.clone()
+    fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
+        self.private_key.to_address(_format)
     }
 }
 
@@ -163,11 +150,12 @@ impl<N: TronNetwork> FromStr for TronExtendedPrivateKey<N> {
             return Err(ExtendedPrivateKeyError::InvalidByteLength(data.len()));
         }
 
-        // Check that the version bytes correspond with the correct network.
-        let _ = N::from_extended_private_key_version_bytes(&data[0..4])?;
-        let format = TronFormat::from_extended_private_key_version_bytes(&data[0..4])?;
+        // Tron xkeys are mainnet only
+        if &data[0..4] != [0x04u8, 0x88, 0xAD, 0xE4] {
+            return Err(ExtendedPrivateKeyError::InvalidVersionBytes(data[0..4].to_vec()));
+        };
 
-        let depth = data[4];
+        let depth = data[4] as u8;
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
@@ -177,7 +165,7 @@ impl<N: TronNetwork> FromStr for TronExtendedPrivateKey<N> {
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(&data[13..45]);
 
-        let private_key = TronPrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&data[46..78])?, false);
+        let private_key = TronPrivateKey::from_secp256k1_secret_key(&SecretKey::parse_slice(&data[46..78])?);
 
         let expected = &data[78..82];
         let checksum = &checksum(&data[0..78])[0..4];
@@ -188,26 +176,23 @@ impl<N: TronNetwork> FromStr for TronExtendedPrivateKey<N> {
         }
 
         Ok(Self {
-            format,
             depth,
             parent_fingerprint,
             child_index,
             chain_code,
             private_key,
+            _network: PhantomData,
         })
     }
 }
 
 impl<N: TronNetwork> Display for TronExtendedPrivateKey<N> {
-    /// BIP32 serialization format
-    /// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#serialization-format
+    /// BIP32 serialization format:
+    /// https://github.com/ethereum/bips/blob/master/bip-0032.mediawiki#serialization-format
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
-        result[0..4].copy_from_slice(match &N::to_extended_private_key_version_bytes(&self.format) {
-            Ok(version) => version,
-            Err(_) => return Err(fmt::Error),
-        });
-        result[4] = self.depth;
+        result[0..4].copy_from_slice(&[0x04, 0x88, 0xAD, 0xE4][..]);
+        result[4] = self.depth as u8;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
         result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);
@@ -226,8 +211,9 @@ mod tests {
     use super::*;
     use crate::network::*;
 
-    use core::convert::TryInto;
     use hex;
+    use std::convert::TryInto;
+    use std::string::String;
 
     fn test_new<N: TronNetwork>(
         expected_extended_private_key: &str,
@@ -236,11 +222,10 @@ mod tests {
         expected_chain_code: &str,
         expected_secret_key: &str,
         seed: &str,
-        format: &TronFormat,
         path: &TronDerivationPath<N>,
     ) {
         let extended_private_key =
-            TronExtendedPrivateKey::<N>::new(&hex::decode(seed).unwrap(), format, path).unwrap();
+            TronExtendedPrivateKey::new(&hex::decode(seed).unwrap(), &TronFormat::Standard, path).unwrap();
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
         assert_eq!(
             expected_parent_fingerprint,
@@ -291,11 +276,10 @@ mod tests {
     fn test_to_extended_public_key<N: TronNetwork>(
         expected_extended_public_key: &str,
         seed: &str,
-        format: &TronFormat,
         path: &TronDerivationPath<N>,
     ) {
         let extended_private_key =
-            TronExtendedPrivateKey::<N>::new(&hex::decode(seed).unwrap(), format, path).unwrap();
+            TronExtendedPrivateKey::<N>::new(&hex::decode(seed).unwrap(), &TronFormat::Standard, path).unwrap();
         let extended_public_key = extended_private_key.to_extended_public_key();
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
     }
@@ -326,15 +310,13 @@ mod tests {
         assert_eq!(expected_extended_private_key, extended_private_key.to_string());
     }
 
-    mod p2pkh_mainnet {
+    mod bip32_mainnet {
         use super::*;
 
         type N = Mainnet;
 
         // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
-        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 26] = [
-
-            // BIP32 Derivation Paths
+        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 18] = [
             (
                 "m",
                 "000102030405060708090a0b0c0d0e0f",
@@ -456,153 +438,72 @@ mod tests {
                 "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
             ),
 
-            // BIP 44 Derivation Paths
+            // Tron Derivation Paths
             (
-                "m/44'/0'/0'/0",
+                "m/44'/60'/0'/0",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
                 "0",
-                "4338d5f49fecfe380b9e60e032b7da0845e7f9d441ac78bd58ab1af423187d7d",
-                "c2c14ca7969bfea1753c39eb5238cb948dc3202478b414e0e924e7a21f4fe654",
-                "929c7e3c",
-                "xprvA1d47WXmiQZzV33ywwsbBhbtLg7f9XzMv6xdEbP6yJSxw38RhQzarwW3GDKvYnfvY67fWjEsF5ySDnXZ9sVwsw9A7sYE1gTBKkTkhxM3Foz",
-                "xpub6EcQX24fYn8HhX8T3yQbYqYcthx9YziDHKtE2yniXdywoqTaExJqQjpX7WwBmeVH2D3U8CXiADcvBHSCQ3UKNUxh2w8pZFNAnjEFD89Qh1x"
+                "39095b7dddd80c60473297772536fa1350d3ecf8d0bced02ff601c0c428af1e3",
+                "2276cdb0e042e524e767a875544c3f92fbea560d9d77447de54c9b4afabedfdb",
+                "997d7b25",
+                "xprvA1fzCYJXXiAYQ5epqaDqgkPGeTUkwHRuzqGVWKZEtBSSEXKu91wrPhfihHJRHQtXXcRfLbMitd64PJeiL7upKh81RoSxHmNXLgQanCtbTK2",
+                "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
             ),
+            // Ledger Live Derivation Paths
             (
-                "m/44'/0'/0'/0/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "0075bcd6a7c659d8336141ad6a3103a34a9a3a5a6dfdcab7df9670646f0b6761",
-                "c96ae85842d7d557c15a09e19286475ede2b895b91a277a4c624a974b0a3811d",
-                "09d96c42",
-                "xprvA2VtPkeWPbFDHmZhGCEcFMX65Xmrp1iSA3zWbqXKDfJnBHzqZHdBbDeJQdt6KVYTftnXVWTaDS1b59etrug5kJRLFQjtKyzvKaCyti9gkU3",
-                "xpub6FVEoGBQDxoWWFeANDmccVTpdZcMDUSHXGv7QDvvmzqm46Kz6pwS91xnFwNnL8T9c7nLCH54EQ13ADTwjGuNDCFVsRmSWKCgcejAQES4Eyu"
-            ),
-            (
-                "m/44'/0'/0'/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "f29d6ddd6b0cd1fd59ed99900edd5a53e905b87dfe06824751010feb5228d960",
-                "0674ec59dbc724f29fea71d771b62aba454732067055e3d29fe640c3c4cef2a4",
-                "929c7e3c",
-                "xprvA1d47WXmiQZzVi9TCYLCjYPsi5t1iTdFqsxh1BRjQM773CPwhnwEruxGViVVXqPcyP3NYQroJjHNjUG1WFKgDPNB97F5SFUtKpECsNSskGZ",
-                "xpub6EcQX24fYn8HiCDvJZsD6gLcG7iW7vM7D6tHoZqLxge5uzj6FLFVQiGkLyZbHbQE7otB7LfSYsbJnNbxyjGnr1ubGC2XfTXXwH86Nf6p5DF"
-            ),
-            (
-                "m/44'/0'/0'/1/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "41429c1338d0b8b0a3ef984f02b9e0f05100e45f4c639937191e400345402764",
-                "e35471cdbd74303352b18df7efbfc0144da3cb416f8cc15ea90ca18357e89607",
-                "411064ed",
-                "xprvA2uRdfuKqiFoqcU4BrnVttrwRbg4mJCBgwAuGqNh8rAZB2uge9sNUh9UQtQ1Xfjsys6V38yfn3PcNvupTm6kpDBscEAfVTMWCQeMdQxUgTD",
-                "xpub6Ftn3BSDg5p746YXHtKWG2ofydWZAkv34A6W5DnJhBhY3qEqBhBd2VTxGArPq7BjJRjKmvWHN8chjNLchv3xFh5Xc7Vut8DNvXPvErVtMzE"
-            ),
-            (
-                "m/44'/0'/1'/0",
+                "m/44'/60'/0'/0/0",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
                 "0",
-                "95ee1cfd2375843a1f4e59af8e6ca43c179bf19779b188031ccc9285dbea8073",
-                "2f87b7dcaa60ad05af4f207f1e5c336b0727eaf5bbe80aa555e5e725d58b45fa",
-                "67384ff6",
-                "xprvA1JZDdbTugxrS1djWVMi4PBwuj3ZQpbBU8svUHAJvXmpPhBiEPmdpbZ5gqP6R6ZPKT6oLa7g63NzLHZPPvxbNuL9fp3Cb4dVgrWPpKnSpYi",
-                "xpub6EHud98Mk4X9eViCcWtiRX8gTkt3pHK2qMoXGfZvUsJoGVWrmw5tNPsZY89jdJxruFzNAx21AHDXNBKZq26rvTadEUJzr3N681oCMdPvCti"
-            ),
-            (
-                "m/44'/0'/1'/0/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "dec327ab861f7b4da1ea67b45516f0b6d71b93ba4f3de22dd2b1e12203ca1f02",
-                "976331516208a95719780daaaaaff9dbd22665cf17370009abbbb4855569cf89",
-                "c014feb5",
-                "xprvA3qaHECwxhyhico68CLW3Ea3AYqySdqMF3VpkD4u3myo5PFM1CbX4cgLW854YRu6caycEjFiiBWDzxYBq4hhWRMCf73JTMRPCCPzHFRAfRv",
-                "xpub6Gpvgjjqo5Xzw6sZEDsWQNWmiagTr6ZCcGRRYbUWc7WmxBaVYjumcQzpMNPYRnRq3amgFU4wBLmEgc2Q4RMSuVsTcDTsYTM9sS531imfqu9"
-            ),
-            (
-                "m/44'/0'/1'/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "b86188deda09b95d38290624b326f36e233ad87c7b74fdabaa0078f5187b0838",
-                "6ebc69c29028acba7b300da6f21f3482bb99cb13948f4d95e63e18478135e55f",
-                "67384ff6",
-                "xprvA1JZDdbTugxrVBxbzConV3CE4EhxEtr2j5fxeZwCSuWTZu9zwYmJpUyccKVpN1M3RjozbZugobPpECXN1vFcZPh6T5X4545Z6PaaaVqzxhw",
-                "xpub6EHud98Mk4X9hg356ELnrB8xcGYSeMZt6JbZSxLp1F3SShV9V65ZNHJ6TbPy5otasZ7HTgTC4CL27FEB4qMiuTfqTFwuHTNHZubbseiZ7eG"
-            ),
-            (
-                "m/44'/0'/1'/1/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "398ade967bd6c3e7131647a5f819746624e419eae739d757bde2506fc0aec8bf",
-                "19debf400dd10bfe2b72813a7e21cde2dba9f9830c5b5264d4f6c11f52814086",
-                "b4a881d9",
-                "xprvA3khpHeVPioNS7K9GYyRATZjy5fUuGC6kfC8hqafn5dt6AGttDjMdXDmGZJxqaqGRJEfSwgDKh4cLengDF5jhVdsutdK8p4skfYjjgFVJKs",
-                "xpub6Gk4DoBPE6MfebPcNaWRXbWUX7VyJiux7t7jWDzHLRArxxc3Rm3cBKYF7qJdsM25tGn757PavnGhAiQxToSzDxx7eGukDY5WQEhAL7fb3Ar"
+                "f62a8ea4ab7025d151ccd84981c66278d0d3cd58ff837467cdc51229915a22d1",
+                "ab62505ed816d7e57fd23580f87688abf2e419ef788baf079b6e862eee6f0a79",
+                "1c7a091b",
+                "xprvA2dpyTTnuc4DpVWb1cGwu7ibggAxLHn8wRHDdwXsBGGdSUpq1VXt5wegJ7aL9VpX7QjYWocZTomGQ4Zh1woawPJDtFzFdqDr86jbRasrVHE",
+                "xpub6FdBNxzgjycX2yb47doxGFfLEi1SjkVzJeCpSKwUjbocKH9yZ2r8djyA9Md5oDG846jjJGBGE5hBuxtyWdHHoLWcZUrBq2RCLTUKxusyGvX"
             ),
 
-            // Tron Core Derivation Paths
+            // Ledger Legacy Derivation Paths
             (
-                "m/0'/0'",
+                "m/44'/60'/0'",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
                 "2147483648",
-                "f0ba40d643ad82ccf5b6228cd0b723144d6a2b6af3daec5c57631f54b4619e77",
-                "7db48bfda81e8d1c18aa9f8649dea892c8abea84d54d0c0e895857c16fc585df",
-                "2b889e8f",
-                "xprv9w6qhRqTDF9JBxEwxukUTL6Yi24XZ5sYyGZAoR3LtzT9BBrnz72HibYxcQnQMCEEyGMLDSubfSCufC8H5sFCzofrkGa4GhskZrYxW6anz1P",
-                "xpub6A6C6wNM3chbQSKR4wHUpU3HG3u1xYbQLVUmboSxTKz83zBwXeLYGPsSTgBXeXE3Lkaf5M9oCPKwg3WxJZHqA35R7WVYkZyAUYq4xJNq5fy"
+                "2d103433c67eaf9a829f76090ab3e867e74247a7433346963815db6ae1577a78",
+                "6d20171efe0658e3d4c948b0224cba50a0122358562f166b43b57cae25c41fcb",
+                "68bd693b",
+                "xprv9yS4waAqz3vsbKmE4J2GAfbtm8uLqPvcdbnbFGd77e4zCFYriZLzZ76fhyq97qsgegXX9eFJdAGA8VQhrQrnDhu1ZXX73YESwHpqdTFuiEB",
+                "xpub6CRRM5hjpRVAooqhAKZGXoYdKAjqEreTzpiC3f2ifyby53t1G6fF6uR9ZFgYC8Ccwi7AbBLNKGP5oTYvNCcpuAcnUifyNZaj7yK32nXSyYL"
             ),
             (
-                "m/0'/0'/0'",
+                "m/44'/60'/0'/0",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "2147483648",
-                "b33f5ac29e0b36a65ed527e8f7d394a33a6767031e68afe6df8f366c09547e30",
-                "3601dd1853197d38d4f9d4f8b5cbbc4d2062768dc6279c68b2bd085345ca71f2",
-                "2e494d03",
-                "xprv9y19cq5eXQFfNDsNmLKiYMxPPN4odkFfRmL1RqJEheTMtHFVY8vm1xWYkCN6Zznp13m34qxbc9S2LXhd56Vk1P3qnURBmTg4B2dpkMs9Gzv",
-                "xpub6BzW2LcYMmoxahwqsMriuVu7wPuJ3CyWnzFcEDhrFyzLm5ae5gF1Zkq2bSR4U1S6psBQzosfXAFqSb9YzHvd6LVAe7fHgtkjPKM8wPBhyRk"
+                "0",
+                "39095b7dddd80c60473297772536fa1350d3ecf8d0bced02ff601c0c428af1e3",
+                "2276cdb0e042e524e767a875544c3f92fbea560d9d77447de54c9b4afabedfdb",
+                "997d7b25",
+                "xprvA1fzCYJXXiAYQ5epqaDqgkPGeTUkwHRuzqGVWKZEtBSSEXKu91wrPhfihHJRHQtXXcRfLbMitd64PJeiL7upKh81RoSxHmNXLgQanCtbTK2",
+                "xpub6EfLc3qRN5iqcZjHwbkr3tL1CVKFLk9mN4C6JhxrSWyR7Kf3gZG6wVzCYawvTrB4bgDzLPHm8T7ayKny1xJ8C4FVgP8zS3shyHzQ5QB36GJ"
             ),
 
-            // Multibit Derivation Paths
+            // KeepKey Derivation Paths
             (
-                "m/0'/0",
+                "m/44'/60'",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "0",
-                "74d29dfbbc821a973c87ec53ff446369cb4639ad6a4c74e08ec771d052c56ccf",
-                "402baa6c2837a364e0ee384afd99a339a9f01b68c42eba5fd840a7475392e87b",
-                "2b889e8f",
-                "xprv9w6qhRqJsacL14RFPYGwMtGPnCrRaRdW97quivF9gFzy2Gzu4zxrwr65KRUzBDGmbLr61jnAQkvrz4wu7UApPPTSZfq7NZUndMPWrJ5LRty",
-                "xpub6A6C6wNChxAdDYViVZowj2D8LEguytMMWLmWXJemEbXwu5L3cYH7VeQZAgSWtrGQ783strAoBQrSTpfUxnf2QaSC9ExhuXDEooZGKWrUkey"
+                "2147483708",
+                "c00ba4d8319dd38c07884f18cc9811f537dc6130f3003aed4d0be8b7c7d8289f",
+                "b1d4797738fd5a81f38a79c33dc6d03ebee13cfdfd42cd1f0dbe24c3051ab70d",
+                "754aeee2",
+                "xprv9weHTtsPstnRCTvCNduPo9AZRGJX27e65kNZVzX18XafdqJQ2HKfYnYkS2xQh9MWRnhsNGfR1WdrHK16c3So8WqXeGKi43CD8QbqdBr8J6i",
+                "xpub6AddsQQHiGLiQwzfUfSQAH7HyJ91RaMwSyJAJNvcgs7eWddYZpdv6asEHH2eWBFQCaZ5K8ddKpKxpedZ1AXwaTDcNpW5ToKo6NiWxf8GCuh"
             ),
             (
-                "m/0'/0/0",
+                "m/44'/60'/0",
                 "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
                 "0",
-                "05b232fd66616e350c2db176aa650f3f642df22e0efb7831d5c3ee5206639cdb",
-                "fd9a583afe8f38d077335f4bdf96146070782581aa174bf2ade5a7009e6247f6",
-                "c677886d",
-                "xprv9z82SKRcnNidyodMRmo4T96QD481VWNAxK7LgJghFdgDvsc95AuBFbjUuqhzkynYgx2ay1VN5J6yAUwpCPo4L9pjUoX1HwNx9xBFKR4y8yv",
-                "xpub6D7NqpxWckGwCHhpXoL4pH38m5xVty62KY2wUh6JoyDCofwHciDRoQ3xm7WAg2ffpHaC6X4bEociYq81niyNUGhCxEs6fDFAd1LPbEmzcAm"
+                "e99402522166f472ab14fd43b5aa95aa0c646b38959b0fc8424d1edb7ba7c440",
+                "7725e5d1302ad41a5e865deb7ed7178518085754b2a196c03f731db99ed11e65",
+                "68bd693b",
+                "xprv9yS4waAhePPuR9G8db9MA5Nz67JXcybm7CB5wVsiXtAnfQj895J2xrKiGRE6hgkAUVedGEJ3eJT4MhkUJaZD5p4j3t2Rn4LGiPsNqtPUeow",
+                "xpub6CRRM5hbUkxCddLbjcgMXDKie9922SKcUR6gjtHL6DhmYD4GgccHWeeC7huUgFoagyzVxa2qu7cdrpnQx6KDxqxsvXtBRA8z3xptPur93bf"
             ),
-
-            // Block Explorer Derivation Paths (example: blockchain.info)
-            (
-                "m/44'/0'/0'",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "2147483648",
-                "47beaf6a6be527c151297bba99b3da1cd02fa88f6278d550cd5a282123283c9f",
-                "d4297bd8126147c4da781f78af3d5e92992fb799a0fa73cb254bfc5b4358167d",
-                "88d9ebc3",
-                "xprv9yfkvkuXqXhVbpVNpCoEPUUxZfKPC51DPDMYEWmmbYChi8ovEmcwnVQpFAjgXXjuoRkCDy3iJkyndER6XrLWCf7v2BcsoVdbuNER96UuU5H",
-                "xpub6Cf7LGSRfuFnpJZqvELEkcRh7h9sbXj4kSH92uBP9sjgaw94nJwCLHjJ6SnnqpLtYmdencmUKm91AMWWZAqEPYUKVvWso4M572aRrm7NGxV"
-            ),
-            (
-                "m/44'/0'/0'/0",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "0",
-                "4338d5f49fecfe380b9e60e032b7da0845e7f9d441ac78bd58ab1af423187d7d",
-                "c2c14ca7969bfea1753c39eb5238cb948dc3202478b414e0e924e7a21f4fe654",
-                "929c7e3c",
-                "xprvA1d47WXmiQZzV33ywwsbBhbtLg7f9XzMv6xdEbP6yJSxw38RhQzarwW3GDKvYnfvY67fWjEsF5ySDnXZ9sVwsw9A7sYE1gTBKkTkhxM3Foz",
-                "xpub6EcQX24fYn8HhX8T3yQbYqYcthx9YziDHKtE2yniXdywoqTaExJqQjpX7WwBmeVH2D3U8CXiADcvBHSCQ3UKNUxh2w8pZFNAnjEFD89Qh1x"
-            )
         ];
 
         #[test]
@@ -616,7 +517,6 @@ mod tests {
                         chain_code,
                         secret_key,
                         seed,
-                        &TronFormat::P2PKH,
                         &TronDerivationPath::from_str(path).unwrap(),
                     );
                 },
@@ -644,7 +544,6 @@ mod tests {
                     test_to_extended_public_key::<N>(
                         expected_public_key,
                         seed,
-                        &TronFormat::P2PKH,
                         &TronDerivationPath::from_str(path).unwrap(),
                     );
                 });
@@ -673,162 +572,24 @@ mod tests {
         }
     }
 
-    mod p2sh_p2wpkh_mainnet {
+    mod bip44 {
         use super::*;
 
-        type N = Mainnet;
-
-        // (path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, extended_public_key)
-        const KEYPAIRS: [(&str, &str, &str, &str, &str, &str, &str, &str); 8] = [
-
-            // BIP49 Derivation Paths
-            (
-                "m/49'/0'/0'/0",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "0",
-                "00488e6935838afba847d9c12ed643fce921c87454418c2c5e4ac82bdf9ff351",
-                "6ce0dcd808c9ce2ac36191162f5b68b6b9c1319c9a7f2a55b8438b24ea061e91",
-                "ed088f15",
-                "yprvAM7sCKyfKPFyPT1kyKsHWEoWqJPKTAwgyRrVZLe3RaX6dd5EK1NE87WYsi3yGisqGsJoQ21v7WUercQsUdST2HeV91poWQY5mGrk4yWnuy5",
-                "ypub6a7DbqWZ9kpGbw6E5MQHsNkFPLDordfYLen6Mj3eyv45WRQNrYgUfuq2izWkWnBbFsv7vHcPbs2gzJwEYqRobMGiJVFqSAm9w8jiKXYNV92"
-            ),
-            (
-                "m/49'/0'/0'/0/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "128316419b0dcca64fa60960a8fcd633539bc18322636e03d1e5c3c576135d22",
-                "b3bc049be87695ae3bd66e12ab37bc629a3f7d8c59c4b1fb69250f9dd0f60b22",
-                "226587c8",
-                "yprvAMWceuThEayAsqgfGZcWQHBPMobihTywY7GTXtFikg64qqjqC5xxMuSz6jdFpo5ArMjRMui5fMX9E9GToPXJqg8bMpZzyPzbm9fJxUYPVu5",
-                "ypub6aVy4Qzb4xXU6Km8Nb9WmR87uqSD6vhnuLC4LGfLK1d3ie4yjdHCuhmTx2RPAJwrZaAXpqhDWJ3pM5VmjzvTcJNAqNHfvxVcaXT3h1VXR5b"
-            ),
-            (
-                "m/49'/0'/0'/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "b962720ba4e38e3cea5b7c5e4582bde83641cf2a153e60ae8fd4bb7711645aa5",
-                "d532957b2cfb9d5d640494d17f216011f35e1fc0a6b574e16d222075d86ec2c1",
-                "ed088f15",
-                "yprvAM7sCKyfKPFyT35btaVetbAMNSxBAiX9QAqPQQPytDwVD3ddBsxMbUf9MzVUfJMzFsPaTes5qYe8cp9pGXfZycs5dp8frX6NC3HYnXHnKun",
-                "ypub6a7DbqWZ9kpGfXA4zc2fFj75vUnfaBEzmPkzCnobSZUU5qxmjRGc9GydDFP8kUUddcazkH5nrPi4nT3QbQ4SQTj2jEsnZ2EXFsB7qvoxExH"
-            ),
-            (
-                "m/49'/0'/0'/1/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "9db56d12672cd6adcabc637dcc23ce19813b28c8812226153f3bae1c72d62877",
-                "b149f3908b23ec6af124c9237d902a0e83e44d10a9043950785ae7129e70a57b",
-                "854920fd",
-                "yprvANEmnYaG6PyXCHrLbJ9vDpjQpc145pqmH9H2biR7B5xDgVoRTKMUjXhGQPbPcDUo7TuY6VryGxpe9YwB3JM8MaK4P1MtEkctwxZahrSkTjt",
-                "ypub6bE8C479vmXpQmvohKgvaxg9NdqYVHZceNCdQ6pijRVCZJ8ZzrfjHL1kFfPNPdDj9Xmd2ntEXqJ3UsmWd74NQt2kpAzTpTWjH4HrCcb4kbD"
-            ),
-            (
-                "m/49'/0'/1'/0",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "0",
-                "1c8b1cb1af5d7ec0f7c5bff350bbad9c62d81751b50a434941001ef50c422edd",
-                "7f8790af54660ad2c31a0d4854f462e74c56eabf89c23c015daf2557dd22c805",
-                "c4bd345b",
-                "yprvALpgsrPPYqg9VeEVcvVnzjTvBRGJk1FPAZh4rMcBpKAHNavJJKzJPeQMbYpWHgR54DQUiQ6MaVKXxELVQXcHpM2QyajifGoGyxaJCEXKUU1",
-                "ypub6Zp3HMvHPDESi8Jxix2oMsQejT6o9TyEXncfek1oNehGFPFSqsJYwSiqSpT65DYQyqDUUsrLg2saWwcMkdNGdVGt67gCv7ycXfvw3RUCWJc"
-            ),
-            (
-                "m/49'/0'/1'/0/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "078e5b6108f5171b9514bbe42b371fcae78332de86d6a8c377fc350c6761f649",
-                "4926d4cf1f0e246e5e84b51a564889350c8ce9d0f9357f5e925a89ced2b384d1",
-                "0bffe647",
-                "yprvAMM4sBZ5DwaqiWMcdoxmMS736ixPeDPeUdzusQkPFXcYJtsLSpNmuwaXibu3pRfYaTDZ9o6Pv8wWacVBLPNGyp9XPF9ETX7cc4KjMdZmBBw",
-                "ypub6aLRGh5y4K98vzS5jqVmia3meknt3g7VqrvWfo9zos9XBhCUzMh2Tju1ZtkQRMpHi42tDYXUvJR46exugN8Gz1kxu3zpuckVR444tE6t89L"
-            ),
-            (
-                "m/49'/0'/1'/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "d2d6415f3a8533dbf3c2a930553bafb97c0c21782f65fa218ccc46a8cde16aa1",
-                "97acdd147742d49c9bbe2ed118152f1501c0159009450bc16f7c2cacef085e97",
-                "c4bd345b",
-                "yprvALpgsrPPYqg9YS1AATRMs4e8p5KDoGTdsB3PRcebfgFmc8idEFDwoGUzcqEgBtoB1TeLzWKN9y8wpb8so57f2uq1QvuXoqZHiNGKY7CKJWH",
-                "ypub6Zp3HMvHPDESkv5dGUxNECasN79iCjBVEPxzE14DE1nkUw3mmnYCM4oUU88wfKVginVPsPax4MZxuEmgxAwcH48PKLUxqGh2ZBaFgPQWczF"
-            ),
-            (
-                "m/49'/0'/1'/1/1",
-                "747f302d9c916698912d5f70be53a6cf53bc495803a5523d3a7c3afa2afba94ec3803f838b3e1929ab5481f9da35441372283690fdcf27372c38f40ba134fe03",
-                "1",
-                "7cee168da33dad928d22d0d629d88c74d20ea02b5d1ae742d97e98e9f6b9a2a3",
-                "d9ccf85ebdf4308622b63da49d3017f0fcb1e7c5c32d46c998291a5a5a082368",
-                "e1a183e9",
-                "yprvANv97foamnucG4mLwkifvFmEez9XDYfmFH3tUWh4U16Qsau6KmwZ7iRyu4byPtYTFfeFv9i3hK472wkNH8ZK2667RoR9mEyNCK1HimnKv9h",
-                "ypub6buVXBLUcATuUYqp3nFgHPhyD1z1d1PccVyVGu6g2LdPkPEEsKFofWkTkLM4YeWoQDwEfsezCmjJbqjr6Tajv7Q8ktnHFkE3FiaS7fUFyYh"
-            ),
-        ];
-
+        /// Test case from ethereumjs-wallet https://github.com/ethereumjs/ethereumjs-wallet/blob/master/src/test/hdkey.js
         #[test]
-        fn new() {
-            KEYPAIRS.iter().for_each(
-                |(path, seed, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
-                    test_new::<N>(
-                        extended_private_key,
-                        parent_fingerprint,
-                        child_index.parse().unwrap(),
-                        chain_code,
-                        secret_key,
-                        seed,
-                        &TronFormat::P2SH_P2WPKH,
-                        &TronDerivationPath::from_str(path).unwrap(),
-                    );
-                },
+        fn test_derivation_path() {
+            type N = Mainnet;
+
+            let path = "m/44'/0'/0/1";
+            let expected_extended_private_key_serialized = "xprvA1ErCzsuXhpB8iDTsbmgpkA2P8ggu97hMZbAXTZCdGYeaUrDhyR8fEw47BNEgLExsWCVzFYuGyeDZJLiFJ9kwBzGojQ6NB718tjVJrVBSrG";
+            let master_extended_private_key = TronExtendedPrivateKey::<N>::from_str("xprv9s21ZrQH143K4KqQx9Zrf1eN8EaPQVFxM2Ast8mdHn7GKiDWzNEyNdduJhWXToy8MpkGcKjxeFWd8oBSvsz4PCYamxR7TX49pSpp3bmHVAY").unwrap();
+            let extended_private_key = master_extended_private_key
+                .derive(&TronDerivationPath::from_str(path).unwrap())
+                .expect("error deriving extended private key from path");
+            assert_eq!(
+                expected_extended_private_key_serialized,
+                extended_private_key.to_string()
             );
-        }
-
-        #[test]
-        fn derive() {
-            KEYPAIRS.chunks(2).for_each(|pair| {
-                let (_, _, _, _, _, _, expected_extended_private_key1, _) = pair[0];
-                let (_, _, expected_child_index2, _, _, _, expected_extended_private_key2, _) = pair[1];
-                test_derive::<N>(
-                    expected_extended_private_key1,
-                    expected_extended_private_key2,
-                    expected_child_index2.parse().unwrap(),
-                );
-            });
-        }
-
-        #[test]
-        fn to_extended_public_key() {
-            KEYPAIRS
-                .iter()
-                .for_each(|(path, seed, _, _, _, _, _, expected_public_key)| {
-                    test_to_extended_public_key::<N>(
-                        expected_public_key,
-                        seed,
-                        &TronFormat::P2SH_P2WPKH,
-                        &TronDerivationPath::from_str(path).unwrap(),
-                    );
-                });
-        }
-
-        #[test]
-        fn from_str() {
-            KEYPAIRS.iter().for_each(
-                |(_, _, child_index, secret_key, chain_code, parent_fingerprint, extended_private_key, _)| {
-                    test_from_str::<N>(
-                        extended_private_key,
-                        parent_fingerprint,
-                        child_index.parse().unwrap(),
-                        chain_code,
-                        secret_key,
-                    );
-                },
-            );
-        }
-
-        #[test]
-        fn to_string() {
-            KEYPAIRS.iter().for_each(|(_, _, _, _, _, _, extended_private_key, _)| {
-                test_to_string::<N>(extended_private_key);
-            });
         }
     }
 

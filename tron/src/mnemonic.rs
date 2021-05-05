@@ -7,20 +7,19 @@ use crate::private_key::TronPrivateKey;
 use crate::public_key::TronPublicKey;
 use crate::wordlist::TronWordlist;
 use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicCount, MnemonicError, MnemonicExtended};
-use wagyu_model::no_std::*;
 
 use bitvec::prelude::*;
-use core::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
+use std::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// Represents a Tron mnemonic
+/// Represents an Tron mnemonic
 pub struct TronMnemonic<N: TronNetwork, W: TronWordlist> {
     /// Initial entropy in multiples of 32 bits
     entropy: Vec<u8>,
@@ -53,10 +52,10 @@ impl<N: TronNetwork, W: TronWordlist> MnemonicCount for TronMnemonic<N, W> {
 }
 
 impl<N: TronNetwork, W: TronWordlist> Mnemonic for TronMnemonic<N, W> {
-    type Address = TronAddress<N>;
+    type Address = TronAddress;
     type Format = TronFormat;
-    type PrivateKey = TronPrivateKey<N>;
-    type PublicKey = TronPublicKey<N>;
+    type PrivateKey = TronPrivateKey;
+    type PublicKey = TronPublicKey;
 
     /// Returns a new mnemonic.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {
@@ -170,7 +169,7 @@ impl<N: TronNetwork, W: TronWordlist> MnemonicExtended for TronMnemonic<N, W> {
     fn to_extended_private_key(&self, password: Option<&str>) -> Result<Self::ExtendedPrivateKey, MnemonicError> {
         Ok(Self::ExtendedPrivateKey::new_master(
             self.to_seed(password)?.as_slice(),
-            &TronFormat::Tron,
+            &TronFormat::Standard,
         )?)
     }
 
@@ -522,7 +521,7 @@ mod tests {
 
         #[test]
         #[should_panic(expected = "InvalidWordCount(11)")]
-        fn new_with_count_invalid_word_count() {
+        fn new_invalid_word_count() {
             let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
             let _mnemonic = TronMnemonic::<N, W>::new_with_count(rng, INVALID_WORD_COUNT).unwrap();
         }

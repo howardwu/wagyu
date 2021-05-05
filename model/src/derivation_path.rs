@@ -28,6 +28,9 @@ pub enum DerivationPathError {
     #[fail(display = "expected valid Ethereum derivation path")]
     ExpectedValidEthereumDerivationPath,
 
+    #[fail(display = "expected valid Tron derivation path")]
+    ExpectedValidTronDerivationPath,
+
     #[fail(display = "expected ZIP32 path")]
     ExpectedZIP32Path,
 
