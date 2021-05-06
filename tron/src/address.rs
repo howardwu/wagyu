@@ -128,7 +128,7 @@ mod tests {
     fn test_from_str<N: TronNetwork>(expected_address: &str, expected_format: &TronFormat) {
         let address = TronAddress::<N>::from_str(expected_address).unwrap();
         assert_eq!(expected_address, address.to_string());
-        // assert_eq!(*expected_format, address.format);
+        assert_eq!(*expected_format, TronFormat::Standard);
     }
 
     fn test_to_str<N: TronNetwork>(expected_address: &str, address: &TronAddress<N>) {

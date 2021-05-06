@@ -96,7 +96,7 @@ mod tests {
     fn test_from_str<N: TronNetwork>(
         expected_public_key: &str,
         expected_address: &str,
-        expected_compressed: bool,
+        // expected_compressed: bool,
         expected_format: &TronFormat,
     ) {
         let public_key = TronPublicKey::<N>::from_str(expected_public_key).unwrap();
@@ -166,7 +166,7 @@ mod tests {
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, false, &TronFormat::Standard);
+                test_from_str::<N>(expected_public_key, expected_address, &TronFormat::Standard);
             });
         }
 
