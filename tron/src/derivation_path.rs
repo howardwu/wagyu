@@ -7,7 +7,7 @@ use std::{fmt, marker::PhantomData, str::FromStr};
 /// Represents a Tron derivation path
 #[derive(Clone, PartialEq, Eq)]
 pub enum TronDerivationPath<N: TronNetwork> {
-    /// Tron Standard - m/44'/60'/0'/0/{index}
+    /// Tron Standard - m/44'/195'/0'/0/{index}
     Tron(ChildIndex),
     /// Exodus - m/44'/60'/0'/0/{index}
     Exodus(ChildIndex),

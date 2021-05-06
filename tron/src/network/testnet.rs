@@ -15,7 +15,7 @@ impl Network for Testnet {
 impl TronNetwork for Testnet {
     const CHAIN_ID: u32 = 1;
     const NETWORK_ID: u32 = 1;
-    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(60);
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(195);
 
     fn address_prefix() -> u8 {
         0xa0
