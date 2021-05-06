@@ -318,7 +318,7 @@ pub struct TronOptions {
     // Standard command
     count: usize,
     json: bool,
-    network: Option<String>,
+    network: String,
     subcommand: Option<String>,
     // HD and Import HD subcommands
     derivation: String,
@@ -347,7 +347,7 @@ impl Default for TronOptions {
             // Standard command
             count: 1,
             json: false,
-            network: Some("mainnet".to_string()),
+            network: "mainnet".into(),
             subcommand: None,
             // HD and Import HD subcommands
             derivation: "tron".into(),
@@ -501,9 +501,11 @@ impl TronOptions {
     /// Sets `network` to the specified network, overriding its previous state.
     /// If the specified argument is `None`, then no change occurs.
     fn network(&mut self, argument: Option<&str>) {
-        if let Some(network) = argument {
-            self.network = Some(network.to_string());
-        }
+        match argument {
+            Some("mainnet") => self.network = "mainnet".into(),
+            Some("testnet") => self.network = "testnet".into(),
+            _ => (),
+        };
     }
 
     /// Sets `password` to the specified password, overriding its previous state.
@@ -590,10 +592,10 @@ impl CLI for TronCLI {
     const NAME: NameType = "tron";
     const OPTIONS: &'static [OptionType] = &[option::COUNT, option::NETWORK_TRON];
     const SUBCOMMANDS: &'static [SubCommandType] = &[
-        subcommand::HD_ETHEREUM,
-        subcommand::IMPORT_ETHEREUM,
-        subcommand::IMPORT_HD_ETHEREUM,
-        subcommand::TRANSACTION_ETHEREUM,
+        subcommand::HD_TRON,
+        subcommand::IMPORT_TRON,
+        subcommand::IMPORT_HD_TRON,
+        subcommand::TRANSACTION_TRON,
     ];
 
     /// Handle all CLI arguments and flags for Tron
@@ -744,13 +746,14 @@ impl CLI for TronCLI {
                     } else if let (Some(transaction_hex), Some(transaction_private_key)) =
                         (options.transaction_hex.clone(), options.transaction_private_key.clone())
                     {
-                        match options.network.as_ref().map(String::as_str) {
-                            Some(TronMainnet::NAME) => vec![TronWallet::to_signed_transaction::<
+
+                        match options.network.as_str() {
+                            TronMainnet::NAME => vec![TronWallet::to_signed_transaction::<
                                 TronMainnet,
                             >(
                                 transaction_hex, transaction_private_key
                             )?],
-                            Some(TronTestnet::NAME) => vec![TronWallet::to_signed_transaction::<
+                            TronTestnet::NAME => vec![TronWallet::to_signed_transaction::<
                                 TronMainnet,
                             >(
                                 transaction_hex, transaction_private_key
@@ -783,40 +786,40 @@ impl CLI for TronCLI {
         match options.language.as_str() {
 
 
-            "chinese_simplified" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, ChineseSimplified>(options),
+            "chinese_simplified" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, ChineseSimplified>(options),
                 _ => output::<TronMainnet, ChineseTraditional>(options),
             }
-            "chinese_traditional" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, ChineseTraditional>(options),
+            "chinese_traditional" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, ChineseTraditional>(options),
                 _ => output::<TronMainnet, ChineseTraditional>(options),
             }
-            "english" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, English>(options),
+            "english" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, English>(options),
                 _ => output::<TronMainnet, English>(options),
             }
-            "french" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, French>(options),
+            "french" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, French>(options),
                 _ => output::<TronMainnet, French>(options),
             }
-            "italian" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, Italian>(options),
+            "italian" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, Italian>(options),
                 _ => output::<TronMainnet, Italian>(options),
             }
-            "japanese" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, Japanese>(options),
+            "japanese" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, Japanese>(options),
                 _ => output::<TronMainnet, Japanese>(options),
             }
-            "korean" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, Korean>(options),
+            "korean" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, Korean>(options),
                 _ => output::<TronMainnet, Korean>(options),
             }
-            "spanish" => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, Spanish>(options),
+            "spanish" => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, Spanish>(options),
                 _ => output::<TronMainnet, Spanish>(options),
             }
-            _ => match options.network.as_ref().map(String::as_str) {
-                Some(TronTestnet::NAME) => output::<TronTestnet, English>(options),
+            _ => match options.network.as_str() {
+                TronTestnet::NAME => output::<TronTestnet, English>(options),
                 _ => output::<TronMainnet, English>(options),
             }
             // "chinese_simplified" => output::<TronMainnet, ChineseSimplified>(options),

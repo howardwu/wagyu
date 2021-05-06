@@ -205,6 +205,12 @@ pub const DERIVATION_ZCASH: OptionType = (
     &[],
     &[],
 );
+pub const DERIVATION_TRON: OptionType = (
+    "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: zip32, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
 pub const DIVERSIFIER_HD_ZCASH: OptionType = (
     "[diversifier] --diversifier=[diversifier] 'Generates an HD wallet with a specified Sapling address diversifier'",
     &[],
@@ -291,6 +297,12 @@ pub const DERIVATION_IMPORT_ETHEREUM: OptionType = (
 );
 pub const DERIVATION_IMPORT_ZCASH: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: zip32, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
+pub const DERIVATION_IMPORT_TRON: OptionType = (
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
     &[],
     &[],
     &[],
@@ -441,5 +453,27 @@ pub const TRANSACTION_VERSION_ZCASH: OptionType = (
     "[version] --version=[version] 'Specify a Zcash transaction version'",
     &["signrawtransaction"],
     &["sapling"],
+    &["createrawtransaction"],
+);
+
+pub const CREATE_RAW_TRANSACTION_TRON: OptionType = (
+    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Generates a raw Ethereum transaction
+    (Optional: Add a data field)'",
+    &["network", "signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_TRON: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [private key] 'Sign a raw Ethereum transaction'",
+    &["createrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_NETWORK_TRON: OptionType = (
+    "[network] --network=[network] 'Specify an Ethereum transaction network'",
+    &["signrawtransaction"],
+    &[],
     &["createrawtransaction"],
 );
