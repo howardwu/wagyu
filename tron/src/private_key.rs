@@ -1,26 +1,34 @@
-use crate::address::TronAddress;
+use crate::{TronNetwork, address::TronAddress};
 use crate::format::TronFormat;
 use crate::public_key::TronPublicKey;
 use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use rand::Rng;
 use secp256k1;
-use std::{fmt, fmt::Display, str::FromStr};
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents an Tron private key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TronPrivateKey(secp256k1::SecretKey);
+pub struct TronPrivateKey<N: TronNetwork> {
+    /// The ECDSA private key
+    secret_key: secp256k1::SecretKey,
+    // /// If true, the private key is serialized in compressed form
+    // compressed: bool,
+    /// PhantomData
+    _network: PhantomData<N>,
+}
+// pub struct TronPrivateKey(secp256k1::SecretKey);
 
-impl PrivateKey for TronPrivateKey {
-    type Address = TronAddress;
+impl<N: TronNetwork> PrivateKey for TronPrivateKey<N> {
+    type Address = TronAddress<N>;
     type Format = TronFormat;
-    type PublicKey = TronPublicKey;
+    type PublicKey = TronPublicKey<N>;
 
     /// Returns a randomly-generated Tron private key.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         // let random: [u8; 32] = rng.gen();
         // Ok(Self(secp256k1::SecretKey::parse_slice(&random)?))
-        Ok(Self(secp256k1::SecretKey::random(rng)))
+        Ok(Self{secret_key: secp256k1::SecretKey::random(rng),_network: PhantomData})
     }
 
     /// Returns the public key of the corresponding Tron private key.
@@ -34,19 +42,19 @@ impl PrivateKey for TronPrivateKey {
     }
 }
 
-impl TronPrivateKey {
+impl<N: TronNetwork> TronPrivateKey<N> {
     /// Returns a private key given a secp256k1 secret key.
     pub fn from_secp256k1_secret_key(secret_key: &secp256k1::SecretKey) -> Self {
-        Self(secret_key.clone())
+        Self{secret_key: secret_key.clone(), _network: PhantomData}
     }
 
     /// Returns the secp256k1 secret key of the private key.
     pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
-        self.0.clone()
+        self.secret_key.clone()
     }
 }
 
-impl FromStr for TronPrivateKey {
+impl<N: TronNetwork> FromStr for TronPrivateKey<N> {
     type Err = PrivateKeyError;
 
     fn from_str(private_key: &str) -> Result<Self, PrivateKeyError> {
@@ -55,14 +63,14 @@ impl FromStr for TronPrivateKey {
         }
 
         let secret_key = hex::decode(private_key)?;
-        Ok(Self(secp256k1::SecretKey::parse_slice(&secret_key)?))
+        Ok(Self{secret_key: secp256k1::SecretKey::parse_slice(&secret_key)?,_network: PhantomData})
     }
 }
 
-impl Display for TronPrivateKey {
+impl<N: TronNetwork> Display for TronPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut private_key = [0u8; 32];
-        private_key.copy_from_slice(&self.0.serialize());
+        private_key.copy_from_slice(&self.secret_key.serialize());
         write!(f, "{}", hex::encode(private_key).to_string())
     }
 }
@@ -70,14 +78,23 @@ impl Display for TronPrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Mainnet};
+    type N = Mainnet;
 
-    fn test_to_public_key(expected_public_key: &TronPublicKey, private_key: &TronPrivateKey) {
+    fn test_to_public_key<N: TronNetwork>(
+        expected_public_key: &TronPublicKey<N>,
+        private_key: &TronPrivateKey<N>,
+    ) {
         let public_key = private_key.to_public_key();
         assert_eq!(*expected_public_key, public_key);
     }
 
-    fn test_to_address(expected_address: &TronAddress, private_key: &TronPrivateKey) {
-        let address = private_key.to_address(&TronFormat::Standard).unwrap();
+    fn test_to_address<N: TronNetwork>(
+        expected_address: &TronAddress<N>,
+        expected_format: &TronFormat,
+        private_key: &TronPrivateKey<N>,
+    ) {
+        let address = private_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
@@ -87,8 +104,8 @@ mod tests {
         expected_address: &str,
         secret_key: secp256k1::SecretKey,
     ) {
-        let private_key = TronPrivateKey::from_secp256k1_secret_key(&secret_key);
-        assert_eq!(secret_key, private_key.0);
+        let private_key = TronPrivateKey::<N>::from_secp256k1_secret_key(&secret_key);
+        assert_eq!(secret_key, private_key.secret_key);
         assert_eq!(expected_private_key, private_key.to_string());
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(
@@ -103,8 +120,8 @@ mod tests {
         expected_address: &str,
         private_key: &str,
     ) {
-        let private_key = TronPrivateKey::from_str(private_key).unwrap();
-        assert_eq!(*expected_secret_key, private_key.0);
+        let private_key = TronPrivateKey::<N>::from_str(private_key).unwrap();
+        assert_eq!(*expected_secret_key, private_key.secret_key);
         assert_eq!(expected_public_key, private_key.to_public_key().to_string());
         assert_eq!(
             expected_address,
@@ -112,12 +129,13 @@ mod tests {
         );
     }
 
-    fn test_to_str(expected_private_key: &str, private_key: &TronPrivateKey) {
+    fn test_to_str<N: TronNetwork>(expected_private_key: &str, private_key: &TronPrivateKey<N>) {
         assert_eq!(expected_private_key, private_key.to_string());
     }
 
     mod checksum_address {
         use super::*;
+        type N = Mainnet;
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
@@ -150,8 +168,8 @@ mod tests {
         #[test]
         fn to_public_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = TronPublicKey::from_str(public_key).unwrap();
-                let private_key = TronPrivateKey::from_str(&private_key).unwrap();
+                let public_key = TronPublicKey::<N>::from_str(public_key).unwrap();
+                let private_key = TronPrivateKey::<N>::from_str(&private_key).unwrap();
                 test_to_public_key(&public_key, &private_key);
             });
         }
@@ -160,8 +178,8 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(private_key, _, address)| {
                 let address = TronAddress::from_str(address).unwrap();
-                let private_key = TronPrivateKey::from_str(&private_key).unwrap();
-                test_to_address(&address, &private_key);
+                let private_key = TronPrivateKey::<N>::from_str(&private_key).unwrap();
+                test_to_address(&address, &TronFormat::Standard, &private_key);
             });
         }
 
@@ -170,12 +188,12 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(expected_private_key, expected_public_key, expected_address)| {
-                    let private_key = TronPrivateKey::from_str(&expected_private_key).unwrap();
+                    let private_key = TronPrivateKey::<N>::from_str(&expected_private_key).unwrap();
                     test_from_secp256k1_secret_key(
                         expected_private_key,
                         expected_public_key,
                         expected_address,
-                        private_key.0,
+                        private_key.secret_key,
                     );
                 });
         }
@@ -185,9 +203,9 @@ mod tests {
             KEYPAIRS
                 .iter()
                 .for_each(|(private_key, expected_public_key, expected_address)| {
-                    let expected_private_key = TronPrivateKey::from_str(&private_key).unwrap();
+                    let expected_private_key = TronPrivateKey::<N>::from_str(&private_key).unwrap();
                     test_from_str(
-                        &expected_private_key.0,
+                        &expected_private_key.secret_key,
                         expected_public_key,
                         expected_address,
                         &private_key,
@@ -198,7 +216,7 @@ mod tests {
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(expected_private_key, _, _)| {
-                let private_key = TronPrivateKey::from_str(expected_private_key).unwrap();
+                let private_key = TronPrivateKey::<N>::from_str(expected_private_key).unwrap();
                 test_to_str(expected_private_key, &private_key);
             });
         }
@@ -209,19 +227,19 @@ mod tests {
         // Invalid private key length
 
         let private_key = "8";
-        assert!(TronPrivateKey::from_str(private_key).is_err());
+        assert!(TronPrivateKey::<N>::from_str(private_key).is_err());
 
         let private_key = "8279d7c0ae2c3266b557845d50ede43";
-        assert!(TronPrivateKey::from_str(private_key).is_err());
+        assert!(TronPrivateKey::<N>::from_str(private_key).is_err());
 
         let private_key = "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac77";
-        assert!(TronPrivateKey::from_str(private_key).is_err());
+        assert!(TronPrivateKey::<N>::from_str(private_key).is_err());
 
         let private_key =
             "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac7718279d7c0ae2c3266b557845d50ede43";
-        assert!(TronPrivateKey::from_str(private_key).is_err());
+        assert!(TronPrivateKey::<N>::from_str(private_key).is_err());
 
         let private_key = "8279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac7718279d7c0ae2c3266b557845d50ede43e22a7e60408b7c90ee279b8848dbac771";
-        assert!(TronPrivateKey::from_str(private_key).is_err());
+        assert!(TronPrivateKey::<N>::from_str(private_key).is_err());
     }
 }

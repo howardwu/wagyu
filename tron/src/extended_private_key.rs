@@ -21,7 +21,7 @@ type HmacSha512 = Hmac<Sha512>;
 
 /// Represents a Tron Extended Private Key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TronExtendedPrivateKey<N> {
+pub struct TronExtendedPrivateKey<N: TronNetwork> {
     /// The depth of key derivation, e.g. 0x00 for master nodes, 0x01 for level-1 derived keys, ...
     pub(super) depth: u8,
     /// The first 32 bits of the key identifier (hash160(ECDSA_public_key))
@@ -31,18 +31,18 @@ pub struct TronExtendedPrivateKey<N> {
     /// The chain code for this extended private key
     pub(super) chain_code: [u8; 32],
     /// The Tron private key
-    private_key: TronPrivateKey,
+    private_key: TronPrivateKey<N>,
     /// PhantomData
     _network: PhantomData<N>,
 }
 
 impl<N: TronNetwork> ExtendedPrivateKey for TronExtendedPrivateKey<N> {
-    type Address = TronAddress;
+    type Address = TronAddress<N>;
     type DerivationPath = TronDerivationPath<N>;
     type ExtendedPublicKey = TronExtendedPublicKey<N>;
     type Format = TronFormat;
-    type PrivateKey = TronPrivateKey;
-    type PublicKey = TronPublicKey;
+    type PrivateKey = TronPrivateKey<N>;
+    type PublicKey = TronPublicKey<N>;
 
     /// Returns a new Tron extended private key.
     fn new(seed: &[u8], _format: &Self::Format, path: &Self::DerivationPath) -> Result<Self, ExtendedPrivateKeyError> {

@@ -16,6 +16,10 @@ impl TronNetwork for Mainnet {
     const CHAIN_ID: u32 = 1;
     const NETWORK_ID: u32 = 1;
     const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(60);
+
+    fn address_prefix() -> u8 {
+        0x41
+    }
 }
 
 impl FromStr for Mainnet {

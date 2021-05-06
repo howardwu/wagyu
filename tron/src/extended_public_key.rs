@@ -30,17 +30,17 @@ pub struct TronExtendedPublicKey<N: TronNetwork> {
     /// The chain code from the extended private key
     chain_code: [u8; 32],
     /// The Tron public key
-    public_key: TronPublicKey,
+    public_key: TronPublicKey<N>,
     /// PhantomData
     _network: PhantomData<N>,
 }
 
 impl<N: TronNetwork> ExtendedPublicKey for TronExtendedPublicKey<N> {
-    type Address = TronAddress;
+    type Address = TronAddress<N>;
     type DerivationPath = TronDerivationPath<N>;
     type ExtendedPrivateKey = TronExtendedPrivateKey<N>;
     type Format = TronFormat;
-    type PublicKey = TronPublicKey;
+    type PublicKey = TronPublicKey<N>;
 
     /// Returns the extended public key of the corresponding extended private key.
     fn from_extended_private_key(extended_private_key: &Self::ExtendedPrivateKey) -> Self {

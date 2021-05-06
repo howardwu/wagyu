@@ -1,23 +1,28 @@
-use crate::address::TronAddress;
+use crate::{TronNetwork, address::TronAddress};
 use crate::format::TronFormat;
 use crate::private_key::TronPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use secp256k1;
-use std::{fmt, fmt::Display, str::FromStr};
+use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents an Tron public key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TronPublicKey(secp256k1::PublicKey);
+pub struct TronPublicKey<N: TronNetwork> {
+    /// The ECDSA public key
+    public_key: secp256k1::PublicKey,
+    /// PhantomData
+    _network: PhantomData<N>,
+}
 
-impl PublicKey for TronPublicKey {
-    type Address = TronAddress;
+impl<N: TronNetwork> PublicKey for TronPublicKey<N> {
+    type Address = TronAddress<N>;
     type Format = TronFormat;
-    type PrivateKey = TronPrivateKey;
+    type PrivateKey = TronPrivateKey<N>;
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        Self(secp256k1::PublicKey::from_secret_key(&private_key.to_secp256k1_secret_key()))
+        Self{public_key: secp256k1::PublicKey::from_secret_key(&private_key.to_secp256k1_secret_key()), _network: PhantomData}
     }
 
     /// Returns the address of the corresponding private key.
@@ -26,29 +31,41 @@ impl PublicKey for TronPublicKey {
     }
 }
 
-impl TronPublicKey {
+impl<N: TronNetwork> TronPublicKey<N> {
     /// Returns a public key given a secp256k1 public key.
     pub fn from_secp256k1_public_key(public_key: secp256k1::PublicKey) -> Self {
-        Self(public_key)
+        Self{public_key: public_key, _network: PhantomData}
     }
 
     /// Returns the secp256k1 public key of the public key
     pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
-        self.0.clone()
+        self.public_key.clone()
     }
 }
 
-impl FromStr for TronPublicKey {
+impl<N: TronNetwork> FromStr for TronPublicKey<N> {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(secp256k1::PublicKey::parse_slice(&hex::decode(public_key)?, None)?))
+        Ok(Self {
+            public_key: secp256k1::PublicKey::parse_slice(&hex::decode(public_key)?, None)?,
+            _network: PhantomData,
+        })
     }
 }
 
-impl Display for TronPublicKey {
+impl<N: TronNetwork> Display for TronPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for s in &self.0.serialize()[..] {
+        // if self.compressed {
+        //     for s in &self.public_key.serialize_compressed()[..] {
+        //         write!(f, "{:02x}", s)?;
+        //     }
+        // } else {
+        //     for s in &self.public_key.serialize()[..] {
+        //         write!(f, "{:02x}", s)?;
+        //     }
+        // }
+        for s in &self.public_key.serialize()[..] {
             write!(f, "{:02x}", s)?;
         }
         Ok(())
@@ -59,29 +76,46 @@ impl Display for TronPublicKey {
 mod tests {
     use super::*;
 
-    fn test_from_private_key(expected_public_key: &TronPublicKey, private_key: &TronPrivateKey) {
+    fn test_from_private_key<N: TronNetwork>(
+        expected_public_key: &TronPublicKey<N>,
+        private_key: &TronPrivateKey<N>,
+    ) {
         let public_key = TronPublicKey::from_private_key(private_key);
         assert_eq!(*expected_public_key, public_key);
     }
 
-    fn test_to_address(expected_address: &TronAddress, public_key: &TronPublicKey) {
-        let address = public_key.to_address(&TronFormat::Standard).unwrap();
+    fn test_to_address<N: TronNetwork>(
+        expected_address: &TronAddress<N>,
+        expected_format: &TronFormat,
+        public_key: &TronPublicKey<N>,
+    ) {
+        let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(*expected_address, address);
     }
 
-    fn test_from_str(expected_public_key: &str, expected_address: &str) {
-        let public_key = TronPublicKey::from_str(expected_public_key).unwrap();
-        let address = public_key.to_address(&TronFormat::Standard).unwrap();
+    fn test_from_str<N: TronNetwork>(
+        expected_public_key: &str,
+        expected_address: &str,
+        expected_compressed: bool,
+        expected_format: &TronFormat,
+    ) {
+        let public_key = TronPublicKey::<N>::from_str(expected_public_key).unwrap();
+        let address = public_key.to_address(expected_format).unwrap();
         assert_eq!(expected_public_key, public_key.to_string());
+        // assert_eq!(expected_compressed, public_key.compressed);
         assert_eq!(expected_address, address.to_string());
+        // assert_eq!(*expected_format, address.format());
     }
 
-    fn test_to_str(expected_public_key: &str, public_key: &TronPublicKey) {
+    fn test_to_str<N: TronNetwork>(expected_public_key: &str, public_key: &TronPublicKey<N>) {
         assert_eq!(expected_public_key, public_key.to_string());
     }
 
     mod checksum_address {
+        use crate::Mainnet;
+
         use super::*;
+        type N = Mainnet;
 
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
@@ -114,7 +148,7 @@ mod tests {
         #[test]
         fn from_private_key() {
             KEYPAIRS.iter().for_each(|(private_key, public_key, _)| {
-                let public_key = TronPublicKey::from_str(public_key).unwrap();
+                let public_key = TronPublicKey::<N>::from_str(public_key).unwrap();
                 let private_key = TronPrivateKey::from_str(&private_key).unwrap();
                 test_from_private_key(&public_key, &private_key);
             });
@@ -123,23 +157,23 @@ mod tests {
         #[test]
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
-                let address = TronAddress::from_str(address).unwrap();
+                let address = TronAddress::<N>::from_str(address).unwrap();
                 let public_key = TronPublicKey::from_str(&public_key).unwrap();
-                test_to_address(&address, &public_key);
+                test_to_address(&address, &TronFormat::Standard, &public_key);
             });
         }
 
         #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(expected_public_key, expected_address);
+                test_from_str::<N>(expected_public_key, expected_address, false, &TronFormat::Standard);
             });
         }
 
         #[test]
         fn to_str() {
             KEYPAIRS.iter().for_each(|(_, expected_public_key, _)| {
-                let public_key = TronPublicKey::from_str(expected_public_key).unwrap();
+                let public_key = TronPublicKey::<N>::from_str(expected_public_key).unwrap();
                 test_to_str(expected_public_key, &public_key);
             });
         }
@@ -147,21 +181,25 @@ mod tests {
 
     #[test]
     fn test_checksum_address_invalid() {
+        use crate::Mainnet;
+
+        use super::*;
+        type N = Mainnet;
         // Invalid public key length
 
         let public_key = "0";
-        assert!(TronPublicKey::from_str(public_key).is_err());
+        assert!(TronPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b014";
-        assert!(TronPublicKey::from_str(public_key).is_err());
+        assert!(TronPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721";
-        assert!(TronPublicKey::from_str(public_key).is_err());
+        assert!(TronPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f3593";
-        assert!(TronPublicKey::from_str(public_key).is_err());
+        assert!(TronPublicKey::<N>::from_str(public_key).is_err());
 
         let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c";
-        assert!(TronPublicKey::from_str(public_key).is_err());
+        assert!(TronPublicKey::<N>::from_str(public_key).is_err());
     }
 }

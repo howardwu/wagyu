@@ -1,19 +1,11 @@
 use wagyu_model::{ChildIndex, Network};
 
-pub mod goerli;
-pub use self::goerli::*;
-
-pub mod kovan;
-pub use self::kovan::*;
 
 pub mod mainnet;
 pub use self::mainnet::*;
 
-pub mod rinkeby;
-pub use self::rinkeby::*;
-
-pub mod ropsten;
-pub use self::ropsten::*;
+pub mod testnet;
+pub use self::testnet::*;
 
 /// The interface for an Tron network.
 pub trait TronNetwork: Network {
@@ -21,4 +13,7 @@ pub trait TronNetwork: Network {
     const NETWORK_ID: u32;
     const HD_PURPOSE: ChildIndex = ChildIndex::Hardened(44);
     const HD_COIN_TYPE: ChildIndex;
+
+    /// Returns the address prefix of the given network.
+    fn address_prefix() -> u8;
 }

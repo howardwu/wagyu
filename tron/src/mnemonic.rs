@@ -52,10 +52,10 @@ impl<N: TronNetwork, W: TronWordlist> MnemonicCount for TronMnemonic<N, W> {
 }
 
 impl<N: TronNetwork, W: TronWordlist> Mnemonic for TronMnemonic<N, W> {
-    type Address = TronAddress;
+    type Address = TronAddress<N>;
     type Format = TronFormat;
-    type PrivateKey = TronPrivateKey;
-    type PublicKey = TronPublicKey;
+    type PrivateKey = TronPrivateKey<N>;
+    type PublicKey = TronPublicKey<N>;
 
     /// Returns a new mnemonic.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, MnemonicError> {

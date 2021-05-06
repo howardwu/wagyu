@@ -4,21 +4,25 @@ use wagyu_model::{ChildIndex, Network, NetworkError};
 use serde::Serialize;
 use std::{fmt, str::FromStr};
 
-/// Represents an Tron test network (PoA).
+/// Represents an Tron main network.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Goerli;
+pub struct Testnet;
 
-impl Network for Goerli {
-    const NAME: &'static str = "goerli";
+impl Network for Testnet {
+    const NAME: &'static str = "testnet";
 }
 
-impl TronNetwork for Goerli {
-    const CHAIN_ID: u32 = 5;
-    const NETWORK_ID: u32 = 5;
-    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(1);
+impl TronNetwork for Testnet {
+    const CHAIN_ID: u32 = 1;
+    const NETWORK_ID: u32 = 1;
+    const HD_COIN_TYPE: ChildIndex = ChildIndex::Hardened(60);
+
+    fn address_prefix() -> u8 {
+        0xa0
+    }
 }
 
-impl FromStr for Goerli {
+impl FromStr for Testnet {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -29,7 +33,7 @@ impl FromStr for Goerli {
     }
 }
 
-impl fmt::Display for Goerli {
+impl fmt::Display for Testnet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

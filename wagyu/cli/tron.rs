@@ -2,8 +2,7 @@ use crate::cli::{flag, option, subcommand, types::*, CLIError, CLI};
 use crate::tron::{
     wordlist::*, TronAddress, TronAmount, TronDerivationPath, TronExtendedPrivateKey,
     TronExtendedPublicKey, TronFormat, TronMnemonic, TronNetwork, TronPrivateKey,
-    TronPublicKey, TronTransaction, TronTransactionParameters, Goerli, Kovan, Mainnet as TronMainnet,
-    Rinkeby, Ropsten,
+    TronPublicKey, TronTransaction, TronTransactionParameters, Mainnet as TronMainnet, Testnet as TronTestnet,
 };
 use crate::model::{
     ExtendedPrivateKey, ExtendedPublicKey, Mnemonic, MnemonicCount, MnemonicExtended, Network, PrivateKey, PublicKey,
@@ -46,14 +45,15 @@ struct TronWallet {
 }
 
 impl TronWallet {
-    pub fn new<R: Rng>(rng: &mut R) -> Result<Self, CLIError> {
-        let private_key = TronPrivateKey::new(rng)?;
+    pub fn new<N: TronNetwork, R: Rng>(rng: &mut R) -> Result<Self, CLIError> {
+        let private_key = TronPrivateKey::<N>::new(rng)?;
         let public_key = private_key.to_public_key();
         let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
+            network: Some(N::NAME.to_string()),
             ..Default::default()
         })
     }
@@ -80,6 +80,7 @@ impl TronWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
+            network: Some(N::NAME.to_string()),
             address: Some(address.to_string()),
             ..Default::default()
         })
@@ -106,6 +107,7 @@ impl TronWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
+            network: Some(N::NAME.to_string()),
             address: Some(address.to_string()),
             ..Default::default()
         })
@@ -131,6 +133,7 @@ impl TronWallet {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
+            network: Some(N::NAME.to_string()),
             ..Default::default()
         })
     }
@@ -151,36 +154,40 @@ impl TronWallet {
             extended_public_key: Some(extended_public_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
+            network: Some(N::NAME.to_string()),
             ..Default::default()
         })
     }
 
-    pub fn from_private_key(private_key: &str) -> Result<Self, CLIError> {
-        let private_key = TronPrivateKey::from_str(private_key)?;
+    pub fn from_private_key<N: TronNetwork>(private_key: &str) -> Result<Self, CLIError> {
+        let private_key = TronPrivateKey::<N>::from_str(private_key)?;
         let public_key = private_key.to_public_key();
         let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             private_key: Some(private_key.to_string()),
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
+            network: Some(N::NAME.to_string()),
             ..Default::default()
         })
     }
 
-    pub fn from_public_key(public_key: &str) -> Result<Self, CLIError> {
-        let public_key = TronPublicKey::from_str(public_key)?;
+    pub fn from_public_key<N: TronNetwork>(public_key: &str) -> Result<Self, CLIError> {
+        let public_key = TronPublicKey::<N>::from_str(public_key)?;
         let address = public_key.to_address(&TronFormat::Standard)?;
         Ok(Self {
             public_key: Some(public_key.to_string()),
             address: Some(address.to_string()),
+            network: Some(N::NAME.to_string()),
             ..Default::default()
         })
     }
 
-    pub fn from_address(address: &str) -> Result<Self, CLIError> {
-        let address = TronAddress::from_str(address)?;
+    pub fn from_address<N: TronNetwork>(address: &str) -> Result<Self, CLIError> {
+        let address = TronAddress::<N>::from_str(address)?;
         Ok(Self {
             address: Some(address.to_string()),
+            network: Some(N::NAME.to_string()),
             ..Default::default()
         })
     }
@@ -311,6 +318,7 @@ pub struct TronOptions {
     // Standard command
     count: usize,
     json: bool,
+    network: Option<String>,
     subcommand: Option<String>,
     // HD and Import HD subcommands
     derivation: String,
@@ -331,7 +339,6 @@ pub struct TronOptions {
     transaction_hex: Option<String>,
     transaction_parameters: Option<String>,
     transaction_private_key: Option<String>,
-    network: Option<String>,
 }
 
 impl Default for TronOptions {
@@ -340,6 +347,7 @@ impl Default for TronOptions {
             // Standard command
             count: 1,
             json: false,
+            network: Some("mainnet".to_string()),
             subcommand: None,
             // HD and Import HD subcommands
             derivation: "tron".into(),
@@ -360,7 +368,6 @@ impl Default for TronOptions {
             transaction_hex: None,
             transaction_parameters: None,
             transaction_private_key: None,
-            network: None,
         }
     }
 }
@@ -581,7 +588,7 @@ impl CLI for TronCLI {
     const ABOUT: AboutType = "Generates a Tron wallet (include -h for more options)";
     const FLAGS: &'static [FlagType] = &[flag::JSON];
     const NAME: NameType = "tron";
-    const OPTIONS: &'static [OptionType] = &[option::COUNT];
+    const OPTIONS: &'static [OptionType] = &[option::COUNT, option::NETWORK_TRON];
     const SUBCOMMANDS: &'static [SubCommandType] = &[
         subcommand::HD_ETHEREUM,
         subcommand::IMPORT_ETHEREUM,
@@ -593,22 +600,22 @@ impl CLI for TronCLI {
     #[cfg_attr(tarpaulin, skip)]
     fn parse(arguments: &ArgMatches) -> Result<Self::Options, CLIError> {
         let mut options = TronOptions::default();
-        options.parse(arguments, &["count", "json"]);
+        options.parse(arguments, &["count", "json", "network"]);
 
         match arguments.subcommand() {
             ("hd", Some(arguments)) => {
                 options.subcommand = Some("hd".into());
-                options.parse(arguments, &["count", "json"]);
+                options.parse(arguments, &["count", "json", "network"]);
                 options.parse(arguments, &["derivation", "index", "indices", "language", "password", "word count"]);
             }
             ("import", Some(arguments)) => {
                 options.subcommand = Some("import".into());
-                options.parse(arguments, &["json"]);
+                options.parse(arguments, &["json", "network"]);
                 options.parse(arguments, &["address", "private", "public"]);
             }
             ("import-hd", Some(arguments)) => {
                 options.subcommand = Some("import-hd".into());
-                options.parse(arguments, &["json"]);
+                options.parse(arguments, &["json", "network"]);
                 options.parse(
                     arguments,
                     &[
@@ -666,11 +673,19 @@ impl CLI for TronCLI {
                 }
                 Some("import") => {
                     if let Some(private_key) = options.private {
-                        vec![TronWallet::from_private_key(&private_key)?]
+                        vec![
+                                TronWallet::from_private_key::<TronMainnet>(&private_key).or(
+                                    TronWallet::from_private_key::<TronTestnet>(&private_key),
+                                )?,
+                            ]
+                        // vec![TronWallet::from_private_key(&private_key)?]
                     } else if let Some(public_key) = options.public {
-                        vec![TronWallet::from_public_key(&public_key)?]
+                        // vec![TronWallet::from_public_key(&public_key)?]
+                        vec![TronWallet::from_public_key::<N>(&public_key)?]
                     } else if let Some(address) = options.address {
-                        vec![TronWallet::from_address(&address)?]
+                        // vec![TronWallet::from_address(&address)?]
+                        vec![TronWallet::from_address::<TronMainnet>(&address)
+                                .or(TronWallet::from_address::<TronTestnet>(&address))?]
                     } else {
                         vec![]
                     }
@@ -735,21 +750,10 @@ impl CLI for TronCLI {
                             >(
                                 transaction_hex, transaction_private_key
                             )?],
-                            Some(Goerli::NAME) => vec![TronWallet::to_signed_transaction::<Goerli>(
-                                transaction_hex,
-                                transaction_private_key,
-                            )?],
-                            Some(Kovan::NAME) => vec![TronWallet::to_signed_transaction::<Kovan>(
-                                transaction_hex,
-                                transaction_private_key,
-                            )?],
-                            Some(Rinkeby::NAME) => vec![TronWallet::to_signed_transaction::<Rinkeby>(
-                                transaction_hex,
-                                transaction_private_key,
-                            )?],
-                            Some(Ropsten::NAME) => vec![TronWallet::to_signed_transaction::<Ropsten>(
-                                transaction_hex,
-                                transaction_private_key,
+                            Some(TronTestnet::NAME) => vec![TronWallet::to_signed_transaction::<
+                                TronMainnet,
+                            >(
+                                transaction_hex, transaction_private_key
                             )?],
                             _ => vec![TronWallet::to_signed_transaction::<TronMainnet>(
                                 transaction_hex,
@@ -761,7 +765,7 @@ impl CLI for TronCLI {
                     }
                 }
                 _ => (0..options.count)
-                    .flat_map(|_| match TronWallet::new::<_>(&mut StdRng::from_entropy()) {
+                    .flat_map(|_| match TronWallet::new::<N, _>(&mut StdRng::from_entropy()) {
                         Ok(wallet) => vec![wallet],
                         _ => vec![],
                     })
@@ -777,15 +781,53 @@ impl CLI for TronCLI {
         }
 
         match options.language.as_str() {
-            "chinese_simplified" => output::<TronMainnet, ChineseSimplified>(options),
-            "chinese_traditional" => output::<TronMainnet, ChineseTraditional>(options),
-            "english" => output::<TronMainnet, English>(options),
-            "french" => output::<TronMainnet, French>(options),
-            "italian" => output::<TronMainnet, Italian>(options),
-            "japanese" => output::<TronMainnet, Japanese>(options),
-            "korean" => output::<TronMainnet, Korean>(options),
-            "spanish" => output::<TronMainnet, Spanish>(options),
-            _ => output::<TronMainnet, English>(options),
+
+
+            "chinese_simplified" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, ChineseSimplified>(options),
+                _ => output::<TronMainnet, ChineseTraditional>(options),
+            }
+            "chinese_traditional" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, ChineseTraditional>(options),
+                _ => output::<TronMainnet, ChineseTraditional>(options),
+            }
+            "english" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, English>(options),
+                _ => output::<TronMainnet, English>(options),
+            }
+            "french" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, French>(options),
+                _ => output::<TronMainnet, French>(options),
+            }
+            "italian" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, Italian>(options),
+                _ => output::<TronMainnet, Italian>(options),
+            }
+            "japanese" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, Japanese>(options),
+                _ => output::<TronMainnet, Japanese>(options),
+            }
+            "korean" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, Korean>(options),
+                _ => output::<TronMainnet, Korean>(options),
+            }
+            "spanish" => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, Spanish>(options),
+                _ => output::<TronMainnet, Spanish>(options),
+            }
+            _ => match options.network.as_ref().map(String::as_str) {
+                Some(TronTestnet::NAME) => output::<TronTestnet, English>(options),
+                _ => output::<TronMainnet, English>(options),
+            }
+            // "chinese_simplified" => output::<TronMainnet, ChineseSimplified>(options),
+            // "chinese_traditional" => output::<TronMainnet, ChineseTraditional>(options),
+            // "english" => output::<TronMainnet, English>(options),
+            // "french" => output::<TronMainnet, French>(options),
+            // "italian" => output::<TronMainnet, Italian>(options),
+            // "japanese" => output::<TronMainnet, Japanese>(options),
+            // "korean" => output::<TronMainnet, Korean>(options),
+            // "spanish" => output::<TronMainnet, Spanish>(options),
+            // _ => output::<TronMainnet, English>(options),
         }
     }
 }

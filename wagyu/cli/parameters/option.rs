@@ -72,6 +72,12 @@ pub const NETWORK_ZCASH: OptionType = (
     &["mainnet", "testnet"],
     &[],
 );
+pub const NETWORK_TRON: OptionType = (
+    "[network] -n --network=[network] 'Generates a wallet for a specified network'",
+    &[],
+    &["mainnet", "testnet"],
+    &[],
+);
 pub const SUBADDRESS_MONERO: OptionType = (
     "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Generates a wallet with a specified major and minor index'",
     &["address", "integrated", "private view"],
