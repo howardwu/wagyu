@@ -2,12 +2,13 @@ use crate::{TronNetwork, format::TronFormat};
 use crate::private_key::TronPrivateKey;
 use crate::public_key::TronPublicKey;
 use base58::ToBase58;
-use wagyu_model::{Address, AddressError, PrivateKey, crypto::checksum, to_hex_string};
+use base58::FromBase58;
+use wagyu_model::{Address, AddressError, PrivateKey, crypto::checksum};
 
-use regex::Regex;
+// use regex::Regex;
 use serde::Serialize;
 use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
-use tiny_keccak::keccak256;
+// use tiny_keccak::keccak256;
 use sha3::{Digest, Keccak256};
 
 /// Represents an Tron address
@@ -74,25 +75,17 @@ impl<N: TronNetwork> FromStr for TronAddress<N> {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
-        let regex = Regex::new(r"^0x").unwrap();
-        let address = address.to_lowercase();
-        let address = regex.replace_all(&address, "").to_string();
-
-        if address.len() != 40 {
+        // Mainnet len = 34 and Testnet len = 35
+        if address.len() != 34 && address.len() != 35 {
             return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
-        let hash = to_hex_string(&keccak256(address.as_bytes()));
-        let mut checksum_address = "0x".to_string();
-        for c in 0..40 {
-            let ch = match &hash[c..=c] {
-                "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" => address[c..=c].to_lowercase(),
-                _ => address[c..=c].to_uppercase(),
-            };
-            checksum_address.push_str(&ch);
+        let address_decoded = address.from_base58()?;
+        if [N::address_prefix()] != address_decoded[0..1] {
+            return Err(AddressError::InvalidPrefix(address_decoded));
         }
 
-        Ok(Self{address: checksum_address,_network: PhantomData,})
+        Ok(Self{address: address.to_string(),_network: PhantomData,})
     }
 }
 
