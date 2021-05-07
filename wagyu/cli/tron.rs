@@ -676,16 +676,19 @@ impl CLI for TronCLI {
                 Some("import") => {
                     if let Some(private_key) = options.private {
                         vec![
-                                TronWallet::from_private_key::<TronMainnet>(&private_key).or(
-                                    TronWallet::from_private_key::<TronTestnet>(&private_key),
-                                )?,
+                                match options.network.as_str() {
+                                    TronTestnet::NAME => TronWallet::from_private_key::<TronTestnet>(&private_key),
+                                    _ => TronWallet::from_private_key::<TronMainnet>(&private_key),
+                                }?
                             ]
-                        // vec![TronWallet::from_private_key(&private_key)?]
                     } else if let Some(public_key) = options.public {
-                        // vec![TronWallet::from_public_key(&public_key)?]
-                        vec![TronWallet::from_public_key::<N>(&public_key)?]
+                        vec![
+                            match options.network.as_str() {
+                                TronTestnet::NAME => TronWallet::from_public_key::<TronTestnet>(&public_key),
+                                _ => TronWallet::from_public_key::<TronMainnet>(&public_key),
+                            }?
+                        ]
                     } else if let Some(address) = options.address {
-                        // vec![TronWallet::from_address(&address)?]
                         vec![TronWallet::from_address::<TronMainnet>(&address)
                                 .or(TronWallet::from_address::<TronTestnet>(&address))?]
                     } else {
@@ -784,8 +787,6 @@ impl CLI for TronCLI {
         }
 
         match options.language.as_str() {
-
-
             "chinese_simplified" => match options.network.as_str() {
                 TronTestnet::NAME => output::<TronTestnet, ChineseSimplified>(options),
                 _ => output::<TronMainnet, ChineseTraditional>(options),
