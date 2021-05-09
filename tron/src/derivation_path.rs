@@ -7,118 +7,80 @@ use std::{fmt, marker::PhantomData, str::FromStr};
 /// Represents a Tron derivation path
 #[derive(Clone, PartialEq, Eq)]
 pub enum TronDerivationPath<N: TronNetwork> {
-    /// Tron Standard - m/44'/195'/0'/0/{index}
-    Tron(ChildIndex),
-    /// Exodus - m/44'/60'/0'/0/{index}
-    Exodus(ChildIndex),
-    /// Jaxx - m/44'/60'/0'/0/{index}
-    Jaxx(ChildIndex),
-    /// Metamask - m/44'/60'/0'/0/{index}
-    MetaMask(ChildIndex),
-    /// MyEtherWallet - m/44'/60'/0'/0/{index}
-    MyEtherWallet(ChildIndex),
-    /// Trezor - m/44'/60'/0'/0/{index}
-    Trezor(ChildIndex),
-
-    /// KeepKey - m/44'/60'/{index}'/0/0
-    KeepKey(ChildIndex),
-    /// Ledger Live - m/44'/60'/{index}'/0/0
-    LedgerLive(ChildIndex),
-
-    /// Electrum - m/44'/60'/0'/{index}
-    Electrum(ChildIndex),
-    /// imToken - m/44'/60'/0'/{index}
-    ImToken(ChildIndex),
-    /// imToken - m/44'/60'/0'/{index}
-    LedgerLegacy(ChildIndex),
-
-    /// Custom Tron derivation path
-    Custom(Vec<ChildIndex>, PhantomData<N>),
+    /// BIP32 - Pay-to-Pubkey Hash
+    /// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+    BIP32(Vec<ChildIndex>, PhantomData<N>),
+    /// BIP44 - m/44'/{0', 1'}/{account}'/{change}/{index} - Pay-to-Pubkey Hash
+    /// https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
+    BIP44([ChildIndex; 3]),
+    /// BIP49 - m/49'/{0', 1'}/{account}'/{change}/{index} - SegWit Pay-to-Witness-Public-Key Hash
+    /// https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki
+    BIP49([ChildIndex; 3]),
 }
 
 impl<N: TronNetwork> DerivationPath for TronDerivationPath<N> {
     /// Returns a child index vector given the derivation path.
     fn to_vec(&self) -> Result<Vec<ChildIndex>, DerivationPathError> {
         match self {
-            TronDerivationPath::Tron(index)
-            | TronDerivationPath::Exodus(index)
-            | TronDerivationPath::Jaxx(index)
-            | TronDerivationPath::MetaMask(index)
-            | TronDerivationPath::MyEtherWallet(index)
-            | TronDerivationPath::Trezor(index) => match index.is_normal() {
-                true => Ok(vec![
-                    N::HD_PURPOSE,
-                    N::HD_COIN_TYPE,
-                    ChildIndex::Hardened(0),
-                    ChildIndex::Normal(0),
-                    *index,
-                ]),
-                false => Err(DerivationPathError::ExpectedBIP44Path),
+            TronDerivationPath::BIP32(path, _) => match path.len() < 256 {
+                true => Ok(path.clone()),
+                false => Err(DerivationPathError::ExpectedBIP32Path),
             },
-
-            TronDerivationPath::KeepKey(index) | TronDerivationPath::LedgerLive(index) => {
-                match index.is_hardened() {
+            TronDerivationPath::BIP44(path) => {
+                match path[0].is_hardened() && path[1].is_normal() && path[2].is_normal() {
                     true => Ok(vec![
-                        N::HD_PURPOSE,
+                        ChildIndex::Hardened(44),
                         N::HD_COIN_TYPE,
-                        *index,
-                        ChildIndex::Normal(0),
-                        ChildIndex::Normal(0),
+                        path[0],
+                        path[1],
+                        path[2],
                     ]),
                     false => Err(DerivationPathError::ExpectedBIP44Path),
                 }
             }
-
-            TronDerivationPath::Electrum(index)
-            | TronDerivationPath::ImToken(index)
-            | TronDerivationPath::LedgerLegacy(index) => match index.is_normal() {
-                true => Ok(vec![N::HD_PURPOSE, N::HD_COIN_TYPE, ChildIndex::Hardened(0), *index]),
-                false => Err(DerivationPathError::ExpectedValidTronDerivationPath),
-            },
-
-            TronDerivationPath::Custom(path, _) => match path.len() < 256 {
-                true => Ok(path.clone()),
-                false => Err(DerivationPathError::ExpectedValidTronDerivationPath),
-            },
+            TronDerivationPath::BIP49(path) => {
+                match path[0].is_hardened() && path[1].is_normal() && path[2].is_normal() {
+                    true => Ok(vec![
+                        ChildIndex::Hardened(49),
+                        N::HD_COIN_TYPE,
+                        path[0],
+                        path[1],
+                        path[2],
+                    ]),
+                    false => Err(DerivationPathError::ExpectedBIP49Path),
+                }
+            }
         }
     }
 
     /// Returns a derivation path given the child index vector.
     fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
-        if path.len() == 4 {
-            // Path length 4 - Electrum (default), imToken, LedgerLegacy
-            if path[0] == N::HD_PURPOSE
-                && path[1] == N::HD_COIN_TYPE
-                && path[2] == ChildIndex::Hardened(0)
-                && path[3].is_normal()
-            {
-                return Ok(TronDerivationPath::Electrum(path[3]));
-            }
-        }
-
         if path.len() == 5 {
-            // Path length 5 - Tron (default), Exodus, Jaxx, MetaMask, MyEtherWallet, Trezor
-            if path[0] == N::HD_PURPOSE
+            // Path length 5 - BIP44
+            if path[0] == ChildIndex::Hardened(44)
                 && path[1] == N::HD_COIN_TYPE
-                && path[2] == ChildIndex::Hardened(0)
-                && path[3] == ChildIndex::Normal(0)
+                && path[2].is_hardened()
+                && path[3].is_normal()
                 && path[4].is_normal()
             {
-                return Ok(TronDerivationPath::Tron(path[4]));
+                return Ok(TronDerivationPath::BIP44([path[2], path[3], path[4]]));
             }
-            // Path length 5 - KeepKey, LedgerLive (default)
+            // Path length 5 - BIP49
             if path[0] == ChildIndex::Hardened(49)
                 && path[1] == N::HD_COIN_TYPE
                 && path[2].is_hardened()
-                && path[3] == ChildIndex::Normal(0)
-                && path[4] == ChildIndex::Normal(0)
+                && path[3].is_normal()
+                && path[4].is_normal()
             {
-                return Ok(TronDerivationPath::LedgerLive(path[2]));
+                return Ok(TronDerivationPath::BIP49([path[2], path[3], path[4]]));
             }
+            // Path length 5 - BIP32 (non-BIP44 & non-BIP49 compliant)
+            return Ok(TronDerivationPath::BIP32(path.to_vec(), PhantomData));
+        } else {
+            // Path length 0 - BIP32 root key
+            // Path length i - BIP32
+            Ok(TronDerivationPath::BIP32(path.to_vec(), PhantomData))
         }
-
-        // Path length i - Custom Tron derivation path
-        Ok(TronDerivationPath::Custom(path.to_vec(), PhantomData))
     }
 }
 
@@ -177,15 +139,266 @@ impl<N: TronNetwork> fmt::Display for TronDerivationPath<N> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::network::*;
-    use wagyu_model::derivation_path::{ChildIndex, DerivationPathError};
 
-    use std::convert::TryInto;
-    use std::str::FromStr;
+    use core::convert::TryInto;
+
+    #[test]
+    fn bip32() {
+        use super::*;
+
+        type N = Mainnet;
+
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(vec![], PhantomData),
+            TronDerivationPath::<N>::from_str("m").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(vec![ChildIndex::Normal(0)], PhantomData),
+            TronDerivationPath::<N>::from_str("m/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(vec![ChildIndex::Hardened(0)], PhantomData),
+            TronDerivationPath::<N>::from_str("m/0'").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(vec![ChildIndex::Normal(0), ChildIndex::Normal(0)], PhantomData),
+            TronDerivationPath::<N>::from_str("m/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(vec![ChildIndex::Normal(0), ChildIndex::Hardened(0)], PhantomData),
+            TronDerivationPath::<N>::from_str("m/0/0'").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(
+                vec![ChildIndex::Normal(0), ChildIndex::Normal(0), ChildIndex::Normal(0)],
+                PhantomData
+            ),
+            TronDerivationPath::<N>::from_str("m/0/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(
+                vec![ChildIndex::Normal(0), ChildIndex::Normal(0), ChildIndex::Hardened(0)],
+                PhantomData
+            ),
+            TronDerivationPath::<N>::from_str("m/0/0/0'").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(
+                vec![
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0)
+                ],
+                PhantomData
+            ),
+            TronDerivationPath::<N>::from_str("m/0/0/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(
+                vec![
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Hardened(0)
+                ],
+                PhantomData
+            ),
+            TronDerivationPath::<N>::from_str("m/0/0/0/0'").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(
+                vec![
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0)
+                ],
+                PhantomData
+            ),
+            TronDerivationPath::<N>::from_str("m/0/0/0/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP32(
+                vec![
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Normal(0),
+                    ChildIndex::Hardened(0)
+                ],
+                PhantomData
+            ),
+            TronDerivationPath::<N>::from_str("m/0/0/0/0/0'").unwrap()
+        );
+    }
+
+    #[test]
+    fn bip44_mainnet() {
+        use super::*;
+
+        type N = Mainnet;
+
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/0'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/0'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/0'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/0'/1/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/1'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/1'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/1'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/0'/1'/1/1").unwrap()
+        );
+    }
+
+    #[test]
+    fn bip44_testnet() {
+        use super::*;
+
+        type N = Testnet;
+
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/0'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/0'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/0'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/0'/1/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/1'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/1'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/1'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP44([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/44'/1'/1'/1/1").unwrap()
+        );
+    }
+
+    #[test]
+    fn bip49_mainnet() {
+        use super::*;
+
+        type N = Mainnet;
+
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/0'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/0'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/0'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/0'/1/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/1'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/1'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/1'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/0'/1'/1/1").unwrap()
+        );
+    }
+
+    #[test]
+    fn bip49_testnet() {
+        use super::*;
+
+        type N = Testnet;
+
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/0'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/0'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/0'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(0), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/0'/1/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/1'/0/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(0), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/1'/0/1").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(0)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/1'/1/0").unwrap()
+        );
+        assert_eq!(
+            TronDerivationPath::<N>::BIP49([ChildIndex::Hardened(1), ChildIndex::Normal(1), ChildIndex::Normal(1)]),
+            TronDerivationPath::<N>::from_str("m/49'/1'/1'/1/1").unwrap()
+        );
+    }
 
     #[test]
     fn valid_path() {
+        use super::*;
+
         type N = Mainnet;
 
         assert_eq!(
@@ -323,32 +536,34 @@ mod tests {
 
     #[test]
     fn invalid_path() {
+        use super::*;
+
         type N = Mainnet;
 
         assert_eq!(
             TronDerivationPath::<N>::from_str("n"),
-            Err(DerivationPathError::InvalidDerivationPath("n".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("n".into()))
         );
         assert_eq!(
             TronDerivationPath::<N>::from_str("n/0"),
-            Err(DerivationPathError::InvalidDerivationPath("n/0".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("n/0".into()))
         );
         assert_eq!(
             TronDerivationPath::<N>::from_str("n/0/0"),
-            Err(DerivationPathError::InvalidDerivationPath("n/0/0".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("n/0/0".into()))
         );
 
         assert_eq!(
             TronDerivationPath::<N>::from_str("1"),
-            Err(DerivationPathError::InvalidDerivationPath("1".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("1".into()))
         );
         assert_eq!(
             TronDerivationPath::<N>::from_str("1/0"),
-            Err(DerivationPathError::InvalidDerivationPath("1/0".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("1/0".into()))
         );
         assert_eq!(
             TronDerivationPath::<N>::from_str("1/0/0"),
-            Err(DerivationPathError::InvalidDerivationPath("1/0/0".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("1/0/0".into()))
         );
 
         assert_eq!(
@@ -366,7 +581,7 @@ mod tests {
 
         assert_eq!(
             TronDerivationPath::<N>::from_str("0/m"),
-            Err(DerivationPathError::InvalidDerivationPath("0/m".try_into().unwrap()))
+            Err(DerivationPathError::InvalidDerivationPath("0/m".into()))
         );
         assert_eq!(
             TronDerivationPath::<N>::from_str("m//0"),

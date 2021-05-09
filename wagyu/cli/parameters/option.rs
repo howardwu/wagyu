@@ -206,7 +206,7 @@ pub const DERIVATION_ZCASH: OptionType = (
     &[],
 );
 pub const DERIVATION_TRON: OptionType = (
-    "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: zip32, \"<custom path>\"]'",
+    "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],
     &[],
     &[],
@@ -302,7 +302,7 @@ pub const DERIVATION_IMPORT_ZCASH: OptionType = (
     &[],
 );
 pub const DERIVATION_IMPORT_TRON: OptionType = (
-    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: ethereum, keepkey, ledger-legacy, ledger-live, trezor, \"<custom path>\"]'",
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],
     &[],
     &[],

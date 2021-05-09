@@ -321,6 +321,8 @@ pub struct TronOptions {
     network: String,
     subcommand: Option<String>,
     // HD and Import HD subcommands
+    account: u32,
+    chain: u32,
     derivation: String,
     extended_private_key: Option<String>,
     extended_public_key: Option<String>,
@@ -350,7 +352,9 @@ impl Default for TronOptions {
             network: "mainnet".into(),
             subcommand: None,
             // HD and Import HD subcommands
-            derivation: "tron".into(),
+            account: 0,
+            chain: 0,
+            derivation: "bip44".into(),
             extended_private_key: None,
             extended_public_key: None,
             index: 0,
@@ -375,6 +379,8 @@ impl Default for TronOptions {
 impl TronOptions {
     fn parse(&mut self, arguments: &ArgMatches, options: &[&str]) {
         options.iter().for_each(|option| match *option {
+            "account" => self.account(clap::value_t!(arguments.value_of(*option), u32).ok()),
+            "chain" => self.chain(clap::value_t!(arguments.value_of(*option), u32).ok()),
             "address" => self.address(arguments.value_of(option)),
             "count" => self.count(clap::value_t!(arguments.value_of(*option), usize).ok()),
             "createrawtransaction" => self.create_raw_transaction(arguments.value_of(option)),
@@ -394,6 +400,22 @@ impl TronOptions {
             "word count" => self.word_count(clap::value_t!(arguments.value_of(*option), u8).ok()),
             _ => (),
         });
+    }
+
+    /// Sets `account` to the specified account index, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn account(&mut self, argument: Option<u32>) {
+        if let Some(account) = argument {
+            self.account = account;
+        }
+    }
+
+    /// Sets `chain` to the specified chain index, overriding its previous state.
+    /// If the specified argument is `None`, then no change occurs.
+    fn chain(&mut self, argument: Option<u32>) {
+        if let Some(chain) = argument {
+            self.chain = chain;
+        }
     }
 
     /// Imports a wallet for the specified address, overriding its previous state.
@@ -424,11 +446,9 @@ impl TronOptions {
     /// If the specified argument is `None`, then no change occurs.
     fn derivation(&mut self, argument: Option<&str>) {
         match argument {
-            Some("tron") => self.derivation = "tron".into(),
-            Some("keepkey") => self.derivation = "keepkey".into(),
-            Some("ledger-legacy") => self.derivation = "ledger-legacy".into(),
-            Some("ledger-live") => self.derivation = "ledger-legacy".into(),
-            Some("trezor") => self.derivation = "trezor".into(),
+            Some("bip32") => self.derivation = "bip32".into(),
+            Some("bip44") => self.derivation = "bip44".into(),
+            Some("bip49") => self.derivation = "bip49".into(),
             Some(custom) => {
                 self.derivation = "custom".into();
                 self.path = Some(custom.to_string());
@@ -554,14 +574,12 @@ impl TronOptions {
     /// If `default` is enabled, then return the default path if no derivation was provided.
     fn to_derivation_path(&self, default: bool) -> Option<String> {
         match self.derivation.as_str() {
-            "tron" => Some(format!("m/44'/195'/0'/{}", self.index)),
-            "keepkey" => Some(format!("m/44'/195'/{}'/0", self.index)),
-            "ledger-legacy" => Some(format!("m/44'/195'/0'/{}", self.index)),
-            "ledger-live" => Some(format!("m/44'/195'/{}'/0/0", self.index)),
-            "trezor" => Some(format!("m/44'/195'/0'/{}", self.index)),
+            "bip32" => Some(format!("m/0'/195'/{}'", self.index)),
+            "bip44" => Some(format!("m/44'/195'/{}'/{}/{}", self.account, self.chain, self.index)),
+            "bip49" => Some(format!("m/49'/195'/{}'/{}/{}", self.account, self.chain, self.index)),
             "custom" => self.path.clone(),
             _ => match default {
-                true => Some(format!("m/44'/195'/0'/0/{}", self.index)),
+                true => Some(format!("m/44'/195'/{}'", self.index)),
                 false => None,
             },
         }

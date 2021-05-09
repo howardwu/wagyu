@@ -40,7 +40,7 @@ impl<N: TronNetwork> TronAddress<N> {
     /// Returns the checksum address given a public key.
     /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
     pub fn checksum_address(public_key: &<Self as Address>::PublicKey) -> Self {
-        let public_key = public_key.to_secp256k1_public_key().serialize().to_vec();
+        let public_key = public_key.to_secp256k1_public_key().serialize()[1..].to_vec();
 
         // Ref: https://stackoverflow.com/questions/58782314/how-to-generate-trx-wallet-without-using-api
         let mut hasher = Keccak256::new();
@@ -59,7 +59,7 @@ impl<N: TronNetwork> TronAddress<N> {
         // println!("address:{:?}", address);
         // println!("address_58: {}", address.to_base58());
 
-        TronAddress{address:address.to_base58(),_network: PhantomData}
+        TronAddress{address: address.to_base58(), _network: PhantomData}
     }
 }
 

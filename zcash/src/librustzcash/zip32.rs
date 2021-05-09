@@ -574,7 +574,7 @@ mod tests {
             d1: Option<[u8; 11]>,
             d2: Option<[u8; 11]>,
             dmax: Option<[u8; 11]>,
-        };
+        }
 
         // From https://github.com/zcash-hackworks/zcash-test-vectors/blob/master/sapling_zip32.py
         let test_vectors = vec![
