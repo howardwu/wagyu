@@ -457,7 +457,7 @@ pub const TRANSACTION_VERSION_ZCASH: OptionType = (
 );
 
 pub const CREATE_RAW_TRANSACTION_TRON: OptionType = (
-    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Generates a raw Ethereum transaction
+    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Generates a raw Tron transaction
     (Optional: Add a data field)'",
     &["network", "signrawtransaction"],
     &[],
@@ -465,14 +465,14 @@ pub const CREATE_RAW_TRANSACTION_TRON: OptionType = (
 );
 
 pub const SIGN_RAW_TRANSACTION_TRON: OptionType = (
-    "[signrawtransaction] --signrawtransaction=[transaction hex] [private key] 'Sign a raw Ethereum transaction'",
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [private key] 'Sign a raw Tron transaction'",
     &["createrawtransaction"],
     &[],
     &[],
 );
 
 pub const TRANSACTION_NETWORK_TRON: OptionType = (
-    "[network] --network=[network] 'Specify an Ethereum transaction network'",
+    "[network] --network=[network] 'Specify an Tron transaction network'",
     &["signrawtransaction"],
     &[],
     &["createrawtransaction"],
