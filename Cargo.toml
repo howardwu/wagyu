@@ -54,9 +54,10 @@ serde_json = { version = "1.0" }
 tiny-keccak = { version = "1.4" }
 
 [profile.release]
-opt-level = 3
+opt-level = "z"
 lto = "thin"
 incremental = true
+codegen-units = 1
 
 [profile.bench]
 opt-level = 3

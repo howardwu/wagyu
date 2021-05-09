@@ -8,8 +8,8 @@ use wagyu_model::{Address, AddressError, PrivateKey, crypto::checksum};
 // use regex::Regex;
 use serde::Serialize;
 use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
-// use tiny_keccak::keccak256;
-use sha3::{Digest, Keccak256};
+use tiny_keccak::keccak256;
+// use sha3::{Digest, Keccak256};
 
 /// Represents an Tron address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
@@ -43,9 +43,10 @@ impl<N: TronNetwork> TronAddress<N> {
         let public_key = public_key.to_secp256k1_public_key().serialize()[1..].to_vec();
 
         // Ref: https://stackoverflow.com/questions/58782314/how-to-generate-trx-wallet-without-using-api
-        let mut hasher = Keccak256::new();
-        hasher.update(&public_key);
-        let digest = hasher.finalize();
+        // let mut hasher = Keccak256::new();
+        // hasher.update(&public_key);
+        // let digest = hasher.finalize();
+        let digest = keccak256(public_key.as_slice());
 
         let mut address = [0u8; 25];
         address[0] = N::address_prefix();

@@ -33,7 +33,6 @@ rlp = { version = "0.4", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 sha2 = { version = "0.8", default-features = false }
-sha3 = { version = "0.9.1" }
 tiny-keccak = { version = "1.4" }
 
 [features]
