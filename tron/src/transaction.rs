@@ -11,7 +11,8 @@ use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
 use secp256k1;
 use std::{fmt, marker::PhantomData, str::FromStr};
-use tiny_keccak::keccak256;
+// use tiny_keccak::keccak256;
+use sha2::{Digest, Sha256};
 
 pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
     match value {
@@ -111,7 +112,7 @@ impl<N: TronNetwork> Transaction for TronTransaction<N> {
     }
 
     /// Returns a signed transaction given the private key of the sender.
-    /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
+    /// https://github.com/andelf/rust-tron/blob/master/keys/src/private.rs
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
         match (&self.sender, &self.signature) {
             (Some(_), Some(_)) => Ok(self.clone()),
@@ -126,9 +127,10 @@ impl<N: TronNetwork> Transaction for TronTransaction<N> {
                 let mut transaction = self.clone();
                 transaction.sender = Some(private_key.to_address(&TronFormat::Standard)?);
                 transaction.signature = Some(TronTransactionSignature {
-                    v: to_bytes(Into::<i32>::into(v) as u32 + N::CHAIN_ID * 2 + 35)?, // EIP155
+                    // v: to_bytes(Into::<i32>::into(v) as u32 + N::CHAIN_ID * 2 + 35)?, // EIP155
                     r: signature[0..32].to_vec(),
                     s: signature[32..64].to_vec(),
+                    v: [v.serialize()].to_vec(),
                 });
                 Ok(transaction)
             }
@@ -262,7 +264,7 @@ impl<N: TronNetwork> Transaction for TronTransaction<N> {
     /// Otherwise, returns the hash of the raw transaction.
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         Ok(Self::TransactionId {
-            txid: keccak256(&self.to_transaction_bytes()?).iter().cloned().collect(),
+            txid: Sha256::digest(&self.to_transaction_bytes()?).to_vec(),
         })
     }
 }
