@@ -10,6 +10,8 @@ macro_rules! curve_impl {
         $compressed:ident,
         $pairing:ident
     ) => {
+        use wagyu_model::no_std::Vec;
+
         #[derive(Copy, Clone, PartialEq, Eq, Debug)]
         pub struct $affine {
             pub(crate) x: $basefield,
@@ -17,8 +19,8 @@ macro_rules! curve_impl {
             pub(crate) infinity: bool,
         }
 
-        impl ::std::fmt::Display for $affine {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for $affine {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 if self.infinity {
                     write!(f, "{}(Infinity)", $name)
                 } else {
@@ -34,8 +36,8 @@ macro_rules! curve_impl {
             pub(crate) z: $basefield,
         }
 
-        impl ::std::fmt::Display for $projective {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for $projective {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "{}", self.into_affine())
             }
         }
@@ -619,8 +621,8 @@ pub mod g1 {
     use crate::librustzcash::algebra::field::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
     use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
+    use core::fmt;
     use rand_core::RngCore;
-    use std::fmt;
 
     curve_impl!(
         "G1",
@@ -1283,8 +1285,8 @@ pub mod g2 {
     use crate::librustzcash::algebra::field::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
     use crate::librustzcash::algebra::group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
+    use core::fmt;
     use rand_core::RngCore;
-    use std::fmt;
     curve_impl!(
         "G2",
         G2,

@@ -6,13 +6,14 @@ use crate::librustzcash::zip32::ExtendedSpendingKey;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingSpendingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
+use wagyu_model::no_std::{vec, ToString, Vec};
 use wagyu_model::{
     Address, AddressError, ChildIndex, DerivationPath, ExtendedPrivateKey, ExtendedPrivateKeyError, ExtendedPublicKey,
     PublicKey,
 };
 
 use bech32::{Bech32, FromBase32, ToBase32};
-use std::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use core::{cmp::Ordering, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a Zcash extended private key
 #[derive(Debug, Clone)]

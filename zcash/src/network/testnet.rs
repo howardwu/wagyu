@@ -1,9 +1,10 @@
 use super::*;
 use crate::format::ZcashFormat;
+use wagyu_model::no_std::vec;
 use wagyu_model::{AddressError, ChildIndex, Network, NetworkError, PrivateKeyError};
 
+use core::{fmt, str::FromStr};
 use serde::Serialize;
-use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Testnet;
 

@@ -8,13 +8,13 @@ use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use wagyu_model::{Transaction, TransactionError, TransactionId};
 
-use libc::c_char;
-use serde::{export::PhantomData, Deserialize, Serialize};
-use serde_json;
-use std::{
+use core::{
     ffi::{CStr, CString},
     fmt, str,
 };
+use libc::c_char;
+use serde::{export::PhantomData, Deserialize, Serialize};
+use serde_json;
 
 /// Represents a Monero transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

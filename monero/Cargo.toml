@@ -18,7 +18,8 @@ edition = "2018"
 build = "build.rs"
 
 [features]
-default = []
+default = ["std"]
+std = ["wagyu-model/std"]
 transaction = []
 
 [dependencies]

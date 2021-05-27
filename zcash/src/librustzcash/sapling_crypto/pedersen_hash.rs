@@ -1,6 +1,8 @@
 use crate::librustzcash::algebra::field::{Field, PrimeField, PrimeFieldRepr};
 use crate::librustzcash::sapling_crypto::jubjub::*;
 
+use wagyu_model::no_std::{vec, Vec};
+
 #[derive(Copy, Clone)]
 pub enum Personalization {
     NoteCommitment,

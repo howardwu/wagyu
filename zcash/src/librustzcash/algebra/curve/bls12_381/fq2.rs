@@ -1,8 +1,8 @@
 use super::fq::{Fq, FROBENIUS_COEFF_FQ2_C1, NEGATIVE_ONE};
 use crate::librustzcash::algebra::field::{Field, LegendreSymbol, SqrtField};
 
+use core::cmp::Ordering;
 use rand_core::RngCore;
-use std::cmp::Ordering;
 
 /// An element of Fq2, represented by c0 + c1 * u.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -11,8 +11,8 @@ pub struct Fq2 {
     pub c1: Fq,
 }
 
-impl ::std::fmt::Display for Fq2 {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl ::core::fmt::Display for Fq2 {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "Fq2({} + {} * u)", self.c0, self.c1)
     }
 }

@@ -15,6 +15,8 @@ use types::*;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
+use crate::model::no_std::{format, String, Vec};
+
 pub trait CLI {
     type Options;
 

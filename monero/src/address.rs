@@ -2,10 +2,11 @@ use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
+use wagyu_model::no_std::{vec, String, ToString};
 use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents a Monero address

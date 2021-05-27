@@ -22,6 +22,8 @@ use super::{Engine, PairingCurveAffine};
 use crate::librustzcash::algebra::field::{BitIterator, Field, ScalarEngine};
 use crate::librustzcash::algebra::group::CurveAffine;
 
+use wagyu_model::no_std::vec;
+
 // The BLS parameter x for BLS12-381 is -0xd201000000010000
 const BLS_X: u64 = 0xd201000000010000;
 const BLS_X_IS_NEGATIVE: bool = true;

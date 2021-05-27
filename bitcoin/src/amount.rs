@@ -1,5 +1,5 @@
-use wagyu_model::{Amount, AmountError};
 use wagyu_model::no_std::*;
+use wagyu_model::{Amount, AmountError};
 
 use core::fmt;
 use serde::Serialize;

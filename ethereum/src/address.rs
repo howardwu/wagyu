@@ -3,9 +3,9 @@ use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{to_hex_string, Address, AddressError, PrivateKey};
 
+use core::{convert::TryFrom, fmt, str::FromStr};
 use regex::Regex;
 use serde::Serialize;
-use std::{convert::TryFrom, fmt, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents an Ethereum address

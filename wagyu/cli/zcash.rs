@@ -9,11 +9,13 @@ use crate::zcash::{
 
 use clap::{ArgMatches, Values};
 use colored::*;
+use core::{fmt, fmt::Display, str::FromStr};
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
-use std::{fmt, fmt::Display, str::FromStr};
+
+use crate::model::no_std::{format, vec, String, ToOwned, ToString, Vec};
 
 /// Represents values to derive standard wallets
 #[derive(Serialize, Clone, Debug)]

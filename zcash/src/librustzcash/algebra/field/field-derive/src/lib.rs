@@ -1,14 +1,32 @@
 #![recursion_limit = "1024"]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 
+use core::str::FromStr;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{One, ToPrimitive, Zero};
 use quote::TokenStreamExt;
-use std::str::FromStr;
+
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+#[doc(hidden)]
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+#[cfg(feature = "std")]
+use std::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 #[proc_macro_derive(PrimeField, attributes(PrimeFieldModulus, PrimeFieldGenerator))]
 pub fn prime_field(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -113,9 +131,9 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
         #[derive(Copy, Clone, PartialEq, Eq, Default)]
         pub struct #repr(pub [u64; #limbs]);
 
-        impl ::std::fmt::Debug for #repr
+        impl ::core::fmt::Debug for #repr
         {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "0x")?;
                 for i in self.0.iter().rev() {
                     write!(f, "{:016x}", *i)?;
@@ -125,8 +143,8 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
             }
         }
 
-        impl ::std::fmt::Display for #repr {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for #repr {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "0x")?;
                 for i in self.0.iter().rev() {
                     write!(f, "{:016x}", *i)?;
@@ -153,7 +171,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
         impl From<u64> for #repr {
             #[inline(always)]
             fn from(val: u64) -> #repr {
-                use std::default::Default;
+                use core::default::Default;
 
                 let mut repr = Self::default();
                 repr.0[0] = val;
@@ -163,22 +181,22 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
 
         impl Ord for #repr {
             #[inline(always)]
-            fn cmp(&self, other: &#repr) -> ::std::cmp::Ordering {
+            fn cmp(&self, other: &#repr) -> ::core::cmp::Ordering {
                 for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
                     if a < b {
-                        return ::std::cmp::Ordering::Less
+                        return ::core::cmp::Ordering::Less
                     } else if a > b {
-                        return ::std::cmp::Ordering::Greater
+                        return ::core::cmp::Ordering::Greater
                     }
                 }
 
-                ::std::cmp::Ordering::Equal
+                ::core::cmp::Ordering::Equal
             }
         }
 
         impl PartialOrd for #repr {
             #[inline(always)]
-            fn partial_cmp(&self, other: &#repr) -> Option<::std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &#repr) -> Option<::core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
@@ -209,7 +227,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
                 while n >= 64 {
                     let mut t = 0;
                     for i in self.0.iter_mut().rev() {
-                        ::std::mem::swap(&mut t, i);
+                        ::core::mem::swap(&mut t, i);
                     }
                     n -= 64;
                 }
@@ -257,7 +275,7 @@ fn prime_field_repr_impl(repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenS
                 while n >= 64 {
                     let mut t = 0;
                     for i in &mut self.0 {
-                        ::std::mem::swap(&mut t, i);
+                        ::core::mem::swap(&mut t, i);
                     }
                     n -= 64;
                 }
@@ -556,7 +574,11 @@ fn prime_field_constants_and_sqrt(
 fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, limbs: usize) -> proc_macro2::TokenStream {
     // Returns r{n} as an ident.
     fn get_temp(n: usize) -> syn::Ident {
-        syn::Ident::new(&format!("r{}", n), proc_macro2::Span::call_site())
+        #[cfg(not(feature = "std"))]
+        return syn::Ident::new(&alloc::format!("r{}", n), proc_macro2::Span::call_site());
+
+        #[cfg(feature = "std")]
+        return syn::Ident::new(&std::format!("r{}", n), proc_macro2::Span::call_site());
     }
 
     // The parameter list for the mont_reduce() internal method.
@@ -764,25 +786,25 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, limbs: usize) -> proc_
     let top_limb_index = limbs - 1;
 
     quote! {
-        impl ::std::marker::Copy for #name { }
+        impl ::core::marker::Copy for #name { }
 
-        impl ::std::clone::Clone for #name {
+        impl ::core::clone::Clone for #name {
             fn clone(&self) -> #name {
                 *self
             }
         }
 
-        impl ::std::cmp::PartialEq for #name {
+        impl ::core::cmp::PartialEq for #name {
             fn eq(&self, other: &#name) -> bool {
                 self.0 == other.0
             }
         }
 
-        impl ::std::cmp::Eq for #name { }
+        impl ::core::cmp::Eq for #name { }
 
-        impl ::std::fmt::Debug for #name
+        impl ::core::fmt::Debug for #name
         {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "{}({:?})", stringify!(#name), self.into_repr())
             }
         }
@@ -790,20 +812,20 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, limbs: usize) -> proc_
         /// Elements are ordered lexicographically.
         impl Ord for #name {
             #[inline(always)]
-            fn cmp(&self, other: &#name) -> ::std::cmp::Ordering {
+            fn cmp(&self, other: &#name) -> ::core::cmp::Ordering {
                 self.into_repr().cmp(&other.into_repr())
             }
         }
 
         impl PartialOrd for #name {
             #[inline(always)]
-            fn partial_cmp(&self, other: &#name) -> Option<::std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &#name) -> Option<::core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
 
-        impl ::std::fmt::Display for #name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl ::core::fmt::Display for #name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 write!(f, "{}({})", stringify!(#name), self.into_repr())
             }
         }
@@ -824,7 +846,11 @@ fn prime_field_impl(name: &syn::Ident, repr: &syn::Ident, limbs: usize) -> proc_
 
                     Ok(r)
                 } else {
-                    Err(PrimeFieldDecodingError::NotInField(format!("{}", r.0)))
+                    #[cfg(not(feature = "std"))]
+                    return Err(PrimeFieldDecodingError::NotInField(alloc::format!("{}", r.0)));
+
+                    #[cfg(feature = "std")]
+                    return Err(PrimeFieldDecodingError::NotInField(std::format!("{}", r.0)));
                 }
             }
 

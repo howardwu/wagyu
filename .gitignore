@@ -7,3 +7,4 @@
 **/*.toml.fmt
 **/Cargo.toml.fmt
 *.iml
+Cargo.lock

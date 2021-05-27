@@ -20,8 +20,8 @@
 //! If the version byte is 0, but the witness program is neither 20 nor 32 bytes, the script must fail.
 //!
 
-use wagyu_model::{AddressError, TransactionError};
 use wagyu_model::no_std::*;
+use wagyu_model::{AddressError, TransactionError};
 
 use core::str::FromStr;
 

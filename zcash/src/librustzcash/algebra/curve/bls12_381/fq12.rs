@@ -12,8 +12,8 @@ pub struct Fq12 {
     pub c1: Fq6,
 }
 
-impl ::std::fmt::Display for Fq12 {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl ::core::fmt::Display for Fq12 {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "Fq12({} + {} * w)", self.c0, self.c1)
     }
 }

@@ -6,8 +6,8 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::wordlist::BitcoinWordlist;
-use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicCount, MnemonicError, MnemonicExtended};
 use wagyu_model::no_std::*;
+use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicCount, MnemonicError, MnemonicExtended};
 
 use bitvec::prelude::*;
 use core::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};

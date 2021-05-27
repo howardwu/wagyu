@@ -3,11 +3,12 @@
 use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
+use wagyu_model::no_std::{vec, String, Vec};
 use wagyu_model::{PublicKeyError, TransactionError};
 
+use core::marker::PhantomData;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
-use std::marker::PhantomData;
 use tiny_keccak::keccak256;
 
 #[derive(Debug, Fail)]

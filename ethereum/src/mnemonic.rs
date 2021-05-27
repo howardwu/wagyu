@@ -9,11 +9,11 @@ use crate::wordlist::EthereumWordlist;
 use wagyu_model::{ExtendedPrivateKey, Mnemonic, MnemonicCount, MnemonicError, MnemonicExtended};
 
 use bitvec::prelude::*;
+use core::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
-use std::{fmt, marker::PhantomData, ops::Div, str, str::FromStr};
 
 const PBKDF2_ROUNDS: usize = 2048;
 const PBKDF2_BYTES: usize = 64;

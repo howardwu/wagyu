@@ -3,9 +3,8 @@ use crate::librustzcash::sapling_crypto::jubjub::{montgomery, JubjubEngine, Jubj
 
 use rand_core::RngCore;
 
-use std::marker::PhantomData;
-
-use std::io::{self, Read, Write};
+use core::marker::PhantomData;
+use wagyu_model::no_std::io::{self, Read, Write};
 
 // Represents the affine point (X/Z, Y/Z) via the extended
 // twisted Edwards coordinates.

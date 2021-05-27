@@ -137,4 +137,3 @@ impl From<rand_core::Error> for MnemonicError {
         MnemonicError::Crate("rand", format!("{:?}", error))
     }
 }
-

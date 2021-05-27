@@ -2,12 +2,12 @@ use crate::address::MoneroAddress;
 use crate::format::MoneroFormat;
 use crate::network::MoneroNetwork;
 use crate::public_key::MoneroPublicKey;
-use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use wagyu_model::{no_std::Vec, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
+use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use curve25519_dalek::scalar::Scalar;
 use hex;
 use rand::Rng;
-use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
 /// Represents a Monero private key

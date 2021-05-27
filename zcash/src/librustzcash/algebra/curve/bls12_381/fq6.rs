@@ -12,8 +12,8 @@ pub struct Fq6 {
     pub c2: Fq2,
 }
 
-impl ::std::fmt::Display for Fq6 {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl ::core::fmt::Display for Fq6 {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "Fq6({} + {} * v, {} * v^2)", self.c0, self.c1, self.c2)
     }
 }
@@ -21,7 +21,7 @@ impl ::std::fmt::Display for Fq6 {
 impl Fq6 {
     /// Multiply by quadratic nonresidue v.
     pub fn mul_by_nonresidue(&mut self) {
-        use std::mem::swap;
+        use core::mem::swap;
         swap(&mut self.c0, &mut self.c1);
         swap(&mut self.c0, &mut self.c2);
 

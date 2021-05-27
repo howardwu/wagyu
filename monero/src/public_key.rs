@@ -4,8 +4,8 @@ use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
+use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
-use std::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a Monero public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
