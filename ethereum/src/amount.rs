@@ -1,7 +1,7 @@
 use wagyu_model::{Amount, AmountError};
 
+use core::fmt;
 use ethereum_types::U256;
-use std::fmt;
 
 /// Represents the amount of Ethereum in wei
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

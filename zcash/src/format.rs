@@ -1,8 +1,9 @@
 use crate::network::ZcashNetwork;
+use wagyu_model::no_std::Vec;
 use wagyu_model::{AddressError, Format};
 
+use core::fmt;
 use serde::Serialize;
-use std::fmt;
 
 /// Represents the format of a Zcash address
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

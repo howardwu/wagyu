@@ -1,3 +1,4 @@
+use wagyu_model::no_std::{String, Vec};
 use wagyu_model::wordlist::{Wordlist, WordlistError};
 
 pub mod chinese_simplified;

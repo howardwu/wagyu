@@ -1,9 +1,10 @@
 pub use field_derive::*;
 
+use core::fmt;
 use rand_core::RngCore;
-use std::error::Error;
-use std::fmt;
-use std::io::{self, Read, Write};
+
+use wagyu_model::no_std::io::{self, Read, Write};
+use wagyu_model::no_std::String;
 
 /// This trait represents an element of a field.
 pub trait Field: Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static {
@@ -183,26 +184,11 @@ pub enum LegendreSymbol {
 
 /// An error that may occur when trying to interpret a `PrimeFieldRepr` as a
 /// `PrimeField` element.
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum PrimeFieldDecodingError {
     /// The encoded value is not in the field
+    #[fail(display = "{} is not an element of the field", _0)]
     NotInField(String),
-}
-
-impl Error for PrimeFieldDecodingError {
-    fn description(&self) -> &str {
-        match *self {
-            PrimeFieldDecodingError::NotInField(..) => "not an element of the field",
-        }
-    }
-}
-
-impl fmt::Display for PrimeFieldDecodingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match *self {
-            PrimeFieldDecodingError::NotInField(ref repr) => write!(f, "{} is not an element of the field", repr),
-        }
-    }
 }
 
 /// This represents an element of a prime field.

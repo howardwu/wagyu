@@ -1,4 +1,5 @@
 use crate::format::ZcashFormat;
+use wagyu_model::no_std::{String, Vec};
 use wagyu_model::{AddressError, ChildIndex, Network, NetworkError, PrivateKeyError};
 
 pub mod mainnet;

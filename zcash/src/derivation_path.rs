@@ -1,7 +1,8 @@
 use crate::network::ZcashNetwork;
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
+use wagyu_model::no_std::{vec, ToString, Vec};
 
-use std::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Zcash derivation path
 #[derive(Clone, PartialEq, Eq)]

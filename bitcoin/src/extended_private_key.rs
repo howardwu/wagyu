@@ -78,10 +78,8 @@ impl<N: BitcoinNetwork> ExtendedPrivateKey for BitcoinExtendedPrivateKey<N> {
         let mut extended_private_key = self.clone();
 
         for index in path.to_vec()?.into_iter() {
-            let public_key = &PublicKey::from_secret_key(
-                &extended_private_key.private_key.to_secp256k1_secret_key(),
-            )
-            .serialize_compressed()[..];
+            let public_key = &PublicKey::from_secret_key(&extended_private_key.private_key.to_secp256k1_secret_key())
+                .serialize_compressed()[..];
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {

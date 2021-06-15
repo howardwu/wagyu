@@ -6,16 +6,21 @@ use crate::librustzcash::zip32::prf_expand;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, ZcashPrivateKey};
 use crate::public_key::ZcashPublicKey;
+use wagyu_model::no_std::{
+    format,
+    io::{self, BufReader, Read},
+    vec, String, ToString, Vec,
+};
 use wagyu_model::{ExtendedPrivateKey, PrivateKey, Transaction, TransactionError, TransactionId};
 
 use base58::FromBase58;
 use blake2b_simd::{Hash, Params, State};
+use core::{fmt, str::FromStr};
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use secp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{fmt, io::{self, BufReader, Read}, str::FromStr};
 
 // librustzcash crates
 use bellman::groth16::{prepare_verifying_key, Parameters, PreparedVerifyingKey, Proof};
@@ -137,24 +142,21 @@ pub fn load_sapling_parameters() -> (
     let (spend, output) = wagyu_zcash_parameters::load_sapling_parameters();
 
     let mut spend_fs = HashReader::new(BufReader::with_capacity(1024 * 1024, &spend[..]));
-    let mut output_fs =
-        HashReader::new(BufReader::with_capacity(1024 * 1024, &output[..]));
+    let mut output_fs = HashReader::new(BufReader::with_capacity(1024 * 1024, &output[..]));
 
     // Deserialize params
-    let spend_params = Parameters::<Bls12>::read(&mut spend_fs, false)
-        .expect("couldn't deserialize Sapling spend parameters file");
-    let output_params = Parameters::<Bls12>::read(&mut output_fs, false)
-        .expect("couldn't deserialize Sapling spend parameters file");
+    let spend_params =
+        Parameters::<Bls12>::read(&mut spend_fs, false).expect("couldn't deserialize Sapling spend parameters file");
+    let output_params =
+        Parameters::<Bls12>::read(&mut output_fs, false).expect("couldn't deserialize Sapling spend parameters file");
 
     // There is extra stuff (the transcript) at the end of the parameter file which is
     // used to verify the parameter validity, but we're not interested in that. We do
     // want to read it, though, so that the BLAKE2b computed afterward is consistent
     // with `b2sum` on the files.
     let mut sink = io::sink();
-    io::copy(&mut spend_fs, &mut sink)
-        .expect("couldn't finish reading Sapling spend parameter file");
-    io::copy(&mut output_fs, &mut sink)
-        .expect("couldn't finish reading Sapling output parameter file");
+    io::copy(&mut spend_fs, &mut sink).expect("couldn't finish reading Sapling spend parameter file");
+    io::copy(&mut output_fs, &mut sink).expect("couldn't finish reading Sapling output parameter file");
 
     if spend_fs.into_hash() != "8270785a1a0d0bc77196f000ee6d221c9c9894f55307bd9357c3f0105d31ca63991ab91324160d8f53e2bbd3c2633a6eb8bdf5205d822e7f3f73edac51b2b70c" {
         panic!("Sapling spend parameter is not correct. please file a Github issue.");
@@ -1251,7 +1253,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
                             &p2pkh_spending_key.to_secp256k1_secret_key(),
                         );
                         signature.serialize_der().as_ref().to_vec()
-                    },
+                    }
                     _ => unimplemented!(),
                 };
                 signature.push((input.sighash_code as u32).to_le_bytes()[0]);
@@ -1261,10 +1263,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
                 let public_viewing_key = match private_key.to_public_key() {
                     ZcashPublicKey::<N>::P2PKH(p2pkh_view_key) => match p2pkh_view_key.is_compressed() {
                         true => p2pkh_view_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
-                        false => p2pkh_view_key
-                            .to_secp256k1_public_key()
-                            .serialize()
-                            .to_vec(),
+                        false => p2pkh_view_key.to_secp256k1_public_key().serialize().to_vec(),
                     },
                     _ => unimplemented!(),
                 };
@@ -1593,7 +1592,7 @@ mod tests {
     use crate::{Mainnet, Testnet};
 
     use bellman::groth16::PreparedVerifyingKey;
-    use zcash_primitives::merkle_tree::{CommitmentTree, MerklePath, IncrementalWitness};
+    use zcash_primitives::merkle_tree::{CommitmentTree, IncrementalWitness, MerklePath};
 
     #[derive(Clone)]
     pub struct TransactionData<'a> {
@@ -2777,7 +2776,6 @@ mod tests {
             fn test_real_sapling_spend_transactions() {
                 test_sapling_transactions::<N>(REAL_TESTNET_SAPLING_SPEND_TRANSACTIONS.to_vec());
             }
-
         }
 
         mod test_real_testnet_sapling_output_transactions {

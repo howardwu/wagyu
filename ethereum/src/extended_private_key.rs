@@ -12,10 +12,10 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
+use core::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use hmac::{Hmac, Mac};
 use secp256k1::{PublicKey, SecretKey};
 use sha2::Sha512;
-use std::{convert::TryFrom, fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -78,9 +78,8 @@ impl<N: EthereumNetwork> ExtendedPrivateKey for EthereumExtendedPrivateKey<N> {
         let mut extended_private_key = self.clone();
 
         for index in path.to_vec()?.into_iter() {
-            let public_key = &PublicKey::from_secret_key(
-                &extended_private_key.private_key.to_secp256k1_secret_key(),
-            ).serialize_compressed();
+            let public_key = &PublicKey::from_secret_key(&extended_private_key.private_key.to_secp256k1_secret_key())
+                .serialize_compressed();
 
             let mut mac = HmacSha512::new_varkey(&extended_private_key.chain_code)?;
             match index {

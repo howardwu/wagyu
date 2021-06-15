@@ -9,19 +9,23 @@ use crate::librustzcash::sapling_crypto::{
 use crate::librustzcash::zip32::prf_expand;
 use crate::network::ZcashNetwork;
 use crate::public_key::ZcashPublicKey;
+use wagyu_model::no_std::{
+    io::{self, Read, Write},
+    vec, String, ToString, Vec,
+};
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
-use rand::Rng;
-use secp256k1;
-use std::{
+use core::{
     cmp::{Eq, PartialEq},
     fmt::{self, Debug, Display},
-    io::{self, Read, Write},
     marker::PhantomData,
     str::FromStr,
 };
+use failure::AsFail;
+use rand::Rng;
+use secp256k1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct P2PKHSpendingKey<N: ZcashNetwork> {
@@ -150,12 +154,12 @@ impl<N: ZcashNetwork> SaplingSpendingKey<N> {
         let mut ask_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
         ask_repr.read_le(&mut reader)?;
         let ask = <Bls12 as JubjubEngine>::Fs::from_repr(ask_repr)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.as_fail().to_string()))?;
 
         let mut nsk_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
         nsk_repr.read_le(&mut reader)?;
         let nsk = <Bls12 as JubjubEngine>::Fs::from_repr(nsk_repr)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.as_fail().to_string()))?;
 
         let mut ovk = [0; 32];
         reader.read_exact(&mut ovk)?;

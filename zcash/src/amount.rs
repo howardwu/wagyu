@@ -1,7 +1,8 @@
+use wagyu_model::no_std::ToString;
 use wagyu_model::{Amount, AmountError};
 
+use core::fmt;
 use serde::Serialize;
-use std::fmt;
 
 // Number of zatoshis (base unit) per ZEC
 const COIN: i64 = 1_0000_0000;

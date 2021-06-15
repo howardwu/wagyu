@@ -13,11 +13,13 @@ use crate::model::{
 
 use clap::{ArgMatches, Values};
 use colored::*;
+use core::{fmt, fmt::Display, str::FromStr};
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
-use std::{fmt, fmt::Display, str::FromStr};
+
+use crate::model::no_std::{format, vec, String, ToOwned, ToString, Vec};
 
 /// Represents a generic wallet to output
 #[derive(Serialize, Debug, Default)]
