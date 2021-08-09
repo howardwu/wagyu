@@ -435,12 +435,14 @@ impl CLI for MoneroCLI {
         match arguments.subcommand() {
             ("import", Some(arguments)) => {
                 options.subcommand = Some("import".into());
-                options.parse(arguments, &["format", "integrated", "json", "network", "subaddress"]);
+                options.parse(
+                    arguments,
+                    &["format", "integrated", "json", "language", "network", "subaddress"],
+                );
                 options.parse(
                     arguments,
                     &[
                         "address",
-                        "language",
                         "mnemonic",
                         "private spend",
                         "private view",
