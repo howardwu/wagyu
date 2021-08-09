@@ -435,14 +435,12 @@ impl CLI for MoneroCLI {
         match arguments.subcommand() {
             ("import", Some(arguments)) => {
                 options.subcommand = Some("import".into());
-                options.parse(
-                    arguments,
-                    &["format", "integrated", "json", "language", "network", "subaddress"],
-                );
+                options.parse(arguments, &["format", "integrated", "json", "network", "subaddress"]);
                 options.parse(
                     arguments,
                     &[
                         "address",
+                        "language",
                         "mnemonic",
                         "private spend",
                         "private view",
@@ -465,21 +463,7 @@ impl CLI for MoneroCLI {
                 match options.subcommand.as_ref().map(String::as_str) {
                     Some("import") => {
                         if let Some(mnemonic) = options.mnemonic {
-                            vec![
-                                MoneroWallet::from_mnemonic::<N, ChineseSimplified>(&mnemonic, &options.format)
-                                    .or(MoneroWallet::from_mnemonic::<N, Dutch>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, English>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, EnglishOld>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Esperanto>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, French>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, German>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Italian>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Japanese>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Lojban>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Portuguese>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Russian>(&mnemonic, &options.format))
-                                    .or(MoneroWallet::from_mnemonic::<N, Spanish>(&mnemonic, &options.format))?,
-                            ]
+                            vec![MoneroWallet::from_mnemonic::<N, W>(&mnemonic, &options.format)?]
                         } else if let Some(private_spend_key) = options.private_spend_key {
                             vec![MoneroWallet::from_private_spend_key::<N, W>(
                                 &private_spend_key,

@@ -326,6 +326,21 @@ pub const INDICES_IMPORT_HD: OptionType = (
     &[],
     &[],
 );
+pub const LANGUAGE_IMPORT_HD: OptionType = (
+    "[language] -l --language=[language] 'Imports an HD wallet with a specified language'",
+    &[],
+    &[
+        "chinese_simplified",
+        "chinese_traditional",
+        "english",
+        "french",
+        "italian",
+        "japanese",
+        "korean",
+        "spanish",
+    ],
+    &[],
+);
 pub const MNEMONIC: OptionType = (
     "[mnemonic] -m --mnemonic=[\"mnemonic\"] 'Imports an HD wallet for a specified mnemonic (in quotes)'",
     &["count", "extended private", "extended public"],

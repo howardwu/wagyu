@@ -626,6 +626,7 @@ impl CLI for EthereumCLI {
                         "extended public",
                         "index",
                         "indices",
+                        "language",
                         "mnemonic",
                         "password",
                     ],
@@ -691,31 +692,17 @@ impl CLI for EthereumCLI {
                 }
                 Some("import-hd") => {
                     if let Some(mnemonic) = options.mnemonic.clone() {
-                        fn process_mnemonic<EN: EthereumNetwork, EW: EthereumWordlist>(
-                            mnemonic: &String,
-                            options: &EthereumOptions,
-                        ) -> Result<Vec<EthereumWallet>, CLIError> {
-                            // Generate the mnemonic wallets, from `index` to a number of specified `indices`
-                            let mut wallets = vec![];
-                            let password = options.password.as_ref().map(String::as_str);
-                            for path in options.to_derivation_paths(true) {
-                                wallets.push(EthereumWallet::from_mnemonic::<EN, EW>(
-                                    mnemonic,
-                                    password,
-                                    path.as_ref().unwrap(),
-                                )?);
-                            }
-                            Ok(wallets)
+                        // Generate the mnemonic wallets, from `index` to a number of specified `indices`
+                        let mut wallets = vec![];
+                        let password = options.password.as_ref().map(String::as_str);
+                        for path in options.to_derivation_paths(true) {
+                            wallets.push(EthereumWallet::from_mnemonic::<N, W>(
+                                &mnemonic,
+                                password,
+                                path.as_ref().unwrap(),
+                            )?);
                         }
-
-                        process_mnemonic::<N, ChineseSimplified>(&mnemonic, &options)
-                            .or(process_mnemonic::<N, ChineseTraditional>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, English>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, French>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Italian>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Japanese>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Korean>(&mnemonic, &options))
-                            .or(process_mnemonic::<N, Spanish>(&mnemonic, &options))?
+                        wallets
                     } else if let Some(extended_private_key) = options.extended_private_key.clone() {
                         // Generate the extended private keys, from `index` to a number of specified `indices`
                         options
