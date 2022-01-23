@@ -49,6 +49,12 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.8" }
 
+failure = { version = "0.1.8", default-features = false, features = ["derive"] }
+
+[features]
+default = ["std"]
+std = ["wagyu-model/std"]
+
 [dev-dependencies]
 # librustzcash fork dependencies
 hex-literal = { version = "0.2" }

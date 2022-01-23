@@ -5,8 +5,8 @@ use crate::network::BitcoinNetwork;
 use crate::private_key::BitcoinPrivateKey;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
+use wagyu_model::no_std::{io::Read, *};
 use wagyu_model::{PrivateKey, Transaction, TransactionError, TransactionId};
-use wagyu_model::no_std::{*, io::Read};
 
 use base58::FromBase58;
 use bech32::{Bech32, FromBase32};
@@ -313,7 +313,7 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// Provide more flexibility for multiple signatures (for P2WSH)
     pub additional_witness: Option<(Vec<u8>, bool)>,
     /// Option for additional witness stack script args
-    pub witness_script_data: Option<Vec<u8>>
+    pub witness_script_data: Option<Vec<u8>>,
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
@@ -400,7 +400,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             witnesses: vec![],
             is_signed: script_sig.len() > 0,
             additional_witness: None,
-            witness_script_data: None
+            witness_script_data: None,
         })
     }
 
@@ -618,8 +618,8 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                     };
                     let c_address = BitcoinAddress::<N>::p2wsh(&input_script)?;
                     address == &c_address
-                },
-                _ => address == &private_key.to_address(&address.format())?
+                }
+                _ => address == &private_key.to_address(&address.format())?,
             };
 
             if address_is_valid && !transaction.parameters.inputs[vin].is_signed {
@@ -632,9 +632,9 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
 
                 // Signature
                 let (signature, _) = secp256k1::sign(
-                        &secp256k1::Message::parse_slice(&transaction_hash)?,
-                        &private_key.to_secp256k1_secret_key(),
-                    );
+                    &secp256k1::Message::parse_slice(&transaction_hash)?,
+                    &private_key.to_secp256k1_secret_key(),
+                );
                 let mut signature = signature.serialize_der().as_ref().to_vec();
                 signature.push((input.sighash_code as u32).to_le_bytes()[0]);
                 let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
@@ -642,9 +642,7 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                 // Public key
                 let public_key = private_key.to_public_key();
                 let public_key_bytes = match (&address.format(), public_key.is_compressed()) {
-                    (BitcoinFormat::P2PKH, false) => {
-                        public_key.to_secp256k1_public_key().serialize().to_vec()
-                    }
+                    (BitcoinFormat::P2PKH, false) => public_key.to_secp256k1_public_key().serialize().to_vec(),
                     _ => public_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
                 };
                 let public_key = [vec![public_key_bytes.len() as u8], public_key_bytes].concat();
@@ -660,29 +658,36 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
                             None => return Err(TransactionError::InvalidInputs("P2WSH".into())),
                         };
 
-                        let ser_input_script = [variable_length_integer(input_script.len() as u64)?, input_script].concat();
+                        let ser_input_script =
+                            [variable_length_integer(input_script.len() as u64)?, input_script].concat();
                         transaction.parameters.segwit_flag = true;
                         transaction.parameters.inputs[vin].script_sig = vec![];
                         // TODO: (jaakinyele) Generalize to a vec of additional witnesses
-                        let (other_signature, is_other_sig_first) = match transaction.parameters.inputs[vin].additional_witness.clone() {
-                            Some(n) => (n.0, n.1),
-                            None => return Err(TransactionError::InvalidInputs("P2WSH: missing additional witness input to complete multi-sig".into())),
-                        };
+                        let (other_signature, is_other_sig_first) =
+                            match transaction.parameters.inputs[vin].additional_witness.clone() {
+                                Some(n) => (n.0, n.1),
+                                None => {
+                                    return Err(TransactionError::InvalidInputs(
+                                        "P2WSH: missing additional witness input to complete multi-sig".into(),
+                                    ))
+                                }
+                            };
                         // Determine whether to append or prepend other signature(s)
                         let mut witness_field = match is_other_sig_first {
                             true => vec![other_signature, signature.clone()],
-                            false => vec![signature.clone(), other_signature]
+                            false => vec![signature.clone(), other_signature],
                         };
                         // Append witness stack script args (before witness script)
                         if transaction.parameters.inputs[vin].witness_script_data.is_some() {
-                            let witness_script_data = transaction.parameters.inputs[vin].witness_script_data.clone().unwrap();
-                            let witness_script_data = [vec![witness_script_data.len() as u8], witness_script_data].concat();
+                            let witness_script_data =
+                                transaction.parameters.inputs[vin].witness_script_data.clone().unwrap();
+                            let witness_script_data =
+                                [vec![witness_script_data.len() as u8], witness_script_data].concat();
                             witness_field.append(&mut vec![witness_script_data]);
                         }
                         // Append the witness script last
                         witness_field.append(&mut vec![ser_input_script.clone()]);
-                        transaction.parameters.inputs[vin].witnesses
-                            .append(&mut witness_field);
+                        transaction.parameters.inputs[vin].witnesses.append(&mut witness_field);
                         transaction.parameters.inputs[vin].is_signed = true;
                     }
                     BitcoinFormat::P2SH_P2WPKH => {
@@ -946,11 +951,11 @@ mod tests {
         inputs: Vec<Input>,
         outputs: Vec<Output>,
         expected_signed_transaction: &str,
-        expected_transaction_id: &str
+        expected_transaction_id: &str,
     ) {
         let mut input_vec = vec![];
         for input in &inputs {
-            let private_key = BitcoinPrivateKey::from_str(input.private_key).unwrap();            
+            let private_key = BitcoinPrivateKey::from_str(input.private_key).unwrap();
             let transaction_id = hex::decode(input.transaction_id).unwrap();
             let redeem_script = match (input.redeem_script, input.address_format.clone()) {
                 (Some(script), BitcoinFormat::P2WSH) => Some(hex::decode(script).unwrap()),
@@ -958,15 +963,18 @@ mod tests {
                 (None, BitcoinFormat::P2SH_P2WPKH) => {
                     let mut redeem_script = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
-                        &private_key.to_public_key().to_secp256k1_public_key().serialize_compressed(),
+                        &private_key
+                            .to_public_key()
+                            .to_secp256k1_public_key()
+                            .serialize_compressed(),
                     ));
                     Some(redeem_script)
                 }
                 (None, _) => None,
-            };    
+            };
             let address = match &input.address_format {
                 BitcoinFormat::P2WSH => BitcoinAddress::<N>::p2wsh(redeem_script.as_ref().unwrap()).unwrap(),
-                _ => private_key.to_address(&input.address_format).unwrap()
+                _ => private_key.to_address(&input.address_format).unwrap(),
             };
             let script_pub_key = input.script_pub_key.map(|script| hex::decode(script).unwrap());
             let sequence = input.sequence.map(|seq| seq.to_vec());
@@ -994,13 +1002,13 @@ mod tests {
             let address = BitcoinAddress::<N>::from_str(output.address);
             if address.is_ok() {
                 output_vec.push(BitcoinTransactionOutput::new(&address.unwrap(), output.amount).unwrap());
-            } else {    
+            } else {
                 let tx_output = BitcoinTransactionOutput {
                     amount: output.amount,
-                    script_pub_key: hex::decode(output.address).unwrap()
+                    script_pub_key: hex::decode(output.address).unwrap(),
                 };
                 output_vec.push(tx_output);
-            }            
+            }
         }
 
         let transaction_parameters = BitcoinTransactionParameters::<N> {
@@ -1020,13 +1028,13 @@ mod tests {
                 .unwrap();
         }
 
-        let signed_transaction_without_witness = hex::encode(&transaction.to_transaction_bytes_without_witness().unwrap());
+        let signed_transaction_without_witness =
+            hex::encode(&transaction.to_transaction_bytes_without_witness().unwrap());
         let transaction_id = hex::encode(&transaction.to_transaction_id().unwrap().txid);
 
         assert_eq!(expected_signed_transaction, &signed_transaction_without_witness);
         assert_eq!(expected_transaction_id, &transaction_id);
     }
-
 
     fn test_transaction<N: BitcoinNetwork>(
         version: u32,
@@ -1046,7 +1054,10 @@ mod tests {
                 (None, BitcoinFormat::P2SH_P2WPKH) => {
                     let mut redeem_script = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
-                        &private_key.to_public_key().to_secp256k1_public_key().serialize_compressed(),
+                        &private_key
+                            .to_public_key()
+                            .to_secp256k1_public_key()
+                            .serialize_compressed(),
                     ));
                     Some(redeem_script)
                 }
@@ -1117,7 +1128,10 @@ mod tests {
                 (None, BitcoinFormat::P2SH_P2WPKH) => {
                     let mut redeem_script = vec![0x00, 0x14];
                     redeem_script.extend(&hash160(
-                        &private_key.to_public_key().to_secp256k1_public_key().serialize_compressed(),
+                        &private_key
+                            .to_public_key()
+                            .to_secp256k1_public_key()
+                            .serialize_compressed(),
                     ));
                     Some(redeem_script)
                 }
@@ -1866,7 +1880,7 @@ mod tests {
                 // Not including witness for now
                 expected_signed_transaction: "0200000001fa6a6160f798cba0c5cac5b9d2ba91d177fa8589875ba8ae7e46864c4e42957c37000000171600143d295b6276ff8e4579f3350873db3e839e230f41ffffffff0180841e0000000000220020c015c4a6be010e21657068fc2e6a9d02b27ebe4d490a25846f7237f104d1a3cd00000000",
                 expected_transaction_id: "d7f70088081d8c3bf45040f11789ee53868b4b00f900c86d32702f3497dec879",
-            },    
+            },
             TransactionTestCase { // Transaction 2 -> P2WSH to Bech32(P2WPKH) and itself
                 version: 2,
                 lock_time: 0,
@@ -1923,7 +1937,6 @@ mod tests {
                 );
             });
         }
-
     }
 
     mod test_helper_functions {

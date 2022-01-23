@@ -4,6 +4,7 @@ use crate::librustzcash::JUBJUB;
 use crate::network::ZcashNetwork;
 use crate::private_key::ZcashPrivateKey;
 use crate::public_key::{P2PKHViewingKey, SaplingFullViewingKey, SproutViewingKey, ZcashPublicKey};
+use wagyu_model::no_std::{vec, String, ToString, Vec};
 use wagyu_model::{
     crypto::{checksum, hash160},
     Address, AddressError, PrivateKey,
@@ -11,11 +12,11 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
+use core::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::scalar::Scalar;
 use rand::{rngs::StdRng, Rng};
 use rand_core::SeedableRng;
-use std::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 
 /// Represents a Zcash address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

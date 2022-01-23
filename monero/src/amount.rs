@@ -1,7 +1,8 @@
+use wagyu_model::no_std::ToString;
 use wagyu_model::Amount;
 
+use core::fmt;
 use serde::Serialize;
-use std::fmt;
 
 // Number of piconeros (base unit) per Monero
 const COIN: i128 = 1_0000_0000_000;

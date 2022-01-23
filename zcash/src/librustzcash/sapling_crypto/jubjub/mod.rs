@@ -23,6 +23,8 @@ use crate::librustzcash::algebra::field::{Field, PrimeField, SqrtField};
 use crate::librustzcash::sapling_crypto::constants;
 use crate::librustzcash::sapling_crypto::group_hash::group_hash;
 
+use wagyu_model::no_std::{vec, Vec};
+
 /// This is an implementation of the twisted Edwards Jubjub curve.
 pub mod edwards;
 

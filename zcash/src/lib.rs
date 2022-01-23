@@ -1,8 +1,18 @@
 //! # Zcash
 //!
 //! A library for generating Zcash wallets.
-#![warn(unused_extern_crates)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![warn(unused_extern_crates, dead_code)]
 #![forbid(unsafe_code)]
+
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+#[doc(hidden)]
+#[macro_use]
+extern crate alloc;
+
+#[macro_use]
+extern crate failure;
 
 #[cfg(test)]
 #[macro_use]

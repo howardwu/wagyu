@@ -1,8 +1,8 @@
 use crate::network::MoneroNetwork;
-use wagyu_model::{AddressError, Format};
+use wagyu_model::{no_std::vec, AddressError, Format};
 
+use core::fmt;
 use serde::Serialize;
-use std::fmt;
 
 /// Represents the format of a Monero address
 #[derive(Serialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

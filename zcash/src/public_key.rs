@@ -8,19 +8,22 @@ use crate::librustzcash::sapling_crypto::{
 use crate::librustzcash::JUBJUB;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey, ZcashPrivateKey};
+use wagyu_model::no_std::{
+    io::{self, Read, Write},
+    ToString, Vec,
+};
 use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{Bech32, FromBase32, ToBase32};
-use crypto::sha2::sha256_digest_block;
-use secp256k1;
-use std::{
+use core::{
     cmp::{Eq, PartialEq},
     fmt::{self, Display},
-    io::{self, Read, Write},
     marker::PhantomData,
     str::FromStr,
 };
+use crypto::sha2::sha256_digest_block;
+use secp256k1;
 
 static H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
@@ -207,9 +210,7 @@ impl<N: ZcashNetwork> PublicKey for ZcashPublicKey<N> {
         match private_key {
             // Transparent Public Key
             ZcashPrivateKey::<N>::P2PKH(spending_key) => ZcashPublicKey::<N>::P2PKH(P2PKHViewingKey {
-                public_key: secp256k1::PublicKey::from_secret_key(
-                    &spending_key.secret_key,
-                ),
+                public_key: secp256k1::PublicKey::from_secret_key(&spending_key.secret_key),
                 compressed: spending_key.compressed,
             }),
             // Transparent Multisignature

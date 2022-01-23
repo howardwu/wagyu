@@ -6,10 +6,10 @@ use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
 use wagyu_model::{PrivateKey, PublicKey, Transaction, TransactionError, TransactionId};
 
+use core::{fmt, marker::PhantomData, str::FromStr};
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
 use secp256k1;
-use std::{fmt, marker::PhantomData, str::FromStr};
 use tiny_keccak::keccak256;
 
 pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
@@ -187,9 +187,11 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     _network: PhantomData,
                 };
                 let message = secp256k1::Message::parse_slice(&raw_transaction.to_transaction_id()?.txid)?;
-                let public_key = EthereumPublicKey::from_secp256k1_public_key(
-                    secp256k1::recover(&message, &secp256k1::Signature::parse_slice(signature.as_slice())?, &recovery_id)?,
-                );
+                let public_key = EthereumPublicKey::from_secp256k1_public_key(secp256k1::recover(
+                    &message,
+                    &secp256k1::Signature::parse_slice(signature.as_slice())?,
+                    &recovery_id,
+                )?);
 
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),

@@ -38,7 +38,7 @@ tiny-keccak = { version = "1.4" }
 
 [features]
 default = ["std"]
-std = ["wagyu-model/default"]
+std = ["wagyu-model/std"]
 
 [badges]
 travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }

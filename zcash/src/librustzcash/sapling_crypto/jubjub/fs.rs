@@ -7,6 +7,8 @@ use crate::librustzcash::algebra::field::{
 use byteorder::{ByteOrder, LittleEndian};
 use rand_core::RngCore;
 
+use wagyu_model::no_std::format;
+
 use super::ToUniform;
 
 // s = 6554484396890773809930967563523245729705921265872317281365359162392183254199
@@ -74,8 +76,8 @@ const NEGATIVE_ONE: Fs = Fs(FsRepr([
 #[derive(Copy, Clone, PartialEq, Eq, Default, Debug)]
 pub struct FsRepr(pub [u64; 4]);
 
-impl ::std::fmt::Display for FsRepr {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl ::core::fmt::Display for FsRepr {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "0x")?;
         for i in self.0.iter().rev() {
             write!(f, "{:016x}", *i)?;
@@ -110,22 +112,22 @@ impl From<u64> for FsRepr {
 
 impl Ord for FsRepr {
     #[inline(always)]
-    fn cmp(&self, other: &FsRepr) -> ::std::cmp::Ordering {
+    fn cmp(&self, other: &FsRepr) -> ::core::cmp::Ordering {
         for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
             if a < b {
-                return ::std::cmp::Ordering::Less;
+                return ::core::cmp::Ordering::Less;
             } else if a > b {
-                return ::std::cmp::Ordering::Greater;
+                return ::core::cmp::Ordering::Greater;
             }
         }
 
-        ::std::cmp::Ordering::Equal
+        ::core::cmp::Ordering::Equal
     }
 }
 
 impl PartialOrd for FsRepr {
     #[inline(always)]
-    fn partial_cmp(&self, other: &FsRepr) -> Option<::std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &FsRepr) -> Option<::core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
@@ -156,7 +158,7 @@ impl PrimeFieldRepr for FsRepr {
         while n >= 64 {
             let mut t = 0;
             for i in self.0.iter_mut().rev() {
-                ::std::mem::swap(&mut t, i);
+                ::core::mem::swap(&mut t, i);
             }
             n -= 64;
         }
@@ -204,7 +206,7 @@ impl PrimeFieldRepr for FsRepr {
         while n >= 64 {
             let mut t = 0;
             for i in &mut self.0 {
-                ::std::mem::swap(&mut t, i);
+                ::core::mem::swap(&mut t, i);
             }
             n -= 64;
         }
@@ -257,8 +259,8 @@ impl PrimeFieldRepr for FsRepr {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Fs(FsRepr);
 
-impl ::std::fmt::Display for Fs {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl ::core::fmt::Display for Fs {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "Fs({})", self.into_repr())
     }
 }
@@ -661,7 +663,7 @@ use rand_xorshift::XorShiftRng;
 fn test_fs_repr_ordering() {
     fn assert_equality(a: FsRepr, b: FsRepr) {
         assert_eq!(a, b);
-        assert!(a.cmp(&b) == ::std::cmp::Ordering::Equal);
+        assert!(a.cmp(&b) == ::core::cmp::Ordering::Equal);
     }
 
     fn assert_lt(a: FsRepr, b: FsRepr) {

@@ -6,7 +6,7 @@
 #![warn(unused_extern_crates, dead_code)]
 #![forbid(unsafe_code)]
 
-#[cfg(not(feature="std"))]
+#[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 #[doc(hidden)]
 #[macro_use]

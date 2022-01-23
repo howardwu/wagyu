@@ -8,6 +8,8 @@ use byteorder::{LittleEndian, WriteBytesExt};
 
 use blake2s_simd::Params as Blake2sParams;
 
+use wagyu_model::no_std::{vec, Vec};
+
 #[derive(Clone)]
 pub struct ValueCommitment<E: JubjubEngine> {
     pub value: u64,

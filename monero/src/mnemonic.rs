@@ -4,12 +4,16 @@ use crate::network::MoneroNetwork;
 use crate::private_key::MoneroPrivateKey;
 use crate::public_key::MoneroPublicKey;
 use crate::wordlist::MoneroWordlist;
-use wagyu_model::{Mnemonic, MnemonicError, PrivateKey};
+use wagyu_model::no_std::vec;
+use wagyu_model::{
+    no_std::{String, ToString, Vec},
+    Mnemonic, MnemonicError, PrivateKey,
+};
 
+use core::{fmt, marker::PhantomData, str, str::FromStr};
 use crc::{crc32, Hasher32};
 use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
-use std::{fmt, marker::PhantomData, str, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Represents a Monero mnemonic

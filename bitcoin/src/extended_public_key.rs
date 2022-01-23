@@ -208,10 +208,7 @@ mod tests {
         let extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(extended_private_key).unwrap();
         let extended_public_key = BitcoinExtendedPublicKey::<N>::from_extended_private_key(&extended_private_key);
         assert_eq!(expected_extended_public_key, extended_public_key.to_string());
-        assert_eq!(
-            expected_public_key,
-            extended_public_key.public_key.to_string()
-        );
+        assert_eq!(expected_public_key, extended_public_key.public_key.to_string());
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
         assert_eq!(
@@ -263,10 +260,7 @@ mod tests {
         extended_public_key: &str,
     ) {
         let extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(&extended_public_key).unwrap();
-        assert_eq!(
-            expected_public_key,
-            extended_public_key.public_key.to_string()
-        );
+        assert_eq!(expected_public_key, extended_public_key.public_key.to_string());
         assert_eq!(expected_child_index, u32::from(extended_public_key.child_index));
         assert_eq!(expected_chain_code, hex::encode(extended_public_key.chain_code));
         assert_eq!(

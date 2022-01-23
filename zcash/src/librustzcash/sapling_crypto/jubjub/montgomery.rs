@@ -1,8 +1,8 @@
 use crate::librustzcash::algebra::field::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
 use crate::librustzcash::sapling_crypto::jubjub::{edwards, JubjubEngine, JubjubParams, PrimeOrder, Unknown};
 
+use core::marker::PhantomData;
 use rand_core::RngCore;
-use std::marker::PhantomData;
 
 // Represents the affine point (X, Y)
 pub struct Point<E: JubjubEngine, Subgroup> {

@@ -1,8 +1,8 @@
 use crate::network::EthereumNetwork;
 use wagyu_model::derivation_path::{ChildIndex, DerivationPath, DerivationPathError};
 
-use std::convert::TryFrom;
-use std::{fmt, marker::PhantomData, str::FromStr};
+use core::convert::TryFrom;
+use core::{fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Ethereum derivation path
 #[derive(Clone, PartialEq, Eq)]

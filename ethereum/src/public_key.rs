@@ -3,8 +3,8 @@ use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
+use core::{fmt, fmt::Display, str::FromStr};
 use secp256k1;
-use std::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum public key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,7 +17,9 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        Self(secp256k1::PublicKey::from_secret_key(&private_key.to_secp256k1_secret_key()))
+        Self(secp256k1::PublicKey::from_secret_key(
+            &private_key.to_secp256k1_secret_key(),
+        ))
     }
 
     /// Returns the address of the corresponding private key.
@@ -43,7 +45,8 @@ impl FromStr for EthereumPublicKey {
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         Ok(Self(secp256k1::PublicKey::parse_slice(
-            hex::decode(format!("04{}", public_key).as_str())?.as_slice(), None
+            hex::decode(format!("04{}", public_key).as_str())?.as_slice(),
+            None,
         )?))
     }
 }

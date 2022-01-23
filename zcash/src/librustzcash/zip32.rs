@@ -8,14 +8,15 @@ use crate::librustzcash::JUBJUB;
 use crate::network::ZcashNetwork;
 use crate::private_key::{SaplingOutgoingViewingKey, SaplingSpendingKey};
 use crate::public_key::SaplingFullViewingKey;
+use wagyu_model::no_std::io::{self, Read, Write};
+use wagyu_model::no_std::vec;
 use wagyu_model::ChildIndex;
 
 use aes::Aes256;
 use blake2b_simd::{Hash as Blake2bHash, Params as Blake2bParams};
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
+use core::marker::PhantomData;
 use fpe::ff1::{BinaryNumeralString, FF1};
-use std::io::{self, Read, Write};
-use std::marker::PhantomData;
 
 pub const ZIP32_SAPLING_MASTER_PERSONALIZATION: &'static [u8; 16] = b"ZcashIP32Sapling";
 pub const ZIP32_SAPLING_FVFP_PERSONALIZATION: &'static [u8; 16] = b"ZcashSaplingFVFP";
@@ -274,7 +275,7 @@ impl<N: ZcashNetwork> ExtendedSpendingKey<N> {
     }
 }
 
-impl<N: ZcashNetwork> std::cmp::PartialEq for ExtendedSpendingKey<N> {
+impl<N: ZcashNetwork> core::cmp::PartialEq for ExtendedSpendingKey<N> {
     fn eq(&self, rhs: &ExtendedSpendingKey<N>) -> bool {
         self.depth == rhs.depth
             && self.parent_fvk_tag == rhs.parent_fvk_tag
@@ -287,8 +288,8 @@ impl<N: ZcashNetwork> std::cmp::PartialEq for ExtendedSpendingKey<N> {
     }
 }
 
-impl<N: ZcashNetwork> std::fmt::Debug for ExtendedSpendingKey<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+impl<N: ZcashNetwork> core::fmt::Debug for ExtendedSpendingKey<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
         write!(
             f,
             "ExtendedSpendingKey(d = {}, tag_p = {:?}, i = {:?})",
@@ -397,7 +398,7 @@ impl<N: ZcashNetwork> ExtendedFullViewingKey<N> {
     }
 }
 
-impl<N: ZcashNetwork> std::cmp::PartialEq for ExtendedFullViewingKey<N> {
+impl<N: ZcashNetwork> core::cmp::PartialEq for ExtendedFullViewingKey<N> {
     fn eq(&self, rhs: &Self) -> bool {
         self.depth == rhs.depth
             && self.parent_fvk_tag == rhs.parent_fvk_tag
@@ -410,8 +411,8 @@ impl<N: ZcashNetwork> std::cmp::PartialEq for ExtendedFullViewingKey<N> {
     }
 }
 
-impl<N: ZcashNetwork> std::fmt::Debug for ExtendedFullViewingKey<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+impl<N: ZcashNetwork> core::fmt::Debug for ExtendedFullViewingKey<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
         write!(
             f,
             "ExtendedFullViewingKey(d = {}, tag_p = {:?}, i = {:?})",

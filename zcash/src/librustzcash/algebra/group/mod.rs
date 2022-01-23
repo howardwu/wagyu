@@ -1,8 +1,7 @@
 use crate::librustzcash::algebra::field::{PrimeField, PrimeFieldDecodingError, ScalarEngine, SqrtField};
 
+use core::fmt;
 use rand::RngCore;
-use std::error::Error;
-use std::fmt;
 
 #[cfg(test)]
 pub mod tests;
@@ -144,39 +143,21 @@ pub trait EncodedPoint: Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone 
 }
 
 /// An error that may occur when trying to decode an `EncodedPoint`.
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum GroupDecodingError {
     /// The coordinate(s) do not lie on the curve.
+    #[fail(display = "coordinate(s) do not lie on the curve")]
     NotOnCurve,
     /// The element is not part of the r-order subgroup.
+    #[fail(display = "the element is not part of an r-order subgroup")]
     NotInSubgroup,
     /// One of the coordinates could not be decoded
+    #[fail(display = "{} decoding error: {}", _0, _1)]
     CoordinateDecodingError(&'static str, PrimeFieldDecodingError),
     /// The compression mode of the encoded element was not as expected
+    #[fail(display = "encoding has unexpected compression mode")]
     UnexpectedCompressionMode,
     /// The encoding contained bits that should not have been set
+    #[fail(display = "encoding has unexpected information")]
     UnexpectedInformation,
-}
-
-impl Error for GroupDecodingError {
-    fn description(&self) -> &str {
-        match *self {
-            GroupDecodingError::NotOnCurve => "coordinate(s) do not lie on the curve",
-            GroupDecodingError::NotInSubgroup => "the element is not part of an r-order subgroup",
-            GroupDecodingError::CoordinateDecodingError(..) => "coordinate(s) could not be decoded",
-            GroupDecodingError::UnexpectedCompressionMode => "encoding has unexpected compression mode",
-            GroupDecodingError::UnexpectedInformation => "encoding has unexpected information",
-        }
-    }
-}
-
-impl fmt::Display for GroupDecodingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match *self {
-            GroupDecodingError::CoordinateDecodingError(description, ref err) => {
-                write!(f, "{} decoding error: {}", description, err)
-            }
-            _ => write!(f, "{}", self.description()),
-        }
-    }
 }

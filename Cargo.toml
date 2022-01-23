@@ -29,6 +29,10 @@ members = [ "bitcoin", "ethereum", "model", "monero", "zcash", "tron" ]
 [badges]
 travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }
 
+[features]
+default = ["std"]
+std = ["wagyu-model/std", "wagyu-bitcoin/std", "wagyu-ethereum/std", "wagyu-model/std", "wagyu-monero/std", "wagyu-zcash/std"]
+
 [dependencies]
 wagyu-bitcoin = { path = "./bitcoin", version = "0.6.3" }
 wagyu-ethereum = { path = "./ethereum", version = "0.6.3" }
