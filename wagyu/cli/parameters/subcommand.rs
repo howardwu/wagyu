@@ -11,6 +11,7 @@ pub const HD_BITCOIN: SubCommandType = (
     &[
         option::COUNT,
         option::DERIVATION_BITCOIN,
+        option::FORMAT_BITCOIN,
         option::LANGUAGE_HD,
         option::NETWORK_HD_BITCOIN,
         option::PASSWORD_HD,
@@ -137,6 +138,7 @@ pub const IMPORT_HD_BITCOIN: SubCommandType = (
         option::DERIVATION_IMPORT_BITCOIN,
         option::EXTENDED_PUBLIC,
         option::EXTENDED_PRIVATE,
+        option::FORMAT_IMPORT_BITCOIN,
         option::NETWORK_IMPORT_HD_BITCOIN,
         option::INDEX_IMPORT_HD,
         option::MNEMONIC,
