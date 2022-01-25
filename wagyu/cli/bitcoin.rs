@@ -102,6 +102,7 @@ impl BitcoinWallet {
         mnemonic: &str,
         password: &Option<&str>,
         path: &str,
+        format: &BitcoinFormat,
     ) -> Result<Self, CLIError> {
         let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password.clone())?;
@@ -110,7 +111,7 @@ impl BitcoinWallet {
         let extended_public_key = extended_private_key.to_extended_public_key();
         let private_key = extended_private_key.to_private_key();
         let public_key = extended_public_key.to_public_key();
-        let address = public_key.to_address(&extended_private_key.format())?;
+        let address = public_key.to_address(format)?;
         let compressed = private_key.is_compressed();
         Ok(Self {
             path: Some(path.to_string()),
@@ -582,7 +583,7 @@ impl BitcoinOptions {
     }
 
     /// Sets `format` to the specified format, overriding its previous state.
-    /// If the specified argument is `None`, then no change occurs.
+    /// If the specified argument is `None` or unrecognized, then no change occurs.
     fn format(&mut self, argument: Option<&str>) {
         match argument {
             Some("legacy") => self.format = BitcoinFormat::P2PKH,
@@ -748,7 +749,7 @@ impl CLI for BitcoinCLI {
             }
             ("import-hd", Some(arguments)) => {
                 options.subcommand = Some("import-hd".into());
-                options.parse(arguments, &["json", "network"]);
+                options.parse(arguments, &["format", "json", "network"]);
                 options.parse(
                     arguments,
                     &[
@@ -820,17 +821,17 @@ impl CLI for BitcoinCLI {
 
                             match options.to_derivation_path(true) {
                                 Some(path) => vec![BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(
-                                    &mnemonic, password, &path,
+                                    &mnemonic, password, &path, &options.format,
                                 )
                                 .or(BitcoinWallet::from_mnemonic::<N, ChineseTraditional>(
-                                    &mnemonic, password, &path,
+                                    &mnemonic, password, &path, &options.format,
                                 ))
-                                .or(BitcoinWallet::from_mnemonic::<N, English>(&mnemonic, password, &path))
-                                .or(BitcoinWallet::from_mnemonic::<N, French>(&mnemonic, password, &path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(&mnemonic, password, &path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, &path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(&mnemonic, password, &path))
-                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, &path))?],
+                                .or(BitcoinWallet::from_mnemonic::<N, English>(&mnemonic, password, &path, &options.format))
+                                .or(BitcoinWallet::from_mnemonic::<N, French>(&mnemonic, password, &path, &options.format))
+                                .or(BitcoinWallet::from_mnemonic::<N, Italian>(&mnemonic, password, &path, &options.format))
+                                .or(BitcoinWallet::from_mnemonic::<N, Japanese>(&mnemonic, password, &path, &options.format))
+                                .or(BitcoinWallet::from_mnemonic::<N, Korean>(&mnemonic, password, &path, &options.format))
+                                .or(BitcoinWallet::from_mnemonic::<N, Spanish>(&mnemonic, password, &path, &options.format))?],
                                 None => vec![],
                             }
                         } else if let Some(extended_private_key) = options.extended_private_key.clone() {
