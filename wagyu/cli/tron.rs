@@ -841,15 +841,6 @@ impl CLI for TronCLI {
                 TronTestnet::NAME => output::<TronTestnet, English>(options),
                 _ => output::<TronMainnet, English>(options),
             }
-            // "chinese_simplified" => output::<TronMainnet, ChineseSimplified>(options),
-            // "chinese_traditional" => output::<TronMainnet, ChineseTraditional>(options),
-            // "english" => output::<TronMainnet, English>(options),
-            // "french" => output::<TronMainnet, French>(options),
-            // "italian" => output::<TronMainnet, Italian>(options),
-            // "japanese" => output::<TronMainnet, Japanese>(options),
-            // "korean" => output::<TronMainnet, Korean>(options),
-            // "spanish" => output::<TronMainnet, Spanish>(options),
-            // _ => output::<TronMainnet, English>(options),
         }
     }
 }

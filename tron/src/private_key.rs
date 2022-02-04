@@ -26,8 +26,6 @@ impl<N: TronNetwork> PrivateKey for TronPrivateKey<N> {
 
     /// Returns a randomly-generated Tron private key.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
-        // let random: [u8; 32] = rng.gen();
-        // Ok(Self(secp256k1::SecretKey::parse_slice(&random)?))
         Ok(Self{secret_key: secp256k1::SecretKey::random(rng),_network: PhantomData})
     }
 
@@ -71,7 +69,7 @@ impl<N: TronNetwork> Display for TronPrivateKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut private_key = [0u8; 32];
         private_key.copy_from_slice(&self.secret_key.serialize());
-        write!(f, "{}", hex::encode(private_key).to_string())
+        write!(f, "{}", hex::encode(private_key))
     }
 }
 

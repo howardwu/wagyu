@@ -27,30 +27,30 @@
     - [3.1.1 Bitcoin](#311-bitcoin)
     - [3.1.2 Ethereum](#312-ethereum)
     - [3.1.3 Monero](#313-monero)
-    - [3.1.4 Zcash](#314-zcash)
-    - [3.1.5 Tron](#315-tron)
+    - [3.1.4 Tron](#314-tron)
+    - [3.1.5 Zcash](#315-zcash)
   - [3.2 Generate an HD cryptocurrency wallet](#32-generate-an-hd-cryptocurrency-wallet)
     - [3.2.1 Bitcoin](#321-bitcoin)
     - [3.2.2 Ethereum](#322-ethereum)
-    - [3.2.3 Zcash](#323-zcash)
-    - [3.2.4 Tron](#324-tron)
+    - [3.2.3 Tron](#323-tron)
+    - [3.2.4 Zcash](#324-zcash)
   - [3.3 Import a cryptocurrency wallet](#33-import-a-cryptocurrency-wallet)
     - [3.3.1 Bitcoin](#331-bitcoin)
     - [3.3.2 Ethereum](#332-ethereum)
     - [3.3.3 Monero](#333-monero)
-    - [3.3.4 Zcash](#334-zcash)
-    - [3.3.5 Tron](#335-tron)
+    - [3.3.4 Tron](#334-tron)
+    - [3.3.5 Zcash](#335-zcash)
   - [3.4 Import an HD cryptocurrency wallet](#34-import-an-hd-cryptocurrency-wallet)
     - [3.4.1 Bitcoin](#341-bitcoin)
     - [3.4.2 Ethereum](#342-ethereum)
-    - [3.4.3 Zcash](#343-zcash)
-    - [3.4.4 Tron](#344-tron)
+    - [3.4.3 Tron](#343-tron)
+    - [3.4.4 Zcash](#344-zcash)
   - [3.5 Generate a cryptocurrency transaction](#35-generate-a-cryptocurrency-transaction)
     - [3.5.1 Bitcoin](#351-bitcoin)
     - [3.5.2 Ethereum](#352-ethereum)
-    - [3.5.3 Zcash](#353-zcash)
-    - [3.5.4 Tron](#354-tron)
-    - [3.5.4 Transaction Remarks](#354-transaction-remarks)
+    - [3.5.3 Tron](#353-tron)
+    - [3.5.4 Zcash](#354-zcash)
+    - [3.5.5 Transaction Remarks](#355-transaction-remarks)
 - [4. License](#4-license)
 
 ## 1. Overview
@@ -200,28 +200,7 @@ OPTIONS:
     -s, --subaddress <Major Index> <Minor Index>    Generates a wallet with a specified major and minor index
 ```
 
-#### 3.1.4 Zcash
-
-To generate a Zcash wallet, run:
-```
-wagyu zcash [FLAGS] [OPTIONS]
-```
-
-The command can be run with the following parameters:
-
-```
-FLAGS:
-    -h, --help    Prints help information
-    -j, --json    Prints the generated wallet(s) in JSON format
-
-OPTIONS:
-    -c, --count <count>                Generates a specified number of wallets
-        --diversifier <diversifier>    Generates a wallet with a specified Sapling address diversifier
-    -f, --format <format>              Generates a wallet with a specified format [possible values: sapling, sprout, transparent]
-    -n, --network <network>            Generates a wallet for a specified network [possible values: mainnet, testnet]
-```
-
-#### 3.1.5 Tron
+#### 3.1.4 Tron
 
 To generate a Tron wallet, run:
 ```
@@ -244,6 +223,27 @@ SUBCOMMANDS:
     import         Imports a wallet (include -h for more options)
     import-hd      Imports an HD wallet (include -h for more options)
     transaction    Generates a Tron transaction (include -h for more options)
+```
+
+#### 3.1.5 Zcash
+
+To generate a Zcash wallet, run:
+```
+wagyu zcash [FLAGS] [OPTIONS]
+```
+
+The command can be run with the following parameters:
+
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+    -c, --count <count>                Generates a specified number of wallets
+        --diversifier <diversifier>    Generates a wallet with a specified Sapling address diversifier
+    -f, --format <format>              Generates a wallet with a specified format [possible values: sapling, sprout, transparent]
+    -n, --network <network>            Generates a wallet for a specified network [possible values: mainnet, testnet]
 ```
 
 ### 3.2 Generate an HD cryptocurrency wallet
@@ -298,27 +298,7 @@ OPTIONS:
     -w, --word-count <word count>    Generates an HD wallet with a specified word count [possible values: 12, 15, 18, 21, 24]
 ```
 
-#### 3.2.3 Zcash
-
-To generate a Zcash HD wallet, run:
-```
-wagyu zcash hd [FLAGS] [OPTIONS]
-```
-
-The command can be run with the following parameters:
-```
-FLAGS:
-    -h, --help    Prints help information
-    -j, --json    Prints the generated wallet(s) in JSON format
-
-OPTIONS:
-    -c, --count <count>                Generates a specified number of wallets
-    -d, --derivation <"path">          Generates an HD wallet for a specified derivation path (in quotes) [possible values: zip32, "<custom path>"]
-        --diversifier <diversifier>    Imports a wallet with a specified Sapling address diversifier
-    -n, --network <network>            Generates an HD wallet for a specified network [possible values: mainnet, testnet]
-```
-
-#### 3.2.4 Tron
+#### 3.2.3 Tron
 
 To generate a Tron HD wallet, run:
 ```
@@ -340,6 +320,26 @@ OPTIONS:
     -n, --network <network>          Generates a wallet for a specified network [possible values: mainnet, testnet]
     -p, --password <password>        Generates an HD wallet with a specified password
     -w, --word-count <word count>    Generates an HD wallet with a specified word count [possible values: 12, 15, 18, 21, 24]
+```
+
+#### 3.2.4 Zcash
+
+To generate a Zcash HD wallet, run:
+```
+wagyu zcash hd [FLAGS] [OPTIONS]
+```
+
+The command can be run with the following parameters:
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+    -c, --count <count>                Generates a specified number of wallets
+    -d, --derivation <"path">          Generates an HD wallet for a specified derivation path (in quotes) [possible values: zip32, "<custom path>"]
+        --diversifier <diversifier>    Imports a wallet with a specified Sapling address diversifier
+    -n, --network <network>            Generates an HD wallet for a specified network [possible values: mainnet, testnet]
 ```
 
 ### 3.3 Import a cryptocurrency wallet
@@ -416,28 +416,7 @@ OPTIONS:
     -s, --subaddress <Major Index> <Minor Index>    Imports a wallet with a specified major and minor index
 ```
 
-#### 3.3.4 Zcash
-
-To import a Zcash wallet, run:
-```
-wagyu zcash import [FLAGS] [OPTIONS]
-```
-
-This command can be run with the following parameters:
-
-```
-FLAGS:
-    -h, --help    Prints help information
-    -j, --json    Prints the generated wallet(s) in JSON format
-
-OPTIONS:
-        --address <address>            Imports a partial wallet for a specified address
-        --diversifier <diversifier>    Imports a wallet with a specified Sapling address diversifier
-        --private <private key>        Imports a wallet for a specified private key
-        --public <public key>          Imports a partial wallet for a specified public key
-```
-
-#### 3.3.5 Tron
+#### 3.3.4 Tron
 
 To import a Tron wallet, run:
 ```
@@ -458,6 +437,27 @@ OPTIONS:
         --address <address>        Imports a partial wallet for a specified address
         --private <private key>    Imports a wallet for a specified private key
         --public <public key>      Imports a partial wallet for a specified public key
+```
+
+#### 3.3.5 Zcash
+
+To import a Zcash wallet, run:
+```
+wagyu zcash import [FLAGS] [OPTIONS]
+```
+
+This command can be run with the following parameters:
+
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+        --address <address>            Imports a partial wallet for a specified address
+        --diversifier <diversifier>    Imports a wallet with a specified Sapling address diversifier
+        --private <private key>        Imports a wallet for a specified private key
+        --public <public key>          Imports a partial wallet for a specified public key
 ```
 
 ### 3.4 Import an HD cryptocurrency wallet
@@ -516,30 +516,7 @@ OPTIONS:
     -p, --password <password>                    Imports an HD wallet with a specified password
 ```
 
-#### 3.4.3 Zcash
-
-To import a Zcash HD wallet, run:
-```
-wagyu zcash import-hd [FLAGS] [OPTIONS]
-```
-
-This command can be run with the following parameters:
-
-```
-FLAGS:
-    -h, --help    Prints help information
-    -j, --json    Prints the generated wallet(s) in JSON format
-
-OPTIONS:
-    -a, --account <account>                      Imports an HD wallet for a specified account number for bip44 and bip49 derivations
-    -d, --derivation <"path">                    Imports an HD wallet for a specified derivation path (in quotes) [possible values: zip32, "<custom path>"]
-        --diversifier <diversifier>              Imports an HD wallet with a specified Sapling address diversifier
-        --extended-private <extended private>    Imports a partial HD wallet for a specified extended private key
-        --extended-public <extended public>      Imports a partial HD wallet for a specified extended public key
-    -i, --index <index>                          Imports an HD wallet for a specified index
-```
-
-#### 3.4.4 Tron
+#### 3.4.3 Tron
 
 To import a Tron HD wallet (only bip44 is supported as of today), run:
 ```
@@ -561,6 +538,29 @@ OPTIONS:
     -k, --indices <num_indices>                  Imports an HD wallet with a specified number of indices
     -m, --mnemonic <"mnemonic">                  Imports an HD wallet for a specified mnemonic (in quotes)
     -p, --password <password>                    Imports an HD wallet with a specified password
+```
+
+#### 3.4.4 Zcash
+
+To import a Zcash HD wallet, run:
+```
+wagyu zcash import-hd [FLAGS] [OPTIONS]
+```
+
+This command can be run with the following parameters:
+
+```
+FLAGS:
+    -h, --help    Prints help information
+    -j, --json    Prints the generated wallet(s) in JSON format
+
+OPTIONS:
+    -a, --account <account>                      Imports an HD wallet for a specified account number for bip44 and bip49 derivations
+    -d, --derivation <"path">                    Imports an HD wallet for a specified derivation path (in quotes) [possible values: zip32, "<custom path>"]
+        --diversifier <diversifier>              Imports an HD wallet with a specified Sapling address diversifier
+        --extended-private <extended private>    Imports a partial HD wallet for a specified extended private key
+        --extended-public <extended public>      Imports a partial HD wallet for a specified extended public key
+    -i, --index <index>                          Imports an HD wallet for a specified index
 ```
 
 ### 3.5 Generate a cryptocurrency transaction
@@ -615,7 +615,12 @@ OPTIONS:
         --signrawtransaction <transaction hex> <private key>                                                                                     Sign a raw Ethereum transaction
 ```
 
-#### 3.5.3 Zcash
+#### 3.5.3 Tron
+
+Not implemented yet.
+
+
+#### 3.5.4 Zcash
 
 To generate a Zcash transaction, run:
 ```
@@ -641,11 +646,7 @@ OPTIONS:
         --version <version>                                Specify a Zcash transaction version [possible values: sapling]
 ```
 
-#### 3.5.4 Tron
-
-Not implemented yet.
-
-#### 3.5.4 Transaction Remarks
+#### 3.5.5 Transaction Remarks
 
 `wagyu` CLI operates offline without chain state, and thus cannot immediately craft Monero transactions or Zcash Sapling spends (Zcash Sapling outputs are supported).
 

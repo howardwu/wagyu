@@ -24,7 +24,7 @@ name = "wagyu"
 path = "wagyu/main.rs"
 
 [workspace]
-members = [ "bitcoin", "ethereum", "model", "monero", "zcash", "tron" ]
+members = [ "bitcoin", "ethereum", "model", "monero", "tron", "zcash" ]
 
 [badges]
 travis-ci = { repository = "AleoHQ/wagyu", branch = "master" }
@@ -38,8 +38,8 @@ wagyu-bitcoin = { path = "./bitcoin", version = "0.6.3" }
 wagyu-ethereum = { path = "./ethereum", version = "0.6.3" }
 wagyu-model = { path = "./model", version = "0.6.3" }
 wagyu-monero = { path = "./monero", version = "0.6.3" }
-wagyu-zcash = { path = "./zcash", version = "0.6.3" }
 wagyu-tron = { path = "./tron", version = "0.6.3" }
+wagyu-zcash = { path = "./zcash", version = "0.6.3" }
 
 arrayvec = { version = "0.5.1" }
 base58 = { version = "0.1" }
@@ -58,10 +58,9 @@ serde_json = { version = "1.0" }
 tiny-keccak = { version = "1.4" }
 
 [profile.release]
-opt-level = "z"
+opt-level = 3
 lto = "thin"
 incremental = true
-codegen-units = 1
 
 [profile.bench]
 opt-level = 3
