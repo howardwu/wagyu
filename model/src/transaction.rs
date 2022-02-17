@@ -75,7 +75,7 @@ pub enum TransactionError {
     #[fail(display = "invalid output address: {}", _0)]
     InvalidOutputAddress(String),
 
-    #[fail(display = "invalid ouptut description for address: {}", _0)]
+    #[fail(display = "invalid output description for address: {}", _0)]
     InvalidOutputDescription(String),
 
     #[fail(display = "invalid transaction RLP length: expected - 9, found - {:?}", _0)]

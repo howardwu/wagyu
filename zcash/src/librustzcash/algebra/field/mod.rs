@@ -97,7 +97,7 @@ pub trait PrimeFieldRepr:
     + AsMut<[u64]>
     + From<u64>
 {
-    /// Subtract another represetation from this one.
+    /// Subtract another representation from this one.
     fn sub_noborrow(&mut self, other: &Self);
 
     /// Add another representation to this one.

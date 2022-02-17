@@ -307,7 +307,7 @@ pub struct Outpoint<N: ZcashNetwork> {
     pub index: u32,
     /// Amount associated with the UTXO - used for segwit transaction signatures
     pub amount: Option<ZcashAmount>,
-    /// Script public key asssociated with claiming this particular input UTXO
+    /// Script public key associated with claiming this particular input UTXO
     pub script_pub_key: Option<Vec<u8>>,
     /// Optional redeem script - for segwit transactions
     pub redeem_script: Option<Vec<u8>>,
