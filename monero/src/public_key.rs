@@ -27,15 +27,15 @@ impl<N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
+        const G: &EdwardsBasepointTable = ED25519_BASEPOINT_TABLE;
 
         match private_key.format() {
             MoneroFormat::Subaddress(major, minor) if major != 0 || minor != 0 => {
-                let private_spend = &Scalar::from_bits(private_key.to_private_spend_key());
-                let private_view = &Scalar::from_bits(private_key.to_private_view_key());
+                let private_spend = &Scalar::from_bytes_mod_order(private_key.to_private_spend_key());
+                let private_view = &Scalar::from_bytes_mod_order(private_key.to_private_view_key());
 
                 let private_view_subaddress = private_key.to_subaddress_private_view_key(major, minor);
-                let private_view_subaddress = &Scalar::from_bits(private_view_subaddress);
+                let private_view_subaddress = &Scalar::from_bytes_mod_order(private_view_subaddress);
 
                 let public_spend_subaddress = &(private_spend + private_view_subaddress) * G;
                 let public_view_subaddress = private_view * public_spend_subaddress;
@@ -48,10 +48,10 @@ impl<N: MoneroNetwork> PublicKey for MoneroPublicKey<N> {
                 }
             }
             _ => {
-                let private_spend = &Scalar::from_bits(private_key.to_private_spend_key());
+                let private_spend = &Scalar::from_bytes_mod_order(private_key.to_private_spend_key());
                 let public_spend = private_spend * G;
 
-                let private_view = &Scalar::from_bits(private_key.to_private_view_key());
+                let private_view = &Scalar::from_bytes_mod_order(private_key.to_private_view_key());
                 let public_view = private_view * G;
 
                 Self {
@@ -115,7 +115,7 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
         let mut private_view = [0u8; 32];
         private_view.copy_from_slice(key.as_slice());
 
-        let public_view = &Scalar::from_bits(private_view) * &ED25519_BASEPOINT_TABLE;
+        let public_view = &Scalar::from_bytes_mod_order(private_view) * ED25519_BASEPOINT_TABLE;
         let format = match format {
             MoneroFormat::Subaddress(major, minor) if *major == 0 && *minor == 0 => MoneroFormat::Standard,
             _ => *format,
@@ -141,7 +141,7 @@ impl<N: MoneroNetwork> MoneroPublicKey<N> {
 
     /// Returns the format of the Monero address.
     pub fn format(&self) -> MoneroFormat {
-        self.format.clone()
+        self.format
     }
 }
 
@@ -159,11 +159,11 @@ impl<N: MoneroNetwork> FromStr for MoneroPublicKey<N> {
         let public_spend_key = hex::encode(spend_key);
         let public_view_key = hex::encode(view_key);
 
-        Ok(Self::from(
+        Self::from(
             public_spend_key.as_str(),
             public_view_key.as_str(),
             &MoneroFormat::Standard,
-        )?)
+        )
     }
 }
 

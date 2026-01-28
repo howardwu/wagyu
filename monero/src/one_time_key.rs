@@ -9,20 +9,20 @@ use wagyu_model::{PublicKeyError, TransactionError};
 use core::marker::PhantomData;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE, edwards::EdwardsBasepointTable, scalar::Scalar};
-use tiny_keccak::keccak256;
+use tiny_keccak::{Hasher, Keccak};
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum OneTimeKeyError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "could not generate Edwards point from slice {:?}", _0)]
+    #[error("could not generate Edwards point from slice {0:?}")]
     EdwardsPointError([u8; 32]),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     PublicKeyError(PublicKeyError),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     TransactionError(TransactionError),
 }
 
@@ -53,7 +53,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns one time key given recipient public keys, randomness, and output index
     pub fn new(public: &MoneroPublicKey<N>, rand: &[u8; 32], index: u64) -> Result<OneTimeKey<N>, OneTimeKeyError> {
         //destination_key = hash((random * public_view_key) || index) * generator + public_spend_key
-        const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
+        const G: &EdwardsBasepointTable = ED25519_BASEPOINT_TABLE;
 
         let public_spend_key: [u8; 32] = match public.to_public_spend_key() {
             Some(key) => key,
@@ -64,18 +64,21 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
             None => return Err(OneTimeKeyError::PublicKeyError(PublicKeyError::NoViewingKey)),
         };
 
-        let public_spend_point = &match CompressedEdwardsY::from_slice(&public_spend_key).decompress() {
+        let public_spend_point = &match CompressedEdwardsY::from_slice(&public_spend_key)
+            .map_err(|_| OneTimeKeyError::EdwardsPointError(public_spend_key))?
+            .decompress()
+        {
             Some(point) => point,
             None => return Err(OneTimeKeyError::EdwardsPointError(public_spend_key)),
         };
         let mut concat = Vec::<u8>::new();
 
-        Self::generate_key_derivation(&public_view_key, &rand, &mut concat)?;
+        Self::generate_key_derivation(&public_view_key, rand, &mut concat)?;
 
-        let hash = &Self::derivation_to_scalar(&mut concat, index);
+        let hash = &Self::derivation_to_scalar(&concat, index);
         let key: EdwardsPoint = hash * G + public_spend_point;
 
-        let tx = &Scalar::from_bits(*rand) * G;
+        let tx = &Scalar::from_bytes_mod_order(*rand) * G;
 
         Ok(Self {
             destination_key: key.compress().to_bytes(),
@@ -95,8 +98,8 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
             &mut concat,
         )?;
 
-        let hash = Self::derivation_to_scalar(&mut concat, index);
-        let private_spend_scalar = Scalar::from_bits(private.to_private_spend_key());
+        let hash = Self::derivation_to_scalar(&concat, index);
+        let private_spend_scalar = Scalar::from_bytes_mod_order(private.to_private_spend_key());
         let x: Scalar = hash + private_spend_scalar;
 
         Ok(x.to_bytes())
@@ -105,9 +108,9 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     /// Returns one time public destination key given recipient private keys for verification
     fn to_public(&self, private: &MoneroPrivateKey<N>, index: u64) -> Result<[u8; 32], OneTimeKeyError> {
         //destination_key = one_time_private_key * G
-        const G: &EdwardsBasepointTable = &ED25519_BASEPOINT_TABLE;
+        const G: &EdwardsBasepointTable = ED25519_BASEPOINT_TABLE;
         let one_time_private_key = self.to_private(private, index)?;
-        let destination_key = &Scalar::from_bits(one_time_private_key) * G;
+        let destination_key = &Scalar::from_bytes_mod_order(one_time_private_key) * G;
 
         Ok(destination_key.compress().to_bytes())
     }
@@ -127,7 +130,7 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         let mut n = index;
         loop {
             let bits = (n & 0b0111_1111) as u8;
-            n = n >> 7;
+            n >>= 7;
             res.push(bits);
             if n == 0u64 {
                 break;
@@ -152,8 +155,11 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
         dest: &mut Vec<u8>,
     ) -> Result<(), OneTimeKeyError> {
         // r * A
-        let r = Scalar::from_bits(*secret_key);
-        let A = &match CompressedEdwardsY::from_slice(public).decompress() {
+        let r = Scalar::from_bytes_mod_order(*secret_key);
+        let A = &match CompressedEdwardsY::from_slice(public)
+            .map_err(|_| OneTimeKeyError::EdwardsPointError(*public))?
+            .decompress()
+        {
             Some(point) => point,
             None => return Err(OneTimeKeyError::EdwardsPointError(*public)),
         };
@@ -168,12 +174,16 @@ impl<N: MoneroNetwork> OneTimeKey<N> {
     }
 
     /// Returns keccak256 hash of key derivation extended by output index as a scalar
-    fn derivation_to_scalar(derivation: &Vec<u8>, output_index: u64) -> Scalar {
+    fn derivation_to_scalar(derivation: &[u8], output_index: u64) -> Scalar {
         // H_s(derivation || output_index)
-        let mut derivation = derivation.clone();
+        let mut derivation = derivation.to_owned();
         derivation.extend(&Self::encode_varint(output_index));
 
-        Scalar::from_bytes_mod_order(keccak256(&derivation))
+        let mut hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&derivation);
+        keccak.finalize(&mut hash);
+        Scalar::from_bytes_mod_order(hash)
     }
 
     pub fn to_destination_key(&self) -> [u8; 32] {

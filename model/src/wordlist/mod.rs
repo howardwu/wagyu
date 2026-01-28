@@ -1,8 +1,5 @@
 pub mod bip39;
-pub use self::bip39::*;
-
 pub mod monero;
-pub use self::monero::*;
+pub mod traits;
 
-pub mod wordlist;
-pub use self::wordlist::*;
+pub use self::traits::*;

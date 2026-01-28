@@ -65,7 +65,7 @@ pub trait MoneroWordlist: Wordlist {
 
     /// Returns the index of a given trimmed word from the word list.
     fn get_index_trimmed(trimmed_word: &str) -> Result<usize, WordlistError> {
-        match Self::get_all_trimmed().iter().position(|e| e == &trimmed_word) {
+        match Self::get_all_trimmed().iter().position(|e| e == trimmed_word) {
             Some(index) => Ok(index),
             None => Err(WordlistError::InvalidWord(trimmed_word.into())),
         }

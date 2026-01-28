@@ -11,8 +11,9 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use core::{convert::TryFrom, fmt, str::FromStr};
+use digest::KeyInit;
 use hmac::{Hmac, Mac};
-use secp256k1::{PublicKey as Secp256k1_PublicKey, SecretKey};
+use libsecp256k1::{PublicKey as Secp256k1_PublicKey, SecretKey};
 use sha2::Sha512;
 
 type HmacSha512 = Hmac<Sha512>;
@@ -64,18 +65,19 @@ impl<N: BitcoinNetwork> ExtendedPublicKey for BitcoinExtendedPublicKey<N> {
         for index in path.to_vec()?.into_iter() {
             let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize_compressed()[..];
 
-            let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
+            let mut mac = <HmacSha512 as KeyInit>::new_from_slice(&self.chain_code)
+                .map_err(|_| ExtendedPublicKeyError::InvalidByteLength(self.chain_code.len()))?;
             match index {
                 // HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i))
-                ChildIndex::Normal(_) => mac.input(public_key_serialized),
+                ChildIndex::Normal(_) => mac.update(public_key_serialized),
                 // Return failure
                 ChildIndex::Hardened(_) => {
                     return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(index)))
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(index).to_be_bytes());
-            let hmac = mac.result().code();
+            mac.update(&u32::from(index).to_be_bytes());
+            let hmac = mac.finalize().into_bytes();
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);

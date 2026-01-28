@@ -57,7 +57,7 @@ impl<N: MoneroNetwork> Transaction for MoneroTransaction<N> {
         unimplemented!();
     }
 
-    fn from_transaction_bytes(_transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+    fn from_transaction_bytes(_transaction: &[u8]) -> Result<Self, TransactionError> {
         unimplemented!();
     }
 

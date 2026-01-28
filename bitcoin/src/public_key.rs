@@ -5,7 +5,7 @@ use crate::private_key::BitcoinPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
-use secp256k1;
+use libsecp256k1 as secp256k1;
 
 /// Represents a Bitcoin public key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,7 +50,7 @@ impl<N: BitcoinNetwork> BitcoinPublicKey<N> {
 
     /// Returns the secp256k1 public key of the public key.
     pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
-        self.public_key.clone()
+        self.public_key
     }
 
     /// Returns `true` if the public key is in compressed form.

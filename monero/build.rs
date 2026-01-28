@@ -1,7 +1,7 @@
-#[cfg(not(transaction))]
+#[cfg(not(feature = "transaction"))]
 fn main() {}
 
-#[cfg(transaction)]
+#[cfg(feature = "transaction")]
 fn main() {
     use ::cmake::Config;
 

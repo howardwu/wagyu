@@ -6,7 +6,7 @@ use crate::model::{
 pub mod bitcoin;
 pub mod ethereum;
 pub mod monero;
-pub mod zcash;
+pub mod tron;
 
 pub mod parameters;
 pub use self::parameters::*;
@@ -27,6 +27,7 @@ pub trait CLI {
     const SUBCOMMANDS: &'static [SubCommandType];
 
     #[cfg_attr(tarpaulin, skip)]
+    #[allow(clippy::new_ret_no_self)]
     fn new<'a, 'b>() -> App<'a, 'b> {
         let flags = &Self::FLAGS
             .iter()
@@ -34,7 +35,7 @@ pub trait CLI {
             .collect::<Vec<Arg<'static, 'static>>>();
         let options = &Self::OPTIONS
             .iter()
-            .map(|a| match a.2.len() > 0 {
+            .map(|a| match !a.2.is_empty() {
                 true => Arg::from_usage(a.0)
                     .conflicts_with_all(a.1)
                     .possible_values(a.2)
@@ -49,7 +50,7 @@ pub trait CLI {
                     .about(s.1)
                     .args(
                         &s.2.iter()
-                            .map(|a| match a.2.len() > 0 {
+                            .map(|a| match !a.2.is_empty() {
                                 true => Arg::from_usage(a.0)
                                     .conflicts_with_all(a.1)
                                     .possible_values(a.2)
@@ -81,78 +82,48 @@ pub trait CLI {
     fn print(options: Self::Options) -> Result<(), CLIError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum CLIError {
-    #[fail(display = "{}", _0)]
-    AddressError(AddressError),
+    #[error("{0}")]
+    AddressError(#[from] AddressError),
 
-    #[fail(display = "{}", _0)]
-    AmountError(AmountError),
+    #[error("{0}")]
+    AmountError(#[from] AmountError),
 
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "{}", _0)]
-    DerivationPathError(DerivationPathError),
+    #[error("{0}")]
+    DerivationPathError(#[from] DerivationPathError),
 
-    #[fail(display = "{}", _0)]
-    ExtendedPrivateKeyError(ExtendedPrivateKeyError),
+    #[error("{0}")]
+    ExtendedPrivateKeyError(#[from] ExtendedPrivateKeyError),
 
-    #[fail(display = "{}", _0)]
-    ExtendedPublicKeyError(ExtendedPublicKeyError),
+    #[error("{0}")]
+    ExtendedPublicKeyError(#[from] ExtendedPublicKeyError),
 
-    #[fail(display = "invalid derived mnemonic for a given private spend key")]
+    #[error("invalid derived mnemonic for a given private spend key")]
     InvalidMnemonicForPrivateSpendKey,
 
-    #[fail(display = "{}", _0)]
-    PrivateKeyError(PrivateKeyError),
+    #[error("{0}")]
+    PrivateKeyError(#[from] PrivateKeyError),
 
-    #[fail(display = "{}", _0)]
-    PublicKeyError(PublicKeyError),
+    #[error("{0}")]
+    PublicKeyError(#[from] PublicKeyError),
 
-    #[fail(display = "{}", _0)]
-    MnemonicError(MnemonicError),
+    #[error("{0}")]
+    MnemonicError(#[from] MnemonicError),
 
-    #[fail(display = "{}", _0)]
-    TransactionError(TransactionError),
+    #[error("{0}")]
+    TransactionError(#[from] TransactionError),
 
-    #[fail(display = "unsupported mnemonic language")]
+    #[error("unsupported mnemonic language")]
     UnsupportedLanguage,
-}
-
-impl From<AddressError> for CLIError {
-    fn from(error: AddressError) -> Self {
-        CLIError::AddressError(error)
-    }
-}
-
-impl From<AmountError> for CLIError {
-    fn from(error: AmountError) -> Self {
-        CLIError::AmountError(error)
-    }
 }
 
 impl From<core::num::ParseIntError> for CLIError {
     fn from(error: core::num::ParseIntError) -> Self {
         CLIError::Crate("parse_int", format!("{:?}", error))
-    }
-}
-
-impl From<DerivationPathError> for CLIError {
-    fn from(error: DerivationPathError) -> Self {
-        CLIError::DerivationPathError(error)
-    }
-}
-
-impl From<ExtendedPrivateKeyError> for CLIError {
-    fn from(error: ExtendedPrivateKeyError) -> Self {
-        CLIError::ExtendedPrivateKeyError(error)
-    }
-}
-
-impl From<ExtendedPublicKeyError> for CLIError {
-    fn from(error: ExtendedPublicKeyError) -> Self {
-        CLIError::ExtendedPublicKeyError(error)
     }
 }
 
@@ -162,32 +133,8 @@ impl From<hex::FromHexError> for CLIError {
     }
 }
 
-impl From<MnemonicError> for CLIError {
-    fn from(error: MnemonicError) -> Self {
-        CLIError::MnemonicError(error)
-    }
-}
-
-impl From<PrivateKeyError> for CLIError {
-    fn from(error: PrivateKeyError) -> Self {
-        CLIError::PrivateKeyError(error)
-    }
-}
-
-impl From<PublicKeyError> for CLIError {
-    fn from(error: PublicKeyError) -> Self {
-        CLIError::PublicKeyError(error)
-    }
-}
-
 impl From<serde_json::error::Error> for CLIError {
     fn from(error: serde_json::error::Error) -> Self {
         CLIError::Crate("serde_json", format!("{:?}", error))
-    }
-}
-
-impl From<TransactionError> for CLIError {
-    fn from(error: TransactionError) -> Self {
-        CLIError::TransactionError(error)
     }
 }

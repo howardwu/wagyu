@@ -54,7 +54,7 @@ impl<N: BitcoinNetwork> DerivationPath for BitcoinDerivationPath<N> {
     }
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
+    fn from_vec(path: &[ChildIndex]) -> Result<Self, DerivationPathError> {
         if path.len() == 5 {
             // Path length 5 - BIP44
             if path[0] == ChildIndex::Hardened(44)
@@ -75,7 +75,7 @@ impl<N: BitcoinNetwork> DerivationPath for BitcoinDerivationPath<N> {
                 return Ok(BitcoinDerivationPath::BIP49([path[2], path[3], path[4]]));
             }
             // Path length 5 - BIP32 (non-BIP44 & non-BIP49 compliant)
-            return Ok(BitcoinDerivationPath::BIP32(path.to_vec(), PhantomData));
+            Ok(BitcoinDerivationPath::BIP32(path.to_vec(), PhantomData))
         } else {
             // Path length 0 - BIP32 root key
             // Path length i - BIP32

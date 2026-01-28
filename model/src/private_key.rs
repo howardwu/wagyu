@@ -25,30 +25,30 @@ pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static 
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum PrivateKeyError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid byte length: {}", _0)]
+    #[error("invalid byte length: {0}")]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid character length: {}", _0)]
+    #[error("invalid character length: {0}")]
     InvalidCharacterLength(usize),
 
-    #[fail(display = "invalid private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid private key checksum: {{ expected: {0:?}, found: {1:?} }}")]
     InvalidChecksum(String, String),
 
-    #[fail(display = "invalid network: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid network: {{ expected: {0:?}, found: {1:?} }}")]
     InvalidNetwork(String, String),
 
-    #[fail(display = "invalid private key prefix: {:?}", _0)]
+    #[error("invalid private key prefix: {0:?}")]
     InvalidPrefix(Vec<u8>),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     Message(String),
 
-    #[fail(display = "unsupported format")]
+    #[error("unsupported format")]
     UnsupportedFormat,
 }
 
@@ -88,8 +88,8 @@ impl From<rand_core::Error> for PrivateKeyError {
     }
 }
 
-impl From<secp256k1::Error> for PrivateKeyError {
-    fn from(error: secp256k1::Error) -> Self {
+impl From<libsecp256k1::Error> for PrivateKeyError {
+    fn from(error: libsecp256k1::Error) -> Self {
         PrivateKeyError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

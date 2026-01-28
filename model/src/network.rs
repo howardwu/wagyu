@@ -10,14 +10,14 @@ pub trait Network: Copy + Clone + Debug + Display + FromStr + Send + Sync + 'sta
     const NAME: &'static str;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum NetworkError {
-    #[fail(display = "invalid extended private key prefix: {}", _0)]
+    #[error("invalid extended private key prefix: {0}")]
     InvalidExtendedPrivateKeyPrefix(String),
 
-    #[fail(display = "invalid extended public key prefix: {}", _0)]
+    #[error("invalid extended public key prefix: {0}")]
     InvalidExtendedPublicKeyPrefix(String),
 
-    #[fail(display = "invalid network: {}", _0)]
+    #[error("invalid network: {0}")]
     InvalidNetwork(String),
 }

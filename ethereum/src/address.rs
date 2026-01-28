@@ -6,7 +6,7 @@ use wagyu_model::{to_hex_string, Address, AddressError, PrivateKey};
 use core::{convert::TryFrom, fmt, str::FromStr};
 use regex::Regex;
 use serde::Serialize;
-use tiny_keccak::keccak256;
+use tiny_keccak::{Hasher, Keccak};
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
@@ -32,10 +32,17 @@ impl EthereumAddress {
     /// Returns the checksum address given a public key.
     /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
     pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {
-        let hash = keccak256(&public_key.to_secp256k1_public_key().serialize()[1..]);
+        let mut hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&public_key.to_secp256k1_public_key().serialize()[1..]);
+        keccak.finalize(&mut hash);
         let address = to_hex_string(&hash[12..]).to_lowercase();
 
-        let hash = to_hex_string(&keccak256(address.as_bytes()));
+        let mut hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(address.as_bytes());
+        keccak.finalize(&mut hash);
+        let hash = to_hex_string(&hash);
         let mut checksum_address = "0x".to_string();
         for c in 0..40 {
             let ch = match &hash[c..=c] {
@@ -69,7 +76,11 @@ impl FromStr for EthereumAddress {
             return Err(AddressError::InvalidCharacterLength(address.len()));
         }
 
-        let hash = to_hex_string(&keccak256(address.as_bytes()));
+        let mut hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(address.as_bytes());
+        keccak.finalize(&mut hash);
+        let hash = to_hex_string(&hash);
         let mut checksum_address = "0x".to_string();
         for c in 0..40 {
             let ch = match &hash[c..=c] {

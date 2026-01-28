@@ -36,7 +36,7 @@ impl BitcoinFormat {
             (0x00, _) | (0x6F, _) => Ok(BitcoinFormat::P2PKH),
             (0x05, _) | (0xC4, _) => Ok(BitcoinFormat::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(BitcoinFormat::Bech32),
-            _ => return Err(AddressError::InvalidPrefix(prefix.to_vec())),
+            _ => Err(AddressError::InvalidPrefix(prefix.to_vec())),
         }
     }
 

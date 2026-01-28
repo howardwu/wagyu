@@ -92,7 +92,7 @@ impl EthereumWallet {
         password: Option<&str>,
         path: &str,
     ) -> Result<Self, CLIError> {
-        let mnemonic = EthereumMnemonic::<N, W>::from_phrase(&mnemonic)?;
+        let mnemonic = EthereumMnemonic::<N, W>::from_phrase(mnemonic)?;
         let master_extended_private_key = mnemonic.to_extended_private_key(password)?;
         let derivation_path = EthereumDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
@@ -119,7 +119,7 @@ impl EthereumWallet {
     ) -> Result<Self, CLIError> {
         let mut extended_private_key = EthereumExtendedPrivateKey::<N>::from_str(extended_private_key)?;
         if let Some(derivation_path) = path {
-            let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
+            let derivation_path = EthereumDerivationPath::from_str(derivation_path)?;
             extended_private_key = extended_private_key.derive(&derivation_path)?;
         }
         let extended_public_key = extended_private_key.to_extended_public_key();
@@ -143,7 +143,7 @@ impl EthereumWallet {
     ) -> Result<Self, CLIError> {
         let mut extended_public_key = EthereumExtendedPublicKey::<N>::from_str(extended_public_key)?;
         if let Some(derivation_path) = path {
-            let derivation_path = EthereumDerivationPath::from_str(&derivation_path)?;
+            let derivation_path = EthereumDerivationPath::from_str(derivation_path)?;
             extended_public_key = extended_public_key.derive(&derivation_path)?;
         }
         let public_key = extended_public_key.to_public_key();
@@ -645,9 +645,9 @@ impl CLI for EthereumCLI {
     #[cfg_attr(tarpaulin, skip)]
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: EthereumNetwork, W: EthereumWordlist>(options: EthereumOptions) -> Result<(), CLIError> {
-            let wallets = match options.subcommand.as_ref().map(String::as_str) {
+            let wallets = match options.subcommand.as_deref() {
                 Some("hd") => {
-                    let password = options.password.as_ref().map(String::as_str);
+                    let password = options.password.as_deref();
                     (0..options.count)
                         .flat_map(|_| {
                             // Sample a new HD wallet
@@ -692,12 +692,12 @@ impl CLI for EthereumCLI {
                 Some("import-hd") => {
                     if let Some(mnemonic) = options.mnemonic.clone() {
                         fn process_mnemonic<EN: EthereumNetwork, EW: EthereumWordlist>(
-                            mnemonic: &String,
+                            mnemonic: &str,
                             options: &EthereumOptions,
                         ) -> Result<Vec<EthereumWallet>, CLIError> {
                             // Generate the mnemonic wallets, from `index` to a number of specified `indices`
                             let mut wallets = vec![];
-                            let password = options.password.as_ref().map(String::as_str);
+                            let password = options.password.as_deref();
                             for path in options.to_derivation_paths(true) {
                                 wallets.push(EthereumWallet::from_mnemonic::<EN, EW>(
                                     mnemonic,
@@ -753,7 +753,7 @@ impl CLI for EthereumCLI {
                     } else if let (Some(transaction_hex), Some(transaction_private_key)) =
                         (options.transaction_hex.clone(), options.transaction_private_key.clone())
                     {
-                        match options.network.as_ref().map(String::as_str) {
+                        match options.network.as_deref() {
                             Some(EthereumMainnet::NAME) => vec![EthereumWallet::to_signed_transaction::<
                                 EthereumMainnet,
                             >(

@@ -10,7 +10,7 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
-use bech32::{u5, Bech32, FromBase32, ToBase32};
+use bech32::{u5, FromBase32, ToBase32, Variant};
 use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
 use sha2::{Digest, Sha256};
 
@@ -35,12 +35,10 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
         let public_key = private_key.to_public_key();
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(&public_key),
-            BitcoinFormat::P2WSH => {
-                return Err(AddressError::IncompatibleFormats(
-                    String::from("non-script"),
-                    String::from("p2wsh address"),
-                ))
-            }
+            BitcoinFormat::P2WSH => Err(AddressError::IncompatibleFormats(
+                String::from("non-script"),
+                String::from("p2wsh address"),
+            )),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key),
             BitcoinFormat::Bech32 => Self::bech32(&public_key),
         }
@@ -50,12 +48,10 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(public_key),
-            BitcoinFormat::P2WSH => {
-                return Err(AddressError::IncompatibleFormats(
-                    String::from("non-script"),
-                    String::from("p2wsh address"),
-                ))
-            }
+            BitcoinFormat::P2WSH => Err(AddressError::IncompatibleFormats(
+                String::from("non-script"),
+                String::from("p2wsh address"),
+            )),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
             BitcoinFormat::Bech32 => Self::bech32(public_key),
         }
@@ -86,7 +82,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     // Returns a P2WSH address in Bech32 format from a given Bitcoin script
     pub fn p2wsh(original_script: &Vec<u8>) -> Result<Self, AddressError> {
-        let script = Sha256::digest(&original_script).to_vec();
+        let script = Sha256::digest(original_script).to_vec();
 
         // Organize as a hash
         let v = N::to_address_prefix(&BitcoinFormat::P2WSH)[0];
@@ -96,10 +92,14 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         // Get the SHA256 hash of the script
         data.extend_from_slice(&script.to_vec().to_base32());
 
-        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
+        let address = bech32::encode(
+            &String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?,
+            data,
+            Variant::Bech32,
+        )?;
 
         Ok(Self {
-            address: bech32.to_string(),
+            address,
             format: BitcoinFormat::P2WSH,
             _network: PhantomData,
         })
@@ -129,10 +129,14 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let mut data = vec![version];
         data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
 
-        let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
+        let address = bech32::encode(
+            &String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?,
+            data,
+            Variant::Bech32,
+        )?;
 
         Ok(Self {
-            address: bech32.to_string(),
+            address,
             format: BitcoinFormat::Bech32,
             _network: PhantomData,
         })
@@ -172,12 +176,11 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
 
         if let Ok(format) = BitcoinFormat::from_address_prefix(prefix.as_bytes()) {
             if BitcoinFormat::Bech32 == format {
-                let bech32 = Bech32::from_str(&address)?;
-                if bech32.data().is_empty() {
+                let (_hrp, data, _variant) = bech32::decode(address)?;
+                if data.is_empty() {
                     return Err(AddressError::InvalidAddress(address.to_owned()));
                 }
 
-                let data = bech32.data();
                 let version = data[0].to_u8();
                 let mut program = Vec::from_base32(&data[1..])?;
 

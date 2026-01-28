@@ -7,14 +7,14 @@ use core::{
 /// The interface for a generic amount.
 pub trait Amount: Copy + Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum AmountError {
-    #[fail(display = "the amount: {} exceeds the supply bounds of {}", _0, _1)]
+    #[error("the amount: {0} exceeds the supply bounds of {1}")]
     AmountOutOfBounds(String, String),
 
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid amount: {}", _0)]
+    #[error("invalid amount: {0}")]
     InvalidAmount(String),
 }

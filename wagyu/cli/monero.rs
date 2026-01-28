@@ -60,7 +60,6 @@ impl MoneroWallet {
             format: Some(format.to_string()),
             payment_id: address.to_payment_id(),
             network: Some(N::NAME.to_string()),
-            ..Default::default()
         })
     }
 
@@ -68,7 +67,7 @@ impl MoneroWallet {
         mnemonic: &str,
         format: &MoneroFormat,
     ) -> Result<Self, CLIError> {
-        let mnemonic = MoneroMnemonic::<N, W>::from_phrase(&mnemonic)?;
+        let mnemonic = MoneroMnemonic::<N, W>::from_phrase(mnemonic)?;
         let private_key = mnemonic.to_private_key(None)?;
         let private_spend_key = private_key.to_private_spend_key();
         let private_view_key = private_key.to_private_view_key();
@@ -86,7 +85,6 @@ impl MoneroWallet {
             format: Some(format.to_string()),
             payment_id: address.to_payment_id(),
             network: Some(N::NAME.to_string()),
-            ..Default::default()
         })
     }
 
@@ -98,7 +96,7 @@ impl MoneroWallet {
         seed.copy_from_slice(&hex::decode(private_spend_key)?);
         let mnemonic = MoneroMnemonic::<N, W>::from_private_spend_key(&seed);
         let private_key = mnemonic.to_private_key(None)?;
-        if private_spend_key.to_string() != hex::encode(private_key.to_private_spend_key()) {
+        if private_spend_key != hex::encode(private_key.to_private_spend_key()) {
             return Err(CLIError::InvalidMnemonicForPrivateSpendKey);
         }
         let private_spend_key = private_key.to_private_spend_key();
@@ -432,26 +430,23 @@ impl CLI for MoneroCLI {
             ],
         );
 
-        match arguments.subcommand() {
-            ("import", Some(arguments)) => {
-                options.subcommand = Some("import".into());
-                options.parse(
-                    arguments,
-                    &["format", "integrated", "json", "language", "network", "subaddress"],
-                );
-                options.parse(
-                    arguments,
-                    &[
-                        "address",
-                        "mnemonic",
-                        "private spend",
-                        "private view",
-                        "public spend",
-                        "public view",
-                    ],
-                );
-            }
-            _ => {}
+        if let ("import", Some(arguments)) = arguments.subcommand() {
+            options.subcommand = Some("import".into());
+            options.parse(
+                arguments,
+                &["format", "integrated", "json", "language", "network", "subaddress"],
+            );
+            options.parse(
+                arguments,
+                &[
+                    "address",
+                    "mnemonic",
+                    "private spend",
+                    "private view",
+                    "public spend",
+                    "public view",
+                ],
+            );
         };
 
         Ok(options)
@@ -462,7 +457,7 @@ impl CLI for MoneroCLI {
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: MoneroNetwork, W: MoneroWordlist>(options: MoneroOptions) -> Result<(), CLIError> {
             let wallets =
-                match options.subcommand.as_ref().map(String::as_str) {
+                match options.subcommand.as_deref() {
                     Some("import") => {
                         if let Some(mnemonic) = options.mnemonic {
                             vec![

@@ -43,54 +43,39 @@ pub trait ExtendedPrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum ExtendedPrivateKeyError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "{}", _0)]
-    DerivationPathError(DerivationPathError),
+    #[error(transparent)]
+    DerivationPathError(#[from] DerivationPathError),
 
-    #[fail(display = "invalid byte length: {}", _0)]
+    #[error("invalid byte length: {0}")]
     InvalidByteLength(usize),
 
-    #[fail(
-        display = "invalid extended private key checksum: {{ expected: {:?}, found: {:?} }}",
-        _0, _1
-    )]
+    #[error("invalid extended private key checksum: {{ expected: {0:?}, found: {1:?} }}")]
     InvalidChecksum(String, String),
 
-    #[fail(display = "invalid version bytes: {:?}", _0)]
+    #[error("invalid version bytes: {0:?}")]
     InvalidVersionBytes(Vec<u8>),
 
-    #[fail(display = "maximum child depth reached: {}", _0)]
+    #[error("maximum child depth reached: {0}")]
     MaximumChildDepthReached(u8),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     Message(String),
 
-    #[fail(display = "{}", _0)]
-    NetworkError(NetworkError),
+    #[error(transparent)]
+    NetworkError(#[from] NetworkError),
 
-    #[fail(display = "unsupported format: {}", _0)]
+    #[error("unsupported format: {0}")]
     UnsupportedFormat(String),
 }
 
 impl From<crate::no_std::io::Error> for ExtendedPrivateKeyError {
     fn from(error: crate::no_std::io::Error) -> Self {
         ExtendedPrivateKeyError::Crate("crate::no_std::io", format!("{:?}", error))
-    }
-}
-
-impl From<DerivationPathError> for ExtendedPrivateKeyError {
-    fn from(error: DerivationPathError) -> Self {
-        ExtendedPrivateKeyError::DerivationPathError(error)
-    }
-}
-
-impl From<NetworkError> for ExtendedPrivateKeyError {
-    fn from(error: NetworkError) -> Self {
-        ExtendedPrivateKeyError::NetworkError(error)
     }
 }
 
@@ -124,8 +109,8 @@ impl From<crypto_mac::InvalidKeyLength> for ExtendedPrivateKeyError {
     }
 }
 
-impl From<secp256k1::Error> for ExtendedPrivateKeyError {
-    fn from(error: secp256k1::Error) -> Self {
+impl From<libsecp256k1::Error> for ExtendedPrivateKeyError {
+    fn from(error: libsecp256k1::Error) -> Self {
         ExtendedPrivateKeyError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

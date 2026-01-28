@@ -84,7 +84,7 @@ impl<N: EthereumNetwork> DerivationPath for EthereumDerivationPath<N> {
     }
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
+    fn from_vec(path: &[ChildIndex]) -> Result<Self, DerivationPathError> {
         if path.len() == 4 {
             // Path length 4 - Electrum (default), imToken, LedgerLegacy
             if path[0] == N::HD_PURPOSE

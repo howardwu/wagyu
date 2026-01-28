@@ -4,8 +4,8 @@ use crate::public_key::EthereumPublicKey;
 use wagyu_model::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use core::{fmt, fmt::Display, str::FromStr};
+use libsecp256k1 as secp256k1;
 use rand::Rng;
-use secp256k1;
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,12 +36,12 @@ impl PrivateKey for EthereumPrivateKey {
 impl EthereumPrivateKey {
     /// Returns a private key given a secp256k1 secret key.
     pub fn from_secp256k1_secret_key(secret_key: &secp256k1::SecretKey) -> Self {
-        Self(secret_key.clone())
+        Self(*secret_key)
     }
 
     /// Returns the secp256k1 secret key of the private key.
     pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
-        self.0.clone()
+        self.0
     }
 }
 
@@ -62,7 +62,7 @@ impl Display for EthereumPrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut private_key = [0u8; 32];
         private_key.copy_from_slice(&self.0.serialize());
-        write!(f, "{}", hex::encode(private_key).to_string())
+        write!(f, "{}", hex::encode(private_key))
     }
 }
 

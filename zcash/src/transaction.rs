@@ -1283,7 +1283,7 @@ impl<N: ZcashNetwork> Transaction for ZcashTransaction<N> {
     }
 
     /// Returns a transaction given the transaction bytes.
-    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+    fn from_transaction_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
         Ok(Self {
             parameters: Self::TransactionParameters::read(&transaction[..])?,
         })

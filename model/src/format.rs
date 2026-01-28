@@ -9,28 +9,22 @@ use core::{
 /// The interface for a generic format.
 pub trait Format: Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum FormatError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "{}", _0)]
-    DerivationPathError(DerivationPathError),
+    #[error(transparent)]
+    DerivationPathError(#[from] DerivationPathError),
 
-    #[fail(display = "invalid address prefix: {:?}", _0)]
+    #[error("invalid address prefix: {0:?}")]
     InvalidPrefix(Vec<u8>),
 
-    #[fail(display = "invalid version bytes: {:?}", _0)]
+    #[error("invalid version bytes: {0:?}")]
     InvalidVersionBytes(Vec<u8>),
 
-    #[fail(display = "unsupported derivation path for the format: {}", _0)]
+    #[error("unsupported derivation path for the format: {0}")]
     UnsupportedDerivationPath(String),
-}
-
-impl From<DerivationPathError> for FormatError {
-    fn from(error: DerivationPathError) -> Self {
-        FormatError::DerivationPathError(error)
-    }
 }
 
 impl From<base58_monero::base58::Error> for FormatError {

@@ -11,8 +11,10 @@ use wagyu_model::{
 
 use base58::{FromBase58, ToBase58};
 use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use digest::KeyInit;
 use hex;
 use hmac::{Hmac, Mac};
+use libsecp256k1 as secp256k1;
 use secp256k1::{PublicKey as Secp256k1_PublicKey, SecretKey};
 use sha2::Sha512;
 
@@ -65,18 +67,19 @@ impl<N: EthereumNetwork> ExtendedPublicKey for EthereumExtendedPublicKey<N> {
         for index in path.to_vec()?.into_iter() {
             let public_key_serialized = &self.public_key.to_secp256k1_public_key().serialize()[..];
 
-            let mut mac = HmacSha512::new_varkey(&self.chain_code)?;
+            let mut mac = <HmacSha512 as KeyInit>::new_from_slice(&self.chain_code)
+                .map_err(|_| ExtendedPublicKeyError::InvalidByteLength(self.chain_code.len()))?;
             match index {
                 // HMAC-SHA512(Key = cpar, Data = serP(Kpar) || ser32(i))
-                ChildIndex::Normal(_) => mac.input(public_key_serialized),
+                ChildIndex::Normal(_) => mac.update(public_key_serialized),
                 // Return failure
                 ChildIndex::Hardened(_) => {
                     return Err(ExtendedPublicKeyError::InvalidChildNumber(1 << 31, u32::from(index)))
                 }
             }
             // Append the child index in big-endian format
-            mac.input(&u32::from(index).to_be_bytes());
-            let hmac = mac.result().code();
+            mac.update(&u32::from(index).to_be_bytes());
+            let hmac = mac.finalize().into_bytes();
 
             let mut chain_code = [0u8; 32];
             chain_code[0..32].copy_from_slice(&hmac[32..]);
@@ -121,11 +124,11 @@ impl<N: EthereumNetwork> FromStr for EthereumExtendedPublicKey<N> {
             return Err(ExtendedPublicKeyError::InvalidByteLength(data.len()));
         }
 
-        if &data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
+        if data[0..4] != [0x04u8, 0x88, 0xB2, 0x1E] {
             return Err(ExtendedPublicKeyError::InvalidVersionBytes(data[0..4].to_vec()));
         };
 
-        let depth = data[4] as u8;
+        let depth = data[4];
 
         let mut parent_fingerprint = [0u8; 4];
         parent_fingerprint.copy_from_slice(&data[5..9]);
@@ -164,7 +167,7 @@ impl<N: EthereumNetwork> fmt::Display for EthereumExtendedPublicKey<N> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut result = [0u8; 82];
         result[0..4].copy_from_slice(&[0x04u8, 0x88, 0xB2, 0x1E][..]);
-        result[4] = self.depth as u8;
+        result[4] = self.depth;
         result[5..9].copy_from_slice(&self.parent_fingerprint[..]);
         result[9..13].copy_from_slice(&u32::from(self.child_index).to_be_bytes());
         result[13..45].copy_from_slice(&self.chain_code[..]);

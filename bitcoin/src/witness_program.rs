@@ -25,21 +25,21 @@ use wagyu_model::{AddressError, TransactionError};
 
 use core::str::FromStr;
 
-#[derive(Debug, Fail, PartialEq, Eq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum WitnessProgramError {
-    #[fail(display = "invalid program length {}", _0)]
+    #[error("invalid program length {0}")]
     InvalidProgramLength(usize),
 
-    #[fail(display = "invalid program length {} for script version {}", _0, _1)]
+    #[error("invalid program length {0} for script version {1}")]
     InvalidProgramLengthForVersion(usize, u8),
 
-    #[fail(display = "invalid version {}", _0)]
+    #[error("invalid version {0}")]
     InvalidVersion(u8),
 
-    #[fail(display = "invalid program length: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid program length: {{ expected: {0:?}, found: {1:?} }}")]
     MismatchedProgramLength(usize, usize),
 
-    #[fail(display = "error decoding program from hex string")]
+    #[error("error decoding program from hex string")]
     ProgramDecodingError,
 }
 

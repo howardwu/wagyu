@@ -4,7 +4,7 @@ use crate::private_key::EthereumPrivateKey;
 use wagyu_model::{Address, AddressError, PublicKey, PublicKeyError};
 
 use core::{fmt, fmt::Display, str::FromStr};
-use secp256k1;
+use libsecp256k1 as secp256k1;
 
 /// Represents an Ethereum public key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,7 +36,7 @@ impl EthereumPublicKey {
 
     /// Returns the secp256k1 public key of the public key
     pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
-        self.0.clone()
+        self.0
     }
 }
 

@@ -4,9 +4,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_extern_crates, dead_code)]
 
-#[macro_use]
-extern crate failure;
-
 pub mod address;
 pub use self::address::*;
 
@@ -31,9 +28,9 @@ pub use self::private_key::*;
 pub mod public_key;
 pub use self::public_key::*;
 
-#[cfg(transaction)]
+#[cfg(feature = "transaction")]
 pub mod transaction;
-#[cfg(transaction)]
+#[cfg(feature = "transaction")]
 pub use self::transaction::*;
 
 pub mod wordlist;

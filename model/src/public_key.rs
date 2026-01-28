@@ -21,24 +21,24 @@ pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static +
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum PublicKeyError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid byte length: {}", _0)]
+    #[error("invalid byte length: {0}")]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid character length: {}", _0)]
+    #[error("invalid character length: {0}")]
     InvalidCharacterLength(usize),
 
-    #[fail(display = "invalid public key prefix: {:?}", _0)]
+    #[error("invalid public key prefix: {0:?}")]
     InvalidPrefix(String),
 
-    #[fail(display = "no public spending key found")]
+    #[error("no public spending key found")]
     NoSpendingKey,
 
-    #[fail(display = "no public viewing key found")]
+    #[error("no public viewing key found")]
     NoViewingKey,
 }
 
@@ -66,8 +66,8 @@ impl From<hex::FromHexError> for PublicKeyError {
     }
 }
 
-impl From<secp256k1::Error> for PublicKeyError {
-    fn from(error: secp256k1::Error) -> Self {
+impl From<libsecp256k1::Error> for PublicKeyError {
+    fn from(error: libsecp256k1::Error) -> Self {
         PublicKeyError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

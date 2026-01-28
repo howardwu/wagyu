@@ -71,13 +71,13 @@ impl BitcoinAmount {
     pub const ONE_BTC: BitcoinAmount = BitcoinAmount(COIN);
 
     pub fn from_satoshi(satoshis: i64) -> Result<Self, AmountError> {
-        if -MAX_COINS <= satoshis && satoshis <= MAX_COINS {
+        if (-MAX_COINS..=MAX_COINS).contains(&satoshis) {
             Ok(Self(satoshis))
         } else {
-            return Err(AmountError::AmountOutOfBounds(
+            Err(AmountError::AmountOutOfBounds(
                 satoshis.to_string(),
                 MAX_COINS.to_string(),
-            ));
+            ))
         }
     }
 
@@ -111,10 +111,12 @@ impl BitcoinAmount {
         Self::from_satoshi(satoshis)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, b: Self) -> Result<Self, AmountError> {
         Self::from_satoshi(self.0 + b.0)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, b: BitcoinAmount) -> Result<Self, AmountError> {
         Self::from_satoshi(self.0 - b.0)
     }
@@ -122,7 +124,7 @@ impl BitcoinAmount {
 
 impl fmt::Display for BitcoinAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_string())
+        write!(f, "{}", self.0)
     }
 }
 

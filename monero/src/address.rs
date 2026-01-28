@@ -7,7 +7,7 @@ use wagyu_model::{Address, AddressError, PrivateKey};
 
 use base58_monero as base58;
 use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
-use tiny_keccak::keccak256;
+use tiny_keccak::{Hasher, Keccak};
 
 /// Represents a Monero address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -36,18 +36,16 @@ impl<N: MoneroNetwork> Address for MoneroAddress<N> {
             | (MoneroFormat::Subaddress(_, _), &MoneroFormat::Standard) => {
                 Self::from_public_key(&private_key.to_public_key(), format)
             }
-            _ => {
-                return Err(AddressError::IncompatibleFormats(
-                    private_key.format().to_string(),
-                    format.to_string(),
-                ))
-            }
+            _ => Err(AddressError::IncompatibleFormats(
+                private_key.format().to_string(),
+                format.to_string(),
+            )),
         }
     }
 
     /// Returns the address corresponding to the given Monero public key.
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
-        Self::generate_address(&public_key, format)
+        Self::generate_address(public_key, format)
     }
 }
 
@@ -95,7 +93,10 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
             }
         };
 
-        let checksum = &keccak256(checksum_bytes);
+        let mut checksum = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(checksum_bytes);
+        keccak.finalize(&mut checksum);
         bytes.extend_from_slice(&checksum[0..4]);
 
         let address = base58::encode(bytes.as_slice())?;
@@ -107,10 +108,8 @@ impl<N: MoneroNetwork> MoneroAddress<N> {
 
     /// Returns the payment ID of a Monero integrated address, or returns `None`.
     pub fn to_payment_id(&self) -> Option<String> {
-        if let Ok(format) = self.format() {
-            if let MoneroFormat::Integrated(payment_id) = format {
-                return Some(hex::encode(payment_id));
-            }
+        if let Ok(MoneroFormat::Integrated(payment_id)) = self.format() {
+            return Some(hex::encode(payment_id));
         }
         None
     }
@@ -162,7 +161,10 @@ impl<N: MoneroNetwork> FromStr for MoneroAddress<N> {
             MoneroFormat::Integrated(_) => (&bytes[0..73], &bytes[73..77]),
         };
 
-        let verify_checksum = &keccak256(checksum_bytes);
+        let mut verify_checksum = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(checksum_bytes);
+        keccak.finalize(&mut verify_checksum);
         if &verify_checksum[0..4] != checksum {
             let expected = base58::encode(&verify_checksum[0..4])?;
             let found = base58::encode(checksum)?;

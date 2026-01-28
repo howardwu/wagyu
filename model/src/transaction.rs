@@ -31,7 +31,7 @@ pub trait Transaction: Clone + Send + Sync + 'static {
     fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError>;
 
     /// Returns a transaction given the transaction bytes.
-    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError>;
+    fn from_transaction_bytes(transaction: &[u8]) -> Result<Self, TransactionError>;
 
     /// Returns the transaction in bytes.
     fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError>;
@@ -40,99 +40,99 @@ pub trait Transaction: Clone + Send + Sync + 'static {
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum TransactionError {
-    #[fail(display = "{}", _0)]
-    AddressError(AddressError),
+    #[error(transparent)]
+    AddressError(#[from] AddressError),
 
-    #[fail(display = "{}", _0)]
-    AmountError(AmountError),
+    #[error(transparent)]
+    AmountError(#[from] AmountError),
 
-    #[fail(display = "witnesses have a conflicting anchor")]
+    #[error("witnesses have a conflicting anchor")]
     ConflictingWitnessAnchors(),
 
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "{}", _0)]
-    ExtendedPrivateKeyError(ExtendedPrivateKeyError),
+    #[error(transparent)]
+    ExtendedPrivateKeyError(#[from] ExtendedPrivateKeyError),
 
-    #[fail(display = "Failed note decryption for enc_cyphertext: {}", _0)]
+    #[error("Failed note decryption for enc_cyphertext: {0}")]
     FailedNoteDecryption(String),
 
-    #[fail(display = "invalid binding signature for the transaction")]
+    #[error("invalid binding signature for the transaction")]
     InvalidBindingSig(),
 
-    #[fail(display = "invalid chain id {:?}", _0)]
+    #[error("invalid chain id {0:?}")]
     InvalidChainId(u8),
 
-    #[fail(display = "invalid ephemeral key {}", _0)]
+    #[error("invalid ephemeral key {0}")]
     InvalidEphemeralKey(String),
 
-    #[fail(display = "insufficient information to craft transaction. missing: {}", _0)]
+    #[error("insufficient information to craft transaction. missing: {0}")]
     InvalidInputs(String),
 
-    #[fail(display = "invalid output address: {}", _0)]
+    #[error("invalid output address: {0}")]
     InvalidOutputAddress(String),
 
-    #[fail(display = "invalid ouptut description for address: {}", _0)]
+    #[error("invalid ouptut description for address: {0}")]
     InvalidOutputDescription(String),
 
-    #[fail(display = "invalid transaction RLP length: expected - 9, found - {:?}", _0)]
+    #[error("invalid transaction RLP length: expected - 9, found - {0:?}")]
     InvalidRlpLength(usize),
 
-    #[fail(display = "invalid script pub key for format: {}", _0)]
+    #[error("invalid script pub key for format: {0}")]
     InvalidScriptPubKey(String),
 
-    #[fail(display = "invalid segwit flag: {:?}", _0)]
+    #[error("invalid segwit flag: {0:?}")]
     InvalidSegwitFlag(usize),
 
-    #[fail(display = "invalid spend description for address")]
+    #[error("invalid spend description for address")]
     InvalidSpendDescription,
 
-    #[fail(display = "invalid transaction id {:?}", _0)]
+    #[error("invalid transaction id {0:?}")]
     InvalidTransactionId(usize),
 
-    #[fail(display = "invalid transaction - either both sender and signature should be present, or neither")]
+    #[error("invalid transaction - either both sender and signature should be present, or neither")]
     InvalidTransactionState,
 
-    #[fail(display = "invalid variable size integer: {:?}", _0)]
+    #[error("invalid variable size integer: {0:?}")]
     InvalidVariableSizeInteger(usize),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     Message(String),
 
-    #[fail(display = "missing diversifier, check that the address is a Sapling address")]
+    #[error("missing diversifier, check that the address is a Sapling address")]
     MissingDiversifier,
 
-    #[fail(display = "missing outpoint address")]
+    #[error("missing outpoint address")]
     MissingOutpointAddress,
 
-    #[fail(display = "missing outpoint amount")]
+    #[error("missing outpoint amount")]
     MissingOutpointAmount,
 
-    #[fail(display = "missing outpoint script public key")]
+    #[error("missing outpoint script public key")]
     MissingOutpointScriptPublicKey,
 
-    #[fail(display = "missing output parameters")]
+    #[error("missing output parameters")]
     MissingOutputParameters,
 
-    #[fail(display = "missing spend description")]
+    #[error("missing spend description")]
     MissingSpendDescription,
 
-    #[fail(display = "missing spend parameters")]
+    #[error("missing spend parameters")]
     MissingSpendParameters,
 
-    #[fail(display = "Null Error {:?}", _0)]
+    #[error("Null Error {0:?}")]
     NullError(()),
 
-    #[fail(display = "{}", _0)]
-    PrivateKeyError(PrivateKeyError),
+    #[error(transparent)]
+    PrivateKeyError(#[from] PrivateKeyError),
 
-    #[fail(display = "Joinsplits are not supported")]
+    #[error("Joinsplits are not supported")]
     UnsupportedJoinsplits,
 
-    #[fail(display = "unsupported preimage operation on address format of {}", _0)]
+    #[error("unsupported preimage operation on address format of {0}")]
     UnsupportedPreimage(String),
 }
 
@@ -151,30 +151,6 @@ impl From<&'static str> for TransactionError {
 impl From<()> for TransactionError {
     fn from(error: ()) -> Self {
         TransactionError::NullError(error)
-    }
-}
-
-impl From<AddressError> for TransactionError {
-    fn from(error: AddressError) -> Self {
-        TransactionError::AddressError(error)
-    }
-}
-
-impl From<AmountError> for TransactionError {
-    fn from(error: AmountError) -> Self {
-        TransactionError::AmountError(error)
-    }
-}
-
-impl From<ExtendedPrivateKeyError> for TransactionError {
-    fn from(error: ExtendedPrivateKeyError) -> Self {
-        TransactionError::ExtendedPrivateKeyError(error)
-    }
-}
-
-impl From<PrivateKeyError> for TransactionError {
-    fn from(error: PrivateKeyError) -> Self {
-        TransactionError::PrivateKeyError(error)
     }
 }
 
@@ -208,12 +184,8 @@ impl From<core::str::ParseBoolError> for TransactionError {
     }
 }
 
-#[cfg(feature = "ff")]
-impl From<ff::PrimeFieldDecodingError> for TransactionError {
-    fn from(error: ff::PrimeFieldDecodingError) -> Self {
-        TransactionError::Crate("ff", format!("{:?}", error))
-    }
-}
+// Note: ff::PrimeFieldDecodingError was removed in newer versions of ff
+// If needed, implement specific error handling for ff crate errors
 
 impl From<hex::FromHexError> for TransactionError {
     fn from(error: hex::FromHexError) -> Self {
@@ -227,8 +199,8 @@ impl From<rlp::DecoderError> for TransactionError {
     }
 }
 
-impl From<secp256k1::Error> for TransactionError {
-    fn from(error: secp256k1::Error) -> Self {
+impl From<libsecp256k1::Error> for TransactionError {
+    fn from(error: libsecp256k1::Error) -> Self {
         TransactionError::Crate("libsecp256k1", format!("{:?}", error))
     }
 }

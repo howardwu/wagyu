@@ -56,7 +56,7 @@ impl EthereumAmount {
     pub fn u256_from_str(val: &str) -> Result<U256, AmountError> {
         match U256::from_dec_str(val) {
             Ok(wei) => Ok(wei),
-            Err(error) => return Err(AmountError::Crate("uint", format!("{:?}", error))),
+            Err(error) => Err(AmountError::Crate("uint", format!("{:?}", error))),
         }
     }
 
@@ -106,10 +106,12 @@ impl EthereumAmount {
         Ok(Self::from_u256(wei))
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, b: Self) -> Self {
         Self::from_u256(self.0 + b.0)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, b: Self) -> Self {
         Self::from_u256(self.0 - b.0)
     }
@@ -117,7 +119,7 @@ impl EthereumAmount {
 
 impl fmt::Display for EthereumAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_string())
+        write!(f, "{}", self.0)
     }
 }
 

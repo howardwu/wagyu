@@ -72,6 +72,12 @@ pub const NETWORK_ZCASH: OptionType = (
     &["mainnet", "testnet"],
     &[],
 );
+pub const NETWORK_TRON: OptionType = (
+    "[network] -n --network=[network] 'Generates a wallet for a specified network'",
+    &[],
+    &["mainnet", "testnet"],
+    &[],
+);
 pub const SUBADDRESS_MONERO: OptionType = (
     "[subaddress] -s --subaddress=[Major Index][Minor Index] 'Generates a wallet with a specified major and minor index'",
     &["address", "integrated", "private view"],
@@ -199,6 +205,12 @@ pub const DERIVATION_ZCASH: OptionType = (
     &[],
     &[],
 );
+pub const DERIVATION_TRON: OptionType = (
+    "[derivation] -d --derivation=[\"path\"] 'Generates an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
 pub const DIVERSIFIER_HD_ZCASH: OptionType = (
     "[diversifier] --diversifier=[diversifier] 'Generates an HD wallet with a specified Sapling address diversifier'",
     &[],
@@ -285,6 +297,12 @@ pub const DERIVATION_IMPORT_ETHEREUM: OptionType = (
 );
 pub const DERIVATION_IMPORT_ZCASH: OptionType = (
     "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: zip32, \"<custom path>\"]'",
+    &[],
+    &[],
+    &[],
+);
+pub const DERIVATION_IMPORT_TRON: OptionType = (
+    "[derivation] -d --derivation=[\"path\"] 'Imports an HD wallet for a specified derivation path (in quotes) [possible values: bip32, bip44, bip49, \"<custom path>\"]'",
     &[],
     &[],
     &[],
@@ -435,5 +453,27 @@ pub const TRANSACTION_VERSION_ZCASH: OptionType = (
     "[version] --version=[version] 'Specify a Zcash transaction version'",
     &["signrawtransaction"],
     &["sapling"],
+    &["createrawtransaction"],
+);
+
+pub const CREATE_RAW_TRANSACTION_TRON: OptionType = (
+    "[createrawtransaction] --createrawtransaction= ['{\"to\":\"address\", \"value\":\"value\", \"gas\":\"gas\", \"gasPrice\":\"gas_price\", \"nonce\":nonce, \"network\":\"network\"}'] 'Generates a raw Tron transaction
+    (Optional: Add a data field)'",
+    &["network", "signrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const SIGN_RAW_TRANSACTION_TRON: OptionType = (
+    "[signrawtransaction] --signrawtransaction=[transaction hex] [private key] 'Sign a raw Tron transaction'",
+    &["createrawtransaction"],
+    &[],
+    &[],
+);
+
+pub const TRANSACTION_NETWORK_TRON: OptionType = (
+    "[network] --network=[network] 'Specify an Tron transaction network'",
+    &["signrawtransaction"],
+    &[],
     &["createrawtransaction"],
 );

@@ -58,6 +58,26 @@ pub const HD_ZCASH: SubCommandType = (
     ],
 );
 
+pub const HD_TRON: SubCommandType = (
+    "hd",
+    "Generates an HD wallet (include -h for more options)",
+    &[
+        option::COUNT,
+        option::DERIVATION_TRON,
+        option::NETWORK_TRON,
+        option::INDEX_HD,
+        option::INDICES_HD,
+        option::LANGUAGE_HD,
+        option::PASSWORD_HD,
+        option::WORD_COUNT,
+    ],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+    ],
+);
+
 pub const IMPORT_BITCOIN: SubCommandType = (
     "import",
     "Imports a wallet (include -h for more options)",
@@ -128,6 +148,18 @@ pub const IMPORT_ZCASH: SubCommandType = (
     ],
 );
 
+pub const IMPORT_TRON: SubCommandType = (
+    "import",
+    "Imports a wallet (include -h for more options)",
+    &[option::ADDRESS, option::PRIVATE, option::PUBLIC],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
+);
+
 pub const IMPORT_HD_BITCOIN: SubCommandType = (
     "import-hd",
     "Imports an HD wallet (include -h for more options)",
@@ -189,6 +221,26 @@ pub const IMPORT_HD_ZCASH: SubCommandType = (
     ],
 );
 
+pub const IMPORT_HD_TRON: SubCommandType = (
+    "import-hd",
+    "Imports an HD wallet (include -h for more options)",
+    &[
+        option::DERIVATION_IMPORT_TRON,
+        option::EXTENDED_PUBLIC,
+        option::EXTENDED_PRIVATE,
+        option::INDEX_IMPORT_HD,
+        option::INDICES_IMPORT_HD,
+        option::MNEMONIC,
+        option::PASSWORD_IMPORT_HD,
+    ],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
+);
+
 pub const TRANSACTION_BITCOIN: SubCommandType = (
     "transaction",
     "Generates a Bitcoin transaction (include -h for more options)",
@@ -231,6 +283,22 @@ pub const TRANSACTION_ZCASH: SubCommandType = (
         option::TRANSACTION_EXPIRY_HEIGHT_ZCASH,
         option::TRANSACTION_LOCK_TIME_ZCASH,
         option::TRANSACTION_VERSION_ZCASH,
+    ],
+    &[
+        AppSettings::ColoredHelp,
+        AppSettings::DisableHelpSubcommand,
+        AppSettings::DisableVersion,
+        AppSettings::ArgRequiredElseHelp,
+    ],
+);
+
+pub const TRANSACTION_TRON: SubCommandType = (
+    "transaction",
+    "Generates a Tron transaction (include -h for more options)",
+    &[
+        option::CREATE_RAW_TRANSACTION_TRON,
+        option::SIGN_RAW_TRANSACTION_TRON,
+        option::TRANSACTION_NETWORK_TRON,
     ],
     &[
         AppSettings::ColoredHelp,

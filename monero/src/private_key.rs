@@ -8,7 +8,7 @@ use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 use curve25519_dalek::scalar::Scalar;
 use hex;
 use rand::Rng;
-use tiny_keccak::keccak256;
+use tiny_keccak::{Hasher, Keccak};
 
 /// Represents a Monero private key
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -62,9 +62,14 @@ impl<N: MoneroNetwork> MoneroPrivateKey<N> {
             _ => *format,
         };
 
+        let mut view_key_hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&spend_key);
+        keccak.finalize(&mut view_key_hash);
+
         Ok(Self {
             spend_key,
-            view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+            view_key: Scalar::from_bytes_mod_order(view_key_hash).to_bytes(),
             format,
             _network: PhantomData,
         })
@@ -85,9 +90,14 @@ impl<N: MoneroNetwork> MoneroPrivateKey<N> {
             _ => *format,
         };
 
+        let mut view_key_hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&spend_key);
+        keccak.finalize(&mut view_key_hash);
+
         Ok(Self {
             spend_key,
-            view_key: Scalar::from_bytes_mod_order(keccak256(&spend_key)).to_bytes(),
+            view_key: Scalar::from_bytes_mod_order(view_key_hash).to_bytes(),
             format,
             _network: PhantomData,
         })
@@ -103,7 +113,11 @@ impl<N: MoneroNetwork> MoneroPrivateKey<N> {
             derivation.extend(&major.to_le_bytes());
             derivation.extend(&minor.to_le_bytes());
 
-            Scalar::from_bytes_mod_order(keccak256(&derivation)).to_bytes()
+            let mut hash = [0u8; 32];
+            let mut keccak = Keccak::v256();
+            keccak.update(&derivation);
+            keccak.finalize(&mut hash);
+            Scalar::from_bytes_mod_order(hash).to_bytes()
         }
     }
 
@@ -119,7 +133,7 @@ impl<N: MoneroNetwork> MoneroPrivateKey<N> {
 
     /// Returns the format of the Monero address.
     pub fn format(&self) -> MoneroFormat {
-        self.format.clone()
+        self.format
     }
 }
 

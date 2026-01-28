@@ -16,14 +16,14 @@ use wagyu_model::no_std::{
 use wagyu_model::{crypto::checksum, Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
 
 use base58::{FromBase58, ToBase58};
-use bech32::{Bech32, FromBase32, ToBase32};
+use bech32::{FromBase32, ToBase32, Variant};
 use core::{
     cmp::{Eq, PartialEq},
     fmt::{self, Debug, Display},
     marker::PhantomData,
     str::FromStr,
 };
-use failure::AsFail;
+
 use rand::Rng;
 use secp256k1;
 
@@ -154,12 +154,12 @@ impl<N: ZcashNetwork> SaplingSpendingKey<N> {
         let mut ask_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
         ask_repr.read_le(&mut reader)?;
         let ask = <Bls12 as JubjubEngine>::Fs::from_repr(ask_repr)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.as_fail().to_string()))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
 
         let mut nsk_repr = <<Bls12 as JubjubEngine>::Fs as PrimeField>::Repr::default();
         nsk_repr.read_le(&mut reader)?;
         let nsk = <Bls12 as JubjubEngine>::Fs::from_repr(nsk_repr)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.as_fail().to_string()))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
 
         let mut ovk = [0; 32];
         reader.read_exact(&mut ovk)?;
@@ -203,8 +203,12 @@ impl<N: ZcashNetwork> Debug for SaplingSpendingKey<N> {
 impl<N: ZcashNetwork> Display for SaplingSpendingKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(spending_key) = self.spending_key {
-            match Bech32::new(N::to_sapling_spending_key_prefix(), spending_key.to_base32()) {
-                Ok(key) => write!(f, "{}", key.to_string())?,
+            match bech32::encode(
+                &N::to_sapling_spending_key_prefix(),
+                spending_key.to_base32(),
+                Variant::Bech32,
+            ) {
+                Ok(key) => write!(f, "{}", key)?,
                 Err(_) => return Err(fmt::Error),
             }
         } else {
@@ -360,7 +364,7 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let b58 = s.from_base58();
         let hex = hex::decode(s);
-        let b32 = Bech32::from_str(s);
+        let b32 = bech32::decode(s);
 
         if b58.is_ok() && hex.is_err() && b32.is_err() {
             let data = b58?;
@@ -394,9 +398,8 @@ impl<N: ZcashNetwork> FromStr for ZcashPrivateKey<N> {
 
         // Sapling spending key
         if b58.is_err() && b32.is_ok() {
-            let key = b32?;
-            let prefix = key.hrp();
-            let spending_key: Vec<u8> = FromBase32::from_base32(key.data())?;
+            let (prefix, data, _variant) = b32?;
+            let spending_key: Vec<u8> = FromBase32::from_base32(&data)?;
 
             if prefix == N::to_sapling_spending_key_prefix() {
                 let mut key = [0u8; 32];

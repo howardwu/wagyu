@@ -11,7 +11,7 @@ use wagyu_model::{
 };
 
 use core::{fmt, marker::PhantomData, str, str::FromStr};
-use crc::{crc32, Hasher32};
+use crc::{Crc, CRC_32_ISO_HDLC};
 use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
 
@@ -77,7 +77,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
         }
 
         // Verify the checksum
-        let expected_checksum = Self::checksum_word(&phrase.into());
+        let expected_checksum = Self::checksum_word(&phrase);
         if W::to_trimmed(&expected_checksum) != W::to_trimmed(&checksum) {
             let expected = W::to_trimmed(&expected_checksum);
             let found = W::to_trimmed(&checksum);
@@ -130,7 +130,7 @@ impl<N: MoneroNetwork, W: MoneroWordlist> Mnemonic for MoneroMnemonic<N, W> {
     /// Returns the private key of the corresponding mnemonic.
     fn to_private_key(&self, _: Option<&str>) -> Result<Self::PrivateKey, MnemonicError> {
         Ok(MoneroPrivateKey::from_seed(
-            hex::encode(&self.seed).as_str(),
+            hex::encode(self.seed).as_str(),
             &MoneroFormat::Standard,
         )?)
     }
@@ -162,12 +162,12 @@ impl<N: MoneroNetwork, W: MoneroWordlist> MoneroMnemonic<N, W> {
     }
 
     /// Returns the checksum word for a given phrase.
-    fn checksum_word(phrase: &Vec<String>) -> String {
+    fn checksum_word(phrase: &[String]) -> String {
         let phrase_trimmed = phrase.iter().map(|word| W::to_trimmed(word)).collect::<Vec<String>>();
 
-        let mut digest = crc32::Digest::new(crc32::IEEE);
-        digest.write(phrase_trimmed.concat().as_bytes());
-        phrase[(digest.sum32() % phrase.len() as u32) as usize].clone()
+        let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
+        let checksum = crc.checksum(phrase_trimmed.concat().as_bytes());
+        phrase[(checksum % phrase.len() as u32) as usize].clone()
     }
 }
 

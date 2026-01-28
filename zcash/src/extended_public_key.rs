@@ -10,7 +10,7 @@ use wagyu_model::{
     Address, AddressError, ChildIndex, DerivationPath, DerivationPathError, ExtendedPublicKey, ExtendedPublicKeyError,
 };
 
-use bech32::{Bech32, FromBase32, ToBase32};
+use bech32::{FromBase32, ToBase32, Variant};
 use core::{cmp::Ordering, fmt, fmt::Display, str::FromStr};
 
 /// Represents a Zcash extended public key
@@ -78,11 +78,11 @@ impl<N: ZcashNetwork> FromStr for ZcashExtendedPublicKey<N> {
     type Err = ExtendedPublicKeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bech32 = Bech32::from_str(s)?;
+        let (hrp, data, _variant) = bech32::decode(s)?;
         // Check that the network prefix is correct
-        let _ = N::from_extended_public_key_prefix(bech32.hrp())?;
+        let _ = N::from_extended_public_key_prefix(&hrp)?;
 
-        let data: Vec<u8> = FromBase32::from_base32(bech32.data())?;
+        let data: Vec<u8> = FromBase32::from_base32(&data)?;
         match ExtendedFullViewingKey::read(data.as_slice()) {
             Ok(extended_full_viewing_key) => Ok(Self {
                 extended_full_viewing_key,
@@ -99,7 +99,7 @@ impl<N: ZcashNetwork> Display for ZcashExtendedPublicKey<N> {
             Ok(_) => (),
             Err(_) => return Err(fmt::Error),
         };
-        match Bech32::new(N::to_extended_public_key_prefix(), data.to_base32()) {
+        match bech32::encode(&N::to_extended_public_key_prefix(), data.to_base32(), Variant::Bech32) {
             Ok(key) => write!(f, "{}", key),
             _ => Err(fmt::Error),
         }

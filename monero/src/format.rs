@@ -32,8 +32,8 @@ impl MoneroFormat {
                 data.copy_from_slice(&address[65..73]);
                 Ok(MoneroFormat::Integrated(data))
             }
-            42 | 36 | 63 => Ok(MoneroFormat::Subaddress(u32::max_value(), u32::max_value())),
-            _ => return Err(AddressError::InvalidPrefix(vec![address[0]])),
+            42 | 36 | 63 => Ok(MoneroFormat::Subaddress(u32::MAX, u32::MAX)),
+            _ => Err(AddressError::InvalidPrefix(vec![address[0]])),
         }
     }
 }

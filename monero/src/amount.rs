@@ -1,11 +1,10 @@
-use wagyu_model::no_std::ToString;
 use wagyu_model::Amount;
 
 use core::fmt;
 use serde::Serialize;
 
 // Number of piconeros (base unit) per Monero
-const COIN: i128 = 1_0000_0000_000;
+const COIN: i128 = 1_000_000_000_000;
 
 /// Represents the amount of Monero in piconeros
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -104,10 +103,12 @@ impl MoneroAmount {
         Self::from_piconero(piconeros)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, b: Self) -> Self {
         Self::from_piconero(self.0 + b.0)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, b: Self) -> Self {
         Self::from_piconero(self.0 - b.0)
     }
@@ -115,7 +116,7 @@ impl MoneroAmount {
 
 impl fmt::Display for MoneroAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_string())
+        write!(f, "{}", self.0)
     }
 }
 

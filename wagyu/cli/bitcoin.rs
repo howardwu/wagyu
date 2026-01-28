@@ -103,8 +103,8 @@ impl BitcoinWallet {
         password: &Option<&str>,
         path: &str,
     ) -> Result<Self, CLIError> {
-        let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(&mnemonic)?;
-        let master_extended_private_key = mnemonic.to_extended_private_key(password.clone())?;
+        let mnemonic = BitcoinMnemonic::<N, W>::from_phrase(mnemonic)?;
+        let master_extended_private_key = mnemonic.to_extended_private_key(*password)?;
         let derivation_path = BitcoinDerivationPath::from_str(path)?;
         let extended_private_key = master_extended_private_key.derive(&derivation_path)?;
         let extended_public_key = extended_private_key.to_extended_public_key();
@@ -134,7 +134,7 @@ impl BitcoinWallet {
     ) -> Result<Self, CLIError> {
         let mut extended_private_key = BitcoinExtendedPrivateKey::<N>::from_str(extended_private_key)?;
         if let Some(derivation_path) = path {
-            let derivation_path = BitcoinDerivationPath::from_str(&derivation_path)?;
+            let derivation_path = BitcoinDerivationPath::from_str(derivation_path)?;
             extended_private_key = extended_private_key.derive(&derivation_path)?;
         }
         let extended_public_key = extended_private_key.to_extended_public_key();
@@ -162,7 +162,7 @@ impl BitcoinWallet {
     ) -> Result<Self, CLIError> {
         let mut extended_public_key = BitcoinExtendedPublicKey::<N>::from_str(extended_public_key)?;
         if let Some(derivation_path) = path {
-            let derivation_path = BitcoinDerivationPath::from_str(&derivation_path)?;
+            let derivation_path = BitcoinDerivationPath::from_str(derivation_path)?;
             extended_public_key = extended_public_key.derive(&derivation_path)?;
         }
         let public_key = extended_public_key.to_public_key();
@@ -273,44 +273,41 @@ impl BitcoinWallet {
         let mut transaction = BitcoinTransaction::<N>::from_transaction_bytes(&hex::decode(transaction_hex)?)?;
 
         for input in inputs {
-            match (input.amount.clone(), input.address.clone(), input.private_key.clone()) {
-                (Some(amount), Some(address), Some(private_key)) => {
-                    let private_key = BitcoinPrivateKey::<N>::from_str(&private_key)?;
-                    let address = BitcoinAddress::<N>::from_str(&address)?;
+            if let (Some(amount), Some(address), Some(private_key)) = (input.amount, input.address.clone(), input.private_key.clone()) {
+                let private_key = BitcoinPrivateKey::<N>::from_str(&private_key)?;
+                let address = BitcoinAddress::<N>::from_str(&address)?;
 
-                    let redeem_script = match (input.redeem_script.clone(), address.format()) {
-                        (Some(script), _) => Some(hex::decode(script)?),
-                        (None, BitcoinFormat::P2SH_P2WPKH) => {
-                            let mut redeem_script = vec![0x00, 0x14];
-                            redeem_script.extend(&hash160(
-                                &private_key.to_public_key().to_secp256k1_public_key().serialize(),
-                            ));
-                            Some(redeem_script)
-                        }
-                        (None, _) => None,
-                    };
+                let redeem_script = match (input.redeem_script.clone(), address.format()) {
+                    (Some(script), _) => Some(hex::decode(script)?),
+                    (None, BitcoinFormat::P2SH_P2WPKH) => {
+                        let mut redeem_script = vec![0x00, 0x14];
+                        redeem_script.extend(&hash160(
+                            &private_key.to_public_key().to_secp256k1_public_key().serialize(),
+                        ));
+                        Some(redeem_script)
+                    }
+                    (None, _) => None,
+                };
 
-                    let script_pub_key = match &input.script_pub_key {
-                        Some(script) => Some(hex::decode(script)?),
-                        None => None,
-                    };
+                let script_pub_key = match &input.script_pub_key {
+                    Some(script) => Some(hex::decode(script)?),
+                    None => None,
+                };
 
-                    let mut reverse_transaction_id = hex::decode(&input.txid)?;
-                    reverse_transaction_id.reverse();
+                let mut reverse_transaction_id = hex::decode(&input.txid)?;
+                reverse_transaction_id.reverse();
 
-                    let outpoint = Outpoint::<N>::new(
-                        reverse_transaction_id,
-                        input.vout,
-                        Some(address),
-                        Some(BitcoinAmount::from_satoshi(amount as i64)?),
-                        redeem_script,
-                        script_pub_key,
-                    )?;
+                let outpoint = Outpoint::<N>::new(
+                    reverse_transaction_id,
+                    input.vout,
+                    Some(address),
+                    Some(BitcoinAmount::from_satoshi(amount as i64)?),
+                    redeem_script,
+                    script_pub_key,
+                )?;
 
-                    transaction = transaction.update_outpoint(outpoint);
-                    transaction = transaction.sign(&private_key)?;
-                }
-                _ => {}
+                transaction = transaction.update_outpoint(outpoint);
+                transaction = transaction.sign(&private_key)?;
             }
         }
 
@@ -781,14 +778,14 @@ impl CLI for BitcoinCLI {
     fn print(options: Self::Options) -> Result<(), CLIError> {
         fn output<N: BitcoinNetwork, W: BitcoinWordlist>(options: BitcoinOptions) -> Result<(), CLIError> {
             let wallets =
-                match options.subcommand.as_ref().map(String::as_str) {
+                match options.subcommand.as_deref() {
                     Some("hd") => match options.to_derivation_path(true) {
                         Some(path) => (0..options.count)
                             .flat_map(|_| {
                                 match BitcoinWallet::new_hd::<N, W, _>(
                                     &mut StdRng::from_entropy(),
                                     options.word_count,
-                                    options.password.as_ref().map(String::as_str),
+                                    options.password.as_deref(),
                                     &path,
                                 ) {
                                     Ok(wallet) => vec![wallet],
@@ -816,7 +813,7 @@ impl CLI for BitcoinCLI {
                     }
                     Some("import-hd") => {
                         if let Some(mnemonic) = options.mnemonic.clone() {
-                            let password = &options.password.as_ref().map(String::as_str);
+                            let password = &options.password.as_deref();
 
                             match options.to_derivation_path(true) {
                                 Some(path) => vec![BitcoinWallet::from_mnemonic::<N, ChineseSimplified>(

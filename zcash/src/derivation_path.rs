@@ -38,7 +38,7 @@ impl<N: ZcashNetwork> DerivationPath for ZcashDerivationPath<N> {
     }
 
     /// Returns a derivation path given the child index vector.
-    fn from_vec(path: &Vec<ChildIndex>) -> Result<Self, DerivationPathError> {
+    fn from_vec(path: &[ChildIndex]) -> Result<Self, DerivationPathError> {
         if path.len() == 3 && path[0] == N::HD_PURPOSE && path[1] == N::HD_COIN_TYPE && path[2].is_hardened() {
             // Path length 3 - Sapling ZIP32
             Ok(ZcashDerivationPath::ZIP32Sapling(path[2]))

@@ -15,7 +15,7 @@ use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
 
-const PBKDF2_ROUNDS: usize = 2048;
+const PBKDF2_ROUNDS: u32 = 2048;
 const PBKDF2_BYTES: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -80,18 +80,18 @@ impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W
             wc => return Err(MnemonicError::InvalidWordCount(wc as u8)),
         };
 
-        let mut entropy: BitVec<Msb0, u8> = BitVec::new();
+        let mut entropy: BitVec<u8, Msb0> = BitVec::new();
 
         for word in mnemonic {
             let index = W::get_index(word)?;
             let index_u8: [u8; 2] = (index as u16).to_be_bytes();
             let index_slice = &BitVec::from_slice(&index_u8)[5..];
 
-            entropy.append(&mut BitVec::<Msb0, u8>::from_bitslice(index_slice));
+            entropy.append(&mut BitVec::<u8, Msb0>::from_bitslice(index_slice));
         }
 
         let mnemonic = Self {
-            entropy: entropy[..length].as_slice().to_vec(),
+            entropy: entropy[..length].to_bitvec().into_vec(),
             _network: PhantomData,
             _wordlist: PhantomData,
         };
@@ -116,15 +116,15 @@ impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W
 
         // Compute the checksum by taking the first ENT / 32 bits of the SHA256 hash
         let mut sha256 = Sha256::new();
-        sha256.input(self.entropy.as_slice());
+        sha256.update(self.entropy.as_slice());
 
-        let hash = sha256.result();
-        let hash_0 = BitVec::<Msb0, u8>::from_element(hash[0]);
+        let hash = sha256.finalize();
+        let hash_0 = BitVec::<u8, Msb0>::from_element(hash[0]);
         let (checksum, _) = hash_0.split_at(length.div(3) as usize);
 
         // Convert the entropy bytes into bits and append the checksum
-        let mut encoding = BitVec::<Msb0, u8>::from_vec(self.entropy.clone());
-        encoding.append(&mut checksum.to_vec());
+        let mut encoding = BitVec::<u8, Msb0>::from_vec(self.entropy.clone());
+        encoding.append(&mut checksum.to_bitvec());
 
         // Compute the phrase in 11 bit chunks which encode an index into the word list
         let wordlist = W::get_all();
@@ -135,7 +135,7 @@ impl<N: EthereumNetwork, W: EthereumWordlist> Mnemonic for EthereumMnemonic<N, W
                 let index = index
                     .iter()
                     .enumerate()
-                    .map(|(i, &bit)| (bit as u16) * 2u16.pow(10 - i as u32))
+                    .map(|(i, bit)| (*bit as u16) * 2u16.pow(10 - i as u32))
                     .sum::<u16>();
 
                 wordlist[index as usize]
@@ -189,7 +189,7 @@ impl<N: EthereumNetwork, W: EthereumWordlist> EthereumMnemonic<N, W> {
     fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
         let mut seed = vec![0u8; PBKDF2_BYTES];
         let salt = format!("mnemonic{}", password.unwrap_or(""));
-        pbkdf2::<Hmac<Sha512>>(&self.to_phrase()?.as_bytes(), salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
+        let _ = pbkdf2::<Hmac<Sha512>>(self.to_phrase()?.as_bytes(), salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
         Ok(seed)
     }
 }

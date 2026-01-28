@@ -11,7 +11,7 @@ use wagyu_model::{
 };
 
 use base58::{FromBase58, ToBase58};
-use bech32::{Bech32, FromBase32, ToBase32};
+use bech32::{FromBase32, ToBase32, Variant};
 use core::{convert::TryFrom, fmt, marker::PhantomData, str, str::FromStr};
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::scalar::Scalar;
@@ -129,7 +129,11 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
         let prefix = N::to_address_prefix(&format);
 
         Ok(Self {
-            address: Bech32::new(String::from(str::from_utf8(&prefix)?), checked_data.to_base32())?.to_string(),
+            address: bech32::encode(
+                String::from(str::from_utf8(&prefix)?),
+                checked_data.to_base32(),
+                Variant::Bech32,
+            )?,
             format: ZcashFormat::Sapling(Some(diversifier)),
             _network: PhantomData,
         })
@@ -146,8 +150,8 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
 
     /// Returns the diversifier of a specified Zcash Sapling address.
     pub fn get_diversifier(address: &str) -> Result<[u8; 11], AddressError> {
-        let address = Bech32::from_str(address)?;
-        let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
+        let (_hrp, data, _variant) = bech32::decode(address)?;
+        let buffer: Vec<u8> = FromBase32::from_base32(&data)?;
         let mut diversifier = [0u8; 11];
         diversifier.copy_from_slice(&buffer[0..11]);
         Ok(diversifier)
@@ -155,8 +159,8 @@ impl<N: ZcashNetwork> ZcashAddress<N> {
 
     /// Returns the diversified transmission key of the Zcash Sapling address.
     pub fn to_diversified_transmission_key(&self) -> Result<[u8; 32], AddressError> {
-        let address = Bech32::from_str(&self.address)?;
-        let buffer: Vec<u8> = FromBase32::from_base32(address.data())?;
+        let (_hrp, data, _variant) = bech32::decode(&self.address)?;
+        let buffer: Vec<u8> = FromBase32::from_base32(&data)?;
         let mut pk_d = [0u8; 32];
         pk_d.copy_from_slice(&buffer[11..43]);
         Ok(pk_d)

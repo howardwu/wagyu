@@ -15,7 +15,7 @@ use wagyu_model::no_std::{
 use wagyu_model::{crypto::checksum, Address, AddressError, PublicKey, PublicKeyError};
 
 use base58::{FromBase58, ToBase58};
-use bech32::{Bech32, FromBase32, ToBase32};
+use bech32::{FromBase32, ToBase32, Variant};
 use core::{
     cmp::{Eq, PartialEq},
     fmt::{self, Display},
@@ -258,9 +258,8 @@ impl<N: ZcashNetwork> FromStr for ZcashPublicKey<N> {
                 Ok(ZcashPublicKey::<N>::Sprout(SproutViewingKey { key_a, key_b }))
             }
             167 | 177 => {
-                let key = Bech32::from_str(public_key)?;
-                let prefix = key.hrp();
-                let viewing_key: Vec<u8> = FromBase32::from_base32(key.data())?;
+                let (prefix, data, _variant) = bech32::decode(public_key)?;
+                let viewing_key: Vec<u8> = FromBase32::from_base32(&data)?;
 
                 if prefix == N::to_sapling_viewing_key_prefix() {
                     let mut key = [0u8; 96];
@@ -306,8 +305,8 @@ impl<N: ZcashNetwork> Display for ZcashPublicKey<N> {
             }
             ZcashPublicKey::<N>::Sapling(sapling) => {
                 let key = sapling.to_bytes().to_vec();
-                match Bech32::new(N::to_sapling_viewing_key_prefix(), key.to_base32()) {
-                    Ok(key) => write!(f, "{}", key.to_string())?,
+                match bech32::encode(&N::to_sapling_viewing_key_prefix(), key.to_base32(), Variant::Bech32) {
+                    Ok(key) => write!(f, "{}", key)?,
                     Err(_) => return Err(fmt::Error),
                 }
             }
